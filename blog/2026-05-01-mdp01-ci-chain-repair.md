@@ -6,6 +6,8 @@ type: phase-update
 entry_type: note
 subtype: diary
 projects: [casehub-parent]
+tags: [ci-cd, github-actions, cross-repo, debugging]
+excerpt: "The cross-repo dispatch never fired because GITHUB_TOKEN is scoped to the repo where the workflow runs — six repos needed a PAT, and the CI UI was showing success for failed steps because continue-on-error hides step outcomes at the job level."
 ---
 
 The CaseHub build chain has been broken since the repo renames. Not broken in an obvious way — each repo's CI was green on its own, but the cross-repo dispatch never fired. Work, qhorus, and claudony were red because ledger and connectors artifacts weren't being published when upstream changed.

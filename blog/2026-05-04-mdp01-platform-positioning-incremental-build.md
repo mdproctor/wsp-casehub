@@ -6,6 +6,8 @@ type: phase-update
 entry_type: note
 subtype: diary
 projects: [casehub-parent]
+tags: [ci-cd, strategy, positioning, incremental-build, aml]
+excerpt: "Scoring ten use-case candidates across separate market-fit and community-fit tables reveals AML as the strongest entry point — Java is banking, banking is compliance infrastructure, and developers have built transaction monitoring before."
 ---
 
 Two days of work, two completely different kinds of thinking. One thread was technical infrastructure — finishing what we started. The other was strategic positioning: where does CaseHub fit, and how do we explain it?
