@@ -1,0 +1,14 @@
+# Child workspace repos — each has its own git history
+/claudony
+/connectors
+/devtown
+/engine
+/flow
+/ledger
+/parent
+/qhorus
+/work
+
+# OS / editor noise
+.DS_Store
+*.swp
