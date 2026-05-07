@@ -2,129 +2,134 @@
 
 **Status:** Parked — resume after git history cleanup  
 **Scope:** All casehubio repos  
-**Prerequisite:** Git history squash/cleanup complete on affected repos (ledger is mid-squash-branch)
+**Prerequisite:** Git history squash/cleanup complete on affected repos
 
 ---
 
 ## The Standard
 
+Follows Quarkus extension convention:
+
 | Dimension | Rule |
 |-----------|------|
 | groupId | `io.casehub` for all repos |
 | Root pom artifactId | `casehub-{repo}-parent` (multi-module) |
-| Submodule artifactId | `casehub-{repo}-{function}` |
-| Runtime artifact | `casehub-{repo}` (no function suffix) |
-| Folder name | Must match artifactId exactly |
+| Submodule artifactId | `casehub-{repo}-{function}` — fully qualified |
+| Folder name | Short descriptive name — **no repo prefix needed**, the repo provides the context |
 | Java package root | `io.casehub.{repo}` |
+
+**Role module folder names** (always short, every extension has them):
+`api`, `runtime`, `deployment`, `testing`, `examples`, `integration-tests`
+
+**Capability module folder names** (short, no prefix):
+`queues`, `ai`, `ledger`, `notifications`, `blackboard`, `persistence-hibernate`, etc.
+
+The artifactId carries the full qualified name (`casehub-work-queues`). The folder doesn't need to.
+
+---
+
+## Already Correct
+
+**ledger** — `api`, `runtime`, `deployment`, `examples` ✓  
+**qhorus** — `api`, `runtime`, `deployment`, `testing`, `examples` ✓ (plus stale `casehub-assisteddev` dir to remove)
 
 ---
 
 ## Deviations
 
-### 1. Folder names don't match artifactId — generic names used
+### work — folders have redundant `casehub-work-` prefix
 
-These repos use short generic folder names (`api`, `runtime`, `deployment`, `testing`, `examples`) that hide the full artifact identity. Folder should equal artifactId.
+| Current folder | Should be |
+|----------------|-----------|
+| `casehub-work-api` | `api` |
+| `casehub-work-core` | `core` |
+| `casehub-work-ai` | `ai` |
+| `casehub-work-ledger` | `ledger` |
+| `casehub-work-notifications` | `notifications` |
+| `casehub-work-queues` | `queues` |
+| `casehub-work-queues-dashboard` | `queues-dashboard` |
+| `casehub-work-queues-examples` | `queues-examples` |
+| `casehub-work-postgres-broadcaster` | `postgres-broadcaster` |
+| `casehub-work-queues-postgres-broadcaster` | `queues-postgres-broadcaster` |
+| `casehub-work-persistence-mongodb` | `persistence-mongodb` |
+| `casehub-work-reports` | `reports` |
+| `casehub-work-examples` | `examples` |
+| `casehub-work-flow-examples` | `flow-examples` |
+| `casehub-work-issue-tracker` | `issue-tracker` |
+| `work-flow` | `flow` |
 
-| Repo | Folder → ArtifactId (current) | Folder should be |
-|------|-------------------------------|-----------------|
-| ledger | `api` → `casehub-ledger-api` | `casehub-ledger-api` |
-| ledger | `runtime` → `casehub-ledger` | `casehub-ledger` |
-| ledger | `deployment` → `casehub-ledger-deployment` | `casehub-ledger-deployment` |
-| qhorus | `api` → `casehub-qhorus-api` | `casehub-qhorus-api` |
-| qhorus | `runtime` → `casehub-qhorus` | `casehub-qhorus` |
-| qhorus | `deployment` → `casehub-qhorus-deployment` | `casehub-qhorus-deployment` |
-| qhorus | `testing` → `casehub-qhorus-testing` | `casehub-qhorus-testing` |
-| qhorus | `examples` → `casehub-qhorus-examples` | `casehub-qhorus-examples` |
-| work | `runtime` → `casehub-work` | `casehub-work` |
-| work | `deployment` → `casehub-work-deployment` | `casehub-work-deployment` |
-| work | `testing` → `casehub-work-testing` | `casehub-work-testing` |
-| work | `work-flow` → `casehub-work-flow` | `casehub-work-flow` |
-| work | `integration-tests` → `casehub-work-integration-tests` | `casehub-work-integration-tests` |
-| engine | `api` → `casehub-engine-api` | `casehub-engine-api` |
-| engine | `codegen` → `casehub-engine-codegen` | `casehub-engine-codegen` |
-| engine | `schema` → `casehub-engine-schema` | `casehub-engine-schema` |
-| engine | `engine` → `casehub-engine` | `casehub-engine` |
-| engine | `scheduler-quartz` → `casehub-engine-scheduler-quartz` | `casehub-engine-scheduler-quartz` |
+### engine — folders have inconsistent `casehub-` prefix, plus `engine` folder is ambiguous
 
-**Fix:** `git mv` folder, update `<module>` in parent pom.xml. No Java changes needed.
+| Current folder | Should be |
+|----------------|-----------|
+| `casehub-blackboard` | `blackboard` |
+| `casehub-engine-common` | `common` |
+| `casehub-ledger` | `ledger` *(note: currently clashes visually with the ledger repo)* |
+| `casehub-persistence-memory` | `persistence-memory` |
+| `casehub-persistence-hibernate` | `persistence-hibernate` |
+| `casehub-resilience` | `resilience` |
+| `casehub-testing` | `testing` |
+| `casehub-work-adapter` | `work-adapter` |
+| `engine` | `runtime` *(ambiguous — same as repo name)* |
 
----
+Short names that are already correct: `api`, `codegen`, `schema`, `scheduler-quartz`
 
-### 2. Engine folders have `casehub-` prefix but missing `-engine-`
+### connectors — folders have redundant `connectors-` prefix
 
-These engine submodules use `casehub-{thing}` instead of `casehub-engine-{thing}`, creating ambiguity with top-level repos.
+| Current folder | Should be |
+|----------------|-----------|
+| `connectors-core` | `core` |
+| `connectors-email` | `email` |
 
-| Folder (current) | ArtifactId | Folder should be |
-|-----------------|-----------|-----------------|
-| `casehub-persistence-memory` | `casehub-engine-persistence-memory` | `casehub-engine-persistence-memory` |
-| `casehub-persistence-hibernate` | `casehub-engine-persistence-hibernate` | `casehub-engine-persistence-hibernate` |
-| `casehub-blackboard` | `casehub-engine-blackboard` | `casehub-engine-blackboard` |
-| `casehub-resilience` | `casehub-engine-resilience` | `casehub-engine-resilience` |
-| `casehub-ledger` | `casehub-engine-ledger` | `casehub-engine-ledger` |
-| `casehub-testing` | `casehub-engine-testing` | `casehub-engine-testing` |
-| `casehub-work-adapter` | `casehub-engine-work-adapter` | `casehub-engine-work-adapter` |
+### claudony — folders have redundant `claudony-` prefix
 
-**Fix:** `git mv` + pom.xml `<module>` update. Note: `casehub-ledger` folder name currently clashes visually with the `casehub-ledger` repo — high priority.
+| Current folder | Should be |
+|----------------|-----------|
+| `claudony-core` | `core` |
+| `claudony-casehub` | `casehub` |
+| `claudony-app` | `app` |
 
----
+### devtown — folders have redundant `devtown-` prefix (easy — no published artifacts)
 
-### 3. Connectors folders missing `casehub-` prefix
+| Current folder | Should be |
+|----------------|-----------|
+| `devtown-domain` | `domain` |
+| `devtown-review` | `review` |
+| `devtown-queue` | `queue` |
+| `devtown-github` | `github` |
+| `devtown-app` | `app` |
 
-| Folder (current) | ArtifactId | Folder should be |
-|-----------------|-----------|-----------------|
-| `connectors-core` | `casehub-connectors` | `casehub-connectors` |
-| `connectors-email` | `casehub-connectors-email` | `casehub-connectors-email` |
+Root pom artifactId: `casehub-devtown` → `casehub-devtown-parent`
 
-**Fix:** `git mv` + pom.xml update.
+### qhorus — stale directory
 
----
-
-### 4. Devtown submodules missing `casehub-devtown-` prefix
-
-| Folder (current) | ArtifactId (current) | Should be |
-|-----------------|---------------------|-----------|
-| `devtown-domain` | `devtown-domain` | `casehub-devtown-domain` |
-| `devtown-review` | `devtown-review` | `casehub-devtown-review` |
-| `devtown-queue` | `devtown-queue` | `casehub-devtown-queue` |
-| `devtown-github` | `devtown-github` | `casehub-devtown-github` |
-| `devtown-app` | `devtown-app` | `casehub-devtown-app` |
-
-Root pom: `casehub-devtown` → `casehub-devtown-parent`
-
-**Fix:** `git mv` + pom.xml update. Low risk — no published artifacts yet.
+Remove `casehub-assisteddev/` (leftover from before devtown rename).
 
 ---
 
-### 5. Claudony groupId, artifactId, and packages (biggest change)
+## The One Bigger Change — Claudony groupId and packages
 
-Claudony started as `remotecc` (pre-casehubio), became `claudony`, and was never migrated to platform conventions when joining casehubio. There is no design rationale for `dev.claudony` — it is historical accident.
+Claudony started as `remotecc` pre-casehubio, became `claudony`, and was never migrated. No design rationale exists for `dev.claudony`.
 
 | Dimension | Current | Should be |
 |-----------|---------|-----------|
 | groupId | `dev.claudony` | `io.casehub` |
 | Root artifactId | `claudony-parent` | `casehub-claudony-parent` |
-| `claudony-core` folder + artifact | same | `casehub-claudony-core` |
-| `claudony-casehub` folder + artifact | same | `casehub-claudony-casehub` |
-| `claudony-app` folder + artifact | same | `casehub-claudony-app` |
 | Java package | `dev.claudony.*` | `io.casehub.claudony.*` |
 
-**Fix:**
-1. Package rename `dev.claudony` → `io.casehub.claudony` **in IntelliJ** (Refactor → Move package) — handles all imports automatically
-2. `git mv` folders
-3. pom.xml groupId/artifactId edits
-4. Published artifact groupId changes — any consumers of `dev.claudony:*` must update
+**Fix for packages:** IntelliJ Refactor → Move Package on `dev.claudony` → `io.casehub.claudony`. Handles all imports automatically. **Do not use Find+Replace.**
 
 ---
 
-## Execution Order
+## Execution
 
-1. **Claudony** — highest impact, most changes, do in dedicated session with IntelliJ open
-2. **Engine** — folder renames only, no Java changes; do after git history cleanup
-3. **Ledger, qhorus, work, connectors** — folder renames only; batch in one session
-4. **Devtown** — low risk (no published artifacts); do alongside or after scaffold epic
+All folder renames are `git mv` + pom.xml `<module>` entry update. No Java changes needed except claudony.
 
-## Notes
+**Order:**
+1. **devtown** — no published artifacts, lowest risk; fix as part of Epic 1 scaffold
+2. **claudony** — package rename in IntelliJ first, then folder renames; dedicated session
+3. **work** — many renames but mechanical; batch in one session
+4. **engine** — same
+5. **connectors** — two renames, trivial
 
-- IntelliJ Refactor → Move handles all Java package/import changes atomically. Do not use Find+Replace for the Java side.
-- Folder renames (`git mv`) + pom.xml `<module>` updates are the rest of the work — bash + Edit tools.
-- The claudony package rename changes the published artifact coordinates. Any downstream that depends on `dev.claudony:claudony-*` will need updating — currently only `casehub-engine` (the engine-ledger module) might reference it, check before cutting the release.
+Ledger and qhorus need no folder changes.
