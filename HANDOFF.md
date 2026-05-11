@@ -1,43 +1,47 @@
-# HANDOFF — Doc Structure Consolidation
-2026-05-05
+# Handoff — Full Stack Build Fix and Claude Config
+2026-05-12
 
 ## What changed this session
 
-**ADR consolidation:** All casehub repos now have ADRs at `docs/adr/` only
-(MADR/Java convention). Duplicate and scattered locations deleted. Affected
-repos: claudony, engine, ledger, qhorus, work — all committed and pushed.
+**Full-stack platform build now passes.** `mvn install -f aggregator.xml` runs clean across all foundation repos. Four root causes fixed:
 
-**Spec consolidation:** All specs moved from `docs/superpowers/specs/` →
-`docs/specs/` across claudony, engine, ledger, qhorus, work — committed and
-pushed.
+1. `findBySubjectIdAndTimeRange` missing from `JpaWorkItemLedgerEntryRepository` (work#163), `MessageLedgerEntryRepository` + reactive variant (qhorus#143), and 4× test `NoOpLedgerEntryRepository` in engine (engine#242) — ledger SPI change not propagated
+2. `casehub-engine-common` missing serverlessworkflow deps needed by `WorkflowExecutor` interface (engine#242)
+3. `ClaudonyCaseChannelProvider` missing `postToChannel(CaseChannel, String, String, MessageType)` 4-arg overload
+4. Claudony MCP tool count assertion updated 59→60 (Qhorus added one tool)
 
-**casehub-poc → engine migration:** 3 ADRs and 9 specs migrated from
-casehub-poc to `engine/docs/adr/` and `engine/docs/specs/`. Engine ADR
-index now gap-free (0001–0008). 3 procedural specs (squash policy,
-reconstruction plan, parking note) left in casehub-poc only — excluded
-from engine via commit rewrite + force push on
-`feat/engine-229-provision-context-trigger`.
+All fixes pushed to mdproctor (origin) and casehubio (upstream) for work, qhorus, claudony. Engine fixes are on `main_proposal` branch — see message in conversation history for engine Claude.
 
-**Garden:** 4 entries submitted — git-mv-untracked, bash-cwd-drift,
-git-add-u-rename, sed-inline-patch (all in `tools/`).
+**New protocols added:**
+- `docs/protocols/ledger-spi-propagation.md` — checklist for propagating LedgerEntryRepository SPI changes across all downstream implementations (work, qhorus, engine test sources)
+- `docs/protocols/module-tier-structure.md` — three-tier rule (pure-Java SPI / core library / full extension) with refinement: SPI method signatures must not expose heavy external SDK types
 
-## Current CI state
+**Claude config:**
+- `~/.claude/design-implementation.md` — IntelliJ operation→tool table, config-architecture pointer
+- `~/.claude/prompt-snippets.md` — general session snippet (new); casehubio-specific in `docs/prompt-snippets.md`
+- `~/.claude/config-architecture.md` — canonical topic ownership map, refreshed daily by `update-claude-md`
+- `ide-tooling` skill created (cc-praxis) — single authoritative IntelliJ MCP guide
+- `update-claude-md` skill — Step 0 refreshes config-architecture.md daily from GitHub
+- All casehubio project CLAUDE.md files — Development Workflow section added (brainstorm/TDD/review hooks + living docs list)
+- PLATFORM.md restored (had been emptied twice), expanded with never-dogma language, dev session protocol pointer, protocols/ references
 
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
+**Workspaces:**
+- All 9 casehub repos now have workspaces at `~/claude/public/casehub/<repo>/`
+- Bidirectional `proj`/`wksp` symlinks in all repos
+- Session histories migrated; casehub-poc blogs moved to engine workspace
+- casehub-aml and casehub-clinical bootstrapped (epics, CLAUDE.md, HANDOFF.md, GitHub repos)
 
-Work ❌ — `BusinessHoursIntegrationTest.createWithClaimDeadlineBusinessHours` fails Friday evenings. Fix: `isBefore(before.plus(3, DAYS))` at line 82.
+## Immediate next actions
 
-Claudony ❌ — engine PR #224 added `UUID caseId` to `WorkerContextProvider.buildContext()`. Fix: update `ClaudonyWorkerContextProvider` signature to `buildContext(String workerId, UUID caseId, WorkRequest task)`.
+1. **Engine session** — merge `main_proposal` to casehubio/engine main (see handover message in this session)
+2. **Devtown** — Epic 2 complete (per devtown HANDOFF.md); Epic 3 next (PR review CasePlanModel)
+3. **parent#13** — Claude config restructuring (restructuring phase, not started)
 
-## Immediate next action
+## Key references
 
-Verify work and claudony fixes, then trigger `incremental-full-stack-build.yml`
-on `casehubio/parent` to confirm full chain green.
-
-## References
-
-| Item | Location |
-|---|---|
-| ADR convention | MADR — `docs/adr/` per repo |
-| Incremental build workflow | `.github/workflows/incremental-full-stack-build.yml` |
-| Previous handover | `git show HEAD~1:HANDOFF.md` |
+- Full-stack build: `mvn install -f aggregator.xml` from `~/claude/casehub/parent/`
+- Build fix issues: work#163, qhorus#143, engine#242
+- New protocols: `docs/protocols/ledger-spi-propagation.md`, `docs/protocols/module-tier-structure.md`
+- Config map: `~/.claude/config-architecture.md`
+- Prompt snippets: `~/.claude/prompt-snippets.md` (general), `docs/prompt-snippets.md` (casehubio)
+- Claude config epic: casehubio/parent#13
