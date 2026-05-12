@@ -1,47 +1,56 @@
-# Handoff — Full Stack Build Fix and Claude Config
+# Handoff — Naming Alignment and Protocol Work
 2026-05-12
 
 ## What changed this session
 
-**Full-stack platform build now passes.** `mvn install -f aggregator.xml` runs clean across all foundation repos. Four root causes fixed:
+**Full naming alignment across all repos — complete and pushed.**
 
-1. `findBySubjectIdAndTimeRange` missing from `JpaWorkItemLedgerEntryRepository` (work#163), `MessageLedgerEntryRepository` + reactive variant (qhorus#143), and 4× test `NoOpLedgerEntryRepository` in engine (engine#242) — ledger SPI change not propagated
-2. `casehub-engine-common` missing serverlessworkflow deps needed by `WorkflowExecutor` interface (engine#242)
-3. `ClaudonyCaseChannelProvider` missing `postToChannel(CaseChannel, String, String, MessageType)` 4-arg overload
-4. Claudony MCP tool count assertion updated 59→60 (Qhorus added one tool)
+All nine casehub repos now follow the platform convention (PP-20260508-5c0e4b):
+- groupId: `io.casehub` everywhere (claudony was `dev.claudony`)
+- Root artifactId: `casehub-{repo}-parent`
+- Module artifactIds: `casehub-{repo}-{function}`
+- Folder names: short, no repo prefix (`api/`, `runtime/`, `queues/` etc.)
+- Versions: all on `0.2-SNAPSHOT` (aml and clinical were on `0.1-SNAPSHOT`)
 
-All fixes pushed to mdproctor (origin) and casehubio (upstream) for work, qhorus, claudony. Engine fixes are on `main_proposal` branch — see message in conversation history for engine Claude.
+Repos changed: devtown, qhorus (stale submodule removed), work, engine, connectors, claudony, aml, clinical. Ledger and qhorus module folders were already correct.
 
-**New protocols added:**
-- `docs/protocols/ledger-spi-propagation.md` — checklist for propagating LedgerEntryRepository SPI changes across all downstream implementations (work, qhorus, engine test sources)
-- `docs/protocols/module-tier-structure.md` — three-tier rule (pure-Java SPI / core library / full extension) with refinement: SPI method signatures must not expose heavy external SDK types
+**Two consumers missed in connectors rename — caught and fixed:**
+- `casehub-work-notifications` and `casehub-devtown-app` referenced `casehub-connectors` (now `casehub-connectors-core`)
+- Fixed before push
 
-**Claude config:**
-- `~/.claude/design-implementation.md` — IntelliJ operation→tool table, config-architecture pointer
-- `~/.claude/prompt-snippets.md` — general session snippet (new); casehubio-specific in `docs/prompt-snippets.md`
-- `~/.claude/config-architecture.md` — canonical topic ownership map, refreshed daily by `update-claude-md`
-- `ide-tooling` skill created (cc-praxis) — single authoritative IntelliJ MCP guide
-- `update-claude-md` skill — Step 0 refreshes config-architecture.md daily from GitHub
-- All casehubio project CLAUDE.md files — Development Workflow section added (brainstorm/TDD/review hooks + living docs list)
-- PLATFORM.md restored (had been emptied twice), expanded with never-dogma language, dev session protocol pointer, protocols/ references
+**New protocols added to `docs/protocols/`:**
+- `maven-coordinate-standard.md` — full coordinate rules with verification checklist
+- `artifact-rename-propagation.md` — find all consumers before renaming, update same session
 
-**Workspaces:**
-- All 9 casehub repos now have workspaces at `~/claude/public/casehub/<repo>/`
-- Bidirectional `proj`/`wksp` symlinks in all repos
-- Session histories migrated; casehub-poc blogs moved to engine workspace
-- casehub-aml and casehub-clinical bootstrapped (epics, CLAUDE.md, HANDOFF.md, GitHub repos)
+**PLATFORM.md — Cross-Repo Dependency Map added:**
+- 25-row table mapping every cross-repo artifact dependency
+- Primary tool for impact analysis on future renames
+
+**cc-praxis skills added:**
+- `work-start` — mandatory pre-work checks (PLATFORM.md + Coherence Protocol, protocols, issue, IntelliJ)
+- `implementation-doc-sync` — session-scoped doc sweep after implementation
+
+**Prompt snippet finalised** (`docs/prompt-snippets.md`):
+```
+invoke work-start first. superpowers:brainstorming before designing. superpowers:test-driven-development before implementing. java-dev for all Java (loads testing-principles + ide-tooling). superpowers:requesting-code-review before committing. implementation-doc-sync after.
+[describe the issue]
+```
+
+**CLAUDE.md Development Workflow updated** — now lists java-dev, implementation-doc-sync, and prompt snippet reference.
 
 ## Immediate next actions
 
-1. **Engine session** — merge `main_proposal` to casehubio/engine main (see handover message in this session)
-2. **Devtown** — Epic 2 complete (per devtown HANDOFF.md); Epic 3 next (PR review CasePlanModel)
-3. **parent#13** — Claude config restructuring (restructuring phase, not started)
+1. **Devtown** — Epic 3: PR review CasePlanModel (was next before this session)
+2. **parent#13** — Claude config restructuring (partially addressed this session via prompt snippet + skills; issue may need updating or closing)
+3. **Clinical** — on `epic-adverse-event-escalation`; surefire LogManager fix is uncommitted there; leave to clinical Claude session
+4. **engine** — `main_proposal` branch can be cleaned up once treblereel has acknowledged the reconstruction
 
 ## Key references
 
-- Full-stack build: `mvn install -f aggregator.xml` from `~/claude/casehub/parent/`
-- Build fix issues: work#163, qhorus#143, engine#242
-- New protocols: `docs/protocols/ledger-spi-propagation.md`, `docs/protocols/module-tier-structure.md`
-- Config map: `~/.claude/config-architecture.md`
-- Prompt snippets: `~/.claude/prompt-snippets.md` (general), `docs/prompt-snippets.md` (casehubio)
-- Claude config epic: casehubio/parent#13
+- Naming convention protocol: `docs/protocols/maven-submodule-folder-naming.md`
+- Coordinate standard: `docs/protocols/maven-coordinate-standard.md`
+- Artifact rename propagation: `docs/protocols/artifact-rename-propagation.md`
+- Cross-repo dependency map: `docs/PLATFORM.md` (Cross-Repo Dependency Map section)
+- Work-item prompt snippet: `docs/prompt-snippets.md`
+- New skills: `~/.claude/skills/work-start/`, `~/.claude/skills/implementation-doc-sync/`
+- Blog: `blog/2026-05-12-mdp01-naming-alignment-and-propagation.md`
