@@ -50,60 +50,71 @@ This means:
 
 ## Problem 2 — LLM Cannot Reliably Know Which Repo CWD Belongs To
 
-**The core issue:** A session can be started from either the project directory or the workspace directory. Git operations (`git add`, `git commit`) act on the repo that contains CWD. If the LLM writes a plan file to the workspace path but CWD is the project, the `git add` either silently fails or stages into the wrong repo. The same applies in reverse — an ADR written to the project path when CWD is the workspace gets committed to the workspace repo.
+**The core issue:** A session can be started from either the project directory or the workspace directory. Claude has no reliable way to know which it is. Git operations (`git add`, `git commit`) act on the repo that contains CWD — so writing a plan to the workspace path and then running bare `git add` either silently fails or stages into the wrong repo. The same problem applies in reverse.
 
-The current `git rev-parse --show-toplevel` instruction in Git Discipline is necessary but not sufficient — knowing where you are doesn't automatically mean every subsequent git operation uses the right repo.
+The current `git rev-parse --show-toplevel` instruction in Git Discipline is necessary but not sufficient — it tells Claude where it is, but not automatically which path every subsequent operation should use.
 
-### Fix: Always use `git -C <absolute-path>` for every git operation
+### Fix A — Declare Physical Path and Symlink Path as Properties in CLAUDE.md
 
-The workspace CLAUDE.md template must establish two named paths at session start, and every git operation must reference them explicitly.
-
-**Add to the workspace CLAUDE.md template — Session Start section:**
+workspace-init already knows both paths at creation time. It should write them as explicit properties at the top of the workspace CLAUDE.md:
 
 ```markdown
-## Session Start
-
-Run `add-dir <PROJECT_PATH>` before any other work.
-
-At the start of every session, establish:
-- `PROJECT_REPO` = `<PROJECT_PATH>` (absolute path to project repo)
-- `WORKSPACE` = `<WORKSPACE_PATH>` (absolute path to workspace repo)
-
-All git operations must use explicit paths — never rely on CWD:
-- `git -C $PROJECT_REPO add <file>` — stage project repo changes
-- `git -C $WORKSPACE add <file>` — stage workspace changes
+**Physical path:** `/Users/mdproctor/claude/public/<project>/CLAUDE.md`
+**Symlinked at:** `/Users/mdproctor/claude/<project>/CLAUDE.md`
+**Project repo:** `/Users/mdproctor/claude/<project>`
+**Workspace:** `/Users/mdproctor/claude/public/<project>`
 ```
 
-**Add to the Git Discipline section:**
+**Why this works:** The workspace CLAUDE.md is always the physical file — it is the same content whether Claude loads it directly (workspace session) or via symlink (project session). By declaring both paths as properties, Claude knows both repos immediately at session load without running any shell command. The properties become a single source of truth that every other section references.
+
+**Parts of CLAUDE.md that benefit from referencing these properties:**
+
+| Section | How it uses the properties |
+|---------|---------------------------|
+| Session Start | `add-dir {{Project repo}}` — no ambiguity about which dir |
+| Git Discipline | `git -C {{Workspace}}` / `git -C {{Project repo}}` — explicit in all examples |
+| Blog directory | `{{Workspace}}/blog/` — derived, not hardcoded separately |
+| Routing table | Notes column can say "→ `{{Project repo}}/docs/adr/`" for clarity |
+| Any skill | Skills can `grep "^\*\*Workspace:\*\*"` from the loaded CLAUDE.md to resolve the path |
+
+**Skills that benefit from reading these properties:**
+- `adr` — reads `**Workspace:**` to know where to stage, `**Project repo:**` to know where to promote
+- `write-blog` — reads `**Workspace:**` for blog directory instead of separate `Blog directory:` field
+- `handover` — reads `**Workspace:**` to write HANDOFF.md to correct repo
+- `git-commit` / `java-git-commit` — reads both to use `git -C <path>` correctly
+- `epic` — already reads routing; can use these properties to resolve destination paths
+
+### Fix B — Always use `git -C <absolute-path>` for every git operation
+
+Every git operation in Git Discipline examples and skill instructions must use `git -C <path>` with the value from the declared properties. Never bare `git add/commit`.
+
+**Git Discipline section template:**
 
 ```markdown
 ## Git Discipline
 
 Two git repositories are active in every session:
-- **Workspace** (`<WORKSPACE_PATH>`) — plans, blog (staging), snapshots, handover
-- **Project repo** (`<PROJECT_PATH>`) — source code, ADRs, specs
+- **Workspace** (`{{Workspace}}`) — plans, blog (staging), snapshots, handover
+- **Project repo** (`{{Project repo}}`) — source code, ADRs, specs
 
-**Never rely on CWD for git operations.** Always use explicit absolute paths:
+**Never rely on CWD for git operations.** Use `git -C` with the absolute path from the properties above:
 
 ```bash
-# Stage and commit a workspace artifact (e.g. plan, blog entry)
-git -C <WORKSPACE_PATH> add <file>
-git -C <WORKSPACE_PATH> commit -m "..."
+# Workspace artifact (plan, blog entry, handover)
+git -C {{Workspace}} add <file>
+git -C {{Workspace}} commit -m "..."
 
-# Stage and commit a project artifact (e.g. ADR, spec, source code)
-git -C <PROJECT_PATH> add <file>
-git -C <PROJECT_PATH> commit -m "..."
+# Project artifact (source code, ADR, spec)
+git -C {{Project repo}} add <file>
+git -C {{Project repo}} commit -m "..."
 ```
 
-Before any git operation, confirm which repo owns the file:
-- File path starts with `<WORKSPACE_PATH>` → use `git -C <WORKSPACE_PATH>`
-- File path starts with `<PROJECT_PATH>` → use `git -C <PROJECT_PATH>`
-- When in doubt: `git -C <path> rev-parse --show-toplevel` to verify
+Rule: if the file path starts with `{{Workspace}}`, use workspace. If it starts with `{{Project repo}}`, use project. The file path determines the repo — CWD does not.
 ```
 
 ### Why `git -C <path>` and not `cd <path> && git ...`
 
-`cd` changes the working directory for the rest of the session. `git -C <path>` is a one-shot flag that runs git against a specific repo without changing CWD. It is safer and avoids state leaking between commands.
+`cd` changes CWD for the rest of the session, creating hidden state. `git -C <path>` is a one-shot flag scoped to a single command. It is safer, auditable, and avoids state leaking between commands.
 
 ---
 
@@ -111,10 +122,10 @@ Before any git operation, confirm which repo owns the file:
 
 `write-blog` reads `Blog directory:` from CLAUDE.md to find where to write blog entries. Without it, write-blog defaults to `blog/` relative to CWD — which is the project repo if Claude was started there.
 
-**Add to workspace CLAUDE.md template** (after the Routing table):
+Once `**Workspace:**` is a declared property (Fix A above), `Blog directory:` becomes derivable. Until write-blog is updated to read `**Workspace:**` directly, keep the explicit field in the template — but derive it from the declared property rather than hardcoding it separately:
 
 ```
-**Blog directory:** `<WORKSPACE_PATH>/blog/`
+**Blog directory:** `{{Workspace}}/blog/`
 ```
 
 ---
