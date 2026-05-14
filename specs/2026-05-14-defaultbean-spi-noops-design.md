@@ -21,7 +21,7 @@ or `@Alternative @ApplicationScoped`. Neither is correct for a platform fallback
 
 ## Decision
 
-All eight beans get `@DefaultBean @ApplicationScoped`.
+All nine beans get `@DefaultBean @ApplicationScoped` (`EmptyReactiveWorkerContextProvider` was discovered during implementation and added to scope).
 
 `@DefaultBean` is the canonical CDI pattern for "I am a fallback — any non-default qualifying
 bean for this type automatically takes precedence." It makes the intent self-documenting and
@@ -59,9 +59,11 @@ inject them — they will sit dormant but available.
 
 ## Import changes
 
-- Beans gaining `@DefaultBean`: add `import jakarta.enterprise.inject.DefaultBean;`
+- `@DefaultBean` is `io.quarkus.arc.DefaultBean` — a Quarkus Arc annotation, **not** standard CDI.
+  Available via `io.quarkus.arc:arc` which is on compile scope in the runtime module.
+- Beans gaining `@DefaultBean`: add `import io.quarkus.arc.DefaultBean;`
 - Beans losing `@Alternative`: swap `import jakarta.enterprise.inject.Alternative;` →
-  `import jakarta.enterprise.inject.DefaultBean;`
+  `import io.quarkus.arc.DefaultBean;`
 - Javadoc referencing `@Alternative` in the reactive beans must be updated to reflect
   `@DefaultBean` semantics.
 
