@@ -142,22 +142,17 @@ Valid destinations: `project` · `workspace` · `mdproctor.github.io` · `altern
 
 ---
 
-## Problem 5 — Symlink Direction Depends on Project Type
+## Problem 5 — Symlink Direction: Project Is Always Authoritative
 
-Two patterns exist for linking the workspace and project CLAUDE.md. workspace-init must choose the correct one based on project type:
+**CLAUDE.md always lives in the project repo.** The workspace symlinks to it. This applies to all projects you own, regardless of whether they are personal or org projects.
 
-**Foundation / org projects** (e.g. casehubio, Apache — project CLAUDE.md is public project knowledge):
 - Authoritative file: **project repo** (`~/claude/<project>/CLAUDE.md`)
 - Symlink: workspace `CLAUDE.md` → project `CLAUDE.md`
 - `Physical path` property = project path; `Symlinked at` = workspace path
 
-**Personal projects** (e.g. mdproctor/quarkmind, mdproctor/cccli):
-- Authoritative file: **workspace** (`~/claude/public/<project>/CLAUDE.md`)
-- Symlink: project `CLAUDE.md` → workspace `CLAUDE.md`
-- `Physical path` property = workspace path; `Symlinked at` = project path
-- Workspace CLAUDE.md must contain ALL content (workspace sections + project content) — no @include
+**The only exception:** contributing to an external project you don't own (e.g. Apache, a third-party open source repo) where you have no commit rights. In that case, CLAUDE.md lives in the workspace (it has nowhere else to go), and there is no symlink from the project side.
 
-workspace-init should ask which type applies (if not obvious from the GitHub org) and set up the symlink in the correct direction. It must never create two separate CLAUDE.md files with an @include relationship — that pattern leaves the routing table invisible when Claude starts in the project directory.
+workspace-init must never create two separate CLAUDE.md files with an @include relationship — that pattern leaves routing invisible when Claude starts in the project directory. One file in the project, one symlink in the workspace.
 
 ---
 
