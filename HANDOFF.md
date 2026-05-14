@@ -1,56 +1,41 @@
-# Handoff — Naming Alignment and Protocol Work
-2026-05-12
+# Handoff — HumanTaskTarget Sealed Dispatch
+2026-05-14
 
 ## What changed this session
 
-**Full naming alignment across all repos — complete and pushed.**
+**engine#245 complete and committed (`bab565d`).**
 
-All nine casehub repos now follow the platform convention (PP-20260508-5c0e4b):
-- groupId: `io.casehub` everywhere (claudony was `dev.claudony`)
-- Root artifactId: `casehub-{repo}-parent`
-- Module artifactIds: `casehub-{repo}-{function}`
-- Folder names: short, no repo prefix (`api/`, `runtime/`, `queues/` etc.)
-- Versions: all on `0.2-SNAPSHOT` (aml and clinical were on `0.1-SNAPSHOT`)
+Four modules touched:
 
-Repos changed: devtown, qhorus (stale submodule removed), work, engine, connectors, claudony, aml, clinical. Ledger and qhorus module folders were already correct.
+- **casehub-engine-api** — `BindingTarget` sealed interface + 4 permits (`CapabilityTarget`, `SubCaseTarget`, `HumanTaskTarget`, `ExtensionTarget`). `Binding` refactored from two nullable fields to single `target()`.
+- **casehub-engine-blackboard** — `PlanItem` gains `BindingTarget target` field; `CasePlanModel` gets `getPlanItemByBindingName(String)`; planning loop passes `binding.target()`.
+- **casehub-engine** runtime — `EventBusAddresses.HUMAN_TASK_SCHEDULE`; `HumanTaskScheduleEvent` record; `CaseContextChangedEventHandler` dispatches via `publishByTarget()`.
+- **casehub-engine-work-adapter** — `HumanTaskScheduleHandler` (outbound, `blocking=true`); `WorkItemLifecycleAdapter` extended with outputMapping evaluation.
 
-**Two consumers missed in connectors rename — caught and fixed:**
-- `casehub-work-notifications` and `casehub-devtown-app` referenced `casehub-connectors` (now `casehub-connectors-core`)
-- Fixed before push
+**Follow-up issues filed:**
+- `engine#254` — Java 21 exhaustive switch (currently Java 17 if-else instanceof)
+- `engine#255` — HumanTaskTarget template mode wire-up (stub currently, PlanItem left PENDING)
+- `engine#256` — CaseContext.of(Map) factory to remove CaseContextImpl coupling from work-adapter
 
-**New protocols added to `docs/protocols/`:**
-- `maven-coordinate-standard.md` — full coordinate rules with verification checklist
-- `artifact-rename-propagation.md` — find all consumers before renaming, update same session
+**Protocol added:**
+- `PP-20260514-d69243` — `work-adapter-test-subcase-group-repository.md` (MemorySubCaseGroupRepository required in selected-alternatives)
 
-**PLATFORM.md — Cross-Repo Dependency Map added:**
-- 25-row table mapping every cross-repo artifact dependency
-- Primary tool for impact analysis on future renames
+**Garden entries:**
+- Revise GE-20260428-a67806 — silent failure variant of ConsumeEvent+Transactional on IO thread
+- GE-20260514-477d2f — Hibernate 6 named query validation boot failure from stale artifact, property overrides ineffective
+- GE-20260514-e340ee — temporary CaseContextImpl for evaluating JQ against external map
 
-**cc-praxis skills added:**
-- `work-start` — mandatory pre-work checks (PLATFORM.md + Coherence Protocol, protocols, issue, IntelliJ)
-- `implementation-doc-sync` — session-scoped doc sweep after implementation
-
-**Prompt snippet finalised** (`docs/prompt-snippets.md`):
-```
-invoke work-start first. superpowers:brainstorming before designing. superpowers:test-driven-development before implementing. java-dev for all Java (loads testing-principles + ide-tooling). superpowers:requesting-code-review before committing. implementation-doc-sync after.
-[describe the issue]
-```
-
-**CLAUDE.md Development Workflow updated** — now lists java-dev, implementation-doc-sync, and prompt snippet reference.
+**CLAUDE.md + DESIGN.md** both updated in the engine repo.
 
 ## Immediate next actions
 
-1. **Devtown** — Epic 3: PR review CasePlanModel (was next before this session)
-2. **parent#13** — Claude config restructuring (partially addressed this session via prompt snippet + skills; issue may need updating or closing)
-3. **Clinical** — on `epic-adverse-event-escalation`; surefire LogManager fix is uncommitted there; leave to clinical Claude session
-4. **engine** — `main_proposal` branch can be cleaned up once treblereel has acknowledged the reconstruction
+1. **engine#255** — template mode wire-up in `HumanTaskScheduleHandler` (inject `WorkItemTemplateService`, call `findById` + `instantiate`)
+2. **Devtown** — Epic 3: PR review CasePlanModel (was queued before this session)
+3. **engine#254** — Java 21 platform migration (coordinate with other repos)
 
 ## Key references
 
-- Naming convention protocol: `docs/protocols/maven-submodule-folder-naming.md`
-- Coordinate standard: `docs/protocols/maven-coordinate-standard.md`
-- Artifact rename propagation: `docs/protocols/artifact-rename-propagation.md`
-- Cross-repo dependency map: `docs/PLATFORM.md` (Cross-Repo Dependency Map section)
-- Work-item prompt snippet: `docs/prompt-snippets.md`
-- New skills: `~/.claude/skills/work-start/`, `~/.claude/skills/implementation-doc-sync/`
-- Blog: `blog/2026-05-12-mdp01-naming-alignment-and-propagation.md`
+- Commit: `bab565d` in `casehub-engine` (engine repo)
+- Follow-up issues: `casehubio/engine#254`, `#255`, `#256`
+- Protocol: `parent/docs/protocols/work-adapter-test-subcase-group-repository.md`
+- Blog: `blog/2026-05-14-mdp01-binding-target-sealed-dispatch.md`
