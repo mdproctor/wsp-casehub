@@ -150,11 +150,20 @@ Valid destinations: `project` · `workspace` · `mdproctor.github.io` · `altern
 - Symlink: workspace `CLAUDE.md` → project `CLAUDE.md`
 - `Physical path` property = project path; `Symlinked at` = workspace path
 
-**The only exception:** projects where governance or policy prohibits adding CLAUDE.md to the repository — e.g. Apache projects (you may have commit rights but Apache contribution rules do not permit personal tool config files in the repo). In that case, CLAUDE.md lives in the workspace only; there is no symlink from the project side because you cannot touch the project repo's file structure.
+**The only exception:** projects where governance or policy prohibits adding CLAUDE.md to the repository — e.g. Apache projects (you may have commit rights but Apache contribution rules do not permit personal tool config files in the repo). In that case a third pattern applies:
 
-workspace-init must ask at Step 1 whether the project permits CLAUDE.md in the repo, and route accordingly. It must never create two separate CLAUDE.md files with an @include relationship — one file in the project (symlinked from workspace) or one file in workspace only. Those are the only two valid patterns.
+**Pattern 3 — Policy-restricted project (e.g. Drools/Apache):**
+- CLAUDE.md lives in the workspace only — cannot go in the project repo
+- The workspace contains symlinks TO the project, not the reverse
+- No symlink on the project side at all
+- Example: `~/claude/drools/` is the workspace; `~/claude/drools/droolsoct2025` and `~/claude/drools/proj` are symlinks to `/Users/mdproctor/dev/droolsoct2025`
 
-**Known example:** Drools (Apache) — project at `~/dev/droolsoct2025`, CLAUDE.md currently at `~/claude/drools/CLAUDE.md` with no formal workspace. Needs workspace-init run to create proper workspace infrastructure.
+This is already correctly set up for Drools. workspace-init must ask at Step 1 whether the project permits CLAUDE.md in the repo, and choose the right pattern.
+
+**Three valid patterns — no others:**
+1. **Normal** (your project, policy allows): CLAUDE.md in project, workspace symlinks to it
+2. **Policy-restricted** (Apache etc.): CLAUDE.md in workspace, workspace contains symlink(s) to project
+3. ~~Two separate CLAUDE.md files with @include~~ — **never valid**
 
 ---
 
