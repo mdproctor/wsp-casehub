@@ -142,8 +142,27 @@ Valid destinations: `project` · `workspace` · `mdproctor.github.io` · `altern
 
 ---
 
+## Problem 5 — Symlink Direction Depends on Project Type
+
+Two patterns exist for linking the workspace and project CLAUDE.md. workspace-init must choose the correct one based on project type:
+
+**Foundation / org projects** (e.g. casehubio, Apache — project CLAUDE.md is public project knowledge):
+- Authoritative file: **project repo** (`~/claude/<project>/CLAUDE.md`)
+- Symlink: workspace `CLAUDE.md` → project `CLAUDE.md`
+- `Physical path` property = project path; `Symlinked at` = workspace path
+
+**Personal projects** (e.g. mdproctor/quarkmind, mdproctor/cccli):
+- Authoritative file: **workspace** (`~/claude/public/<project>/CLAUDE.md`)
+- Symlink: project `CLAUDE.md` → workspace `CLAUDE.md`
+- `Physical path` property = workspace path; `Symlinked at` = project path
+- Workspace CLAUDE.md must contain ALL content (workspace sections + project content) — no @include
+
+workspace-init should ask which type applies (if not obvious from the GitHub org) and set up the symlink in the correct direction. It must never create two separate CLAUDE.md files with an @include relationship — that pattern leaves the routing table invisible when Claude starts in the project directory.
+
+---
+
 ## Scope
 
-This affects the **workspace-init template** — so all future workspaces get correct routing and safe git discipline from day one. Existing workspaces were corrected manually in the 2026-05-13 workspace audit session.
+This affects the **workspace-init template** — so all future workspaces get correct routing and safe git discipline from day one. Existing workspaces were corrected manually in the 2026-05-13/14 workspace audit session.
 
 The `git -C <path>` pattern should also be reinforced in any skill that performs git commits (e.g. `adr`, `write-blog`, `handover`, `java-git-commit`) — those skills should never use bare `git add/commit` without an explicit path when a workspace is configured.
