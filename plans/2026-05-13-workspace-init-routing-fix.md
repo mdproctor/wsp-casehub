@@ -150,9 +150,11 @@ Valid destinations: `project` · `workspace` · `mdproctor.github.io` · `altern
 - Symlink: workspace `CLAUDE.md` → project `CLAUDE.md`
 - `Physical path` property = project path; `Symlinked at` = workspace path
 
-**The only exception:** contributing to an external project you don't own (e.g. Apache, a third-party open source repo) where you have no commit rights. In that case, CLAUDE.md lives in the workspace (it has nowhere else to go), and there is no symlink from the project side.
+**The only exception:** projects where governance or policy prohibits adding CLAUDE.md to the repository — e.g. Apache projects (you may have commit rights but Apache contribution rules do not permit personal tool config files in the repo). In that case, CLAUDE.md lives in the workspace only; there is no symlink from the project side because you cannot touch the project repo's file structure.
 
-workspace-init must never create two separate CLAUDE.md files with an @include relationship — that pattern leaves routing invisible when Claude starts in the project directory. One file in the project, one symlink in the workspace.
+workspace-init must ask at Step 1 whether the project permits CLAUDE.md in the repo, and route accordingly. It must never create two separate CLAUDE.md files with an @include relationship — one file in the project (symlinked from workspace) or one file in workspace only. Those are the only two valid patterns.
+
+**Known example:** Drools (Apache) — project at `~/dev/droolsoct2025`, CLAUDE.md currently at `~/claude/drools/CLAUDE.md` with no formal workspace. Needs workspace-init run to create proper workspace infrastructure.
 
 ---
 
