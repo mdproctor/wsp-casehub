@@ -1,41 +1,35 @@
-# Handoff — HumanTaskTarget Sealed Dispatch
+# Handoff — @DefaultBean SPI No-Op Migration
 2026-05-14
 
 ## What changed this session
 
-**engine#245 complete and committed (`bab565d`).**
+**engine#257 complete and closed.**
 
-Four modules touched:
+Nine SPI no-op/empty default beans migrated from bare `@ApplicationScoped` or `@Alternative @ApplicationScoped` to `@DefaultBean @ApplicationScoped` (`io.quarkus.arc.DefaultBean`). Consumer repos (Claudony, devtown) were hitting CDI ambiguity errors when the engine was indexed alongside their `@QuarkusTest` classpath.
 
-- **casehub-engine-api** — `BindingTarget` sealed interface + 4 permits (`CapabilityTarget`, `SubCaseTarget`, `HumanTaskTarget`, `ExtensionTarget`). `Binding` refactored from two nullable fields to single `target()`.
-- **casehub-engine-blackboard** — `PlanItem` gains `BindingTarget target` field; `CasePlanModel` gets `getPlanItemByBindingName(String)`; planning loop passes `binding.target()`.
-- **casehub-engine** runtime — `EventBusAddresses.HUMAN_TASK_SCHEDULE`; `HumanTaskScheduleEvent` record; `CaseContextChangedEventHandler` dispatches via `publishByTarget()`.
-- **casehub-engine-work-adapter** — `HumanTaskScheduleHandler` (outbound, `blocking=true`); `WorkItemLifecycleAdapter` extended with outputMapping evaluation.
+**Key gotcha:** `@DefaultBean` is NOT `jakarta.enterprise.inject.DefaultBean` (doesn't exist) — it's `io.quarkus.arc.DefaultBean`. Garden entry `GE-20260514-83ee13` captures this.
 
-**Follow-up issues filed:**
-- `engine#254` — Java 21 exhaustive switch (currently Java 17 if-else instanceof)
-- `engine#255` — HumanTaskTarget template mode wire-up (stub currently, PlanItem left PENDING)
-- `engine#256` — CaseContext.of(Map) factory to remove CaseContextImpl coupling from work-adapter
+Beans fixed (all in `runtime/src/main/java/io/casehub/engine/internal/`):
+- `worker/`: NoOpWorkerProvisioner, NoOpCaseChannelProvider, NoOpWorkerStatusListener, EmptyWorkerContextProvider
+- `diff/`: NoOpContextDiffStrategy
+- `worker/` reactive: NoOpReactiveWorkerProvisioner, NoOpReactiveCaseChannelProvider, NoOpReactiveWorkerStatusListener, EmptyReactiveWorkerContextProvider
 
-**Protocol added:**
-- `PP-20260514-d69243` — `work-adapter-test-subcase-group-repository.md` (MemorySubCaseGroupRepository required in selected-alternatives)
+**Protocol updated:** `PP-20260514-engine-spi-noops-defaultbean` — all nine beans now listed, correct import noted.
 
-**Garden entries:**
-- Revise GE-20260428-a67806 — silent failure variant of ConsumeEvent+Transactional on IO thread
-- GE-20260514-477d2f — Hibernate 6 named query validation boot failure from stale artifact, property overrides ineffective
-- GE-20260514-e340ee — temporary CaseContextImpl for evaluating JQ against external map
+**CLAUDE.md + `casehub-engine.md` deep-dive updated.** "To add a new operational SPI" instruction now includes `@DefaultBean` requirement.
 
-**CLAUDE.md + DESIGN.md** both updated in the engine repo.
+**All artifacts installed to `~/.m2`.** 506 tests pass.
 
-## Immediate next actions
+## Follow-up issues
 
-1. **engine#255** — template mode wire-up in `HumanTaskScheduleHandler` (inject `WorkItemTemplateService`, call `findById` + `instantiate`)
-2. **Devtown** — Epic 3: PR review CasePlanModel (was queued before this session)
-3. **engine#254** — Java 21 platform migration (coordinate with other repos)
+- `engine#255` — HumanTaskTarget template mode wire-up (inject `WorkItemTemplateService`, call `findById` + `instantiate`) — carried from previous session
+- `engine#258` — `JsonPatchContextDiffStrategy` still `@Alternative`, inconsistent with no-op now being `@DefaultBean`
+- `engine#254` — Java 21 platform migration (coordinate with other repos)
+- **Devtown** — Epic 3: PR review CasePlanModel (queued since before this session)
 
 ## Key references
 
-- Commit: `bab565d` in `casehub-engine` (engine repo)
-- Follow-up issues: `casehubio/engine#254`, `#255`, `#256`
-- Protocol: `parent/docs/protocols/work-adapter-test-subcase-group-repository.md`
-- Blog: `blog/2026-05-14-mdp01-binding-target-sealed-dispatch.md`
+- Commits: `6f0e27f`, `6aaaffc`, `555ccd6`, `4c24fd7`, `ded0307` in `casehub-engine`
+- Protocol: `parent/docs/protocols/engine-spi-noops-defaultbean.md`
+- Blog: `blog/2026-05-14-mdp02-nine-defaults-wrong-package.md`
+- Garden: `GE-20260514-83ee13` — @DefaultBean package gotcha
