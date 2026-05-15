@@ -1,35 +1,31 @@
-# Handoff — @DefaultBean SPI No-Op Migration
-2026-05-14
+# Handoff — ContextDiffStrategy CDI Refactor
+2026-05-15
 
 ## What changed this session
 
-**engine#257 complete and closed.**
+**engine#258 and #261 complete and closed.**
 
-Nine SPI no-op/empty default beans migrated from bare `@ApplicationScoped` or `@Alternative @ApplicationScoped` to `@DefaultBean @ApplicationScoped` (`io.quarkus.arc.DefaultBean`). Consumer repos (Claudony, devtown) were hitting CDI ambiguity errors when the engine was indexed alongside their `@QuarkusTest` classpath.
+`ContextDiffStrategy` selection refactored from inconsistent CDI annotations to a config-driven `@Produces @DefaultBean` producer. Key insight: `@DefaultBean` is for consumer-replaceable SPIs; the three diff strategies are engine-internal choices, not consumer extension points.
 
-**Key gotcha:** `@DefaultBean` is NOT `jakarta.enterprise.inject.DefaultBean` (doesn't exist) — it's `io.quarkus.arc.DefaultBean`. Garden entry `GE-20260514-83ee13` captures this.
+New config: `casehub.engine.diff-strategy=none|top-level|json-patch` (default `none`).
 
-Beans fixed (all in `runtime/src/main/java/io/casehub/engine/internal/`):
-- `worker/`: NoOpWorkerProvisioner, NoOpCaseChannelProvider, NoOpWorkerStatusListener, EmptyWorkerContextProvider
-- `diff/`: NoOpContextDiffStrategy
-- `worker/` reactive: NoOpReactiveWorkerProvisioner, NoOpReactiveCaseChannelProvider, NoOpReactiveWorkerStatusListener, EmptyReactiveWorkerContextProvider
+`ContextDiffStrategyProducer` owns instantiation — strategy classes are plain POJOs. `@DefaultBean` goes on the `@Produces` method, not the producer class (garden entry `GE-20260515-fd3156`).
 
-**Protocol updated:** `PP-20260514-engine-spi-noops-defaultbean` — all nine beans now listed, correct import noted.
+Protocol `PP-20260514-engine-spi-noops-defaultbean` updated with a "two patterns" note distinguishing consumer-replaceable SPIs from engine-internal strategy selection. CLAUDE.md and `docs/repos/casehub-engine.md` synced.
 
-**CLAUDE.md + `casehub-engine.md` deep-dive updated.** "To add a new operational SPI" instruction now includes `@DefaultBean` requirement.
+E2E test (`ContextDiffNoneStrategyTest`) uses `@QuarkusTestProfile` to override config and assert no `contextChanges` in EventLog. Podman socket required: `DOCKER_HOST=unix:///run/user/501/podman/podman.sock`.
 
-**All artifacts installed to `~/.m2`.** 506 tests pass.
+## Open issues
 
-## Follow-up issues
-
-- `engine#255` — HumanTaskTarget template mode wire-up (inject `WorkItemTemplateService`, call `findById` + `instantiate`) — carried from previous session
-- `engine#258` — `JsonPatchContextDiffStrategy` still `@Alternative`, inconsistent with no-op now being `@DefaultBean`
-- `engine#254` — Java 21 platform migration (coordinate with other repos)
-- **Devtown** — Epic 3: PR review CasePlanModel (queued since before this session)
+- `engine#255` — HumanTaskTarget template mode wire-up (inject `WorkItemTemplateService`, call `findById` + `instantiate`)
+- `engine#252` — extract `SubCaseCompletionListener` logic into `SubCaseCompletionService`
+- `engine#254` — Java 21 platform migration
+- `engine#253` — assess quarkus-hibernate-reactive-panache compile-scope dep
+- **Devtown** — Epic 3: PR review CasePlanModel (queued multiple sessions)
 
 ## Key references
 
-- Commits: `6f0e27f`, `6aaaffc`, `555ccd6`, `4c24fd7`, `ded0307` in `casehub-engine`
-- Protocol: `parent/docs/protocols/engine-spi-noops-defaultbean.md`
-- Blog: `blog/2026-05-14-mdp02-nine-defaults-wrong-package.md`
-- Garden: `GE-20260514-83ee13` — @DefaultBean package gotcha
+- Blog: `blog/2026-05-15-mdp01-config-over-cdi.md`
+- Garden: `GE-20260515-fd3156` (@DefaultBean method placement), `GE-20260515-cd1653` (Podman socket), `GE-20260515-99cf39` (config-driven producer technique)
+- Protocol: `parent/docs/protocols/casehub/engine-spi-noops-defaultbean.md`
+- Commits: `30fbc53`, `4177037`, `3846527` in `casehub-engine`
