@@ -1,31 +1,40 @@
-# Handoff — ContextDiffStrategy CDI Refactor
-2026-05-15
+# Session Handover — 2026-05-15
 
-## What changed this session
+## Engine session (earlier today — preserved from previous handover)
 
-**engine#258 and #261 complete and closed.**
+**engine#258 and #261 complete.** `ContextDiffStrategy` selection refactored to config-driven `@Produces @DefaultBean` producer. Config: `casehub.engine.diff-strategy=none|top-level|json-patch` (default `none`). Protocol updated. Open: engine#255 (HumanTaskTarget template), #252 (SubCaseCompletionService), #254 (Java 21 migration), #253 (hibernate-reactive dep). Blog: `blog/2026-05-15-mdp01-config-over-cdi.md`.
 
-`ContextDiffStrategy` selection refactored from inconsistent CDI annotations to a config-driven `@Produces @DefaultBean` producer. Key insight: `@DefaultBean` is for consumer-replaceable SPIs; the three diff strategies are engine-internal choices, not consumer extension points.
+---
 
-New config: `casehub.engine.diff-strategy=none|top-level|json-patch` (default `none`).
+## Parent/tooling session (this session)
 
-`ContextDiffStrategyProducer` owns instantiation — strategy classes are plain POJOs. `@DefaultBean` goes on the `@Produces` method, not the producer class (garden entry `GE-20260515-fd3156`).
+### What happened
 
-Protocol `PP-20260514-engine-spi-noops-defaultbean` updated with a "two patterns" note distinguishing consumer-replaceable SPIs from engine-internal strategy selection. CLAUDE.md and `docs/repos/casehub-engine.md` synced.
+1. **ARCHITECTURE.md** — `docs/ARCHITECTURE.md` created for casehub/parent: 17 patterns, rationale, dependency rule. PLATFORM.md pointer added. Blog article published.
 
-E2E test (`ContextDiffNoneStrategyTest`) uses `@QuarkusTestProfile` to override config and assert no `contextChanges` in EventLog. Podman socket required: `DOCKER_HOST=unix:///run/user/501/podman/podman.sock`.
+2. **Workflow audit** — 20 gaps found in epic/workspace/routing skills (`mdproctor/cc-praxis#71`). Nine fixed (trivial + easy). Eleven hard items remain (#87–91).
 
-## Open issues
+3. **cc-praxis skill fixes** — workspace-init routing template, handover journal-entry default, java-update-design mode detection, adr routing cascade, write-blog git-C, epic close plan archiving + publish-blog offer + spec scoping.
 
-- `engine#255` — HumanTaskTarget template mode wire-up (inject `WorkItemTemplateService`, call `findById` + `instantiate`)
-- `engine#252` — extract `SubCaseCompletionListener` logic into `SubCaseCompletionService`
-- `engine#254` — Java 21 platform migration
-- `engine#253` — assess quarkus-hibernate-reactive-panache compile-scope dep
-- **Devtown** — Epic 3: PR review CasePlanModel (queued multiple sessions)
+4. **Routing standardisation** — all 10 casehub workspace CLAUDE.md files now consistent: `adr/specs → project`, `blog → workspace → mdproctor.github.io`, `plans/design/snapshots → workspace`. Three wrong-direction moves required recovery; quarkmind and cccli force-pushed.
 
-## Key references
+5. **24 blog entries published** across all repos. reactive-blackboard-control-shell moved from `_articles/` to `_notes/`.
 
-- Blog: `blog/2026-05-15-mdp01-config-over-cdi.md`
-- Garden: `GE-20260515-fd3156` (@DefaultBean method placement), `GE-20260515-cd1653` (Podman socket), `GE-20260515-99cf39` (config-driven producer technique)
-- Protocol: `parent/docs/protocols/casehub/engine-spi-noops-defaultbean.md`
-- Commits: `30fbc53`, `4177037`, `3846527` in `casehub-engine`
+6. **casehub-flow rename** — pending Treble confirmation. Current thinking: `casehub-app`.
+
+### Open items
+
+- `cc-praxis#87–91` — 5 hard workflow issues (DESIGN.md section hashing, atomic branch switching, HANDOFF.md to main, pause/resume)
+- casehub-flow → `casehub-app` rename (confirm with Treble first)
+- `plans/2026-05-13-workspace-init-routing-fix.md` — skill fix instructions for cc-praxis
+- `plans/2026-05-13-skill-routing-improvements.md` — write-blog routing improvement instructions
+
+### Next
+
+Pick up `cc-praxis#88` (atomic branch switching helper) or start the casehub-flow rename once Treble confirms.
+
+### References
+
+- Blog: `blog/2026-05-15-mdp01-workflow-audit-routing-repair.md`
+- cc-praxis epic: `mdproctor/cc-praxis#71`
+- Plans: `plans/2026-05-13-workspace-init-routing-fix.md`
