@@ -1,37 +1,37 @@
-# Handoff — HumanTask Template Mode
-2026-05-17
+# Session Handover — 2026-05-17
 
-## What changed this session
+## What happened (parent/tooling session)
 
-**engine#255 closed.**
+**cc-praxis#71 and #93 closed.**
 
-`HumanTaskTarget` template mode wired end-to-end across two repos:
+All 20 workflow gaps resolved. Hard items completed this session:
+- **#87** — DESIGN.md section heading hashes in `.meta` at epic start; drift check at close with U/S/A options
+- **#88** — Branch Switch Helper in work-start: atomic two-repo checkout with alignment verification
+- **#89** — Handover Step 6 now commits HANDOFF.md to workspace main always (stash/switch/commit/restore)
+- **#90/#91** — Closed into #94
 
-**casehub-work** (`28f6c5e`): `WorkItemTemplateService` gained `findByRef(String)` (UUID-or-name dispatch), `findByName(String)` (application-level uniqueness guard — throws `IllegalStateException` on >1 match), and 6-arg `instantiate`/`toCreateRequest` with `payloadOverride`. Name index added to `WorkItemTemplate`.
+Additional fixes:
+- §Section anchor validation in `java-update-design` (Step 7b rejects anchor-free entries)
+- Orphaned epic close path (Workflow B-Orphaned in epic skill)
+- work-start Option 3 follow-through (confirmed main now proceeds to steps 1–4)
+- Claudony fix: "Do NOT output work-start summary" prohibition now has follow-through for all three options
+- Forage skill: concrete-path instructions replace expansion patterns
 
-**casehub-engine** (`74766a0`): `HumanTaskScheduleHandler` now handles template mode via `handleTemplateMode()` — resolves ref via `findByRef`, warns+returns if not found or ambiguous, marks PlanItem RUNNING only after successful resolution, calls `instantiate` with `target.title()` and serialized `inputData` as payloadOverride.
+Quarkmind epic-phase-6 validated: journal was empty (header only), DESIGN.md updated directly. Nothing lost.
 
-Key design: `HumanTaskTarget` javadoc contracts both modes support `inputMapping` — ignoring `inputData` in template mode would be a broken implementation, not a deferred concern.
+Permissions: `settings.json` updated with ~30 new allow rules eliminating most recurring prompts.
 
-Two new protocols in parent: `PP-20260517-cbf836` (markRunning ordering) and `PP-20260517-0093f8` (inputMapping payload contract).
+## Open
 
-## Open issues
+- **cc-praxis#94** — Unified work lifecycle (work-start/work-end/work-pause/work-resume). Prerequisites complete.
+- **casehubio/parent#24** — Branching vs worktrees design question (gates #94 mechanism)
+- **casehubio/parent#25** — Naming (/epic vs /work, gates #94 naming)
+- **casehub-flow rename** → `casehub-app` (pending Treble confirmation)
 
-- `engine#273` — markRunning + WorkItem creation not atomic (pre-existing, filed this session)
-- `engine#252` — extract SubCaseCompletionListener into SubCaseCompletionService
-- `engine#254` — Java 21 platform migration
-- `engine#253` — assess quarkus-hibernate-reactive-panache compile-scope dep
-- `work#174` — DB-level UNIQUE constraint on WorkItemTemplate.name
-- `work#175` — JSON merge semantics for defaultPayload + inputData
-- **Devtown** — Epic 3: PR review CasePlanModel (queued multiple sessions)
+## Next
 
-## Key references
+Start cc-praxis#94 — but resolve #24 and #25 first (branching mechanism and naming must be decided before the unified commands are designed).
 
-- Blog: `blog/2026-05-17-mdp01-honouring-the-contract.md`
-- Spec: `casehub-engine/docs/specs/2026-05-16-human-task-template-mode-design.md`
-- Commits: engine `74766a0`, work `28f6c5e`
-- Garden: `GE-20260517-e78ae8` (JPA detached mutation), `GE-20260517-11dd6b` (IAE catch scope), `GE-20260517-0823c8` (cross-repo TDD install)
+## Engine session (preserved)
 
-## Unchanged from previous session
-
-*Background, project context — retrieve with: `git show HEAD~1:HANDOFF.md`*
+*Unchanged — retrieve with: `git show HEAD~1:HANDOFF.md`*
