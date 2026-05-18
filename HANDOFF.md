@@ -1,37 +1,45 @@
-# Session Handover — 2026-05-17
+# Handoff — PlanItemStore Atomicity Fix
+2026-05-18
 
-## What happened (parent/tooling session)
+## What changed this session
 
-**cc-praxis#71 and #93 closed.**
+**engine#273 closed.**
 
-All 20 workflow gaps resolved. Hard items completed this session:
-- **#87** — DESIGN.md section heading hashes in `.meta` at epic start; drift check at close with U/S/A options
-- **#88** — Branch Switch Helper in work-start: atomic two-repo checkout with alignment verification
-- **#89** — Handover Step 6 now commits HANDOFF.md to workspace main always (stash/switch/commit/restore)
-- **#90/#91** — Closed into #94
+`PlanItemStore` (blocking) + `ReactivePlanItemStore` (Uni<>) SPIs added to `casehub-engine-common`. `PlanItemStatus` extracted from nested enum in `PlanItem` to `common`. Blocking `JpaPlanItemStore` + `WorkAdapterPlanItemEntity` in `work-adapter` (shares casehub-work datasource). Reactive `JpaReactivePlanItemStore` + `PlanItemEntity` in `persistence-hibernate`. `MemoryPlanItemStore` / `MemoryReactivePlanItemStore` in `persistence-memory`.
 
-Additional fixes:
-- §Section anchor validation in `java-update-design` (Step 7b rejects anchor-free entries)
-- Orphaned epic close path (Workflow B-Orphaned in epic skill)
-- work-start Option 3 follow-through (confirmed main now proceeds to steps 1–4)
-- Claudony fix: "Do NOT output work-start summary" prohibition now has follow-through for all three options
-- Forage skill: concrete-path instructions replace expansion patterns
+Handler fix: `@Transactional` on `onHumanTaskSchedule`, execution order: create WorkItem → `planItemStore.save(RUNNING)` → `item.markRunning()`. All atomic. PlanItem stays PENDING if WorkItem creation fails.
 
-Quarkmind epic-phase-6 validated: journal was empty (header only), DESIGN.md updated directly. Nothing lost.
+Key design decision from code review: `store.save()` cannot live in `addPlanItem()` — that runs on the reactive Vert.x IO thread with no JTA context. Call site is the blocking handler only.
 
-Permissions: `settings.json` updated with ~30 new allow rules eliminating most recurring prompts.
+Platform updated: `module-tier-structure.md` in parent now documents Store SPI pattern + dual-variant (blocking + reactive) rule.
 
-## Open
+Protocol added: `PP-20260518-78f8b7` — PlanItemStore.save() must be called from blocking @Transactional context.
 
-- **cc-praxis#94** — Unified work lifecycle (work-start/work-end/work-pause/work-resume). Prerequisites complete.
-- **casehubio/parent#24** — Branching vs worktrees design question (gates #94 mechanism)
-- **casehubio/parent#25** — Naming (/epic vs /work, gates #94 naming)
-- **casehub-flow rename** → `casehub-app` (pending Treble confirmation)
+Epic `epic-atomic-human-task` closed. Both repos on `main`, pushed. Branches retained until 2026-06-01.
 
-## Next
+## Open issues
 
-Start cc-praxis#94 — but resolve #24 and #25 first (branching mechanism and naming must be decided before the unified commands are designed).
+| Issue | What |
+|-------|------|
+| `engine#252` | Extract SubCaseCompletionListener → SubCaseCompletionService |
+| `engine#254` | Java 21 platform migration |
+| `engine#253` | Assess quarkus-hibernate-reactive-panache compile-scope dep |
+| `engine#274` | BlackboardRegistry hydration from PlanItemStore on restart (new) |
+| `engine#277` | json-schema-validator version conflict in work-adapter (new) |
+| `engine#278` | SelectionContext arity mismatch in engine runtime (pre-existing, new issue filed) |
+| `engine#279` | JpaReactivePlanItemStore updateStatus needs flush (new) |
+| `engine#280` | Missing contract test for JpaReactivePlanItemStore (new) |
+| `engine#281` | FailingWorkItemStore leaks across all @QuarkusTest classes (new) |
+| `work#174` | DB-level UNIQUE on WorkItemTemplate.name |
+| `work#175` | JSON merge semantics defaultPayload + inputData |
+| **Devtown** | Epic 3: PR review CasePlanModel (queued multiple sessions) |
 
-## Engine session (preserved)
+## Key references
 
-*Unchanged — retrieve with: `git show HEAD~1:HANDOFF.md`*
+- Blog: `blog/2026-05-18-mdp01-atomic-by-design.md`
+- Spec: `casehub-engine/docs/specs/2026-05-17-plan-item-store-atomicity-design.md`
+- Garden: `GE-20260518-6ed073` (mvn stale jar), `GE-20260518-554158` (git submodule staged), `GE-20260518-896005` (non-JTA rollback), `GE-20260518-da7e91` (em.flush bulk update), `GE-20260518-a61d1b` (ConsumeEvent+Transactional)
+
+## Unchanged from previous session
+
+*Background, project context — retrieve with: `git show HEAD~1:HANDOFF.md`*
