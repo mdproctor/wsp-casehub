@@ -94,14 +94,17 @@ CURRENT_PROJECT=$(git -C "$PROJECT" branch --show-current)
    META_BRANCH == CURRENT_WORKSPACE == CURRENT_PROJECT (all three match)
    → Resume path.
 
-3. $WORKSPACE/design/.meta exists, branches misaligned
-   (any of the three values differ)
+3. $WORKSPACE/design/.meta exists, CURRENT_WORKSPACE == main
+   (orphaned — .meta on main, regardless of project branch)
+   → Hard stop. "Invoke work-end to complete or discard the abandoned branch."
+   *** Must be checked BEFORE state 4 — "orphaned on main" also satisfies
+   "branches misaligned" so state 4 would fire incorrectly if checked first,
+   attempting to switch to a branch that may have been deleted after PR merge. ***
+
+4. $WORKSPACE/design/.meta exists, branches misaligned
+   (META_BRANCH != CURRENT_WORKSPACE or CURRENT_PROJECT, and not orphaned)
    → Invoke Branch Switch Helper inline.
      If helper fails → hard stop with manual instructions (no loop).
-
-4. $WORKSPACE/design/.meta exists, CURRENT_WORKSPACE == main
-   (orphaned — .meta on main)
-   → Hard stop. "Invoke work-end to complete or discard the abandoned branch."
 
 5. CURRENT_WORKSPACE == main, no .meta, no .paused
    → New branch path.
@@ -380,18 +383,29 @@ git -C "$WORKSPACE" push
 
 **8d — Journal merge**:
 Uses `$DESIGN_REPO` (set in Step 3) and `$PROJECT_SHA` (set in Step 1).
+
+**⚠️ Branch context matters:** When `$DESIGN_REPO = "$WORKSPACE"` (design → workspace routing), the merge MUST happen while workspace is still on **main** (during the 8a main-visit), not after returning to the epic branch. If the merge is committed to the workspace epic branch, it will be discarded at close. For `$DESIGN_REPO = "$PROJECT"`, the merge happens on the project epic branch and is included in the PR — correct.
+
+Implementation:
+- If `$DESIGN_REPO = "$WORKSPACE"`: perform the journal merge during 8a while on workspace main. After artifact promotion, cherry-pick `design/JOURNAL.md` from the epic branch (`git -C "$WORKSPACE" checkout "$BRANCH_NAME" -- design/JOURNAL.md`), run the merge, commit to workspace main, then skip 8d.
+- If `$DESIGN_REPO = "$PROJECT"`: run 8d as written below (project is on its epic branch throughout).
+
+Steps (for the `$DESIGN_REPO = "$PROJECT"` case, or after cherry-pick for workspace case):
 1. Read baseline: `git -C "$DESIGN_REPO" show "$PROJECT_SHA":DESIGN.md`
 2. Read current `$DESIGN_REPO/DESIGN.md`
 3. Apply journal narrative per §Section, preserving independent main-branch changes
 4. Write merged result
 5. Post-merge verification: re-read each §Section; present to user (`[A]` accept, `[R]` redo, `[X]` abort) before committing
-6. `git -C "$DESIGN_REPO" add DESIGN.md && git -C "$DESIGN_REPO" commit -m "docs(<branch-name>): apply design journal" && git -C "$DESIGN_REPO" push`
+6. `git -C "$DESIGN_REPO" add DESIGN.md && git -C "$DESIGN_REPO" commit -m "docs($BRANCH_NAME): apply design journal" && git -C "$DESIGN_REPO" push`
 
 If journal merge fails: prompt user before continuing to issue close.
 
 **8e — Spec posting**: post selected specs as collapsible comments on GitHub issue.
 
-**8f — Issue close**: `gh issue close <N> --repo <owner>/<repo>`
+**8f — Issue close** (only if tracking enabled and `$ISSUE_N` is non-empty):
+```bash
+[ -n "$ISSUE_N" ] && gh issue close "$ISSUE_N" --repo "$OWNER_REPO"
+```
 
 **8g — Offer publish-blog**: if blog entries were staged to workspace.
 
