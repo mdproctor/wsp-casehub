@@ -122,9 +122,11 @@ git -C <project-path> fetch --all 2>/dev/null || echo "⚠️ No network — sca
 If network available: scan main + all remote branches for claimed V numbers. Compute `next-safe-v = max + 1`. If conflict: warn, show `Next safe V: <N>`, block until acknowledged.  
 If no network: warn, record `flyway-next-v: unknown`. User must verify before adding migrations.
 
-Ask: "Will this branch include database migrations? (y/n)"  
+Default: `flyway-next-v: unknown` — the user may not know yet at branch creation time.  
+Only ask if the user has already described migration work: "Will this branch include database migrations? (y/n)"  
 → y: `flyway-next-v: <N>`  
-→ n: `flyway-next-v: none`
+→ explicit n: `flyway-next-v: none`  
+→ no answer / unsure: `flyway-next-v: unknown` (safe default; user verifies before adding migrations)
 
 **Step 7 — Create branches (atomic)**  
 ```bash
@@ -170,6 +172,8 @@ Call `mcp__intellij-index__ide_index_status` and `mcp__intellij__get_project_mod
 **Step 12 — Offer brainstorming**  
 "Start a brainstorm? (y/n)" — if yes, specs write to `specs/<branch-name>/`.
 
+**Specs routing:** `specs` is always routed to `project` (`docs/specs/` at close). Add `specs → project` as a non-configurable fixed route in work-end's routing resolution. Do not add `specs` to the CLAUDE.md routing table — it is not user-configurable. The three-layer cascade applies to blog/adr/snapshots/plans/design; specs are always promoted to project.
+
 ### Resume path (Detection state 2)
 
 Surface `.meta`:
@@ -186,8 +190,13 @@ Run Steps 2, 3, 11 only. Skip all branch creation steps.
 
 ### Pre-conditions
 
-Must be on an epic branch with `.meta`.  
-If invoked from main with orphaned `.meta`: hard stop — offer to switch to surviving epic branch and close from there, or discard.
+Checked in order:
+
+1. **If `design/.paused` exists on workspace main** → hard stop. "You have a paused branch. Invoke `work-resume` first, then `work-end`."
+2. **Must be on a branch with `.meta`** → proceed.
+3. **If invoked from main with orphaned `.meta`** → hard stop. Offer to switch to surviving epic branch and close from there, or discard.
+
+`.paused` check always comes first — it takes priority over orphaned `.meta`.
 
 ### Step 1 — Read context
 ```bash
@@ -300,7 +309,8 @@ for each project-routed artifact:
   git -C <project-path> push  # non-fatal if fails; report
 ```
 
-**8c — Spec cleanup** (only after 8b push confirmed):
+**8c — Spec cleanup** (only if 8b push exit code was 0 — confirmed successful):
+If 8b push failed, spec cleanup is skipped entirely. The workspace copy is the only remaining copy — deleting it would cause permanent data loss.
 ```bash
 rm -rf specs/<branch-name>/
 git -C <workspace-path> add -A
@@ -385,7 +395,7 @@ Uncommitted changes found. Stash them? (y/n)
   y → git stash in both repos; record stash SHAs in .meta
   n → abort (commit or discard first)
 ```
-Record in `.meta`: `stash-project: <sha | none>`, `stash-workspace: <sha | none>`.
+Record in `.meta`: `stash-project: <stash@{N} | none>`, `stash-workspace: <stash@{N} | none>` — use the stash stack reference, not the SHA. The stash position `stash@{0}` is recorded at pause time. **Note:** if the user manually runs `git stash` or `git stash pop` on either repo between pause and resume, the recorded reference will shift and restoration will fail silently. This is a known limitation — document it to the user at pause time.
 
 ### Step 3 — Record pause in .meta (atomic with Step 4)
 Add to `.meta`:
@@ -497,11 +507,57 @@ The workflows below are preserved for reference during migration.
 
 Skill remains functional during migration. Retired once all sessions use the new commands and no issues are found.
 
+**Gate text migration:** The current work-start gate says "Option 1 (branch work) → invoke `/epic begin`". Once the new skills are deployed, this gate text must change to "branch creation is handled by work-start itself — proceed." Update the gate text in work-start when deploying, not before.
+
+---
+
+## Required Skill Updates (non-negotiable for correctness)
+
+These existing skills must be updated as part of the migration. Without them, the new branch naming convention silently breaks core functionality.
+
+### java-update-design — workspace mode detection
+
+**Current (broken for `issue-NNN-*` branches):**
+```bash
+git branch --show-current   # must match epic-* pattern
+ls design/.meta 2>/dev/null
+ls design/JOURNAL.md 2>/dev/null
+```
+
+**Required update — detect on `.meta` presence, not branch prefix:**
+```bash
+# All three must be true; branch name prefix is NOT checked
+ls design/.meta 2>/dev/null        # .meta must exist
+ls design/JOURNAL.md 2>/dev/null   # JOURNAL.md must exist
+git branch --show-current | grep -v "^main$"  # not on main
+```
+
+Without this fix, every commit on an `issue-NNN-*` branch silently writes directly to `DESIGN.md` instead of `JOURNAL.md`. The journal mechanism is entirely bypassed with no error.
+
+### Branch Hygiene Scan — detection by .meta, not branch name
+
+**Current (broken for `issue-NNN-*` branches):**
+```bash
+git branch | grep 'epic-'
+```
+
+**Required update — detect all work branches by `.meta` presence:**
+```bash
+# Find all branches that have a .meta file on the workspace side
+for branch in $(git branch | sed 's/^[* ]*//' | grep -v '^main$'); do
+  git show "$branch:design/.meta" 2>/dev/null && echo "$branch"
+done
+```
+
+Without this fix, the hygiene scan returns empty for all new branches — Flyway conflicts and unmerged code go undetected.
+
 ---
 
 ## Branch Hygiene Scan
 
 Moved to the handover wrap checklist (epic hygiene item). Also offered by `work-end` after close.
+
+**Detection:** Find branches by `.meta` presence, not by `epic-*` name prefix. See Required Skill Updates above.
 
 Checks per branch: Flyway V conflicts across all open branches, unmerged code on project branch, PR status, EPIC-CLOSED.md existence and deletion date, artifact promotion status (specs, plans).
 
@@ -521,8 +577,8 @@ design-section-hashes: <H2 hashes, one per line>
 paused: true                         # only present when paused
 paused-at: <ISO timestamp>           # only present when paused
 paused-issue: <N>                    # only present when paused on different issue
-stash-project: <sha | none>          # only present when paused
-stash-workspace: <sha | none>        # only present when paused
+stash-project: <stash@{N} | none>    # only present when paused; stack position at pause time
+stash-workspace: <stash@{N} | none>  # only present when paused; stack position at pause time
 ```
 
 ---
@@ -530,6 +586,9 @@ stash-workspace: <sha | none>        # only present when paused
 ## Known Limitations
 
 - Only one paused branch at a time
+- Stash reference uses `stash@{N}` position — if the user manually stashes or pops between pause and resume, the recorded position shifts and restoration fails. User is warned at pause time.
 - If project repo stash is accidentally popped during interruption, it cannot be recovered
 - `paused-issue` is informational only — not enforced by work-start
-- Flyway V scan requires network; unknown V is a manual verification burden
+- Flyway V scan requires network; `unknown` V is a manual verification burden
+- **Flyway scan staleness in concurrent sessions:** The family workspace (casehub) runs multiple Claude sessions simultaneously across repos. The Flyway V scan at `work-end` may be stale if another session merged a branch between `work-start` and `work-end`. The re-scan at close time mitigates this but does not eliminate the race. If two sessions close branches simultaneously, the second session's re-scan will catch any conflict introduced by the first. Treat this as best-effort conflict detection, not a guarantee.
+- `work-start` gate text currently says "invoke `/epic begin`" — update this text when deploying the new skills (see Epic skill — Deprecation section) 
