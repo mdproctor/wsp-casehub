@@ -109,7 +109,8 @@ CURRENT_PROJECT=$(git -C "$PROJECT" branch --show-current)
 6. On non-main branch, no .meta
    → "You are on <branch> with no branch scaffold.
       Continue here (y) or switch to main (n)?"
-      y → run Steps 2, 3, 4 (optional), 11. No scaffold created.
+      y → run Steps 0, 2, 3, 11 only. No scaffold created. Skip Step 4 — no .meta exists to record the issue number.
+            This path is for hotfixes or docs-only work that will not use work-end. If work-end is needed later, create .meta manually first.
       n → Branch Switch Helper to main, re-run detection.
 ```
 
@@ -229,10 +230,16 @@ Resolve paths (Step 0). Then check in order:
 ### Step 0 — Resolve paths
 Read `$PROJECT`, `$WORKSPACE` from CLAUDE.md. Read `$OWNER_REPO` from `GitHub repo:` line.
 
-### Step 1 — Read context
+### Step 1 — Read context and extract variables
 ```bash
 cat "$WORKSPACE/design/.meta"   # branch, project-sha, issue, flyway-next-v
+
+BRANCH_NAME=$(grep "^branch:" "$WORKSPACE/design/.meta" | sed 's/branch: //')
+PROJECT_SHA=$(grep "^project-sha:" "$WORKSPACE/design/.meta" | sed 's/project-sha: //')
+ISSUE_N=$(grep "^issue:" "$WORKSPACE/design/.meta" | sed 's/issue: //')
 ```
+
+`$BRANCH_NAME`, `$PROJECT_SHA`, and `$ISSUE_N` are used throughout Steps 3–10. Extract once here, never re-read from `.meta`.
 
 ### Step 2 — Flyway V re-scan
 
@@ -246,9 +253,26 @@ If conflict: `[R]` renumber affected migration files, `[A]` abort. Block close u
 
 ### Step 3 — Resolve routing and set DESIGN_REPO
 
-Three-layer cascade for each artifact type. Warn on deprecated vocabulary (`base`, `project repo`, `design-journal`). Show resolved table, detect capability (`remote-git`, `local-git`, `filesystem`), user confirms before proceeding.
+Three-layer cascade for each artifact type. Warn on deprecated vocabulary (`base`, `project repo`, `design-journal`). Show resolved table, user confirms before proceeding.
 
-From the `design` routing result: set `DESIGN_REPO="$WORKSPACE"` if `design → workspace`, or `DESIGN_REPO="$PROJECT"` if `design → project`. `DESIGN_REPO` is used in Steps 5 and 8d.
+**Capability detection** — for each resolved destination:
+```bash
+detect_capability() {
+  local dest="$1"
+  if [ -d "$dest/.git" ]; then
+    git -C "$dest" remote get-url origin &>/dev/null 2>&1 \
+      && echo "remote-git" || echo "local-git"
+  else
+    echo "filesystem"
+  fi
+}
+```
+
+**Specs routing is non-configurable** — specs always route to `project` (`$PROJECT/docs/specs/`), regardless of the routing table. If the cascade resolves `specs → workspace`, override it to `project` with a warning: "Specs routing overridden to project — specs routing is not user-configurable."
+
+From the `design` routing result: set `DESIGN_REPO="$WORKSPACE"` if `design → workspace`, or `DESIGN_REPO="$PROJECT"` if `design → project`.
+
+**`$DESIGN_REPO` scope:** This variable must be available through Step 8d. Do not recalculate it in subsequent steps — use the value set here. Steps 4–8c do not change the routing.
 
 ### Step 4 — Inventory artifacts
 ```bash
@@ -313,11 +337,13 @@ git -C "$WORKSPACE" checkout main
 git -C "$WORKSPACE" pull --rebase origin main
 
 # Promote workspace-routed artifacts (blog, snapshots)
+# artifact-files are paths relative to $WORKSPACE root, taken from the Step 4 inventory
+# filtered by routing destination = workspace. E.g. "blog/2026-05-19-entry.md"
 for each workspace-routed artifact:
   mkdir -p "$WORKSPACE/<dest>/"
-  git -C "$WORKSPACE" checkout <branch-name> -- <artifact-files>
+  git -C "$WORKSPACE" checkout "$BRANCH_NAME" -- <artifact-files>
   git -C "$WORKSPACE" add "<dest>/"
-  git -C "$WORKSPACE" commit -m "feat: promote <type> from <branch-name>"
+  git -C "$WORKSPACE" commit -m "feat: promote <type> from $BRANCH_NAME"
 
 # Archive plans to attic
 if plans exist:
@@ -353,8 +379,8 @@ git -C "$WORKSPACE" push
 ```
 
 **8d — Journal merge**:
-Uses `$DESIGN_REPO` set in Step 3.
-1. Read baseline: `git -C "$DESIGN_REPO" show <project-sha>:DESIGN.md`
+Uses `$DESIGN_REPO` (set in Step 3) and `$PROJECT_SHA` (set in Step 1).
+1. Read baseline: `git -C "$DESIGN_REPO" show "$PROJECT_SHA":DESIGN.md`
 2. Read current `$DESIGN_REPO/DESIGN.md`
 3. Apply journal narrative per §Section, preserving independent main-branch changes
 4. Write merged result
@@ -531,18 +557,29 @@ git -C "$WORKSPACE" stash pop 2>/dev/null || true  # only if stashed above
 ```
 
 ### Step 5 — Restore stashed changes
-Read from `.meta`:
+Read from `.meta` and pop the specific recorded stash reference:
 ```bash
 STASH_PROJECT=$(grep "^stash-project:" "$WORKSPACE/design/.meta" | sed 's/stash-project: //')
 STASH_WORKSPACE=$(grep "^stash-workspace:" "$WORKSPACE/design/.meta" | sed 's/stash-workspace: //')
-[ "$STASH_PROJECT" != "none" ] && git -C "$PROJECT" stash pop 2>/dev/null \
-  || echo "⚠️ Project stash pop failed — resolve manually"
-[ "$STASH_WORKSPACE" != "none" ] && git -C "$WORKSPACE" stash pop 2>/dev/null \
-  || echo "⚠️ Workspace stash pop failed — resolve manually"
+
+# Use the recorded stash reference — do NOT use bare stash pop (pops wrong stash if stack shifted)
+[ "$STASH_PROJECT" != "none" ] && \
+  git -C "$PROJECT" stash pop "$STASH_PROJECT" 2>/dev/null \
+  || { [ "$STASH_PROJECT" != "none" ] && echo "⚠️ Project stash pop failed ($STASH_PROJECT) — resolve manually"; }
+
+[ "$STASH_WORKSPACE" != "none" ] && \
+  git -C "$WORKSPACE" stash pop "$STASH_WORKSPACE" 2>/dev/null \
+  || { [ "$STASH_WORKSPACE" != "none" ] && echo "⚠️ Workspace stash pop failed ($STASH_WORKSPACE) — resolve manually"; }
 ```
 
 ### Step 6 — Clear pause flags from .meta
-Remove lines `paused:`, `paused-at:`, `paused-issue:`, `stash-project:`, `stash-workspace:` from `$WORKSPACE/design/.meta`. Commit and push.
+```bash
+sed -i '' '/^paused:/d; /^paused-at:/d; /^paused-issue:/d; /^stash-project:/d; /^stash-workspace:/d' \
+  "$WORKSPACE/design/.meta"
+git -C "$WORKSPACE" add design/.meta
+git -C "$WORKSPACE" commit -m "chore($RESUME_BRANCH): clear pause flags from .meta"
+git -C "$WORKSPACE" push
+```
 
 ### Step 7 — Surface context
 ```
