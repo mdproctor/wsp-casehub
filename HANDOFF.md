@@ -1,23 +1,27 @@
 # Handoff — PlanItemStore Atomicity Fix
-2026-05-18
+2026-05-19
 
-## What changed this session
+## What changed last session
 
 **engine#273 closed and merged to main.**
 
-`PlanItemStore` (blocking) + `ReactivePlanItemStore` (Uni<>) SPIs added to `casehub-engine-common`. `PlanItemStatus` extracted from nested enum in `PlanItem` to `common`. Blocking `JpaPlanItemStore` + `WorkAdapterPlanItemEntity` in `work-adapter` (shares casehub-work datasource). Reactive `JpaReactivePlanItemStore` + `PlanItemEntity` in `persistence-hibernate`. `MemoryPlanItemStore` / `MemoryReactivePlanItemStore` in `persistence-memory`.
+PlanItemStore (blocking) + ReactivePlanItemStore (Uni<>) SPIs in casehub-engine-common. Blocking JpaPlanItemStore + WorkAdapterPlanItemEntity in work-adapter (shares casehub-work datasource). Reactive JpaReactivePlanItemStore + PlanItemEntity in persistence-hibernate. MemoryPlanItemStore / MemoryReactivePlanItemStore in persistence-memory.
 
-Handler fix: `@Transactional` on `onHumanTaskSchedule`, execution order: create WorkItem → `planItemStore.save(RUNNING)` → `item.markRunning()`. All atomic. PlanItem stays PENDING if WorkItem creation fails.
+Handler fix: @Transactional on onHumanTaskSchedule, execution order: create WorkItem → planItemStore.save(RUNNING) → item.markRunning(). All atomic.
 
-Key design decision: `store.save()` cannot live in `addPlanItem()` — that runs on the reactive Vert.x IO thread with no JTA context. Call site is the blocking handler only.
+Epic epic-atomic-human-task merged (d226b94) and closed. Branches retained until 2026-06-01.
 
-Platform updated: `module-tier-structure.md` in parent now documents Store SPI pattern + dual-variant rule.
+## Quick wins (no epic needed, < 30 min each)
 
-Protocol added: `PP-20260518-78f8b7` — PlanItemStore.save() must be called from blocking @Transactional context.
+| Issue | What | Size |
+|-------|------|------|
+| `engine#278` | SelectionContext arity mismatch — 2 call sites in `engine/runtime` pass 7 args, constructor requires 8. Compilation error. | 2-line fix |
+| `engine#277` | json-schema-validator pin sits in `work-adapter/pom.xml` — move to engine root `pom.xml` `<dependencyManagement>` | 1-line move |
+| `engine#279` | JpaReactivePlanItemStore.updateStatus() uses find-and-mutate without flush — silent no-op if entity not yet flushed. Switch to JPQL UPDATE (same pattern as blocking impl) | ~10 lines |
+| `engine#280` | Missing contract test for JpaReactivePlanItemStore. Needs abstract ReactivePlanItemStoreContractTest in common + concrete subclass in persistence-hibernate | 30 min |
+| `engine#252` | Extract SubCaseCompletionListener → SubCaseCompletionService. Pure refactor, well-scoped | 30–60 min |
 
-Epic `epic-atomic-human-task` closed and merged (merge commit `d226b94`). Both repos on `main`, pushed. Branches retained until 2026-06-01.
-
-## Open issues
+## All open issues
 
 | Issue | What |
 |-------|------|
@@ -38,8 +42,8 @@ Epic `epic-atomic-human-task` closed and merged (merge commit `d226b94`). Both r
 
 - Blog: `blog/2026-05-18-mdp01-atomic-by-design.md`
 - Spec: `casehub-engine/docs/specs/2026-05-17-plan-item-store-atomicity-design.md`
-- Garden: `GE-20260518-6ed073` (mvn stale jar), `GE-20260518-554158` (git submodule staged), `GE-20260518-896005` (non-JTA rollback), `GE-20260518-da7e91` (em.flush bulk update), `GE-20260518-a61d1b` (ConsumeEvent+Transactional)
+- Garden: GE-20260518-6ed073 (mvn stale jar), GE-20260518-554158 (git submodule staged), GE-20260518-896005 (non-JTA rollback), GE-20260518-da7e91 (em.flush bulk update), GE-20260518-a61d1b (ConsumeEvent+Transactional)
 
-## Unchanged from previous session
+## Unchanged
 
 *Background, project context — retrieve with: `git show HEAD~1:HANDOFF.md`*
