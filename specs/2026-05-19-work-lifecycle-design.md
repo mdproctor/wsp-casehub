@@ -167,10 +167,10 @@ git -C "$WORKSPACE" checkout -b <branch-name>
 
 **Step 8 — Resolve design routing and SHA baseline**  
 Read routing config (3-layer cascade) for `design` artifact:
-- If `design → workspace`: `DESIGN_REPO="$WORKSPACE"`, baseline = `git -C "$WORKSPACE" rev-parse main`
-- If `design → project` (default): `DESIGN_REPO="$PROJECT"`, baseline = `git -C "$PROJECT" rev-parse HEAD`
+- If `design → workspace`: `DESIGN_REPO="$WORKSPACE"`, baseline = `git -C "$WORKSPACE" rev-parse main`, `DESIGN_REPO_KEY=workspace`
+- If `design → project` (default): `DESIGN_REPO="$PROJECT"`, baseline = `git -C "$PROJECT" rev-parse HEAD`, `DESIGN_REPO_KEY=project`
 
-`DESIGN_REPO` is used in Step 9 (section hashes) and carried into work-end Step 8d.
+`DESIGN_REPO_KEY` is stored in `.meta` as `design-repo:` so work-end can use it directly without re-deriving from routing config — which may have changed between sessions. Work-end reads `design-repo:` from `.meta` and sets `$DESIGN_REPO` accordingly.
 
 **Step 9 — Scaffold**  
 ```bash
@@ -189,9 +189,26 @@ project-sha: <baseline SHA from Step 8>
 date: <YYYY-MM-DD>
 issue: <N or blank>
 flyway-next-v: <N | none | unknown>
-design-section-hashes: <H2 hashes from $DESIGN_REPO/DESIGN.md, or blank>
+design-repo: <workspace | project>
+design-section-hashes: <pipe-separated hash:heading pairs, or blank>
 ```
-Section hashes: `grep "^## " "$DESIGN_REPO/DESIGN.md" 2>/dev/null | while read h; do echo "$h" | md5 | head -c 8 | tr -d '\n'; echo " $h"; done`
+
+`design-repo:` is the stable source of truth for `$DESIGN_REPO` across sessions — used by work-end Step 3 instead of re-deriving from routing config.
+
+Section hashes — stored as a single pipe-separated string on one line (no multi-line format):
+```bash
+HASHES=$(grep "^## " "$DESIGN_REPO/DESIGN.md" 2>/dev/null \
+  | while read h; do printf "%s:%s|" "$(printf '%s' "$h" | shasum -a 256 | cut -c1-8)" "$h"; done)
+```
+Example value: `abc12345:## Architecture|def67890:## Data Model|`
+
+Use `shasum -a 256` (portable across macOS and Linux, available via Git's bundled tools). Stored on a single line so standard `grep "^design-section-hashes:"` reads it back without multi-line parsing.
+
+Work-end Step 5b reads it back:
+```bash
+STORED=$(grep "^design-section-hashes:" "$WORKSPACE/design/.meta" | sed 's/design-section-hashes: //')
+# Re-hash current headings in the same format and compare
+```
 
 **Step 10 — Commit and push scaffold**  
 ```bash
@@ -273,7 +290,11 @@ detect_capability() {
 
 **Specs routing is non-configurable** — specs always route to `project` (`$PROJECT/docs/specs/`), regardless of the routing table. If the cascade resolves `specs → workspace`, override it to `project` with a warning: "Specs routing overridden to project — specs routing is not user-configurable."
 
-From the `design` routing result: set `DESIGN_REPO="$WORKSPACE"` if `design → workspace`, or `DESIGN_REPO="$PROJECT"` if `design → project`.
+Set `$DESIGN_REPO` from `.meta` — do NOT re-derive from routing config (which may have changed since the branch was created):
+```bash
+DESIGN_REPO_KEY=$(grep "^design-repo:" "$WORKSPACE/design/.meta" | sed 's/design-repo: //')
+[ "$DESIGN_REPO_KEY" = "workspace" ] && DESIGN_REPO="$WORKSPACE" || DESIGN_REPO="$PROJECT"
+```
 
 **`$DESIGN_REPO` scope:** This variable must be available through Step 8d. Do not recalculate it in subsequent steps — use the value set here. Steps 4–8c do not change the routing.
 
@@ -674,7 +695,8 @@ project-sha: <SHA — routing-aware baseline>
 date: <YYYY-MM-DD>
 issue: <N or blank>
 flyway-next-v: <N | none | unknown>
-design-section-hashes: <H2 hashes, one per line>
+design-repo: <workspace | project>
+design-section-hashes: <pipe-separated hash:heading pairs — e.g. abc12345:## Architecture|def67890:## Data Model|>
 paused: true                              # only present when paused
 paused-at: <ISO timestamp>                # only present when paused
 paused-issue: <N>                         # only present when paused on different issue
