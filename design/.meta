@@ -1,0 +1,7 @@
+branch: issue-94-work-lifecycle
+project-sha: 2ee994417c4604417b88761b12203c3526f741d5
+date: 2026-05-19
+issue: 94
+flyway-next-v: none
+design-repo: project
+design-section-hashes: bb8cd4e7:## Workspace Model|7c52b638:## write-blog Architecture|9940b2b7:## Issue Tracking Infrastructure|21673f4b:## Knowledge Garden|b34b21fd:## Design Backlog|
