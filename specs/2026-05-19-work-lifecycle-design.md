@@ -30,13 +30,25 @@ Replaces the fragmented `work-start` + `epic begin/close` + proposed pause/resum
 
 ---
 
+## Path Resolution (required at the start of every command)
+
+Before any file operations or git commands, resolve paths from CLAUDE.md:
+
+```bash
+PROJECT=$(grep "add-dir" CLAUDE.md | head -1 | sed 's/.*add-dir //')
+WORKSPACE=$(grep "^\*\*Workspace:\*\*" CLAUDE.md | head -1 | sed 's/.*`\(.*\)`.*/\1/')
+```
+
+**All file paths in this spec are absolute.** Never use CWD-relative paths. Never use bare `git` without `-C <path>`. Replace every `<workspace-path>` with `$WORKSPACE` and every `<project-path>` with `$PROJECT` in implementation.
+
+---
+
 ## Shared: Branch Switch Helper
 
 Referenced by all four commands. Never switch one repo alone.
 
 ```bash
-PROJECT=$(grep "add-dir" CLAUDE.md | head -1 | sed 's/.*add-dir //')
-WORKSPACE=$(grep "^\*\*Workspace:\*\*" CLAUDE.md | head -1 | sed 's/.*`\(.*\)`.*/\1/')
+# Resolve paths first (see Path Resolution above)
 
 git -C "$PROJECT" checkout <branch>
 git -C "$WORKSPACE" checkout <branch>
@@ -66,31 +78,45 @@ If helper fails (branch absent in one repo, network error): hard stop with instr
 
 ### Detection — checked in order, first match wins
 
+Resolve paths first. Then check:
+
+```bash
+META_BRANCH=$(grep "^branch:" "$WORKSPACE/design/.meta" 2>/dev/null | sed 's/branch: //')
+CURRENT_WORKSPACE=$(git -C "$WORKSPACE" branch --show-current)
+CURRENT_PROJECT=$(git -C "$PROJECT" branch --show-current)
 ```
-1. design/.paused on workspace main
+
+```
+1. $WORKSPACE/design/.paused exists in the working tree
    → Hard stop. "Paused branch detected. Invoke work-resume first."
 
-2. design/.meta exists, both repos on matching branch
+2. $WORKSPACE/design/.meta exists, AND
+   META_BRANCH == CURRENT_WORKSPACE == CURRENT_PROJECT (all three match)
    → Resume path.
 
-3. design/.meta exists, branches misaligned
+3. $WORKSPACE/design/.meta exists, branches misaligned
+   (any of the three values differ)
    → Invoke Branch Switch Helper inline.
      If helper fails → hard stop with manual instructions (no loop).
 
-4. design/.meta on main (orphaned)
+4. $WORKSPACE/design/.meta exists, CURRENT_WORKSPACE == main
+   (orphaned — .meta on main)
    → Hard stop. "Invoke work-end to complete or discard the abandoned branch."
 
-5. On main, no .meta, no .paused
+5. CURRENT_WORKSPACE == main, no .meta, no .paused
    → New branch path.
 
-6. On non-epic, non-main branch, no .meta
+6. On non-main branch, no .meta
    → "You are on <branch> with no branch scaffold.
       Continue here (y) or switch to main (n)?"
-      y → run pre-checks only, no scaffold.
+      y → run Steps 2, 3, 4 (optional), 11. No scaffold created.
       n → Branch Switch Helper to main, re-run detection.
 ```
 
 ### New branch path
+
+**Step 0 — Resolve paths**  
+Read `$PROJECT` and `$WORKSPACE` from CLAUDE.md (see Path Resolution).
 
 **Step 1 — Work description**  
 Use invocation argument if provided. Otherwise prompt: "Describe the work in one sentence."
@@ -117,62 +143,66 @@ Branch number (NNN) is the stable key — title slug is a convenience only.
 
 **Step 6 — Flyway V scan**  
 ```bash
-git -C <project-path> fetch --all 2>/dev/null || echo "⚠️ No network — scan incomplete"
+git -C "$PROJECT" fetch --all 2>/dev/null || echo "⚠️ No network — scan incomplete"
 ```
-If network available: scan main + all remote branches for claimed V numbers. Compute `next-safe-v = max + 1`. If conflict: warn, show `Next safe V: <N>`, block until acknowledged.  
-If no network: warn, record `flyway-next-v: unknown`. User must verify before adding migrations.
+If network available: scan main + all remote branches for claimed V numbers. Compute `next-safe-v = max + 1`. If conflict: warn, show `Next safe V: <N>`, block until acknowledged.
 
-Default: `flyway-next-v: unknown` — the user may not know yet at branch creation time.  
-Only ask if the user has already described migration work: "Will this branch include database migrations? (y/n)"  
-→ y: `flyway-next-v: <N>`  
-→ explicit n: `flyway-next-v: none`  
-→ no answer / unsure: `flyway-next-v: unknown` (safe default; user verifies before adding migrations)
+Default: `FLYWAY_NEXT_V=unknown` — the user may not know at branch creation time.  
+Only ask if the user described migration work: "Will this branch include database migrations? (y/n)"  
+→ y: `FLYWAY_NEXT_V=<N>`  
+→ explicit n: `FLYWAY_NEXT_V=none`  
+→ no answer: `FLYWAY_NEXT_V=unknown` (safe default)
 
 **Step 7 — Create branches (atomic)**  
 ```bash
-git -C <project-path> checkout -b <branch-name>
+git -C "$PROJECT" checkout -b <branch-name>
 # If fails → abort (nothing to clean up)
-git checkout -b <branch-name>
-# If fails → git -C <project-path> branch -D <branch-name>, abort, report error
+git -C "$WORKSPACE" checkout -b <branch-name>
+# If fails → git -C "$PROJECT" branch -D <branch-name>, abort, report error
 ```
 
-**Step 8 — Resolve routing-aware SHA baseline**  
+**Step 8 — Resolve design routing and SHA baseline**  
 Read routing config (3-layer cascade) for `design` artifact:
-- `design → workspace`: baseline = `git -C <workspace-path> rev-parse main`
-- `design → project` (default): baseline = `git -C <project-path> rev-parse HEAD`
+- If `design → workspace`: `DESIGN_REPO="$WORKSPACE"`, baseline = `git -C "$WORKSPACE" rev-parse main`
+- If `design → project` (default): `DESIGN_REPO="$PROJECT"`, baseline = `git -C "$PROJECT" rev-parse HEAD`
+
+`DESIGN_REPO` is used in Step 9 (section hashes) and carried into work-end Step 8d.
 
 **Step 9 — Scaffold**  
 ```bash
-mkdir -p design
+mkdir -p "$WORKSPACE/design"
 ```
-`design/JOURNAL.md`:
+
+`$WORKSPACE/design/JOURNAL.md`:
 ```markdown
 # Design Journal — <branch-name>
 ```
-`design/.meta`:
+
+`$WORKSPACE/design/.meta`:
 ```
 branch: <branch-name>
-project-sha: <from Step 8>
+project-sha: <baseline SHA from Step 8>
 date: <YYYY-MM-DD>
 issue: <N or blank>
 flyway-next-v: <N | none | unknown>
-design-section-hashes: <H2 hashes from <design-repo>/DESIGN.md, or blank>
+design-section-hashes: <H2 hashes from $DESIGN_REPO/DESIGN.md, or blank>
 ```
+Section hashes: `grep "^## " "$DESIGN_REPO/DESIGN.md" 2>/dev/null | while read h; do echo "$h" | md5 | head -c 8 | tr -d '\n'; echo " $h"; done`
 
 **Step 10 — Commit and push scaffold**  
 ```bash
-git -C <workspace-path> add design/JOURNAL.md design/.meta
-git -C <workspace-path> commit -m "init(<branch-name>): scaffold workspace branch"
-git -C <workspace-path> push  # non-fatal if fails; warn and continue
+git -C "$WORKSPACE" add design/JOURNAL.md design/.meta
+git -C "$WORKSPACE" commit -m "init(<branch-name>): scaffold workspace branch"
+git -C "$WORKSPACE" push  # non-fatal if fails; warn and continue
 ```
 
 **Step 11 — IntelliJ MCPs**  
 Call `mcp__intellij-index__ide_index_status` and `mcp__intellij__get_project_modules`. Hard stop if unavailable.
 
 **Step 12 — Offer brainstorming**  
-"Start a brainstorm? (y/n)" — if yes, specs write to `specs/<branch-name>/`.
+"Start a brainstorm? (y/n)" — if yes, specs write to `$WORKSPACE/specs/<branch-name>/`.
 
-**Specs routing:** `specs` is always routed to `project` (`docs/specs/` at close). Add `specs → project` as a non-configurable fixed route in work-end's routing resolution. Do not add `specs` to the CLAUDE.md routing table — it is not user-configurable. The three-layer cascade applies to blog/adr/snapshots/plans/design; specs are always promoted to project.
+**Specs routing:** `specs` always routes to `project` (`docs/specs/`). Not user-configurable. The three-layer cascade covers blog/adr/snapshots/plans/design only.
 
 ### Resume path (Detection state 2)
 
@@ -182,7 +212,7 @@ Surface `.meta`:
    Flyway V: <N | none | unknown>
    Project: <branch>  Workspace: <branch>
 ```
-Run Steps 2, 3, 11 only. Skip all branch creation steps.
+Run Steps 0, 2, 3, 11 only. Skip all branch creation steps.
 
 ---
 
@@ -190,64 +220,65 @@ Run Steps 2, 3, 11 only. Skip all branch creation steps.
 
 ### Pre-conditions
 
-Checked in order:
+Resolve paths (Step 0). Then check in order:
 
-1. **If `design/.paused` exists on workspace main** → hard stop. "You have a paused branch. Invoke `work-resume` first, then `work-end`."
-2. **Must be on a branch with `.meta`** → proceed.
-3. **If invoked from main with orphaned `.meta`** → hard stop. Offer to switch to surviving epic branch and close from there, or discard.
+1. **If `$WORKSPACE/design/.paused` exists** → hard stop. "You have a paused branch. Invoke `work-resume` first, then `work-end`."
+2. **Must be on a branch where `$WORKSPACE/design/.meta` exists** → proceed.
+3. **If `$WORKSPACE/design/.meta` exists but current workspace branch is `main`** (orphaned) → hard stop. Offer to switch to surviving epic branch and close from there, or discard.
 
-`.paused` check always comes first — it takes priority over orphaned `.meta`.
+### Step 0 — Resolve paths
+Read `$PROJECT`, `$WORKSPACE` from CLAUDE.md. Read `$OWNER_REPO` from `GitHub repo:` line.
 
 ### Step 1 — Read context
 ```bash
-cat design/.meta          # branch, project-sha, issue, flyway-next-v
-grep "add-dir" CLAUDE.md  # project path
-grep "GitHub repo:" CLAUDE.md  # owner/repo
+cat "$WORKSPACE/design/.meta"   # branch, project-sha, issue, flyway-next-v
 ```
 
 ### Step 2 — Flyway V re-scan
 
-Re-scan at close time — another branch may have claimed the same V numbers since this branch started.
+Re-scan at close time — another branch may have claimed the same V numbers since branch creation.
 
 ```bash
-git -C <project-path> fetch --all 2>/dev/null || echo "⚠️ No network — scan skipped"
+git -C "$PROJECT" fetch --all 2>/dev/null || echo "⚠️ No network — scan skipped"
 ```
 
 If conflict: `[R]` renumber affected migration files, `[A]` abort. Block close until resolved.
 
-### Step 3 — Resolve routing
+### Step 3 — Resolve routing and set DESIGN_REPO
 
 Three-layer cascade for each artifact type. Warn on deprecated vocabulary (`base`, `project repo`, `design-journal`). Show resolved table, detect capability (`remote-git`, `local-git`, `filesystem`), user confirms before proceeding.
 
+From the `design` routing result: set `DESIGN_REPO="$WORKSPACE"` if `design → workspace`, or `DESIGN_REPO="$PROJECT"` if `design → project`. `DESIGN_REPO` is used in Steps 5 and 8d.
+
 ### Step 4 — Inventory artifacts
 ```bash
-ls adr/ | grep -v INDEX.md
-ls blog/ | grep -v INDEX.md
-ls snapshots/ | grep -v INDEX.md
-ls specs/<branch-name>/
-ls plans/ | grep -v "^attic$"
-cat design/JOURNAL.md
+ls "$WORKSPACE/adr/" | grep -v INDEX.md
+ls "$WORKSPACE/blog/" | grep -v INDEX.md
+ls "$WORKSPACE/snapshots/" | grep -v INDEX.md
+ls "$WORKSPACE/specs/<branch-name>/" 2>/dev/null
+ls "$WORKSPACE/plans/" | grep -v "^attic$"
+cat "$WORKSPACE/design/JOURNAL.md"
 ```
 
 ### Step 5 — Journal validation
 
 **5a — DESIGN.md existence**  
-If missing: `[C]` create from journal entries, `[S]` skip merge.
+If `$DESIGN_REPO/DESIGN.md` missing: `[C]` create from journal entries, `[S]` skip merge.
 
 **5b — Section heading drift**  
-Re-hash H2 headings. Compare against `design-section-hashes` in `.meta`. For each §Section anchor in JOURNAL.md, verify its heading still exists unchanged.  
+Re-hash H2 headings in `$DESIGN_REPO/DESIGN.md`. Compare against `design-section-hashes` in `.meta`. For each §Section anchor in JOURNAL.md, verify its heading still exists unchanged.  
 If drift: `[U]` update journal anchors, `[S]` skip drifted sections, `[A]` abort.
 
 **5c — Anchor validation**  
-Count `^### .*·.*§` lines vs total `^### ` lines.  
+Count `^### .*·.*§` lines vs total `^### ` lines in JOURNAL.md.  
 If any entries lack anchors: `[F]` fix via java-update-design, `[S]` skip merge, `[C]` continue accepting loss.
 
 **5d — Empty journal**  
-If no entries at all: `[W]` write retrospective via java-update-design, `[S]` skip and accept permanent loss (stated explicitly — this is a permanent loss of design narrative).
+If no entries at all: `[W]` write retrospective via java-update-design, `[S]` skip and accept permanent loss.
 
 ### Step 6 — Select specs for GitHub posting
 
-If tracking enabled, list `specs/<branch-name>/`, ask which to post. Skip silently if disabled.
+If tracking enabled, list `$WORKSPACE/specs/<branch-name>/`, ask which to post. Skip silently if disabled.
 
 ### Step 7 — Present close plan
 
@@ -273,60 +304,64 @@ Approve all, or step by step? (all / step)
 
 Failures are reported but do not stop remaining steps, **except**: journal merge failure prompts before continuing to issue close.
 
-**8a — Batch workspace-main operations** (single main-visit covers both artifact promotion and plan archiving):
+**8a — Batch workspace-main operations** (single main-visit):
 ```bash
-git stash  # only if uncommitted workspace changes exist
-git checkout main
-git -C <workspace-path> pull --rebase origin main
+# Stash any uncommitted workspace changes
+git -C "$WORKSPACE" status --short | grep -q . && git -C "$WORKSPACE" stash
+
+git -C "$WORKSPACE" checkout main
+git -C "$WORKSPACE" pull --rebase origin main
 
 # Promote workspace-routed artifacts (blog, snapshots)
 for each workspace-routed artifact:
-  mkdir -p <workspace-dest>
-  git checkout <branch-name> -- <artifact-files>
-  git -C <workspace-path> add <workspace-dest>/
-  git -C <workspace-path> commit -m "feat: promote <type> from <branch-name>"
+  mkdir -p "$WORKSPACE/<dest>/"
+  git -C "$WORKSPACE" checkout <branch-name> -- <artifact-files>
+  git -C "$WORKSPACE" add "<dest>/"
+  git -C "$WORKSPACE" commit -m "feat: promote <type> from <branch-name>"
 
 # Archive plans to attic
 if plans exist:
-  git checkout <branch-name> -- plans/<files>
-  mkdir -p plans/attic/<branch-name>
-  mv plans/<files> plans/attic/<branch-name>/
-  git -C <workspace-path> add -A
-  git -C <workspace-path> commit -m "archive(<branch-name>): move plans to attic"
+  git -C "$WORKSPACE" checkout <branch-name> -- plans/<files>
+  mkdir -p "$WORKSPACE/plans/attic/<branch-name>"
+  mv "$WORKSPACE/plans/<files>" "$WORKSPACE/plans/attic/<branch-name>/"
+  git -C "$WORKSPACE" add -A
+  git -C "$WORKSPACE" commit -m "archive(<branch-name>): move plans to attic"
 
-git -C <workspace-path> push  # single push for all workspace-main commits
-git checkout <branch-name>
-git stash pop  # only if stashed above
+git -C "$WORKSPACE" push  # single push for all workspace-main commits
+
+git -C "$WORKSPACE" checkout <branch-name>
+git -C "$WORKSPACE" stash pop  # only if stashed above
 ```
 
 **8b — Project-routed artifact promotion** (ADRs, specs):
 ```bash
 for each project-routed artifact:
-  mkdir -p <project-dest>
-  cp <files> <project-dest>/
-  git -C <project-path> add <project-dest>/
-  git -C <project-path> commit -m "feat: promote <type> from <branch-name>"
-  git -C <project-path> push  # non-fatal if fails; report
+  mkdir -p "$PROJECT/<dest>/"
+  cp "$WORKSPACE/<artifact-file>" "$PROJECT/<dest>/"
+  git -C "$PROJECT" add "<dest>/"
+  git -C "$PROJECT" commit -m "feat: promote <type> from <branch-name>"
+  git -C "$PROJECT" push  # non-fatal if fails; report exit code
 ```
 
-**8c — Spec cleanup** (only if 8b push exit code was 0 — confirmed successful):
-If 8b push failed, spec cleanup is skipped entirely. The workspace copy is the only remaining copy — deleting it would cause permanent data loss.
+**8c — Spec cleanup** (only if 8b push exit code was 0):
+If 8b push failed, skip entirely — workspace copy is the only remaining copy.
 ```bash
-rm -rf specs/<branch-name>/
-git -C <workspace-path> add -A
-git -C <workspace-path> commit -m "chore(<branch-name>): remove promoted specs from staging"
-git -C <workspace-path> push
+rm -rf "$WORKSPACE/specs/<branch-name>/"
+git -C "$WORKSPACE" add -A
+git -C "$WORKSPACE" commit -m "chore(<branch-name>): remove promoted specs from staging"
+git -C "$WORKSPACE" push
 ```
 
 **8d — Journal merge**:
-1. Read baseline: `git -C <design-repo> show <project-sha>:DESIGN.md`
-2. Read current `<design-repo>/DESIGN.md`
+Uses `$DESIGN_REPO` set in Step 3.
+1. Read baseline: `git -C "$DESIGN_REPO" show <project-sha>:DESIGN.md`
+2. Read current `$DESIGN_REPO/DESIGN.md`
 3. Apply journal narrative per §Section, preserving independent main-branch changes
 4. Write merged result
-5. Post-merge verification: re-read each §Section; if anything looks wrong, present to user (`[A]` accept, `[R]` redo, `[X]` abort) before committing
-6. Commit and push
+5. Post-merge verification: re-read each §Section; present to user (`[A]` accept, `[R]` redo, `[X]` abort) before committing
+6. `git -C "$DESIGN_REPO" add DESIGN.md && git -C "$DESIGN_REPO" commit -m "docs(<branch-name>): apply design journal" && git -C "$DESIGN_REPO" push`
 
-If journal merge fails: prompt user before continuing to issue close. Do not silently skip.
+If journal merge fails: prompt user before continuing to issue close.
 
 **8e — Spec posting**: post selected specs as collapsible comments on GitHub issue.
 
@@ -345,6 +380,8 @@ If journal merge fails: prompt user before continuing to issue close. Do not sil
 ❌ Push failed — <path>. Run: git -C <path> push
 ```
 
+**8i — Offer hygiene scan**: "Run branch hygiene scan? Checks Flyway conflicts, unmerged code, stale branches. (y/n)"
+
 ### Step 8 (step path)
 
 Phase 1: Artifact routing — confirm, execute, report → "Continue to journal merge? (y/n)"  
@@ -354,17 +391,16 @@ Phase 4: EPIC-CLOSED.md and return to main.
 
 ### Step 9 — Mark closed
 
-Write `EPIC-CLOSED.md` on workspace epic branch:
-```markdown
+```bash
+cat > "$WORKSPACE/EPIC-CLOSED.md" << EOF
 # Branch Closed — <branch-name>
 **Date:** <YYYY-MM-DD>
 **Issue:** #<N>
 **Scheduled for deletion:** <date + 14 days>
-```
-```bash
-git -C <workspace-path> add EPIC-CLOSED.md
-git -C <workspace-path> commit -m "docs(<branch-name>): mark closed, deletion due <date>"
-git -C <workspace-path> push
+EOF
+git -C "$WORKSPACE" add EPIC-CLOSED.md
+git -C "$WORKSPACE" commit -m "docs(<branch-name>): mark closed, deletion due <date>"
+git -C "$WORKSPACE" push
 ```
 
 Branches are **not deleted**. `EPIC-CLOSED.md` is the signal for hygiene scan cleanup.
@@ -376,8 +412,8 @@ Return both repos to main? (y/n)
 ```
 If y:
 ```bash
-git -C <project-path> checkout main
-git checkout main
+git -C "$PROJECT" checkout main
+git -C "$WORKSPACE" checkout main
 ```
 Check remote ahead; prompt before `pull --rebase`. Not automatic.
 
@@ -385,49 +421,69 @@ Check remote ahead; prompt before `pull --rebase`. Not automatic.
 
 ## work-pause
 
+### Step 0 — Resolve paths
+Read `$PROJECT`, `$WORKSPACE` from CLAUDE.md.
+
 ### Step 1 — Validate state
-Must be on a branch with `.meta`. If `.paused` already on workspace main: hard stop — only one paused branch at a time.
+Must be on a branch where `$WORKSPACE/design/.meta` exists.  
+If `$WORKSPACE/design/.paused` already exists: hard stop — only one paused branch at a time.
 
 ### Step 2 — Handle uncommitted changes
-Check both repos. If changes exist:
+```bash
+PROJECT_DIRTY=$(git -C "$PROJECT" status --short | grep -c .)
+WORKSPACE_DIRTY=$(git -C "$WORKSPACE" status --short | grep -c .)
+```
+If either is dirty:
 ```
 Uncommitted changes found. Stash them? (y/n)
-  y → git stash in both repos; record stash SHAs in .meta
   n → abort (commit or discard first)
 ```
-Record in `.meta`: `stash-project: <stash@{N} | none>`, `stash-workspace: <stash@{N} | none>` — use the stash stack reference, not the SHA. The stash position `stash@{0}` is recorded at pause time. **Note:** if the user manually runs `git stash` or `git stash pop` on either repo between pause and resume, the recorded reference will shift and restoration will fail silently. This is a known limitation — document it to the user at pause time.
+If y:
+```bash
+STASH_PROJECT=none
+STASH_WORKSPACE=none
+[ "$PROJECT_DIRTY" -gt 0 ] && git -C "$PROJECT" stash && STASH_PROJECT="stash@{0}"
+[ "$WORKSPACE_DIRTY" -gt 0 ] && git -C "$WORKSPACE" stash && STASH_WORKSPACE="stash@{0}"
+```
+**Note to user at pause time:** If you run `git stash` or `git stash pop` manually on either repo before resuming, the recorded stash position will shift and restoration will fail.
 
 ### Step 3 — Record pause in .meta (atomic with Step 4)
-Add to `.meta`:
-```
+```bash
+cat >> "$WORKSPACE/design/.meta" << EOF
 paused: true
-paused-at: <ISO timestamp>
-paused-issue: <N if working on different issue, else same as issue>
+paused-at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+paused-issue: <N if working on different issue>
+stash-project: $STASH_PROJECT
+stash-workspace: $STASH_WORKSPACE
+EOF
+git -C "$WORKSPACE" add design/.meta
+git -C "$WORKSPACE" commit -m "chore(<branch-name>): pause"
+git -C "$WORKSPACE" push
 ```
-Commit to workspace epic branch and push. **If push fails: abort before Step 4.** Do not write `.paused` to main if `.meta` push failed.
+**If push fails: abort before Step 4.** Do not write `.paused` to main.
 
 ### Step 4 — Write .paused to workspace main
 ```bash
-# If workspace changes were stashed in Step 2, they are already on the stash stack
-# Do NOT stash again — go directly to checkout main
-git checkout main
-git -C <workspace-path> pull --rebase origin main
+# Workspace stash already on stack from Step 2 if applicable — do NOT stash again
+git -C "$WORKSPACE" checkout main
+git -C "$WORKSPACE" pull --rebase origin main
 
-cat > design/.paused << EOF
+mkdir -p "$WORKSPACE/design"
+cat > "$WORKSPACE/design/.paused" << EOF
 branch: <branch-name>
-paused-at: <ISO timestamp>
+paused-at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 
-git -C <workspace-path> add design/.paused
-git -C <workspace-path> commit -m "chore: pause marker for <branch-name>"
-git -C <workspace-path> push
+git -C "$WORKSPACE" add design/.paused
+git -C "$WORKSPACE" commit -m "chore: pause marker for <branch-name>"
+git -C "$WORKSPACE" push
 ```
 
 ### Step 5 — Switch project repo to main
 ```bash
-git -C <project-path> checkout main
+git -C "$PROJECT" checkout main
 ```
-Prompt before remote pull (may not be ready for upstream changes).
+Prompt before remote pull.
 
 ### Step 6 — Confirm
 ```
@@ -439,47 +495,54 @@ Prompt before remote pull (may not be ready for upstream changes).
 
 ## work-resume
 
+### Step 0 — Resolve paths
+Read `$PROJECT`, `$WORKSPACE` from CLAUDE.md.
+
 ### Step 1 — Check .paused
 ```bash
-cat design/.paused 2>/dev/null || { echo "Nothing to resume."; exit 1; }
+cat "$WORKSPACE/design/.paused" 2>/dev/null || { echo "Nothing to resume."; exit 1; }
+RESUME_BRANCH=$(grep "^branch:" "$WORKSPACE/design/.paused" | sed 's/branch: //')
 ```
-Read branch name from `.paused`.
 
 ### Step 2 — Stale check
-Verify branch exists in both repos:
 ```bash
-git branch -a | grep <branch-name>
-git -C <project-path> branch -a | grep <branch-name>
+git -C "$WORKSPACE" branch -a | grep -q "$RESUME_BRANCH"
+git -C "$PROJECT" branch -a | grep -q "$RESUME_BRANCH"
 ```
 If missing from either: `[D]` discard `.paused` and clean up, `[A]` abort.
 
 ### Step 3 — Switch both repos to epic branch
-Use Branch Switch Helper. Prompt before remote pull.
+Use Branch Switch Helper with `$RESUME_BRANCH`. Prompt before remote pull.
 
 ### Step 4 — Remove .paused from workspace main
 ```bash
-git stash  # workspace is now on epic branch; stash if any changes
-git checkout main
-git -C <workspace-path> pull --rebase origin main
-rm design/.paused
-git -C <workspace-path> add -A
-git -C <workspace-path> commit -m "chore: resume <branch-name>, remove pause marker"
-git -C <workspace-path> push
-git checkout <branch-name>
-git stash pop  # only if stashed above
+# Stash any uncommitted workspace changes (now on epic branch)
+git -C "$WORKSPACE" status --short | grep -q . && git -C "$WORKSPACE" stash
+
+git -C "$WORKSPACE" checkout main
+git -C "$WORKSPACE" pull --rebase origin main
+rm "$WORKSPACE/design/.paused"
+git -C "$WORKSPACE" add -A
+git -C "$WORKSPACE" commit -m "chore: resume $RESUME_BRANCH, remove pause marker"
+git -C "$WORKSPACE" push
+
+git -C "$WORKSPACE" checkout "$RESUME_BRANCH"
+git -C "$WORKSPACE" stash pop 2>/dev/null || true  # only if stashed above
 ```
 
 ### Step 5 — Restore stashed changes
-Read `stash-project` and `stash-workspace` from `.meta`.
+Read from `.meta`:
 ```bash
-[ "$stash-project" != "none" ] && git -C <project-path> stash pop
-[ "$stash-workspace" != "none" ] && git stash pop
+STASH_PROJECT=$(grep "^stash-project:" "$WORKSPACE/design/.meta" | sed 's/stash-project: //')
+STASH_WORKSPACE=$(grep "^stash-workspace:" "$WORKSPACE/design/.meta" | sed 's/stash-workspace: //')
+[ "$STASH_PROJECT" != "none" ] && git -C "$PROJECT" stash pop 2>/dev/null \
+  || echo "⚠️ Project stash pop failed — resolve manually"
+[ "$STASH_WORKSPACE" != "none" ] && git -C "$WORKSPACE" stash pop 2>/dev/null \
+  || echo "⚠️ Workspace stash pop failed — resolve manually"
 ```
-If stash pop fails (conflict): report, do not abort — user resolves manually.
 
 ### Step 6 — Clear pause flags from .meta
-Remove `paused:`, `paused-at:`, `paused-issue:`, `stash-project:`, `stash-workspace:`.  
-Commit and push.
+Remove lines `paused:`, `paused-at:`, `paused-issue:`, `stash-project:`, `stash-workspace:` from `$WORKSPACE/design/.meta`. Commit and push.
 
 ### Step 7 — Surface context
 ```
@@ -488,7 +551,7 @@ Commit and push.
 ```
 
 ### Step 8 — Run pre-checks
-Steps 2, 3, 11 from work-start (platform coherence, protocols, IntelliJ).
+Steps 0, 2, 3, 11 from work-start (path resolution, platform coherence, protocols, IntelliJ).
 
 ---
 
@@ -507,57 +570,44 @@ The workflows below are preserved for reference during migration.
 
 Skill remains functional during migration. Retired once all sessions use the new commands and no issues are found.
 
-**Gate text migration:** The current work-start gate says "Option 1 (branch work) → invoke `/epic begin`". Once the new skills are deployed, this gate text must change to "branch creation is handled by work-start itself — proceed." Update the gate text in work-start when deploying, not before.
+**Gate text migration:** The current work-start gate says "Option 1 (branch work) → invoke `/epic begin`". Once the new skills are deployed, update this to "branch creation is handled by work-start itself — proceed."
 
 ---
 
 ## Required Skill Updates (non-negotiable for correctness)
 
-These existing skills must be updated as part of the migration. Without them, the new branch naming convention silently breaks core functionality.
-
 ### java-update-design — workspace mode detection
 
-**Current (broken for `issue-NNN-*` branches):**
-```bash
-git branch --show-current   # must match epic-* pattern
-ls design/.meta 2>/dev/null
-ls design/JOURNAL.md 2>/dev/null
-```
+**Current (broken for `issue-NNN-*` branches):** checks `epic-*` branch prefix.
 
-**Required update — detect on `.meta` presence, not branch prefix:**
+**Required:**
 ```bash
 # All three must be true; branch name prefix is NOT checked
-ls design/.meta 2>/dev/null        # .meta must exist
-ls design/JOURNAL.md 2>/dev/null   # JOURNAL.md must exist
-git branch --show-current | grep -v "^main$"  # not on main
+[ -f "$WORKSPACE/design/.meta" ]
+[ -f "$WORKSPACE/design/JOURNAL.md" ]
+[ "$(git -C "$WORKSPACE" branch --show-current)" != "main" ]
 ```
 
-Without this fix, every commit on an `issue-NNN-*` branch silently writes directly to `DESIGN.md` instead of `JOURNAL.md`. The journal mechanism is entirely bypassed with no error.
+Without this fix, every commit on an `issue-NNN-*` branch silently writes directly to `DESIGN.md`. The journal mechanism is entirely bypassed with no error.
 
 ### Branch Hygiene Scan — detection by .meta, not branch name
 
-**Current (broken for `issue-NNN-*` branches):**
-```bash
-git branch | grep 'epic-'
-```
+**Current (broken):** `git branch | grep 'epic-'`
 
-**Required update — detect all work branches by `.meta` presence:**
+**Required:**
 ```bash
-# Find all branches that have a .meta file on the workspace side
-for branch in $(git branch | sed 's/^[* ]*//' | grep -v '^main$'); do
-  git show "$branch:design/.meta" 2>/dev/null && echo "$branch"
+for branch in $(git -C "$WORKSPACE" branch | sed 's/^[* ]*//' | grep -v '^main$'); do
+  git -C "$WORKSPACE" show "$branch:design/.meta" 2>/dev/null && echo "$branch"
 done
 ```
-
-Without this fix, the hygiene scan returns empty for all new branches — Flyway conflicts and unmerged code go undetected.
 
 ---
 
 ## Branch Hygiene Scan
 
-Moved to the handover wrap checklist (epic hygiene item). Also offered by `work-end` after close.
+Moved to the handover wrap checklist (epic hygiene item). Also offered by `work-end` Step 8i after close.
 
-**Detection:** Find branches by `.meta` presence, not by `epic-*` name prefix. See Required Skill Updates above.
+**Detection:** Find branches by `.meta` presence, not by `epic-*` name prefix.
 
 Checks per branch: Flyway V conflicts across all open branches, unmerged code on project branch, PR status, EPIC-CLOSED.md existence and deletion date, artifact promotion status (specs, plans).
 
@@ -574,11 +624,11 @@ date: <YYYY-MM-DD>
 issue: <N or blank>
 flyway-next-v: <N | none | unknown>
 design-section-hashes: <H2 hashes, one per line>
-paused: true                         # only present when paused
-paused-at: <ISO timestamp>           # only present when paused
-paused-issue: <N>                    # only present when paused on different issue
-stash-project: <stash@{N} | none>    # only present when paused; stack position at pause time
-stash-workspace: <stash@{N} | none>  # only present when paused; stack position at pause time
+paused: true                              # only present when paused
+paused-at: <ISO timestamp>                # only present when paused
+paused-issue: <N>                         # only present when paused on different issue
+stash-project: <stash@{N} | none>         # only present when paused
+stash-workspace: <stash@{N} | none>       # only present when paused
 ```
 
 ---
@@ -586,9 +636,10 @@ stash-workspace: <stash@{N} | none>  # only present when paused; stack position 
 ## Known Limitations
 
 - Only one paused branch at a time
-- Stash reference uses `stash@{N}` position — if the user manually stashes or pops between pause and resume, the recorded position shifts and restoration fails. User is warned at pause time.
-- If project repo stash is accidentally popped during interruption, it cannot be recovered
+- Stash reference uses `stash@{N}` stack position — if the user manually stashes or pops between pause and resume, the recorded position shifts and restoration fails. User is warned at pause time.
+- If project repo stash is accidentally popped during an interruption, it cannot be recovered
 - `paused-issue` is informational only — not enforced by work-start
 - Flyway V scan requires network; `unknown` V is a manual verification burden
-- **Flyway scan staleness in concurrent sessions:** The family workspace (casehub) runs multiple Claude sessions simultaneously across repos. The Flyway V scan at `work-end` may be stale if another session merged a branch between `work-start` and `work-end`. The re-scan at close time mitigates this but does not eliminate the race. If two sessions close branches simultaneously, the second session's re-scan will catch any conflict introduced by the first. Treat this as best-effort conflict detection, not a guarantee.
-- `work-start` gate text currently says "invoke `/epic begin`" — update this text when deploying the new skills (see Epic skill — Deprecation section) 
+- **Flyway scan staleness in concurrent sessions:** The family workspace runs multiple Claude sessions simultaneously. The Flyway V scan at `work-end` may be stale if another session merged between `work-start` and `work-end`. Re-scan at close time mitigates but does not eliminate the race.
+- **ADRs promoted after PR merge:** If the PR is merged before `work-end` runs, ADR promotion commits directly to project main rather than as part of the PR diff. This is expected behaviour — ADRs committed to the project epic branch during development are part of the PR; those staged in workspace and promoted at close are post-PR additions.
+- `work-start` gate text currently says "invoke `/epic begin`" — update when deploying new skills (see Epic skill — Deprecation)
