@@ -16,3 +16,4 @@
 | [2026-05-20-mdp01-work-lifecycle-redesign.md](2026-05-20-mdp01-work-lifecycle-redesign.md) | 2026-05-20 | Designing the Work Lifecycle |
 | [2026-05-21-mdp01-cleaning-the-board.md](2026-05-21-mdp01-cleaning-the-board.md) | 2026-05-21 | Protocol sprint: harness-ledger-writer, SPI caseId compliance confirmed; SLA propagation engine side complete; path detection unified to proj/ symlinks across all workspace-aware skills |
 | [2026-05-21-mdp03-fourteen-issues-git-lesson.md](2026-05-21-mdp03-fourteen-issues-git-lesson.md) | 2026-05-21 | Clearing 14 protocol/doc issues and a partial git squash with a lesson on backup-branch ancestry |
+| [2026-05-22-mdp01-no-end-users.md](2026-05-22-mdp01-no-end-users.md) | 2026-05-22 | Training bias, design philosophy, workaround-free CaseHub prompt discipline, cross-repo journal routing fix, concurrent squash gotcha |
