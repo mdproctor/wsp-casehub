@@ -1,21 +1,27 @@
 # Handoff — 2026-05-22
 
-**Head commit (project):** 1bbc710 — docs(CLAUDE.md): add Name field for write-blog projects frontmatter
-**Head commit (workspace):** 17fdc71 — feat: promote blog entries from issue-94-work-lifecycle
+**Head commit (project):** 722831a — ci: add casehub-eidos to dashboard, full-stack, and incremental builds
+**Head commit (workspace):** 3fe6ee8 — docs: add blog entry 2026-05-22-no-end-users
 
 ## What Changed This Session
 
-Closed three stale branches: issue-94-work-lifecycle (blog promotions landed on workspace main + published), issue-6-sla-propagation (journal skipped — engine content, wrong routing target), issue-36 (PLATFORM.md row for `ClaudonyChannelBackend`, PR casehubio/parent#37 raised).
+Rewrote the casehub dev workflow prompt snippet — added no-end-users context,
+explicit workaround interrupt, continuous PLATFORM.md + protocol alignment during
+design, and mid-session skip instruction. Dropped stale epic hygiene item (work-end
+covers it). Formalised the no-workarounds rule as protocol PP-20260522-3b1ccd.
 
-Absorbed 5 protocols into casehub/garden that other sessions had written but not committed: two from devtown, two from qhorus, one from parent (`jq-evaluation-canonical.md` was untracked in both parent and garden simultaneously). Updated FOUNDATION-INDEX and HARNESS-INDEX, pushed.
+Fixed cross-repo journal routing bug in work-start/work-end: DESIGN_REPO was
+set from workspace routing config when tracking a cross-repo issue, pointing
+the journal at the wrong DESIGN.md. Layer 0 added to routing cascade; issue-repo
+stored in .meta; work-end closes against the correct GitHub repo. Shipped to
+cc-praxis main, pushed.
 
-Discovered a design routing gap: when a branch tracks another repo's issue inside the workspace (e.g. cc-praxis#94 in the casehub workspace), `design-repo` defaults to the workspace's own project, causing the journal to point at the wrong DESIGN.md. Noted — fix when engine session is paused.
-
-Added `**Name:** CaseHub Parent` to CLAUDE.md (required by write-blog for `projects:` frontmatter).
+Verified and closed claudony#122 from handover. All repos pushed clean.
 
 ## Immediate Next Step
 
-Start #20 — tutorial-strategy.md + all app deep-dives as field tutorials. Run `work-start` referencing issue #20.
+Start #20 — tutorial-strategy.md + all app deep-dives as field tutorials.
+Run `work-start` referencing issue #20.
 
 ## What's Left
 
