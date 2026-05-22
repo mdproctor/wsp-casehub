@@ -4,7 +4,7 @@ title: "Cleaning the Board"
 date: 2026-05-21
 type: phase-update
 entry_type: note
-subtype: log
+subtype: diary
 projects: [casehub-parent, cc-praxis]
 tags: [protocols, sla, path-detection, workspace]
 ---
