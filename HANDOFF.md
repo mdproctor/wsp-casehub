@@ -28,7 +28,6 @@ Start #20 — tutorial-strategy.md + all app deep-dives as field tutorials. Run 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
 | #20 | tutorial-strategy.md + all app deep-dives as field tutorials | L | Low | Multi-file rewrite |
-| engine#300 | Add deadline to COMMAND content JSON in `dispatchCommand()` | XS | Low | Prereq for claudony#122 |
-| claudony#122 | Extract `correlationId` + deadline from COMMAND content | S | Med | Depends on engine#300 |
+| claudony#122 | Extract `correlationId` + deadline from COMMAND content | S | Med | engine#300 done — unblocked |
 | #5 | Consolidate Connector + NotificationChannel into outbound SPI | M | High | No cross-repo touches until ready |
 | #4 | Platform coherence audit — 32 cross-repo findings | L | High | Read-only analysis feasible now |
