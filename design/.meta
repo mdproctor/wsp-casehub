@@ -1,0 +1,8 @@
+branch: issue-4-platform-coherence-audit
+project-sha: 21b1d7e976fc03af10b96e1c22e27a8fc055c22f
+date: 2026-05-22
+issue: 4
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
