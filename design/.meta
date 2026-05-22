@@ -1,0 +1,7 @@
+branch: issue-36-claudony-channel-backend-platform
+project-sha: 33117b14563af795cdec7315dca94eaa5e7577ef
+date: 2026-05-22
+issue: 36
+flyway-next-v: none
+design-repo: project
+design-section-hashes: e6e88f5b:## Platform Coherence Protocol|df7bab0d:## Development Session Protocol|ea5134c2:## Upstream Consistency — Serverless Workflow 1.0 and quarkus-flow|3dc0c3cc:## Architectural Patterns|9a653bb7:## What We're Building|12b3a4ef:## Repository Map|098d34ce:## Build / Dependency Order|451adc6a:## Cross-Repo Dependency Map|b159130c:## Capability Ownership — "Where Does X Live?"|6fef3aab:## Key Boundary Rules|10932281:## Cross-Cutting Concerns|d843c5d4:## Known Overlap Risks|2e5eface:## Per-Repo Deep Dives|
