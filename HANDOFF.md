@@ -19,7 +19,6 @@ Start #20 — tutorial-strategy.md + all app deep-dives as field tutorials. Run 
 
 ## What's Left
 
-- Cross-repo journal routing gap — `design-repo` defaults to wrong repo for cross-workspace issues · S · Med
 - `epic-atomic-human-task` — engine session, branch at engine#273 · S · Low
 - 3 untracked plans in workspace (`plans/2026-05-19-*.md`) — pre-existing, not blocking
 
