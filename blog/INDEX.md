@@ -12,5 +12,7 @@
 | [2026-05-15-mdp01-config-over-cdi.md](2026-05-15-mdp01-config-over-cdi.md) | 2026-05-15 | Config-driven @Produces @DefaultBean producer replaces CDI annotation games for ContextDiffStrategy selection; @DefaultBean placement on method vs class; Podman socket for Testcontainers |
 | [2026-05-17-mdp01-honouring-the-contract.md](2026-05-17-mdp01-honouring-the-contract.md) | 2026-05-17 | HumanTaskTarget template mode wired; findByRef UUID-or-name resolution; payloadOverride honouring inputMapping contract; TDD across two repos requires mvn install; IAE catch scope fix |
 | [2026-05-18-mdp01-atomic-by-design.md](2026-05-18-mdp01-atomic-by-design.md) | 2026-05-18 | PlanItemStore SPI + atomicity fix: blocking/reactive split, two entity classes for one table, code review catch |
+| [2026-05-19-mdp01-testing-the-handler.md](2026-05-19-mdp01-testing-the-handler.md) | 2026-05-19 | Testing the Handler, Not the Bus |
+| [2026-05-20-mdp01-work-lifecycle-redesign.md](2026-05-20-mdp01-work-lifecycle-redesign.md) | 2026-05-20 | Designing the Work Lifecycle |
 | [2026-05-21-mdp01-cleaning-the-board.md](2026-05-21-mdp01-cleaning-the-board.md) | 2026-05-21 | Protocol sprint: harness-ledger-writer, SPI caseId compliance confirmed; SLA propagation engine side complete; path detection unified to proj/ symlinks across all workspace-aware skills |
 | [2026-05-21-mdp03-fourteen-issues-git-lesson.md](2026-05-21-mdp03-fourteen-issues-git-lesson.md) | 2026-05-21 | Clearing 14 protocol/doc issues and a partial git squash with a lesson on backup-branch ancestry |
