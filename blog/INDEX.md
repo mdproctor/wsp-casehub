@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-05-23-mdp01-verifying-twenty-three-findings.md](2026-05-23-mdp01-verifying-twenty-three-findings.md) | 2026-05-23 | Systematic verification of the platform coherence audit — 22 confirmed, 1 stale, 22 issues filed across 8 repos |
 | [2026-05-21-mdp02-p1d-was-never-invalid.md](2026-05-21-mdp02-p1d-was-never-invalid.md) | 2026-05-21 | Duration.parse("P1D") is valid Java; CaseDefinitionYamlMapper humanTask validation (conflicting fields, expiresIn format, positivity) |
 | [2026-05-12-mdp01-naming-alignment-and-propagation.md](2026-05-12-mdp01-naming-alignment-and-propagation.md) | 2026-05-12 | Naming alignment across nine repos; claudony @Inject corruption; artifact rename propagation protocol |
 | [2026-05-14-mdp01-binding-target-sealed-dispatch.md](2026-05-14-mdp01-binding-target-sealed-dispatch.md) | 2026-05-14 | BindingTarget sealed hierarchy; HumanTaskTarget inline mode; outputMapping round-trip; template mode state-leak caught in review |
