@@ -17,7 +17,6 @@ Run `work-start` referencing issue #20.
 ## What's Left
 
 - 3 untracked plans in workspace (`plans/2026-05-19-*.md`) — pre-existing, not blocking
-- casehubio.github.io screenshot — mandatory-rules requires screenshot for UI blog entries; owed for any future blog entry covering the site
 
 ## What's Next
 
