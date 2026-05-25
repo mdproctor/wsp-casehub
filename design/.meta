@@ -1,0 +1,8 @@
+branch: issue-65-bom-and-doc-sync
+project-sha: 367b14a4b3c6f5b9e4b4a1b5e4e8f0d1b2c3d4e5
+date: 2026-05-25
+issue: 65
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
