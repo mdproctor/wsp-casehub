@@ -5,6 +5,25 @@ Promote to an ADR when ready to decide; discard when no longer relevant.
 
 ---
 
+## 2026-05-25 — Shared base doc for PLATFORM.md and APPLICATIONS.md
+
+**Priority:** low
+**Status:** active
+
+PLATFORM.md and APPLICATIONS.md both contain cross-cutting convention sections
+(Flyway migration paths, dependency scoping, naming rules) that have to be kept
+in sync manually. A shared `CONVENTIONS.md` or `COMMON.md` that both docs
+reference or incorporate would make these sections single-source-of-truth.
+PLATFORM.md and APPLICATIONS.md would then extend it with their tier-specific content.
+
+**Context:** Noticed while adding a Flyway migration path protocol — the persistence
+section in PLATFORM.md would need updating, and the same convention applies to
+apps in APPLICATIONS.md. Two places, same rule.
+
+**Promoted to:**
+
+---
+
 ## 2026-05-10 — Layer 2 tutorial framing aligned across aml and clinical
 
 **Priority:** high
