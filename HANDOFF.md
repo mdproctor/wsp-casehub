@@ -14,6 +14,10 @@ workspaces, parent plumbing, website, 22-step checklist, fork + remote setup). C
 verified against existing repos — 3 dispatch chain errors found and corrected, 2 new
 protocols captured.
 
+## Issues filed from casehub-life session (2026-05-26)
+
+- **parent#74** — update `tutorial-strategy.md` and `AGENTIC-HARNESS-GUIDE.md`: replace "naive Java baseline/approach" with "domain baseline", move gap comment guidance from production code to LAYER-LOG.md, replace "adopt" with "integrate", add augmented LAYER-LOG format definition, add casehub-life to AGENTIC-HARNESS-GUIDE.md scope list. See issue for full change list.
+
 ## Immediate Next Step
 
 Start issue #20 — tutorial-strategy.md + all app deep-dives as field tutorials.
