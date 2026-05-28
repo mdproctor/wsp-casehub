@@ -1,0 +1,8 @@
+branch: issue-83-doc-sync-batch
+project-sha: b708f76
+date: 2026-05-28
+issue: 83
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
