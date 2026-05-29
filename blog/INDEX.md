@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-05-29-mdp03-what-the-squash-left-behind.md](2026-05-29-mdp03-what-the-squash-left-behind.md) | 2026-05-29 | Squash branch rescue (reference architectures terminology), five doc issues cleared, persistence CDI ladder protocol written |
 | [2026-05-29-mdp02-three-syncs-two-principles.md](2026-05-29-mdp02-three-syncs-two-principles.md) | 2026-05-29 | Memory adapter extraction threshold, arc42 inline anti-patterns rule, clinical SPI sync |
 | [2026-05-24-mdp01-build-drift.md](2026-05-24-mdp01-build-drift.md) | 2026-05-24 | Fixing stale repo lists, silent rebuilds, and broken summary links across build scripts and CI workflows |
 | [2026-05-28-mdp02-arc42stories-the-story-behind.md](2026-05-28-mdp02-arc42stories-the-story-behind.md) | 2026-05-28 | Arc42Stories — extending arc42 for LLM-driven development: Chapters, session continuity, LLM replication, C4 extension |
