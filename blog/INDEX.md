@@ -22,5 +22,6 @@
 | [2026-05-21-mdp03-fourteen-issues-git-lesson.md](2026-05-21-mdp03-fourteen-issues-git-lesson.md) | 2026-05-21 | Clearing 14 protocol/doc issues and a partial git squash with a lesson on backup-branch ancestry |
 | [2026-05-22-mdp01-no-end-users.md](2026-05-22-mdp01-no-end-users.md) | 2026-05-22 | Training bias, design philosophy, workaround-free CaseHub prompt discipline, cross-repo journal routing fix, concurrent squash gotcha |
 | [2026-05-28-mdp01-keeping-the-docs-honest.md](2026-05-28-mdp01-keeping-the-docs-honest.md) | 2026-05-28 | Eight doc sync issues cleared — ChannelContextWindow in-memory, SSE vs WebSocket, AgentRoutingStrategy replaces WorkBroker |
+| [2026-05-29-mdp01-not-just-drift.md](2026-05-29-mdp01-not-just-drift.md) | 2026-05-29 | Second doc sync batch — code review caught wrong API names and misattributed types; agent routing priority ladder; @DefaultBean pattern distinction |
 | [2026-05-27-mdp01-what-wasnt-on-the-map.md](2026-05-27-mdp01-what-wasnt-on-the-map.md) | 2026-05-27 | Seven repos invisible to session reasoning — ecosystem registration audit, CI org/repo bug, flow integration debt |
 | [2026-05-25-mdp01-openclaw-governance-memory.md](2026-05-25-mdp01-openclaw-governance-memory.md) | 2026-05-25 | OpenClaw + CaseHub integration model, ChannelContextWindow design, two new repos bootstrapped |
