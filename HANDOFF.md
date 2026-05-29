@@ -1,42 +1,39 @@
 # Handoff — 2026-05-29
 
-**Head commit (project):** 0feca52 — docs(#91): arc42stories spec and guide in-progress batch
-**Head commit (workspace):** 6d3e317 — docs(issue-83-doc-sync-batch): mark closed, deletion due 2026-06-12
+**Head commit (project):** e417e4a — protocol(PP-20260529-ce2de0): engine-api-scope-rule
+**Head commit (workspace):** 3387a88 — feat: promote blog entry from issue-90-91-94-doc-batch
 
 ---
 
 ## What Changed This Session (2026-05-29)
 
-Doc sync batch (#83, #85, #86, #87, #88) closed. Five issues resolved: quarkmind IEM10 validation, casehub-platform CaseMemoryStore deep-dive, casehub-life Layer 2 complete, PLATFORM.md agent routing split (AgentRoutingStrategy SPI + casehub-engine-ai), PLATFORM.md capability table cross-repo dep map. Code reviews caught two critical errors in #85: wrong SPI method names (add/recall → store/query/eraseById) and ReactiveCaseMemoryStore misattributed to platform-api/. Follow-up doc sync also fixed stale casehub-work.md routing ref and APPLICATIONS.md life status.
+Issue list refreshed — 8 stale entries pruned (work#221, qhorus#200, work#229, engine#281, work#214, PR#370, engine#342/#331/#248 — all CLOSED). Doc batch #90/#91/#94 completed and closed: PLATFORM.md memory adapter rerouting (ADR-0008 amendment), casehub-clinical.md SPI sync, arc42stories layer notation and matrix. All committed, delivered to casehubio/parent upstream. Blog entry mdp02 written and published.
 
-Branch closed (issue-83-doc-sync-batch), upstream squashed 30 → 25 commits (5 arc42stories additions absorbed). Garden entry GE-20260529-5a82f1 submitted (git rebase -i partial plan silently drops unlisted commits).
+Hygiene note: `squash/wip-main-20260529-015357` project branch exists from an interrupted squash — needs review or cleanup. Garden entry GE-20260521-eaa1e1 revised (ff-only shortcut when branch base is still ancestor of extended main).
 
 ---
 
 ## Immediate Next Step
 
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
+Stamp `issue-65-bom-and-doc-sync` workspace branch with close marker (parent#65 is CLOSED, branch has just the init commit). XS·Low, 2 minutes.
 
 ---
 
 ## Cross-Module
 
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
+**Blocked by:**
+- `work` — `work#225` (wire ExpiryLifecycleService to CaseSignalSink) gates `parent#64` · S · Low
 
 ---
 
 ## What's Left
 
-- PR #370 needs review/merge · S · Low
-- mdproctor/flow#1 needs merge (CLAUDE.md boilerplate) · XS · Low
+- `flow#1` PR — merge CLAUDE.md platform awareness boilerplate · XS · Low
 - `work#225` — wire ExpiryLifecycleService to CaseSignalSink · S · Low
-- `work#221` — add SIGNAL_RECEIVED to WorkEventType · S · Low
-- `qhorus#200` — WatchdogAlertEvent + ConnectorAlertBridge · S · Med
-- `work#229` — db/migration rename, coordinate with aml, clinical, devtown · M · Med
-- `new-repo-checklist.md` missing AGENTIC-HARNESS-GUIDE step · XS · Low
-- flow platform coherence analysis deferred · M · High
-- `issue-65-bom-and-doc-sync` workspace branch — open 4 days, no close marker · XS · Low
-- parent#64 — PLATFORM.md signal bridge update (gate: work#225 + qhorus#200) · S · Low
+- `parent#64` — PLATFORM.md signal bridge update (gate: work#225) · S · Low
+- `new-repo-checklist.md` — missing AGENTIC-HARNESS-GUIDE step · XS · Low
+- `issue-65-bom-and-doc-sync` workspace branch — needs close marker stamp · XS · Low
+- `squash/wip-main-20260529-015357` project branch — stale squash branch, review/cleanup · XS · Low
 
 ---
 
@@ -48,6 +45,5 @@ Branch closed (issue-83-doc-sync-batch), upstream squashed 30 → 25 commits (5 
 
 ## Key References
 
-- Blog: `blog/2026-05-29-mdp01-not-just-drift.md`
-- Garden: GE-20260529-5a82f1 — git rebase -i partial plan drops unlisted commits
-- Previous triage detail: `git show 8f79ce1:HANDOFF.md`
+- Blog: `blog/2026-05-29-mdp02-three-syncs-two-principles.md`
+- Garden: GE-20260521-eaa1e1 revised — ff-only shortcut when branch base is still main ancestor
