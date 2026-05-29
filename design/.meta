@@ -1,0 +1,8 @@
+branch: issue-90-91-94-doc-batch
+project-sha: d3307faf3a7f6509f33e2fb310f2fa25ec234b1a
+date: 2026-05-29
+issue: 90
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
