@@ -1,0 +1,8 @@
+branch: issue-92-doc-batch-connectors-openclaw-protocol
+project-sha: 14c98010485b3d4515cff6b3f05369bd3d8b33b6
+date: 2026-05-29
+issue: 92
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
