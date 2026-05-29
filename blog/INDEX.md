@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-05-29-mdp02-three-syncs-two-principles.md](2026-05-29-mdp02-three-syncs-two-principles.md) | 2026-05-29 | Memory adapter extraction threshold, arc42 inline anti-patterns rule, clinical SPI sync |
 | [2026-05-24-mdp01-build-drift.md](2026-05-24-mdp01-build-drift.md) | 2026-05-24 | Fixing stale repo lists, silent rebuilds, and broken summary links across build scripts and CI workflows |
 | [2026-05-28-mdp02-arc42stories-the-story-behind.md](2026-05-28-mdp02-arc42stories-the-story-behind.md) | 2026-05-28 | Arc42Stories — extending arc42 for LLM-driven development: Chapters, session continuity, LLM replication, C4 extension |
 | [2026-05-23-mdp02-shipping-ai-fusion-landing-page.md](2026-05-23-mdp02-shipping-ai-fusion-landing-page.md) | 2026-05-23 | casehubio.github.io live — naming the Runtime tier, dropping CMMN, the SVG architecture diagram, Jekyll-compatible single-file build |
