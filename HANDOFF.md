@@ -1,13 +1,15 @@
-# Handoff — 2026-05-28
+# Handoff — 2026-05-29
 
-**Head commit (project):** 6fc667f — docs: sync platform deep-dives for recent implementation work
-**Head commit (workspace):** c184f2a — docs: promote blog entry from issue-72-doc-sync-batch
+**Head commit (project):** 0feca52 — docs(#91): arc42stories spec and guide in-progress batch
+**Head commit (workspace):** 6d3e317 — docs(issue-83-doc-sync-batch): mark closed, deletion due 2026-06-12
 
 ---
 
-## What Changed This Session (2026-05-28)
+## What Changed This Session (2026-05-29)
 
-Documentation sync batch. Nine issues resolved (closed #78 + #72, #75, #76, #77, #79, #80, #81, #82 — all casehubio/parent). Changes: casehub-engine.md (signal bridge, AgentRoutingStrategy SPI, casehub-work-core routing dep removed), casehub-openclaw.md (Epics 2+3 — in-memory ChannelContextWindow, OpenClawHookClient, removed bogus datasource section), PLATFORM.md (ClaudonyChannelBackend uses SSE not WebSocket), casehub-life.md (Layer 1 complete), quarkmind.md (LAYER-LOG Layer 1+2 written), AGENTIC-HARNESS-GUIDE (domain entity discipline principle). Merged locally after GitHub showed spurious DIRTY merge state (GE-20260528-de4fc4 submitted to garden).
+Doc sync batch (#83, #85, #86, #87, #88) closed. Five issues resolved: quarkmind IEM10 validation, casehub-platform CaseMemoryStore deep-dive, casehub-life Layer 2 complete, PLATFORM.md agent routing split (AgentRoutingStrategy SPI + casehub-engine-ai), PLATFORM.md capability table cross-repo dep map. Code reviews caught two critical errors in #85: wrong SPI method names (add/recall → store/query/eraseById) and ReactiveCaseMemoryStore misattributed to platform-api/. Follow-up doc sync also fixed stale casehub-work.md routing ref and APPLICATIONS.md life status.
+
+Branch closed (issue-83-doc-sync-batch), upstream squashed 30 → 25 commits (5 arc42stories additions absorbed). Garden entry GE-20260529-5a82f1 submitted (git rebase -i partial plan silently drops unlisted commits).
 
 ---
 
@@ -33,7 +35,8 @@ Documentation sync batch. Nine issues resolved (closed #78 + #72, #75, #76, #77,
 - `work#229` — db/migration rename, coordinate with aml, clinical, devtown · M · Med
 - `new-repo-checklist.md` missing AGENTIC-HARNESS-GUIDE step · XS · Low
 - flow platform coherence analysis deferred · M · High
-- `issue-65-bom-and-doc-sync` workspace branch — open, 3 days, no close marker · XS · Low
+- `issue-65-bom-and-doc-sync` workspace branch — open 4 days, no close marker · XS · Low
+- parent#64 — PLATFORM.md signal bridge update (gate: work#225 + qhorus#200) · S · Low
 
 ---
 
@@ -45,6 +48,6 @@ Documentation sync batch. Nine issues resolved (closed #78 + #72, #75, #76, #77,
 
 ## Key References
 
-- Blog: `blog/2026-05-28-mdp01-keeping-the-docs-honest.md`
-- Garden: GE-20260528-de4fc4 — GitHub DIRTY merge state gotcha
-- Issue triage detail: `git show HEAD~1:HANDOFF.md`
+- Blog: `blog/2026-05-29-mdp01-not-just-drift.md`
+- Garden: GE-20260529-5a82f1 — git rebase -i partial plan drops unlisted commits
+- Previous triage detail: `git show 8f79ce1:HANDOFF.md`
