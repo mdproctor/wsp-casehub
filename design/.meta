@@ -1,0 +1,8 @@
+branch: issue-132-arc42stories-tier-profiles
+project-sha: 45f35d6e7be121f1078e3a99ef4ea7862b00d78a
+date: 2026-06-01
+issue: 132
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
