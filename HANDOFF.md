@@ -1,23 +1,25 @@
-# Handoff — 2026-05-29
+# Handoff — 2026-05-31
 
-**Head commit (project):** 69fdef3 — chore: add skill permissions to settings.local.json
-**Head commit (workspace):** 3590b86 — feat: promote blog entry from issue-92-doc-batch-connectors-openclaw-protocol
+**Head commit (project):** bb86b9a — docs: apply code review fixes — aml dep block, clinical SPI placement
+**Head commit (workspace):** d6cb3ec — docs: session handover 2026-05-29 — doc batch #89/92/95/97/98, squash rescue, issue-65 close
 
 ---
 
-## What Changed This Session (2026-05-29)
+## What Changed This Session (2026-05-31)
 
-Squash branch `squash/wip-main-20260529-015357` rescued via semantic merge — recovered "reference architectures" terminology shift from `tutorial-strategy.md` and `AGENTIC-HARNESS-GUIDE.md` that had been stranded since the 1:53 AM interrupted squash. Pushed to both origin and upstream.
+`flow#1` merged — CLAUDE.md platform awareness boilerplate complete.
 
-Doc batch #89/#92/#95/#97/#98 completed and closed: connectors inbound SPIs documented (InboundConnector, WebhookInboundConnector, EmailInboundConnector), openclaw Epic 4 marked complete + dep corrected to casehub-engine-api, PLATFORM.md synced (repo map, capability table, stale dep map row removed), `persistence-backend-cdi-priority.md` written (had been referenced from PLATFORM.md without existing), `new-repo-checklist.md` AGENTIC-HARNESS-GUIDE step added. Blog entry mdp03 written and published.
+`parent#64` (PLATFORM.md signal bridge update) unblocked — all three gates closed: `engine#349`, `work#225`, `qhorus#200`.
 
-`issue-65-bom-and-doc-sync` workspace branch stamped closed.
+Branch hygiene audit across all 19 project repos and workspace mirrors. Filed `parent#123` tracking all findings. One real problem: `clinical` workspace branch `epic-3-multi-site-sub-case` has a stranded blog entry (`2026-05-25-mdp01-what-a-sub-case-is-for.md`) that never reached main or was published.
+
+Scale/complexity labels added to all 16 casehub GitHub repos. 238 open issues labelled across the ecosystem via 9 parallel agents. `issue-workflow` skill updated to enforce both labels at creation. Protocol `PP-20260531-0cee0c` formalised. `GE-0166` revised with bulk classification variant.
 
 ---
 
 ## Immediate Next Step
 
-`flow#1` — merge CLAUDE.md platform awareness boilerplate (open PR, in progress, #2 done). XS · Low.
+Action `parent#64` — PLATFORM.md signal bridge update. All gates closed; ready to work. S · Low.
 
 ---
 
@@ -29,9 +31,9 @@ Doc batch #89/#92/#95/#97/#98 completed and closed: connectors inbound SPIs docu
 
 ## What's Left
 
-- `flow#1` PR — merge CLAUDE.md platform awareness boilerplate · XS · Low
-- `work#225` — wire ExpiryLifecycleService to CaseSignalSink · S · Low (blocked by engine#349)
-- `parent#64` — PLATFORM.md signal bridge update (gate: work#225) · S · Low
+- `parent#64` — PLATFORM.md signal bridge update · S · Low
+- `clinical` — recover stranded blog `2026-05-25-mdp01-what-a-sub-case-is-for.md` from `epic-3-multi-site-sub-case` (clinical session) · XS · Low
+- `parent#123` — branch hygiene items (each in their own session — engine, claudony, ledger, platform, eidos, connectors, flow, work)
 
 ---
 
@@ -43,5 +45,6 @@ Doc batch #89/#92/#95/#97/#98 completed and closed: connectors inbound SPIs docu
 
 ## Key References
 
-- Blog: `blog/2026-05-29-mdp03-what-the-squash-left-behind.md`
-- Garden: GE-20260521-eaa1e1 revised — ff-only shortcut when branch base is still main ancestor
+- Branch hygiene tracking: `casehubio/parent#123`
+- Protocol: `casehub/garden/docs/protocols/casehub/issue-scale-complexity-labels.md` (PP-20260531-0cee0c)
+- Garden entry revised: `~/.hortora/garden/tools/GE-0166.md`
