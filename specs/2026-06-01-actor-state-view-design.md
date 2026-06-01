@@ -1,7 +1,7 @@
 # Actor State View — Design Spec
 
 **Issue:** casehubio/parent#56
-**Date:** 2026-06-01 (revised post-review)
+**Date:** 2026-06-01 (revised post-review ×2)
 **Status:** Approved for implementation
 **ADR required:** Yes — first use-case-specific SPI in casehub-platform-api
 
@@ -32,20 +32,25 @@ Two interfaces using only `java.util.*`, `java.time.*`, `java.util.UUID`. No dom
 // casehub-platform-api
 public interface ActorStateContributor {
     String sourceName();
+    // Contract: contributors MUST complete all computation before calling any accumulator
+    // method — atomic contribution. Partial contribution on exception is not acceptable.
+    // Since all stores return eager List<T>, this is natural: collect first, then contribute.
     void contribute(String actorId, ActorStateAccumulator accumulator);
 }
 
 public interface ActorStateAccumulator {
     void trustScore(Double score);                         // null = no score computed yet
     void capabilityScore(String capability, double score);
+    // title and category mirror WorkItem fields — may be null for externally-created items
     void workItem(UUID id, String title, String status,
                   String category, UUID caseId);          // caseId null if not engine-created
     void commitment(UUID commitmentId, UUID channelId,
                     UUID caseId, String state,            // caseId null if non-case channel
                     Instant expiresAt);
     void engineActiveCaseId(UUID caseId);
-    void markSucceeded(String sourceName);
-    void markFailed(String sourceName, String reason);
+    // markSucceeded/markFailed are NOT on this interface — they are package-private on
+    // ActorStateAccumulatorImpl, called by the aggregator on the concrete type after
+    // contribute() returns. Contributors never call them.
 }
 ```
 
@@ -60,13 +65,18 @@ New adapter module in the engine repo, alongside `engine-work-adapter`.
 ```
 casehub-engine-actor-state
   ├── casehub-platform-api       ActorStateContributor, ActorStateAccumulator
-  ├── casehub-engine-common      REST (quarkus-rest already on classpath)
+  ├── casehub-engine-common      WorkerExecutionManager SPI, quarkus-rest (via engine runtime)
+  ├── casehub-engine             quarkus-rest hosting; also brings casehub-engine-api transitively
+  │                              (engine runtime pom.xml line 31: casehub-engine-api direct dep)
+  │                              → CaseChannel.parseCaseId() accessible without explicit engine-api dep
   ├── casehub-ledger             LedgerActorStateContributor
   ├── casehub-work               WorkActorStateContributor
   └── casehub-qhorus             QhorusActorStateContributor
 ```
 
 `EngineActorStateContributor` uses `WorkerExecutionManager` from `engine-common` — no extra import needed.
+
+**Reactive mode note:** `casehub.qhorus.reactive.enabled=true` is ADDITIVE — it activates `ReactiveJpaCommitmentStore` (implementing `ReactiveCommitmentStore`) without excluding `JpaCommitmentStore` (implementing `CommitmentStore`). Confirmed from source: `JpaCommitmentStore` is plain `@ApplicationScoped` with no `@IfBuildProperty`/`@UnlessBuildProperty`. Both beans coexist implementing different interfaces; CDI sees no conflict. `QhorusActorStateContributor` injecting `CommitmentStore` works in all deployment modes.
 
 **Activation:** applications add `casehub-engine-actor-state` to their pom. AML and devtown already import all required CDI beans.
 
@@ -80,8 +90,9 @@ Cross-channel obligor query. Existing `findOpenByObligor(obligor, channelId)` re
 
 ```java
 // CommitmentStore interface — new default
-// WARNING: This default is a full table scan. JPA-backed implementations MUST override.
-// The default exists only for in-memory test implementations.
+// WARNING: This default is a full table scan over all open commitments.
+// JPA-backed implementations MUST override with an indexed query.
+// This default is correct only for in-memory test implementations.
 default List<Commitment> findOpenByObligor(String obligor) {
     return findAllOpen().stream()
             .filter(c -> obligor != null && obligor.equals(c.obligor))
@@ -99,6 +110,7 @@ public List<Commitment> findOpenByObligor(String obligor) {
 
 **Reactive default** (for `ReactiveCommitmentStore`):
 ```java
+// Same table-scan warning applies — ReactiveJpaCommitmentStore MUST override.
 default Uni<List<Commitment>> findOpenByObligor(String obligor) {
     return findAllOpen().map(all -> all.stream()
             .filter(c -> obligor != null && obligor.equals(c.obligor))
@@ -108,7 +120,8 @@ default Uni<List<Commitment>> findOpenByObligor(String obligor) {
 
 Also add to: `ReactiveJpaCommitmentStore`, `InMemoryCommitmentStore`, `InMemoryReactiveCommitmentStore`.
 
-**Contract test additions** to `CommitmentStoreContractTest`:
+**New `@Test` methods in `CommitmentStoreContractTest`** (inherited automatically by both
+`InMemoryCommitmentStoreTest` and `JpaCommitmentStoreTest` — not abstract methods):
 - `findOpenByObligor_returnsAcrossMultipleChannels`
 - `findOpenByObligor_excludesTerminalStates_crossChannel`
 - `findOpenByObligor_nullObligorInStore_notReturnedForActualActor`
@@ -117,10 +130,12 @@ Also add to: `ReactiveJpaCommitmentStore`, `InMemoryCommitmentStore`, `InMemoryR
 ### 2. `ChannelStore.findByIds(Collection<UUID>)` — qhorus
 
 Single IN(?) batch lookup replacing per-commitment channel queries.
+`ChannelStore.find(UUID id)` exists at source line 13 — the default delegates to it.
 
 ```java
-// ChannelStore interface — new default (linear scan for in-memory impls)
+// ChannelStore interface — new default (linear scan via find(); JPA stores override with IN(?))
 default List<Channel> findByIds(Collection<UUID> ids) {
+    if (ids == null || ids.isEmpty()) return List.of();
     return ids.stream()
             .map(this::find)
             .filter(Optional::isPresent)
@@ -130,6 +145,13 @@ default List<Channel> findByIds(Collection<UUID> ids) {
 ```
 
 `JpaChannelStore` override with `WHERE id IN (:ids)` JPQL.
+`InMemoryChannelStore` inherits the default (correct for in-memory).
+
+**New `@Test` methods in `ChannelStoreContractTest`** (or a new `ChannelStoreContractTest` if one doesn't exist):
+- `findByIds_allPresent` — all requested IDs found
+- `findByIds_partiallyPresent` — missing IDs silently omitted, found channels returned
+- `findByIds_emptyCollection` — returns empty list without touching store
+- `findByIds_unknownIds` — returns empty list
 
 ### 3. `WorkerExecutionManager.getActiveCaseIds(String workerId)` — engine-common SPI
 
@@ -137,7 +159,7 @@ Returns case UUIDs from Quartz job data. `caseHubInstanceUuid` is already stored
 
 ```java
 // SPI default — safe no-op, per PP-20260601-81b9e5
-// NOTE: workerId here is identical to actorId at the REST layer — same string, different layer name
+// NOTE: workerId is identical to actorId at the REST layer — same string, different naming convention
 default List<UUID> getActiveCaseIds(String workerId) {
     return List.of();
 }
@@ -159,7 +181,7 @@ public Map<String, Double> allCapabilityScores(final String actorId) {
 
 ### 5. Parser statics — placed in source modules
 
-**`CaseChannel.parseCaseId(String channelName)`** — static method on existing `CaseChannel` record in `casehub-engine-api`:
+**`CaseChannel.parseCaseId(String channelName)`** — static method on existing `CaseChannel` record in `casehub-engine-api` (accessible from actor-state via `casehub-engine` transitive dep):
 ```java
 public static UUID parseCaseId(String channelName) {
     if (channelName == null || !channelName.startsWith(CASE_CHANNEL_PREFIX)) return null;
@@ -178,6 +200,7 @@ public final class WorkItemCallerRef {
         try { return UUID.fromString(callerRef.split(":")[0]); }
         catch (IllegalArgumentException e) { return null; }
     }
+    private WorkItemCallerRef() {}
 }
 ```
 
@@ -197,13 +220,14 @@ public class LedgerActorStateContributor implements ActorStateContributor {
 
     @Override
     public void contribute(String actorId, ActorStateAccumulator acc) {
-        // findScore returns Optional<ActorTrustScore>; trustScore is primitive double on entity
-        // null passed to accumulator when actor has no score yet — not 0.0
-        acc.trustScore(trustGateService.findScore(actorId)
-                .map(s -> s.trustScore)
-                .orElse(null));
-        trustGateService.allCapabilityScores(actorId)
-                .forEach(acc::capabilityScore);
+        // Atomic contribution: collect all data before calling any acc method.
+        // findScore returns Optional<ActorTrustScore>; .trustScore is primitive double on entity.
+        // null passed when actor has no score yet — not 0.0 (which means zero trust).
+        Double globalScore = trustGateService.findScore(actorId)
+                .map(s -> s.trustScore).orElse(null);
+        Map<String, Double> capScores = trustGateService.allCapabilityScores(actorId);
+        acc.trustScore(globalScore);
+        capScores.forEach(acc::capabilityScore);
     }
 }
 ```
@@ -218,20 +242,20 @@ public class WorkActorStateContributor implements ActorStateContributor {
 
     @Override
     public void contribute(String actorId, ActorStateAccumulator acc) {
-        // scan(WorkItemQuery.inbox(actorId, null, null)) — the two nulls are:
-        //   candidateGroups: null = no group filter
-        //   candidateUserId: null = no candidateUsers field filter
-        // PENDING excluded: actor is a candidate but hasn't claimed — not "active work"
-        // SUSPENDED included: actor is obligated to complete (paused, not released)
-        workItemStore.scan(WorkItemQuery.inbox(actorId, null, null)
+        // scan() returns eager List<WorkItem> — atomic by nature.
+        // inbox(actorId, null, null): first null = candidateGroups (none), second null = candidateUserId (none).
+        // PENDING excluded: actor is a candidate but hasn't claimed — not "active work".
+        // SUSPENDED included: actor is still obligated to complete (paused, not released).
+        // title and category may be null for externally-created WorkItems — passed through as-is.
+        List<WorkItem> items = workItemStore.scan(WorkItemQuery.inbox(actorId, null, null)
                 .toBuilder()
                 .statusIn(List.of(ASSIGNED, IN_PROGRESS, SUSPENDED))
-                .build())
-            .forEach(wi -> acc.workItem(
-                    wi.id, wi.title,
-                    wi.status != null ? wi.status.name() : null,
-                    wi.category,
-                    WorkItemCallerRef.parseCaseId(wi.callerRef)));
+                .build());
+        items.forEach(wi -> acc.workItem(
+                wi.id, wi.title,
+                wi.status != null ? wi.status.name() : null,
+                wi.category,
+                WorkItemCallerRef.parseCaseId(wi.callerRef)));
     }
 }
 ```
@@ -247,9 +271,10 @@ public class QhorusActorStateContributor implements ActorStateContributor {
 
     @Override
     public void contribute(String actorId, ActorStateAccumulator acc) {
+        // Atomic contribution: collect all data before calling acc methods.
         List<Commitment> open = commitmentStore.findOpenByObligor(actorId);
-        // Batch channel lookup — one IN(?) query, not N queries
         Set<UUID> channelIds = open.stream().map(c -> c.channelId).collect(toSet());
+        // Batch channel lookup — one IN(?) query, not N queries.
         Map<UUID, String> channelNames = channelStore.findByIds(channelIds).stream()
                 .collect(toMap(ch -> ch.id, ch -> ch.name));
         open.forEach(c -> acc.commitment(
@@ -270,9 +295,10 @@ public class EngineActorStateContributor implements ActorStateContributor {
 
     @Override
     public void contribute(String actorId, ActorStateAccumulator acc) {
-        // actorId == workerId — same string, different layer naming convention
-        // Quartz in-memory scan; best-effort snapshot (TOCTOU — documented in Javadoc)
-        executionManager.getActiveCaseIds(actorId).forEach(acc::engineActiveCaseId);
+        // actorId == workerId — same string, different layer naming convention.
+        // Quartz in-memory scan; best-effort snapshot (TOCTOU acceptable for monitoring endpoint).
+        List<UUID> caseIds = executionManager.getActiveCaseIds(actorId);
+        caseIds.forEach(acc::engineActiveCaseId);
     }
 }
 ```
@@ -281,24 +307,29 @@ public class EngineActorStateContributor implements ActorStateContributor {
 
 ```java
 @ApplicationScoped
-class ActorStateAggregator {
-    @Inject @Any Instance<ActorStateContributor> contributors;
+public class ActorStateAggregator {
 
-    ActorStateResponse forActor(String actorId) {
+    private static final Logger LOG = Logger.getLogger(ActorStateAggregator.class);
+
+    @Inject @Any Instance<ActorStateContributor> contributors;
+    @Inject ManagedExecutor executor; // MicroProfile Context Propagation — carries CDI + Hibernate session
+
+    public ActorStateResponse forActor(String actorId) {
         var accumulator = new ActorStateAccumulatorImpl(actorId);
-        // Parallel execution — blocking path uses virtual threads per contributor
-        // Total latency = max(source latencies), not sum
+        // Parallel: total latency = max(source latencies), not sum.
+        // ManagedExecutor propagates CDI request context and Hibernate session across threads —
+        // required for Panache-backed stores (WorkItemStore, CommitmentStore).
         List<CompletableFuture<Void>> futures = contributors.stream()
                 .map(c -> CompletableFuture.runAsync(() -> {
                     try {
                         c.contribute(actorId, accumulator);
-                        accumulator.markSucceeded(c.sourceName());
+                        accumulator.markSucceeded(c.sourceName()); // package-private on impl
                     } catch (Exception e) {
                         LOG.warnf("source %s failed for actor %s: %s",
                                 c.sourceName(), actorId, e.getMessage());
-                        accumulator.markFailed(c.sourceName(), e.getMessage());
+                        accumulator.markFailed(c.sourceName(), e.getMessage()); // package-private
                     }
-                }, VIRTUAL_THREAD_EXECUTOR))
+                }, executor))
                 .toList();
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         return accumulator.build();
@@ -306,13 +337,13 @@ class ActorStateAggregator {
 }
 ```
 
-`VIRTUAL_THREAD_EXECUTOR` = `Executors.newVirtualThreadPerTaskExecutor()` — avoids dedicated pool config, works with blocking JDBC calls.
+`markSucceeded` and `markFailed` are package-private methods on `ActorStateAccumulatorImpl`, **not** on the `ActorStateAccumulator` interface. The aggregator holds a concrete `ActorStateAccumulatorImpl` reference, so it calls them directly on the impl type.
 
 ### `ActorStateResource`
 
 `GET /actors/{actorId}/state` — delegates to `ActorStateAggregator`.
 
-**Authorization:** inherits application-level security. No platform-level role restriction — applications apply `@Authenticated`, `@RolesAllowed`, or other constraints via their existing security configuration. The resource itself carries no `@RolesAllowed` annotation.
+**Authorization:** inherits application-level security. No platform-level role restriction — applications apply `@Authenticated`, `@RolesAllowed`, or other constraints via their existing security configuration. The resource carries no `@RolesAllowed` annotation.
 
 **tenancyId:** not an explicit parameter. Each store handles tenancy implicitly:
 - `WorkItemStore.scan()`: Panache/security context applies tenant scoping per `no-conditional-tenancy-filtering` protocol
@@ -322,7 +353,13 @@ class ActorStateAggregator {
 
 ### `ActorStateAccumulatorImpl`
 
-Implements `ActorStateAccumulator`. Builds `ActorStateResponse`. Thread-safe (contributors run concurrently) — uses `ConcurrentLinkedQueue` for collections, `AtomicReference` for scalar fields.
+Implements `ActorStateAccumulator`. Builds `ActorStateResponse`. Thread-safe (contributors run concurrently on `ManagedExecutor` threads) — uses `ConcurrentLinkedQueue` for collections, `AtomicReference` for scalar fields.
+
+**Package-private methods** (called by aggregator only, never via interface):
+- `void markSucceeded(String sourceName)` — adds to `sources` list
+- `void markFailed(String sourceName, String reason)` — adds to `sourceWarnings` map
+
+**`sourceWarnings` serialisation:** the field backing `sourceWarnings` is annotated `@JsonInclude(JsonInclude.Include.NON_NULL)` — serialised as absent (not `{}`) when no source has failed.
 
 ### Response shape
 
@@ -361,29 +398,44 @@ Implements `ActorStateAccumulator`. Builds `ActorStateResponse`. Thread-safe (co
 }
 ```
 
-**Null contract:** `trustScore: null` when actor has no computed score yet (not `0.0`, which would mean zero trust). `capabilityScores: {}` when no capability scores exist. `caseId: null` on workItems/commitments when the item was not created by the engine or the channel doesn't follow case naming. `sourceWarnings` is absent (not an empty object) when all sources succeeded.
+**Null contract:**
+- `trustScore: null` — actor has no computed score yet (not `0.0`, which would mean zero trust)
+- `capabilityScores: {}` — no capability scores exist (not null)
+- `title: null`, `category: null` — WorkItem created externally without these fields; the response passes them through as-is
+- `caseId: null` — WorkItem not created by the engine (no callerRef), or Commitment on a non-case-named channel
+- `sourceWarnings` — **absent** (not `{}`) when all sources succeeded; present only when at least one source failed
+- On contributor failure: that source's data is absent from the response, that source is absent from `sources`, and a brief error message appears in `sourceWarnings`. Because contributors are required to collect all results before calling accumulator methods (atomic contribution contract), no partial data from a failing source can appear in the response.
 
-**`engineActiveCaseIds` naming:** explicitly scoped to Quartz in-flight jobs. Does not claim to be an exhaustive view of all cases the actor is working on — an actor can have active WorkItems and open Commitments for a case without an active Quartz job for it (the engine may have already dispatched and be waiting on the Qhorus reply). Callers must treat the four sources as independent slices, not as a unified case list.
+**`engineActiveCaseIds` scope:** Quartz in-flight jobs only. Does not claim to be an exhaustive view of all cases the actor is working on — an actor can have active WorkItems and open Commitments for a case without an active Quartz job (the engine may have dispatched and be waiting on the Qhorus reply). Callers must treat the four sources as independent slices.
 
 ---
 
 ## Reactive path
 
-Contributors are always blocking (`void contribute()`). The reactive aggregator wraps each contributor on the blocking executor — no reactive contributor interface needed, no parity problem, no doubled SPI surface:
+Contributors are always blocking (`void contribute()`). The reactive aggregator wraps each contributor on the blocking executor — no reactive contributor interface needed, no parity problem, no doubled SPI surface. `casehub.qhorus.reactive.enabled=true` does not affect contributor availability (see module note above).
 
 ```java
 @IfBuildProperty(name = "casehub.qhorus.reactive.enabled", stringValue = "true")
 @ApplicationScoped
 class ReactiveActorStateAggregator {
+
+    private static final Logger LOG = Logger.getLogger(ReactiveActorStateAggregator.class);
+
     @Inject @Any Instance<ActorStateContributor> contributors;
 
-    Uni<ActorStateResponse> forActor(String actorId) {
+    public Uni<ActorStateResponse> forActor(String actorId) {
         var accumulator = new ActorStateAccumulatorImpl(actorId);
         List<Uni<Void>> unis = contributors.stream()
                 .map(c -> Uni.createFrom().voidItem()
                         .invoke(() -> {
-                            try { c.contribute(actorId, accumulator); accumulator.markSucceeded(c.sourceName()); }
-                            catch (Exception e) { accumulator.markFailed(c.sourceName(), e.getMessage()); }
+                            try {
+                                c.contribute(actorId, accumulator);
+                                accumulator.markSucceeded(c.sourceName());
+                            } catch (Exception e) {
+                                LOG.warnf("source %s failed for actor %s: %s",
+                                        c.sourceName(), actorId, e.getMessage());
+                                accumulator.markFailed(c.sourceName(), e.getMessage());
+                            }
                         })
                         .runSubscriptionOn(Infrastructure.getDefaultBlockingExecutor()))
                 .toList();
@@ -399,15 +451,16 @@ class ReactiveActorStateAggregator {
 
 ## Testing
 
-### `ActorStateServiceTest` — plain JUnit, no CDI
+### `ActorStateAggregatorTest` — plain JUnit, no CDI
 
 Tests `ActorStateAggregator` with contributor stubs (lambdas implementing `ActorStateContributor`). Tests:
 - All sources healthy → complete response, all 4 in `sources`, `sourceWarnings` absent
-- One contributor throws → that source in `sourceWarnings`, excluded from `sources`, others intact
+- One contributor throws → that source in `sourceWarnings`, excluded from `sources`, others intact; no partial data from the failed source
 - Ledger returns no score → `trustScore: null` in response (not `0.0`)
 - WorkItem with `callerRef = "3fa85f64-...:pi-001"` → caseId parsed via `WorkItemCallerRef.parseCaseId`
 - WorkItem with `callerRef = "not-a-uuid:something"` → `caseId: null`, no throw
 - WorkItem with null callerRef → `caseId: null`, no throw
+- WorkItem with null `title` and `category` → fields null in response, no throw
 - WorkItem with PENDING status → excluded (status filter in contributor)
 - Commitment on `case-{uuid}/work` channel → caseId extracted via `CaseChannel.parseCaseId`
 - Commitment on non-case channel → `caseId: null`, no throw
@@ -417,31 +470,40 @@ Tests `ActorStateAggregator` with contributor stubs (lambdas implementing `Actor
 
 - 200 with correct JSON field names including `retrievedAt`, `engineActiveCaseIds`, `sourceWarnings`
 - `sources` array present
-- `sourceWarnings` present only when a source failed
+- `sourceWarnings` absent when all sources succeed; present (not `{}`) when one fails
 
-### `ReactiveActorStateServiceTest` — plain JUnit, no CDI
+### `ReactiveActorStateAggregatorTest` — plain JUnit, no CDI
 
-Mirrors `ActorStateServiceTest` for the reactive aggregator. Same contributor stubs, all methods verify `Uni` results via `.await().indefinitely()`.
+Mirrors `ActorStateAggregatorTest` for the reactive aggregator. Same contributor stubs, all methods verify `Uni` results via `.await().indefinitely()`.
 
-**Build-time parity:** add `casehub-engine-actor-state` to the scope of `BlockingReactiveParityTest` (ArchUnit) or a local equivalent asserting `ReactiveActorStateAggregator` has a `Uni<ActorStateResponse>` method for every `ActorStateResponse` method on `ActorStateAggregator`.
+**Local parity test (`ActorStateParityTest` in `casehub-engine-actor-state`):**
+JUnit reflection or ArchUnit asserting that `ReactiveActorStateAggregator` has a `Uni<ActorStateResponse>` equivalent for every `ActorStateResponse`-returning method on `ActorStateAggregator`. Do NOT expand `casehub-ledger`'s `BlockingReactiveParityTest` — that would invert the dependency direction (ledger → engine).
 
 ### `CommitmentStoreContractTest` additions
 
-New abstract methods, run by both `InMemoryCommitmentStoreTest` and `JpaCommitmentStoreTest`:
-- `findOpenByObligor_returnsAcrossMultipleChannels`
+Four new `@Test` methods in the abstract base class, automatically inherited and executed by both `InMemoryCommitmentStoreTest` and `JpaCommitmentStoreTest`:
+- `findOpenByObligor_returnsAcrossMultipleChannels` — open commitments on two channels; both returned
 - `findOpenByObligor_excludesTerminalStates_crossChannel`
 - `findOpenByObligor_nullObligorInStore_notReturnedForActualActor`
 - `findOpenByObligor_emptyStore_returnsEmpty`
+
+### `ChannelStoreContractTest` additions
+
+Four new `@Test` methods (add to existing contract test or create `ChannelStoreContractTest` if absent):
+- `findByIds_allPresent`
+- `findByIds_partiallyPresent` — missing IDs silently omitted
+- `findByIds_emptyCollection` — empty list, no store hit
+- `findByIds_unknownIds` — empty list
 
 ### `QuartzWorkerExecutionManagerTest` additions
 
 Mock `Scheduler` via Mockito:
 - Job with `workerId="agent-x"`, `caseHubInstanceUuid="uuid1"` → `getActiveCaseIds("agent-x")` returns `[uuid1]`
-- Two jobs for same worker on different cases → both UUIDs returned
+- Two jobs for same worker → both UUIDs returned
 - `getActiveCaseIds("other-agent")` → empty list
 - `getJobGroupNames()` throws → empty list (no exception propagated)
 
-### `CaseChannel.parseCaseId` unit tests (engine-api)
+### `CaseChannelTest` additions (engine-api)
 
 - `"case-3fa85f64-.../work"` → correct UUID
 - `"case-3fa85f64-..."` (no purpose segment) → correct UUID
@@ -449,7 +511,7 @@ Mock `Scheduler` via Mockito:
 - `"case-not-a-uuid/work"` → null
 - null → null
 
-### `WorkItemCallerRef.parseCaseId` unit tests (casehub-work-api)
+### `WorkItemCallerRefTest` (casehub-work-api, new)
 
 - `"3fa85f64-...:pi-001"` → correct UUID
 - `"not-a-uuid:planItem"` → null
@@ -485,17 +547,19 @@ New files:
 - `engine-actor-state/src/main/java/.../ActorStateResource.java`
 - `engine-actor-state/src/main/java/.../ReactiveActorStateResource.java`
 - `engine-actor-state/src/main/java/.../ActorStateResponse.java` (+ `WorkItemSummary`, `CommitmentSummary`)
-- `engine-actor-state/src/test/java/.../ActorStateServiceTest.java`
+- `engine-actor-state/src/test/java/.../ActorStateAggregatorTest.java`
 - `engine-actor-state/src/test/java/.../ActorStateResourceTest.java`
-- `engine-actor-state/src/test/java/.../ReactiveActorStateServiceTest.java`
+- `engine-actor-state/src/test/java/.../ReactiveActorStateAggregatorTest.java`
+- `engine-actor-state/src/test/java/.../ActorStateParityTest.java`
 - `api/src/main/java/.../CaseChannel.java` — add `parseCaseId(String)` static
+- `api/src/test/java/.../CaseChannelTest.java` — add `parseCaseId` test cases
 
 Modified:
 - `common/src/main/java/.../WorkerExecutionManager.java` — add `getActiveCaseIds` default
 - `scheduler-quartz/src/main/java/.../QuartzWorkerExecutionManager.java` — implement `getActiveCaseIds`
 - `scheduler-quartz/src/test/java/.../QuartzWorkerExecutionManagerTest.java` — add cases
 - Engine root `pom.xml` — add `engine-actor-state` module
-- `CLAUDE.md` — document new module and `getActiveCaseIds` in SPI section
+- `CLAUDE.md` — document new module, `getActiveCaseIds` SPI addition
 - `docs/repos/casehub-engine.md` (in parent) — add actor-state module, SPI additions
 
 ### `casehub-qhorus` (qhorus repo)
@@ -503,16 +567,18 @@ Modified:
 Modified:
 - `runtime/.../store/CommitmentStore.java` — add `findOpenByObligor(obligor)` default with table-scan warning
 - `runtime/.../store/jpa/JpaCommitmentStore.java` — override with indexed query
-- `runtime/.../store/ReactiveCommitmentStore.java` — add `findOpenByObligor(obligor)` returning `Uni<List<Commitment>>`
+- `runtime/.../store/ReactiveCommitmentStore.java` — add reactive `findOpenByObligor(obligor)`
 - `runtime/.../store/jpa/ReactiveJpaCommitmentStore.java` — reactive implementation
 - `runtime/.../store/ChannelStore.java` — add `findByIds(Collection<UUID>)` default
-- `runtime/.../store/jpa/JpaChannelStore.java` — override with IN(?) query
+- `runtime/.../store/jpa/JpaChannelStore.java` — override with `IN(?)` query
 - `testing/.../InMemoryCommitmentStore.java` — implement `findOpenByObligor(obligor)`
 - `testing/.../InMemoryReactiveCommitmentStore.java` — implement reactive variant
-- `testing/.../InMemoryChannelStore.java` (if exists) — implement `findByIds`
-- `testing/.../contract/CommitmentStoreContractTest.java` — add 4 new abstract test cases
-- `testing/.../InMemoryCommitmentStoreTest.java` — inherits new tests via contract base
+- `testing/.../InMemoryChannelStore.java` — inherits `findByIds` default (no override needed)
+- `testing/.../contract/CommitmentStoreContractTest.java` — add 4 new `@Test` methods
+- `testing/.../InMemoryCommitmentStoreTest.java` — inherits new tests automatically
 - `runtime/.../store/JpaCommitmentStoreTest.java` — inherits new tests; add `@TestTransaction`
+- `testing/.../contract/ChannelStoreContractTest.java` — add 4 new `@Test` methods for `findByIds`
+- `testing/.../InMemoryChannelStoreTest.java` — inherits new tests automatically
 - `CLAUDE.md` — document new query methods
 - `docs/repos/casehub-qhorus.md` (in parent) — update CommitmentStore and ChannelStore sections
 
@@ -525,8 +591,9 @@ Modified:
 
 ### `casehub-work` (work repo)
 
-New file:
+New files:
 - `api/src/main/java/.../WorkItemCallerRef.java` — `parseCaseId(String)` utility
+- `api/src/test/java/.../WorkItemCallerRefTest.java`
 
 Modified:
 - `CLAUDE.md` — document new utility class
@@ -541,7 +608,7 @@ Each adds `casehub-engine-actor-state` to their `app/pom.xml`. No other changes.
 ## Identity invariant (documented, not enforced)
 
 The `actorId` path parameter must be the same string across all four systems:
-- Engine YAML `worker.name` (e.g. `"sar-drafting-agent-v1"`) — used as `workerId` in Quartz
+- Engine YAML `worker.name` (e.g. `"sar-drafting-agent-v1"`) — stored as `workerId` in Quartz
 - Qhorus `Commitment.obligor` (set when COMMAND is dispatched to the agent)
 - Ledger `ActorTrustScore.actorId`
 - Work `WorkItem.assigneeId`
