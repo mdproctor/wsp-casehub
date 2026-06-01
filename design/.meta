@@ -1,0 +1,8 @@
+branch: issue-56-actor-state-view
+project-sha: 8b565e150b870d7c7d520d10947ff3dae1d34cab
+date: 2026-06-01
+issue: 56
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
