@@ -1,0 +1,8 @@
+branch: issue-127-131-doc-batch
+project-sha: cc91572a0746f17af83f4bd0ec1d43a999a2b5d1
+date: 2026-06-01
+issue: 127
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
