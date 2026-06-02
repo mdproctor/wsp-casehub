@@ -3,6 +3,7 @@
 | File | Date | Title |
 |------|------|-------|
 | [2026-06-01-mdp01-arc42stories-self-declaring.md](2026-06-01-mdp01-arc42stories-self-declaring.md) | 2026-06-01 | Arc42Stories preamble mechanism, profile defaults/overrides, tier-aware CaseHub profile, AGENTIC-HARNESS-GUIDE migration section |
+| [2026-06-02-mdp02-two-writing-styles-one-commit.md](2026-06-02-mdp02-two-writing-styles-one-commit.md) | 2026-06-02 | PR#138 duplicate Writing Style section was not identical — spec had drifted from the write-content skill file it documented; three doc sync issues, one new protocol |
 | [2026-06-02-mdp01-four-backends-one-question.md](2026-06-02-mdp01-four-backends-one-question.md) | 2026-06-02 | Actor state view (parent#56): SPI in platform-api, visitor accumulator, ConcurrentHashMap null NPE in fault-tolerance path |
 | [2026-05-29-mdp03-what-the-squash-left-behind.md](2026-05-29-mdp03-what-the-squash-left-behind.md) | 2026-05-29 | Squash branch rescue (reference architectures terminology), five doc issues cleared, persistence CDI ladder protocol written |
 | [2026-05-29-mdp02-three-syncs-two-principles.md](2026-05-29-mdp02-three-syncs-two-principles.md) | 2026-05-29 | Memory adapter extraction threshold, arc42 inline anti-patterns rule, clinical SPI sync |
