@@ -20,7 +20,6 @@
 **Also closed:** parent#115 (AML trust routing → PreferenceKey), parent#47 (workspace path cleanup), parent#5 (declared already resolved).
 
 **Deferred:**
-- devtown pom addition for actor-state — branch issue-249 active; add when it lands on main
 - `casehubio/qhorus#229` — index on commitment.obligor (performance)
 - `casehubio/engine#413` — test coverage gaps (partial-write + deleted-channel)
 
@@ -28,9 +27,7 @@
 
 ## Immediate Next Step
 
-Add `casehub-engine-actor-state` to devtown `app/pom.xml` once `issue-249-arc42stories-sync` lands on devtown main.
-
-Until then: `clinical` blog recovery — recover stranded blog from `epic-3-multi-site-sub-case`, merge to clinical workspace main, publish.
+`clinical` blog recovery — recover stranded blog from `epic-3-multi-site-sub-case`, merge to clinical workspace main, publish.
 
 ---
 
@@ -42,7 +39,6 @@ Until then: `clinical` blog recovery — recover stranded blog from `epic-3-mult
 
 ## What's Left
 
-- `devtown` — add `casehub-engine-actor-state` dep to `app/pom.xml` (waiting on issue-249) · XS · Low
 - `clinical` — recover stranded blog from `epic-3-multi-site-sub-case` · XS · Low
 - CLAUDE.md mass update (ARC42STORIES.MD references, LAYER-LOG retirement) — cross-repo, each repo's own session
 - `parent#123` — per-repo hygiene items (engine, claudony, ledger, platform, eidos, connectors, clinical, work, flow)
