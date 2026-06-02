@@ -1,33 +1,27 @@
 # Handoff — 2026-06-02
 
-**Head commit (project):** 92d6fce — feat(parent#56): merge issue-56-actor-state-view
-**Head commit (workspace):** 410299f — chore(issue-56-actor-state-view): remove promoted spec
+**Head commit (project):** 19659a4 — chore: fix design routing — design-repo is project not workspace
+**Head commit (workspace):** 0a60c8c — feat: promote blog entry from issue-141-doc-sync
 
 ---
 
 ## What Changed This Session (2026-06-02)
 
-**parent#56 implemented and closed** — actor state view across 5 repos:
-- `casehub-platform-api`: `ActorStateContributor` + `ActorStateAccumulator` SPI (stdlib types only; ADR-0001 filed)
-- `casehub-engine-actor-state`: new module — 4 contributors, blocking + reactive aggregators, `GET /actors/{actorId}/state`
-- `casehub-qhorus`: `CommitmentStore.findOpenByObligor(obligor)` + `ChannelStore.findByIds(ids)` + contract tests
-- `casehub-ledger`: `TrustGateService.allCapabilityScores(actorId)`
-- `casehub-work`: `WorkItemCallerRef.parseCaseId(callerRef)` utility
-- `casehub-engine`: `WorkerExecutionManager.getActiveCaseIds(workerId)` + `CaseChannel.parseCaseId(channelName)`
-- 3 new platform protocols: PP-20260601-c60b28 (cross-backend aggregation), PP-20260601-81b9e5 (SPI default methods), reactive consumer contract extension
-- PLATFORM.md, docs/repos/*.md, docs/adr/INDEX.md updated
+**Doc sync batch closed** — #141, #142, #143, #144:
+- `casehub-eidos.md`: eval/ module, `delegation` field fix, eidos#23 status
+- `docs/PLATFORM.md`: ChannelProjection capability row
+- `casehub-qhorus.md`: Channel Read-model Projection subsection, Store SPIs, Module Structure
+- `arc42stories-spec.md`: duplicate Writing Style removed, mode map fixed, `_universal.md` added to Generator pre-conditions
+- `write-content/forms/technical-documentation.md`: stray `yes` typo fixed (synced to cc-praxis)
+- Protocol PP-20260602-e36824: `external-api-surface-in-deep-dive` formalised
 
-**Also closed:** parent#115 (AML trust routing → PreferenceKey), parent#47 (workspace path cleanup), parent#5 (declared already resolved).
-
-**Deferred:**
-- `casehubio/qhorus#229` — index on commitment.obligor (performance)
-- `casehubio/engine#413` — test coverage gaps (partial-write + deleted-channel)
+**CLAUDE.md:** design routing corrected — `design → project` (was `workspace`)
 
 ---
 
 ## Immediate Next Step
 
-`clinical` blog recovery — recover stranded blog from `epic-3-multi-site-sub-case`, merge to clinical workspace main, publish.
+Discuss #3 (automate linked PR chain) — design is solid, key open question is SNAPSHOT timing strategy (poll vs retry). See conversation from this session for the analysis.
 
 ---
 
@@ -41,7 +35,7 @@
 
 - `clinical` — recover stranded blog from `epic-3-multi-site-sub-case` · XS · Low
 - CLAUDE.md mass update (ARC42STORIES.MD references, LAYER-LOG retirement) — cross-repo, each repo's own session
-- `parent#123` — per-repo hygiene items (engine, claudony, ledger, platform, eidos, connectors, clinical, work, flow)
+- Workspace branch cleanup — branches `issue-12` through `issue-19` scheduled for deletion 2026-06-04 (2 days)
 
 ---
 
@@ -49,11 +43,10 @@
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #93 | Extract normative channel layout from claudony → engine-api | M | Med | Blocked by claudony#142 |
+| #3 | Automate linked PR chain across ecosystem repos | L | High | CROSS_REPO_PAT needed; SNAPSHOT timing open |
+| #93 | Extract normative channel layout claudony → engine-api | M | Med | Blocked by claudony#142 |
 | #106 | Update spec §7.1 oversight channel allowedTypes | XS | Med | Blocked by claudony#142 |
-| #56 | Unified actor state view | L | High | ✅ Done this session |
-| #3 | Automate linked PR chain across ecosystem repos | L | High | — |
-| #111 | Migrate actorId format to DID across all repos | XL | High | Needs ledger#108/110 first |
+| #111 | Migrate actorId format to DID | XL | High | Needs ledger#108, ledger#110 |
 | #7 | Platform foundation roadmap tracker | XL | High | Tracker — closes last |
 | #13 | Cohesive Claude config design | XL | High | Needs dedicated design session |
 
@@ -61,6 +54,6 @@
 
 ## Key References
 
-- parent#56 merged: 92d6fce (project main), blog: `2026-06-02-mdp01-four-backends-one-question.md`
-- ADR-0001: actor state SPI in platform-api — `docs/adr/0001-actor-state-spi-in-platform-api.md`
-- Garden: 6 new entries (GE-20260602-6cfbdb through GE-20260602-c4a68a)
+- Blog: `blog/2026-06-02-mdp02-two-writing-styles-one-commit.md`
+- Protocol: PP-20260602-e36824 `external-api-surface-in-deep-dive` (garden)
+- Branch cleanup due: `issue-12` through `issue-19` → 2026-06-04
