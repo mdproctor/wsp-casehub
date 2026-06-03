@@ -1,59 +1,46 @@
-# Handoff — 2026-06-02
+# Handoff — 2026-06-03
 
 **Head commit (project):** 19659a4 — chore: fix design routing — design-repo is project not workspace
 **Head commit (workspace):** 0a60c8c — feat: promote blog entry from issue-141-doc-sync
 
 ---
 
-## What Changed This Session (2026-06-02)
+## What Changed This Session (post-wrap additions)
 
-**Doc sync batch closed** — #141, #142, #143, #144:
-- `casehub-eidos.md`: eval/ module, `delegation` field fix, eidos#23 status
-- `docs/PLATFORM.md`: ChannelProjection capability row
-- `casehub-qhorus.md`: Channel Read-model Projection subsection, Store SPIs, Module Structure
-- `arc42stories-spec.md`: duplicate Writing Style removed, mode map fixed, `_universal.md` added to Generator pre-conditions
-- `write-content/forms/technical-documentation.md`: stray `yes` typo fixed (synced to cc-praxis)
-- Protocol PP-20260602-e36824: `external-api-surface-in-deep-dive` formalised
+**work-end skill fixed** — squash must run before fork push, not between fork and upstream pushes. Fork (mdproctor) and upstream (casehubio) were silently receiving different histories. Fixed in `cc-praxis/work-end/SKILL.md`, synced. GE-20260603-f257ab captures the root cause.
 
-**CLAUDE.md:** design routing corrected — `design → project` (was `workspace`)
+**Repo alignment audit** — checked all 17 casehub repos against casehubio/main:
+
+| Status | Repos |
+|--------|-------|
+| ✅ Aligned | parent, eidos, connectors, claudony, openclaw, aml, life |
+| No upstream remote | platform, quarkmind |
+| Fork ahead — push upstream | clinical (1 commit), drafthouse (42 commits) |
+| Local ahead — push upstream | devtown (7 commits) |
+| Complex/diverged — own session | engine (11↑4↓), work (2↑2↓), qhorus (32↑30↓), ledger (330↑337↓), flow (3↑33↓) |
 
 ---
 
 ## Immediate Next Step
 
-Discuss #3 (automate linked PR chain) — design is solid, key open question is SNAPSHOT timing strategy (poll vs retry). See conversation from this session for the analysis.
+For repo alignment: in `clinical`, run `git push upstream main`. For `devtown`, same. `drafthouse` has 42 commits — decide push vs PR in that repo's session.
 
----
-
-## Cross-Module
-
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
+*Unchanged — `git show HEAD~1:HANDOFF.md` for full What's Next table.*
 
 ---
 
 ## What's Left
 
+- `clinical`, `devtown`, `drafthouse` — upstream delivery needed (see audit above) · XS · Low
+- Workspace branch cleanup — `issue-12` through `issue-19` deletion due 2026-06-04 (tomorrow)
+- `engine`, `work`, `qhorus`, `ledger`, `flow` — diverged, each needs own session · varies · High
+- `platform`, `quarkmind` — add upstream remote then re-audit · XS · Low
 - `clinical` — recover stranded blog from `epic-3-multi-site-sub-case` · XS · Low
-- CLAUDE.md mass update (ARC42STORIES.MD references, LAYER-LOG retirement) — cross-repo, each repo's own session
-- Workspace branch cleanup — branches `issue-12` through `issue-19` scheduled for deletion 2026-06-04 (2 days)
-
----
-
-## What's Next
-
-| # | Description | Scale | Complexity | Notes |
-|---|-------------|-------|------------|-------|
-| #3 | Automate linked PR chain across ecosystem repos | L | High | CROSS_REPO_PAT needed; SNAPSHOT timing open |
-| #93 | Extract normative channel layout claudony → engine-api | M | Med | Blocked by claudony#142 |
-| #106 | Update spec §7.1 oversight channel allowedTypes | XS | Med | Blocked by claudony#142 |
-| #111 | Migrate actorId format to DID | XL | High | Needs ledger#108, ledger#110 |
-| #7 | Platform foundation roadmap tracker | XL | High | Tracker — closes last |
-| #13 | Cohesive Claude config design | XL | High | Needs dedicated design session |
 
 ---
 
 ## Key References
 
 - Blog: `blog/2026-06-02-mdp02-two-writing-styles-one-commit.md`
-- Protocol: PP-20260602-e36824 `external-api-surface-in-deep-dive` (garden)
-- Branch cleanup due: `issue-12` through `issue-19` → 2026-06-04
+- Garden: GE-20260603-ed7a17 (git update-ref technique), GE-20260603-f257ab (fork/squash order)
+- work-end fix: `cc-praxis/work-end/SKILL.md` committed `3368173`
