@@ -1,0 +1,8 @@
+branch: issue-150-flyway-ext-reg-ledger-gap-closed
+project-sha: 748a5ac0050e2ce7773c3b8b352591957edec614
+date: 2026-06-03
+issue: 150
+issue-repo: casehubio/parent
+flyway-next-v: none
+design-repo: project
+design-section-hashes:
