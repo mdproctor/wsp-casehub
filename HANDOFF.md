@@ -1,46 +1,55 @@
-# Handoff — 2026-06-03
+# Handoff — 2026-06-04
 
-**Head commit (project):** 19659a4 — chore: fix design routing — design-repo is project not workspace
-**Head commit (workspace):** 0a60c8c — feat: promote blog entry from issue-141-doc-sync
+**Head commit (project):** 244d447 — docs(#238): qhorus-channel-dual-identity protocol
+**Head commit (workspace):** 380fc0a — docs: add blog entry 2026-06-04
 
 ---
 
-## What Changed This Session (post-wrap additions)
+## What Changed This Session
 
-**work-end skill fixed** — squash must run before fork push, not between fork and upstream pushes. Fork (mdproctor) and upstream (casehubio) were silently receiving different histories. Fixed in `cc-praxis/work-end/SKILL.md`, synced. GE-20260603-f257ab captures the root cause.
+**AI Fusion direction established.** Typed fact space design written — a case-scoped epistemic workspace where Drools (typed facts), LLMs (probabilistic text), QuarkusFlow (structured data), and humans (authority) all assert with epistemic metadata. Written to `docs/specs/2026-06-03-ai-fusion-hybrid-fact-space.md`. Distinction from existing BlackboardRegistry (plan coordination) and CaseMemoryStore (text retrieval) documented.
 
-**Repo alignment audit** — checked all 17 casehub repos against casehubio/main:
+**casehubio/neural-text bootstrapped.** Full ecosystem setup: GitHub repos, workspace, CI/CD, PLATFORM.md, deep-dive, website (SVG + project card), ARC42STORIES.MD (7 epics, 7 layers, C4 diagrams), 9 Maven modules with all pom.xml files and source dirs. Ready for Java files.
 
-| Status | Repos |
-|--------|-------|
-| ✅ Aligned | parent, eidos, connectors, claudony, openclaw, aml, life |
-| No upstream remote | platform, quarkmind |
-| Fork ahead — push upstream | clinical (1 commit), drafthouse (42 commits) |
-| Local ahead — push upstream | devtown (7 commits) |
-| Complex/diverged — own session | engine (11↑4↓), work (2↑2↓), qhorus (32↑30↓), ledger (330↑337↓), flow (3↑33↓) |
+**Gap issues filed.** #154 (AI observability), #155 (policy engine), #156 (eval), #157 (artifact pipeline), #158 (casehubio/neural-text onnx inference), #164 (casehub-rag), #158 updated and Hortora/spec#15 updated after Hortora corrected the RAG scope.
+
+**write-content skill updated.** README form added (`[R]`) with section-to-mode map and "stripping trap" rule. Installed via sync-local. cc-praxis on branch `issue-110-router-skills`.
+
+**6 doc-sync issues closed.** #144 (already fixed), #145, #146, #147, #149, #150 — all merged via PRs #151, #152.
 
 ---
 
 ## Immediate Next Step
 
-For repo alignment: in `clinical`, run `git push upstream main`. For `devtown`, same. `drafthouse` has 42 commits — decide push vs PR in that repo's session.
-
-*Unchanged — `git show HEAD~1:HANDOFF.md` for full What's Next table.*
+Start neural-text implementation: Epic 2 — native image prototype. ONNX Runtime JNI + HuggingFace Tokenizers JNI in Quarkus native image on macOS ARM. This gates everything else.
 
 ---
 
 ## What's Left
 
-- `clinical`, `devtown`, `drafthouse` — upstream delivery needed (see audit above) · XS · Low
-- Workspace branch cleanup — `issue-12` through `issue-19` deletion due 2026-06-04 (tomorrow)
-- `engine`, `work`, `qhorus`, `ledger`, `flow` — diverged, each needs own session · varies · High
-- `platform`, `quarkmind` — add upstream remote then re-audit · XS · Low
-- `clinical` — recover stranded blog from `epic-3-multi-site-sub-case` · XS · Low
+- `clinical`, `devtown`, `drafthouse` — upstream delivery still outstanding from repo alignment audit · XS · Low
+- Workspace branch cleanup — `issue-12` through `issue-19` deletion (overdue) · XS · Low
+- `engine`, `work`, `qhorus`, `ledger`, `flow` — diverged repos, each needs own session · varies · High
+- `platform`, `quarkmind` — add upstream remote · XS · Low
+- cc-praxis `issue-110-router-skills` branch not merged — README form needs PR and merge · XS · Low
+
+---
+
+## What's Next
+
+| # | Description | Scale | Complexity | Notes |
+|---|-------------|-------|------------|-------|
+| #2 | neural-text: native image prototype | M | High | First deliverable — gates all other epics |
+| #3 | neural-text: inference-api + runtime + inmem | M | Med | Independent of prototype outcome for JVM mode |
+| #4 | neural-text: inference-tasks (NLI, classifier, regressor, reranker) | M | Med | Blocked by #3 |
+| — | AI Fusion typed fact space implementation | XL | High | New module in casehub-engine — start in its own session |
 
 ---
 
 ## Key References
 
-- Blog: `blog/2026-06-02-mdp02-two-writing-styles-one-commit.md`
-- Garden: GE-20260603-ed7a17 (git update-ref technique), GE-20260603-f257ab (fork/squash order)
-- work-end fix: `cc-praxis/work-end/SKILL.md` committed `3368173`
+- AI Fusion spec: `casehubio/parent: docs/specs/2026-06-03-ai-fusion-hybrid-fact-space.md`
+- ONNX inference brief: `casehubio/parent: docs/specs/2026-06-03-standalone-rag-retrieval-brief.md`
+- ARC42STORIES.MD: `casehubio/neural-text: ARC42STORIES.MD`
+- Blog: `blog/2026-06-04-mdp01-ai-fusion-and-neural-text.md`
+- Hortora/spec#15 — neural-text alignment (Hortora's design spec is authoritative for inference-* modules)
