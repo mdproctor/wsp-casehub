@@ -11,7 +11,7 @@
 
 **casehubio/neural-text bootstrapped.** Full ecosystem setup: GitHub repos, workspace, CI/CD, PLATFORM.md, deep-dive, website (SVG + project card), ARC42STORIES.MD (7 epics, 7 layers, C4 diagrams), 9 Maven modules with all pom.xml files and source dirs. Ready for Java files.
 
-**Gap issues filed.** #154 (AI observability), #155 (policy engine), #156 (eval), #157 (artifact pipeline), #158 (casehubio/neural-text onnx inference), #164 (casehub-rag), #158 updated and Hortora/spec#15 updated after Hortora corrected the RAG scope.
+**Gap issues filed.** #154 (AI observability), #155 (policy engine), #156 (eval), #157 (artifact pipeline), #158 (standalone onnx-inference module — shared casehub + hortora), #164 (casehub-rag). #158 and Hortora/spec#15 updated after Hortora corrected the RAG scope.
 
 **write-content skill updated.** README form added (`[R]`) with section-to-mode map and "stripping trap" rule. Installed via sync-local. cc-praxis on branch `issue-110-router-skills`.
 
