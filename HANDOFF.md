@@ -35,13 +35,6 @@ Start neural-text implementation: Epic 2 — native image prototype. ONNX Runtim
 
 ---
 
-## What's Next
-
-| # | Description | Scale | Complexity | Notes |
-|---|-------------|-------|------------|-------|
-| — | AI Fusion typed fact space implementation | XL | High | New module in casehub-engine — start in its own session |
-
----
 
 ## Key References
 
