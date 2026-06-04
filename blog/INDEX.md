@@ -30,3 +30,4 @@
 | [2026-05-29-mdp01-not-just-drift.md](2026-05-29-mdp01-not-just-drift.md) | 2026-05-29 | Second doc sync batch — code review caught wrong API names and misattributed types; agent routing priority ladder; @DefaultBean pattern distinction |
 | [2026-05-27-mdp01-what-wasnt-on-the-map.md](2026-05-27-mdp01-what-wasnt-on-the-map.md) | 2026-05-27 | Seven repos invisible to session reasoning — ecosystem registration audit, CI org/repo bug, flow integration debt |
 | [2026-05-25-mdp01-openclaw-governance-memory.md](2026-05-25-mdp01-openclaw-governance-memory.md) | 2026-05-25 | OpenClaw + CaseHub integration model, ChannelContextWindow design, two new repos bootstrapped |
+| [2026-06-04-mdp01-ai-fusion-and-neural-text.md](2026-06-04-mdp01-ai-fusion-and-neural-text.md) | 2026-06-04 | AI Fusion typed fact space direction, casehub-neural-text bootstrap, README multi-mode lesson |
