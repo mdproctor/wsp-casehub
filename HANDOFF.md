@@ -39,9 +39,6 @@ Start neural-text implementation: Epic 2 — native image prototype. ONNX Runtim
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #2 | neural-text: native image prototype | M | High | First deliverable — gates all other epics |
-| #3 | neural-text: inference-api + runtime + inmem | M | Med | Independent of prototype outcome for JVM mode |
-| #4 | neural-text: inference-tasks (NLI, classifier, regressor, reranker) | M | Med | Blocked by #3 |
 | — | AI Fusion typed fact space implementation | XL | High | New module in casehub-engine — start in its own session |
 
 ---
