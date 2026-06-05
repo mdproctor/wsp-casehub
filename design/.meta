@@ -1,0 +1,9 @@
+branch: issue-172-doc-sync-batch
+project-sha: 078af43dac88d186f05d487a015377f5213979d0
+date: 2026-06-05
+issue: 172
+issue-repo: casehubio/parent
+covers: 172,173,174,175,176,177,178
+flyway-next-v: none
+design-repo: project
+design-section-hashes:
