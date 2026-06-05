@@ -1,45 +1,57 @@
-# Handoff — 2026-06-04
+# Handoff — 2026-06-05
 
-**Head commit (project):** 244d447 — docs(#238): qhorus-channel-dual-identity protocol
-**Head commit (workspace):** 380fc0a — docs: add blog entry 2026-06-04
+**Head commit (project):** facb861 — chore: remove quarkus-langchain4j from CI/CD
+**Head commit (workspace):** 66c4ab1 — docs: correct #158 description in parent handover
 
 ---
 
 ## What Changed This Session
 
-**AI Fusion direction established.** Typed fact space design written — a case-scoped epistemic workspace where Drools (typed facts), LLMs (probabilistic text), QuarkusFlow (structured data), and humans (authority) all assert with epistemic metadata. Written to `docs/specs/2026-06-03-ai-fusion-hybrid-fact-space.md`. Distinction from existing BlackboardRegistry (plan coordination) and CaseMemoryStore (text retrieval) documented.
+**26-issue triage.** Reviewed every open issue in casehubio/parent for validity, scoping, and blocker status. #106 and #111 were newly unblocked (claudony#142 and ledger#81 both closed since last session). #163 was already committed but not auto-closed by GitHub.
 
-**casehubio/neural-text bootstrapped.** Full ecosystem setup: GitHub repos, workspace, CI/CD, PLATFORM.md, deep-dive, website (SVG + project card), ARC42STORIES.MD (7 epics, 7 layers, C4 diagrams), 9 Maven modules with all pom.xml files and source dirs. Ready for Java files.
+**14 issues closed.** Batch doc-sync commit (6680ad3) closed #153, #159–#162, #165–#169, #171. Then #106 (oversight channel type), #148 (trust threshold split code/YAML), #163 (qhorus sync already done).
 
-**Gap issues filed.** #154 (AI observability), #155 (policy engine), #156 (eval), #157 (artifact pipeline), #158 (standalone onnx-inference module — shared casehub + hortora), #164 (casehub-rag). #158 and Hortora/spec#15 updated after Hortora corrected the RAG scope.
+**PLATFORM.md gap analysis.** Used Explore subagent to scan all docs/repos/*.md deep-dives against capability ownership. Added 8 missing rows: LedgerEnricherPipeline, ActorDIDProvider, HumanParticipatingChannelBackend, Qhorus MCP surface, fleet management, claudony MCP server, OversightGateService, ActionRiskClassifier (both flagged with intended home: engine-api). Added Known Placement Violations section and application-tier notification SPI pattern to Step 4.
 
-**write-content skill updated.** README form added (`[R]`) with section-to-mode map and "stripping trap" rule. Installed via sync-local. cc-praxis on branch `issue-110-router-skills`.
+**Worker(Workflow) promoted.** Added casehub-engine-flow capability row and Step 4 guidance calling it the preferred pattern for durable multi-step workers.
 
-**6 doc-sync issues closed.** #144 (already fixed), #145, #146, #147, #149, #150 — all merged via PRs #151, #152.
+**arc42stories-readme.md written.** General-purpose (not casehub-specific). Covers origins, what it adds, C4 diagrams rationale, epic mapping. Lives at docs/arc42stories-readme.md.
+
+**langchain4j retired.** All fixes merged upstream. Removed from CI/CD workflows, README badge, CLAUDE.md peer repos list.
 
 ---
 
 ## Immediate Next Step
 
-Start neural-text implementation: Epic 2 — native image prototype. ONNX Runtime JNI + HuggingFace Tokenizers JNI in Quarkus native image on macOS ARM. This gates everything else.
+File the `OversightGateService` tracking issue in casehubio/engine (listed in PLATFORM.md Known Placement Violations as "untracked — file issue before implementing"). Then work on parent#93 (CaseChannelLayout extraction to engine-api) — openclaw#6 closing confirmed the duplication has materialized.
 
 ---
 
 ## What's Left
 
-- `clinical`, `devtown`, `drafthouse` — upstream delivery still outstanding from repo alignment audit · XS · Low
+- `clinical`, `devtown`, `drafthouse` — upstream delivery outstanding · XS · Low
 - Workspace branch cleanup — `issue-12` through `issue-19` deletion (overdue) · XS · Low
 - `engine`, `work`, `qhorus`, `ledger`, `flow` — diverged repos, each needs own session · varies · High
 - `platform`, `quarkmind` — add upstream remote · XS · Low
-- cc-praxis `issue-110-router-skills` branch not merged — README form needs PR and merge · XS · Low
+- cc-praxis `issue-110-router-skills` — README form branch needs PR + merge · XS · Low
+- #170 — casehub-work.md ARC42STORIES.MD sync — BLOCKED on casehubio/work#246 · XS · Low
 
 ---
 
+## What's Next
+
+| # | Description | Scale | Complexity | Notes |
+|---|-------------|-------|------------|-------|
+| #93 | Extract CaseChannelLayout to engine-api | S | Med | Urgent — openclaw#6 closed, duplication confirmed |
+| #111 | DID migration across all repos | XL | High | Unblocked (ledger#81 closed) — own session |
+| #3 | Automate linked PR chain | M | Med | No blockers |
+| #13 | Cohesive Claude config design | L | Med | No blockers |
+| #154–#157 | AI modules (observability, policy, eval, artifacts) | M–L | High | Each needs own session |
+
+---
 
 ## Key References
 
-- AI Fusion spec: `casehubio/parent: docs/specs/2026-06-03-ai-fusion-hybrid-fact-space.md`
-- ONNX inference brief: `casehubio/parent: docs/specs/2026-06-03-standalone-rag-retrieval-brief.md`
-- ARC42STORIES.MD: `casehubio/neural-text: ARC42STORIES.MD`
-- Blog: `blog/2026-06-04-mdp01-ai-fusion-and-neural-text.md`
-- Hortora/spec#15 — neural-text alignment (Hortora's design spec is authoritative for inference-* modules)
+- PLATFORM.md: `docs/PLATFORM.md` — Known Placement Violations section added
+- arc42stories README: `docs/arc42stories-readme.md`
+- Ideas: `~/claude/public/casehub/IDEAS.md` — ARC42STORIES planning loop, build badges
