@@ -3,7 +3,7 @@ project-sha: a2719189a951d921055155772aa9189b5b8533cd
 date: 2026-06-07
 issue: 179
 issue-repo: casehubio/parent
-covers: 179,180,181,182,184,185,186,187
+covers: 179,180,181,182,184,185,186,187,188,189,190,191
 flyway-next-v: none
 design-repo: project
 design-section-hashes:
