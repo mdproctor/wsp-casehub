@@ -32,3 +32,4 @@
 | [2026-05-25-mdp01-openclaw-governance-memory.md](2026-05-25-mdp01-openclaw-governance-memory.md) | 2026-05-25 | OpenClaw + CaseHub integration model, ChannelContextWindow design, two new repos bootstrapped |
 | [2026-06-04-mdp01-ai-fusion-and-neural-text.md](2026-06-04-mdp01-ai-fusion-and-neural-text.md) | 2026-06-04 | AI Fusion typed fact space direction, casehub-neural-text bootstrap, README multi-mode lesson |
 | [2026-06-05-mdp01-the-gap-in-smart-home-orchestration.md](2026-06-05-mdp01-the-gap-in-smart-home-orchestration.md) | 2026-06-05 | Home automation design — HA/OpenHAB abstraction, unoccupied three-tier deployment model, casehub-iot bootstrapped |
+| [2026-06-07-mdp01-the-migration-that-wasnt.md](2026-06-07-mdp01-the-migration-that-wasnt.md) | 2026-06-07 | Protocol location migration incomplete — old directory persisted causing silent continued writes; casehub-iot workspace gaps fixed; RBAC documented as implemented |
