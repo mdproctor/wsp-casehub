@@ -5,6 +5,48 @@ Promote to an ADR when ready to decide; discard when no longer relevant.
 
 ---
 
+## 2026-06-12 — Desired-state management as research project and reference architecture
+
+**Priority:** high
+**Status:** active
+
+Build `casehub-desiredstate` (generic runtime: planner, reconciliation loop, fault
+policy, core SPIs) and `casehub-ops` (domain implementations: infrastructure
+provisioning, compliance posture, IoT state, CaseHub agent topology) as a research
+project and reference architecture — not a product commitment. The primary story is
+an accountability-native desired-state layer sitting above Terraform and Ansible,
+adding what they structurally lack: continuous reconciliation, tamper-evident audit
+trail, first-class human governance gates, and trust-weighted agent routing. A
+secondary path shows what's possible when CaseHub owns the full provisioning stack,
+letting the community decide whether that gains traction.
+
+The IBM/RHT angle is strong: Ansible and OpenShift are already in regulated
+enterprises. CaseHub DSM as a governance layer above Ansible — every playbook
+execution committed, tamper-evident, trust-weighted — is a story the RHT enterprise
+field can sell without displacing the existing investment. The compliance posture
+domain is the largest identified market gap: Vanta/Drata/Secureframe do point-in-time
+audit prep; nobody has built continuous compliance posture as a desired-state control
+plane (GRC market ~$50B, fastest-growing segment).
+
+Self-referential: CaseHub manages its own agent topology via the DSM system. Strong
+internal validation; CaseHub is the first customer of its own tool.
+
+Two repos:
+- `casehub-desiredstate` — generic domain-agnostic runtime (foundation tier)
+- `casehub-ops` — domain implementations: infra provisioning (Terraform/Ansible
+  adapters), compliance posture, IoT desired state, CaseHub agent topology
+  (integration tier). "casehub-infrastructure" rejected — ambiguous, could later
+  mean CaseHub's own deployment infrastructure.
+
+**Context:** Extended brainstorm from "cases as long-lived service managers" →
+desired-state + cases → accountability gap in Terraform/Ansible → IBM/RHT story
+→ two-path research strategy. Research doc:
+`docs/superpowers/research/2026-06-07-desired-state-management-research.md`
+
+**Promoted to:**
+
+---
+
 ## 2026-06-04 — ARC42STORIES as a continuous planning and delivery loop
 
 **Priority:** medium
@@ -30,7 +72,7 @@ these skills, not just casehub. Came up during README writing for arc42stories-r
 ## 2026-06-04 — Standardise build status badges in all repo READMEs
 
 **Priority:** low
-**Status:** active
+**Status:** promoted
 
 Some casehub repos show build status in their README, others don't. All should
 have a consistent build badge so repo health is visible at a glance from GitHub.
@@ -40,7 +82,7 @@ Could be enforced via a project-health check or a template in the workspace-init
 across the ecosystem. Quick fix per repo but worth doing systematically rather than
 ad hoc.
 
-**Promoted to:**
+**Promoted to:** Done 2026-06-12 — CI + PR badges added to all 19 casehub repos via gh api; quarkmind ci.yml created.
 
 ---
 
