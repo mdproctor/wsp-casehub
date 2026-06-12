@@ -5,6 +5,36 @@ Promote to an ADR when ready to decide; discard when no longer relevant.
 
 ---
 
+## 2026-06-12 — casehub-ras: situational awareness and reactive case creation
+
+**Priority:** high
+**Status:** active
+
+`casehub-ras` (Reticular Activating System) — a new repo that monitors multiple data streams and
+detects scenarios that trigger case creation. The detection layer is fully pluggable via a `Ganglion`
+SPI: implementations include `JavaSwitchGanglion` (simple pattern matching), `DroolsCepGanglion`
+(complex event processing with sliding windows and event correlation), `BayesianGanglion` (weighted
+signal accumulation), and `LlmGanglion` (narrative/ambiguous signal detection).
+
+Architecture: multiple `Ganglion` implementations feed into a single RAS coordination layer. The RAS
+aggregates detection results, handles composite events and detection chains, and decides when accumulated
+signal crosses the threshold to create a case. Ganglia detect; the RAS decides. Multiple RAS instances
+possible for independent detection contexts.
+
+This addresses a real gap: CaseHub currently requires imperative `startCase()` calls. casehub-ras makes
+case creation reactive and declarative — the system watches for conditions and creates cases automatically.
+
+Connects to: `casehub-iot` `StateChangeEvent`, `casehub-desiredstate` `EventSource` SPI, `casehub-qhorus`
+message streams as inputs. Drools CEP is a natural fit for the composite event chain requirement.
+
+**Context:** Design discussion 2026-06-12. Terminology: RAS (Reticular Activating System) — chosen because
+it precisely maps to "decides what's significant enough to elevate to awareness (a case)." Ganglion as the
+internal detection unit — multiple ganglia within one RAS, natural biological metaphor for pluggable detectors.
+
+**Promoted to:**
+
+---
+
 ## 2026-06-12 — Desired-state management as research project and reference architecture
 
 **Priority:** high
