@@ -31,7 +31,8 @@ message streams as inputs. Drools CEP is a natural fit for the composite event c
 it precisely maps to "decides what's significant enough to elevate to awareness (a case)." Ganglion as the
 internal detection unit — multiple ganglia within one RAS, natural biological metaphor for pluggable detectors.
 
-**Promoted to:**
+**Promoted to:** casehubio/casehub-ras — spec at `docs/superpowers/specs/2026-06-12-casehub-ras-design.md`, epics #1–#5
+**Status:** promoted
 
 ---
 
