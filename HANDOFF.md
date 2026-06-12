@@ -1,37 +1,41 @@
-# Handoff — 2026-06-07
+# Handoff — 2026-06-12
 
-**Head commit (project):** ccb4847 — chore: allowedTools from stash pop
-**Head commit (workspace):** b196163 — feat: promote blog entry from issue-179-doc-sync-batch
+**Head commit (project):** 0f70c54 — docs: platform evolution research
+**Head commit (workspace):** aecaa02 — docs: promote casehub-ras idea
 
 ---
 
 ## What Changed This Session
 
-**15 doc sync issues closed** (two batches: #172–178, #179–191 minus #170). PLATFORM.md, casehub-engine, casehub-ledger, casehub-eidos, casehub-work, casehub-clinical, claudony, casehub-connectors, plus three garden protocols (eidos vocabulary rules) and auth-retrofit-readiness protocol updated.
+**Massive doc sync batch** — closed 25 issues across three days (#170, #192–#225). All were doc-only updates to PLATFORM.md, per-repo deep dives, and garden protocols.
 
-**Protocol migration completed.** `docs/protocols/` still existed in parent after migration was declared complete — sessions had been silently writing there for weeks. Deleted the directory, updated 27 PLATFORM.md references, swept 8 other docs files. Garden is now the only destination.
+**Three new repos bootstrapped** — casehub-desiredstate, casehub-ops, casehub-ras. All have: GitHub repos, Maven POM structure, CLAUDE.md, local clones, workspace repos, bidirectional symlinks, `.claude/settings.json` (no env.PATH), and initial issues/epics.
 
-**casehub-iot bootstrapped.** New foundation repo created (`casehubio/casehub-iot`), workspace set up (`mdproctor/wsp-casehub-iot`) with bidirectional symlinks, Maven module skeletons (iot-api, iot-homeassistant, iot-openhab, iot-testing, iot-bridge), pre-push hook activated. Spec at `docs/superpowers/specs/2026-06-05-iot-foundation-design.md` in the iot repo. Three ADRs written (parent 0002–0004).
+**casehub-ras** — new repo for Reticular Activating System: situational awareness and reactive case creation. Ganglia (pluggable detection strategies) feed into a RAS engine that triggers cases. Service lifecycle management pattern documented: long-lived service case + RAS monitoring + child incident/upgrade/decommission cases.
 
-**Home automation brainstorm completed.** Research doc at `docs/superpowers/research/2026-06-05-home-automation-research.md`. Life Layer 9 spec at `docs/superpowers/specs/2026-06-05-life-layer9-home-automation.md` (in parent, for life session to pick up after casehub-iot ships).
+**Platform evolution research doc** — comprehensive cross-cutting research at `docs/superpowers/research/2026-06-12-platform-evolution-desiredstate-ras-deployment.md` covering: desiredstate + ras architecture, deployment YAML UX concept, self-governance property, stream/data first-class citizenship, and layering analysis.
 
-**RBAC documented as implemented.** Platform docs updated — infrastructure is ready, adoption pending. Role name convention section added to PLATFORM.md.
-
-**All repos made public** (casehubio/garden, workspace repos).
+**README badges** — CI + PR badges added to all 19 casehub repos via gh api.
 
 ---
 
 ## Immediate Next Step
 
-Start `casehub-iot` implementation session. HANDOFF.md in workspace at `~/claude/public/casehub-iot/` points to the spec. Begin with `iot-api` — the public SPI module.
+Read the platform evolution research doc. Three P0 layering questions must be answered before any implementation of desiredstate or ras begins:
+
+1. **`SensoryEvent` placement** — casehub-platform-api, casehub-ras-api (integration), or new casehub-streams-api? Foundation modules can't depend on integration tier — this blocks all platform stream modules.
+2. **Platform stream module home** — submodules of casehub-platform, or separate `casehub-streams` repo?
+3. **Deployment YAML compiler placement** — in casehub-desiredstate runtime, casehub-ops/deployment, or new casehub-deploy?
+
+Research doc: `docs/superpowers/research/2026-06-12-platform-evolution-desiredstate-ras-deployment.md`
 
 ---
 
 ## What's Left
 
-- #170 — casehub-work.md ARC42STORIES.MD sync — BLOCKED on casehubio/work#246 · XS · Low
-- cc-praxis `issue-110-router-skills` — README form branch needs PR + merge · XS · Low
-- `engine`, `work`, `qhorus`, `ledger` — diverged repos, each needs own session · varies · High
+- #210 — Add casehub-rag-api cross-dependency rows to PLATFORM.md — blocked until engine/eidos actually wire the dep · XS · Low
+- #202, #204 — protocol updates blocked on life#27 (now closed — recheck next session) · XS · Low
+- casehub-ras `.claude/settings.json` needs `Issue tracking: enabled` format fix for ctx.py (currently `ISSUES_OK=no`) · XS · Low
 
 ---
 
@@ -39,17 +43,17 @@ Start `casehub-iot` implementation session. HANDOFF.md in workspace at `~/claude
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| — | casehub-iot implementation (iot-api first) | M | Med | Start here — own session, spec ready |
-| — | casehub-life Layer 9 (home automation) | L | High | After casehub-iot ships to GitHub Packages |
-| #93 | Extract CaseChannelLayout to engine-api | S | Med | Urgent — duplication confirmed |
-| #111 | DID migration across all repos | XL | High | Own session |
-| #3 | Automate linked PR chain | M | High | No blockers |
+| — | Resolve 3 P0 layering questions (see research doc §5) | S | High | Must precede any desiredstate/ras implementation |
+| — | Design `StreamContext` SPI for casehub-platform-api | S | Med | Tenancy in async stream processing — same pattern as CurrentPrincipal |
+| — | Design deployment YAML schema (full spec) | M | High | The UX story for CasehHub deployments |
+| — | casehub-iot implementation session | M | Med | Spec ready, own session |
+| #93 | Extract CaseChannelLayout → casehub-engine-api | S | Med | Urgent — duplication confirmed |
 
 ---
 
 ## Key References
 
-- casehub-iot spec: `casehubio/casehub-iot` — `docs/superpowers/specs/2026-06-05-iot-foundation-design.md`
-- casehub-life Layer 9 spec: `docs/superpowers/specs/2026-06-05-life-layer9-home-automation.md` (this repo)
-- Home automation research: `docs/superpowers/research/2026-06-05-home-automation-research.md`
-- ADRs 0002–0004: `docs/adr/` (casehub-iot foundation, life as app, three deployment modes)
+- Platform evolution research: `docs/superpowers/research/2026-06-12-platform-evolution-desiredstate-ras-deployment.md`
+- casehub-ras spec: `casehubio/casehub-ras/docs/superpowers/specs/2026-06-12-casehub-ras-design.md`
+- casehub-desiredstate spec: `casehubio/casehub-desiredstate/docs/superpowers/specs/` (see repo)
+- New repos: casehub-desiredstate, casehub-ops, casehub-ras (all at `/Users/mdproctor/claude/casehub/`)
