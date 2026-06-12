@@ -1,5 +1,7 @@
 # Handoff — 2026-06-12
 
+*Updated: #202, #204 closed — removed from backlog.*
+
 **Head commit (project):** 0f70c54 — docs: platform evolution research
 **Head commit (workspace):** aecaa02 — docs: promote casehub-ras idea
 
@@ -34,7 +36,6 @@ Research doc: `docs/superpowers/research/2026-06-12-platform-evolution-desiredst
 ## What's Left
 
 - #210 — Add casehub-rag-api cross-dependency rows to PLATFORM.md — blocked until engine/eidos actually wire the dep · XS · Low
-- #202, #204 — protocol updates blocked on life#27 (now closed — recheck next session) · XS · Low
 - casehub-ras `.claude/settings.json` needs `Issue tracking: enabled` format fix for ctx.py (currently `ISSUES_OK=no`) · XS · Low
 
 ---
