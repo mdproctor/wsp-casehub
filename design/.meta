@@ -1,0 +1,9 @@
+branch: issue-235-p0-layering-decisions
+project-sha: e47908aab5b1d1b45d3611e902a68b6ada29690e
+date: 2026-06-13
+issue: 235
+issue-repo: casehubio/parent
+covers: 235
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
