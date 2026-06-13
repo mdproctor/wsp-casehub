@@ -1,33 +1,25 @@
-# Handoff — 2026-06-12
+# Handoff — 2026-06-13
 
-*Updated: #202, #204 closed — removed from backlog.*
-
-**Head commit (project):** 0f70c54 — docs: platform evolution research
-**Head commit (workspace):** aecaa02 — docs: promote casehub-ras idea
+**Head commit (project):** e47908a — docs(#226,#228,#229,#230,#231): sync repo deep-dives
+**Head commit (workspace):** e5398d9 — feat: promote diary entry from issue-226-doc-syncs
 
 ---
 
 ## What Changed This Session
 
-**Massive doc sync batch** — closed 25 issues across three days (#170, #192–#225). All were doc-only updates to PLATFORM.md, per-repo deep dives, and garden protocols.
+**Five doc sync issues closed** (#226, #228, #229, #230, #231): clinical Layer 8 ActionRiskClassifier partial status + new tutorial layer row + AdverseEvent.unexpected/suspected fields; qhorus ConnectorQhorusMeshBridge description, QhorusInboundCurrentPrincipal corrected to @DefaultBean (+ test exclude-types note), CommitmentDeclinedEvent in domain model, ChannelService.create() initChannel note; PLATFORM.md Named endpoint registry capability row + HTTP inbound row updated; casehub-platform.md endpoints-memory module added; devtown Layer 4 complete + POST /api/incident-feedback endpoint + new domain types + V2003 migration.
 
-**Three new repos bootstrapped** — casehub-desiredstate, casehub-ops, casehub-ras. All have: GitHub repos, Maven POM structure, CLAUDE.md, local clones, workspace repos, bidirectional symlinks, `.claude/settings.json` (no env.PATH), and initial issues/epics.
-
-**casehub-ras** — new repo for Reticular Activating System: situational awareness and reactive case creation. Ganglia (pluggable detection strategies) feed into a RAS engine that triggers cases. Service lifecycle management pattern documented: long-lived service case + RAS monitoring + child incident/upgrade/decommission cases.
-
-**Platform evolution research doc** — comprehensive cross-cutting research at `docs/superpowers/research/2026-06-12-platform-evolution-desiredstate-ras-deployment.md` covering: desiredstate + ras architecture, deployment YAML UX concept, self-governance property, stream/data first-class citizenship, and layering analysis.
-
-**README badges** — CI + PR badges added to all 19 casehub repos via gh api.
+**CLAUDE.md Work Tracking format fixed** — bold-markdown format (`**GitHub repo:** value`) caused ctx.py regex to capture `**` as OWNER_REPO instead of `casehubio/parent`. Root cause revised into existing garden entry GE-20260529-182916.
 
 ---
 
 ## Immediate Next Step
 
-Read the platform evolution research doc. Three P0 layering questions must be answered before any implementation of desiredstate or ras begins:
+Read the platform evolution research doc and resolve the 3 P0 layering questions before any desiredstate or ras implementation:
 
-1. **`SensoryEvent` placement** — casehub-platform-api, casehub-ras-api (integration), or new casehub-streams-api? Foundation modules can't depend on integration tier — this blocks all platform stream modules.
-2. **Platform stream module home** — submodules of casehub-platform, or separate `casehub-streams` repo?
-3. **Deployment YAML compiler placement** — in casehub-desiredstate runtime, casehub-ops/deployment, or new casehub-deploy?
+1. `SensoryEvent` placement — casehub-platform-api, casehub-ras-api (integration), or new casehub-streams-api?
+2. Platform stream module home — submodules of casehub-platform, or separate `casehub-streams` repo?
+3. Deployment YAML compiler placement — casehub-desiredstate runtime, casehub-ops/deployment, or new casehub-deploy?
 
 Research doc: `docs/superpowers/research/2026-06-12-platform-evolution-desiredstate-ras-deployment.md`
 
@@ -36,7 +28,7 @@ Research doc: `docs/superpowers/research/2026-06-12-platform-evolution-desiredst
 ## What's Left
 
 - #210 — Add casehub-rag-api cross-dependency rows to PLATFORM.md — blocked until engine/eidos actually wire the dep · XS · Low
-- casehub-ras `.claude/settings.json` needs `Issue tracking: enabled` format fix for ctx.py (currently `ISSUES_OK=no`) · XS · Low
+- casehub-ras `.claude/settings.json` needs `Issue tracking: enabled` format fix for ctx.py (`ISSUES_OK=no`) · XS · Low
 
 ---
 
@@ -44,11 +36,11 @@ Research doc: `docs/superpowers/research/2026-06-12-platform-evolution-desiredst
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| — | Resolve 3 P0 layering questions (see research doc §5) | S | High | Must precede any desiredstate/ras implementation |
-| — | Design `StreamContext` SPI for casehub-platform-api | S | Med | Tenancy in async stream processing — same pattern as CurrentPrincipal |
-| — | Design deployment YAML schema (full spec) | M | High | The UX story for CasehHub deployments |
+| — | Resolve 3 P0 layering questions (§5 of research doc) | S | High | Must precede desiredstate/ras implementation |
+| — | Design `StreamContext` SPI for casehub-platform-api | S | Med | Tenancy in async streams — same pattern as CurrentPrincipal |
+| — | Design deployment YAML schema (full spec) | M | High | UX story for CaseHub deployments |
 | — | casehub-iot implementation session | M | Med | Spec ready, own session |
-| #93 | Extract CaseChannelLayout → casehub-engine-api | S | Med | Urgent — duplication confirmed |
+| #93 | Extract CaseChannelLayout → casehub-engine-api | S | Med | Duplication confirmed |
 
 ---
 
