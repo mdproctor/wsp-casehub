@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-21
+**Date:** 2026-06-22
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,16 +8,22 @@
 
 ## Last Session
 
-**#276 closed:** Added `cloudevents-core:4.0.1`, `cloudevents-api:4.0.1`, and `cloudevents-json-jackson:4.0.1` to the BOM under a new third-party version pins section. Triggered by `iot#19`, `qhorus#279`, `connectors#20` all shipping their CloudEvent adapters. Also cleaned up tracked `.claude/` system files (`scheduled_tasks.lock`, `settings.local.json`) from both the workspace and parent repos — added to `.gitignore` and untracked.
+**parent#93 closed — Agent Mesh Primitives extracted to casehub-engine-api**
 
-Separate session (casehub-platform): comprehensive ARC42STORIES.MD audit — added C19 (AgentSession + LangChain4j), C20 (Stream Ingestion), C21 (ACL Phase 1), L10/L11 layer entries, 15 glossary terms, stale §12 fixes. Pushed to both remotes.
+`CaseChannelLayout`, `NormativeChannelLayout`, `SimpleLayout`, `MeshParticipationStrategy`, and three standard participation strategy implementations moved from `claudony-casehub` to `io.casehub.api.spi.mesh` in `casehub-engine-api`. OpenClaw's duplicate `OpenClawNormativeLayout` deleted. Local protocol promoted to garden.
+
+Changes across 4 repos (all on main):
+- **engine** (#550): 11 new files, 446 tests. `strategyFor(String, UUID)` signature fixed (was nullable WorkerContext wrapper). null guards on `named(null)`, contract tests cover both layouts, tautological enum tests removed (#554).
+- **claudony** (#159): 10 files deleted, `selectStrategy()` removed, `MeshParticipationStrategy.named()` replaces it. 143 tests.
+- **openclaw** (#38): `OpenClawNormativeLayout` deleted, providers refactored. Reactive `openOrCreate(UUID, ChannelSpec)`. Unknown purposes throw IAE. 150 tests.
+- **parent**: PLATFORM.md (2 new rows), CHANNELS.md (MeshParticipationStrategy formalised), casehub-engine.md deep-dive updated.
+- **garden**: `spi-case-id-parameter.md` rows updated, `normative-channel-layout-single-source.md` created (platform scope).
+
+ARC42STORIES updated in all three workspaces (engine/claudony/openclaw).
 
 ## Immediate Next Step
 
-**parent#288** — Add casehub-worker and casehub-platform-governance artifacts to the BOM + update `docs/PLATFORM.md`. This unblocks `engine#543` (Worker migration, 60+ files).
-
-BOM entries needed: `casehub-worker-api`, `casehub-worker`, `casehub-worker-testing`, `casehub-platform-governance`.
-PLATFORM.md: add casehub-worker to Repository Map (Foundation tier), Build Order, Capability Ownership, Cross-Repo Dependency Map.
+**parent#288** — Add casehub-worker and casehub-platform-governance artifacts to the BOM + update `docs/PLATFORM.md`. Unblocks `engine#543` (Worker migration, 60+ files).
 
 ## Cross-Module: Worker Foundation Extraction
 
@@ -25,7 +31,7 @@ PLATFORM.md: add casehub-worker to Repository Map (Foundation tier), Build Order
 
 | Step | Repo | Issue | Status |
 |------|------|-------|--------|
-| 0a | casehub-platform | platform#104 | Done (branch `issue-104-governance-types`, needs merge) |
+| 0a | casehub-platform | platform#104 | Done (branch needs merge) |
 | 0b | casehub-worker | — | Done (repo created, published) |
 | 1 | **casehub-parent** | **parent#288** | **Next — BOM + PLATFORM.md** |
 | 2 | casehub-engine | engine#543 | Blocked on parent#288 |
@@ -37,19 +43,17 @@ PLATFORM.md: add casehub-worker to Repository Map (Foundation tier), Build Order
 
 ## What's Left
 
-- platform#104 — governance types branch needs merge to main + publish · S · Low
-- #210 — casehub-rag-api cross-dep rows in PLATFORM.md — blocked until engine/eidos wire the dep · XS · Low
+- platform#107 — remove cloudevents version pins from platform root pom (now managed by parent BOM)
+- platform#104 — governance types branch needs merge + publish
+- #210 — casehub-rag-api cross-dep rows — blocked until engine/eidos wire the dep
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
 | #288 | casehub-worker + governance BOM + PLATFORM.md | S | Low | Immediate — unblocks engine#543 |
-| #277 | CloudEvent infrastructure rollout epic | L | Med | #276 done; track consumer adoption |
-| #293 | Formalise channel taxonomy (CHANNELS.md) | S | Low | Recent docs commit landed |
+| #277 | CloudEvent infrastructure rollout epic | L | Med | Adapters done; track consumer adoption |
+| #293 | Formalise channel taxonomy (CHANNELS.md) | S | Low | Partially done this session |
 | #294 | Reusable Platform Primitives epic | XL | High | Long-horizon design |
-
-## Key References
-
-- Design spec: `casehub-desiredstate/docs/superpowers/specs/2026-06-18-worker-foundation-extraction-design.md`
-- Implementation plan: `casehub-desiredstate/docs/superpowers/plans/2026-06-18-worker-foundation-extraction.md`
+| engine#556 | PerCaseDynamicStrategy design | S | Med | Design only — caseId classification |
+| openclaw#40 | Config-driven layout (align with claudony) | S | Low | Follow-up from #38 |
