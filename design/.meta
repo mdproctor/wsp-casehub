@@ -1,0 +1,9 @@
+branch: issue-288-worker-bom-platform
+project-sha: 31eec82b58c3c81ade71952d53b3e5ccaa2d4ab9
+date: 2026-06-22
+issue: 288
+issue-repo: casehubio/parent
+covers: 288
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
