@@ -1,0 +1,9 @@
+branch: issue-296-doc-syncs
+project-sha: 335c927ce2d3c21f1c13d22fd7214ced89dd9bda
+date: 2026-06-22
+issue: 296
+issue-repo: casehubio/parent
+covers: 296,297,298,300
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
