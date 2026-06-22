@@ -1,5 +1,7 @@
 # HANDOFF — casehub
 
+*Updated: engine#556, openclaw#40 closed — removed from backlog.*
+
 **Date:** 2026-06-22
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
@@ -45,5 +47,3 @@ Tracking: `casehub-desiredstate#40`
 | #277 | CloudEvent infrastructure rollout epic | L | Med | Adapters done; track consumer adoption |
 | #293 | Formalise channel taxonomy (CHANNELS.md) | S | Low | Partially done in #93 session |
 | #294 | Reusable Platform Primitives epic | XL | High | Long-horizon design |
-| engine#556 | PerCaseDynamicStrategy design | S | Med | Design only — caseId classification |
-| openclaw#40 | Config-driven layout (align with claudony) | S | Low | Follow-up from openclaw#38 |
