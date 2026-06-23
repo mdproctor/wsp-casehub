@@ -32,11 +32,11 @@ Tracking: `casehub-desiredstate#40`
 | 3 | desiredstate | desiredstate#41 | Blocked on engine#543 |
 | 4–7 | claudony, workers, openclaw, ops | 4 issues | Blocked on engine#543 |
 
+*Updated: platform#108, work#273 closed — removed from backlog.*
+
 ## What's Left
 
 - `qhorus#294` — bug: QhorusCloudEventAdapter wrong timestamp (affects Drools CEP) · XS · Low
-- `platform#108` — null-guard tenancyId in poll/camel modules · XS · Low
-- `work#273` — WorkCloudEventAdapter · S · Low
 
 ## What's Next
 
