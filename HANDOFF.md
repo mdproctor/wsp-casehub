@@ -1,8 +1,6 @@
 # HANDOFF — casehub
 
-*Updated: engine#556, openclaw#40 closed — removed from backlog.*
-
-**Date:** 2026-06-22
+**Date:** 2026-06-23
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -10,16 +8,16 @@
 
 ## Last Session
 
-**parent#288, #296, #297, #298, #300 closed — BOM + doc syncs**
+**Docs/build batch + triage: #301, #303, #305, #306, #277 closed; casehub-worker registered**
 
-Three issues completed in sequence:
-
-- **#288** (`build(bom)`): `casehub-worker-api`, `casehub-worker`, `casehub-worker-testing`, `casehub-platform-governance` added to BOM. PLATFORM.md updated (repo map, build order, capability ownership, cross-dep map, Step 4 coherence note). Unblocks `engine#543`.
-- **#296–#300** (`docs(repos)`): four deep-dives synced — `engine.md` (ExpressionEngine.extractString SPI + HumanTaskTarget.expiresAtExpression, engine#549), `clinical.md` (Layer 10 IND deadline enforcement, clinical#83), `aml.md` (casehub-engine-flow dep, aml#46), `PLATFORM.md` + `life.md` (auth wired in casehub-life, life#40/#26 closed).
+- **#277** (CloudEvent rollout epic): all 5 sub-issues closed → epic closed. Found missing RAS consumer issue → filed casehub-ras#11 before closing. Auth retrofit issues filed for openclaw (openclaw#41) and clinical (clinical#88).
+- **#301–#306** (docs/build batch): casehub-worker registered in modules-core.csv, dashboards, README, index.html; new casehub-worker deep-dive created; PLATFORM.md stale type names fixed (WorkerContext/WorkerSpec/WorkerCapability → Worker/Capability/WorkerFunction, 5 occurrences); openclaw.md deferred note resolved; neural-text JVM-mode-by-design documented.
+- **#304** closed as duplicate of #288 (already done).
+- **idle eviction**: launchd daemon + Stop hook → `~/.claude_idle/<pid>.touch` timestamps; kills claude sessions idle >1h. Initial scan freed ~4.5 GB (13 processes killed).
 
 ## Immediate Next Step
 
-Next issue: pick up **engine#543** — Worker migration (60+ files). Branch in `casehub-engine` session. Parent BOM now has the artifacts it needs.
+Switch to **casehub-engine session** → engine#543 (Worker primitive migration, 60+ files). This is the critical path for the entire Worker Foundation Extraction chain.
 
 ## Cross-Module: Worker Foundation Extraction
 
@@ -27,23 +25,24 @@ Tracking: `casehub-desiredstate#40`
 
 | Step | Repo | Issue | Status |
 |------|------|-------|--------|
-| 0a | casehub-platform | platform#104 | Done (branch needs merge) |
-| 0b | casehub-worker | — | Done |
-| 1 | **casehub-parent** | **#288** | ✅ Done |
-| 2 | casehub-engine | engine#543 | **Next — 60+ file migration** |
-| 3 | casehub-desiredstate | desiredstate#41 | Blocked on engine#543 |
-| 4–7 | downstream | various | Blocked on engine#543 |
+| 0a | platform | platform#104 | ✅ Done |
+| 0b | casehub-worker | — | ✅ Done |
+| 1 | parent | parent#288 | ✅ Done |
+| **2** | **engine** | **engine#543** | **Next — 60+ file migration** |
+| 3 | desiredstate | desiredstate#41 | Blocked on engine#543 |
+| 4–7 | claudony, workers, openclaw, ops | 4 issues | Blocked on engine#543 |
 
 ## What's Left
 
-- platform#107 — remove cloudevents version pins from platform root pom · XS · Low
-- platform#104 — governance types branch needs merge + publish · XS · Low
-- #210 — casehub-rag-api cross-dep rows — blocked until engine/eidos wire the dep · XS · Low
+- `qhorus#294` — bug: QhorusCloudEventAdapter wrong timestamp (affects Drools CEP) · XS · Low
+- `platform#108` — null-guard tenancyId in poll/camel modules · XS · Low
+- `work#273` — WorkCloudEventAdapter · S · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #277 | CloudEvent infrastructure rollout epic | L | Med | Adapters done; track consumer adoption |
-| #293 | Formalise channel taxonomy (CHANNELS.md) | S | Low | Partially done in #93 session |
-| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon design |
+| engine#543 | Worker primitive migration | L | High | Critical path; do in casehub-engine session |
+| #251 | Auth retrofit epic — devtown#90, openclaw#41, clinical#88 | S | Low | Each in own session |
+| #293 | Formalise channel taxonomy | S | Low | No blockers |
+| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon |
