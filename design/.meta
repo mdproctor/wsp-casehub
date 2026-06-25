@@ -1,0 +1,9 @@
+branch: issue-309-docs-platform-qhorus-sync
+project-sha: 9fe71a3104914a255e4e3c1b108d48d5602e6131
+date: 2026-06-25
+issue: 309
+issue-repo: casehubio/parent
+covers: 309,308,307
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
