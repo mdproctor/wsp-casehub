@@ -16,9 +16,11 @@
 - **Idle eviction**: launchd daemon unloaded, script rewritten for on-demand use (`evict-idle-claude.sh 3h`).
 - **build-all fixes** (post-close): added `worker` → `casehubio/casehub-worker` REPO_OVERRIDE in CI; disabled `quarkus-langchain4j` in modules-local.csv (forked build no longer needed).
 
+*Updated: engine#543 closed — removed from backlog.*
+
 ## Immediate Next Step
 
-Switch to **casehub-engine session** → engine#543 (Worker primitive migration, 60+ files). Critical path for Worker Foundation Extraction.
+Pick up **#293** (formalise channel taxonomy) or switch to another peer repo for Worker Foundation Extraction follow-up.
 
 ## Cross-Module: Worker Foundation Extraction
 
@@ -32,6 +34,5 @@ Switch to **casehub-engine session** → engine#543 (Worker primitive migration,
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| engine#543 | Worker primitive migration | L | High | Critical path; do in casehub-engine session |
 | #293 | Formalise channel taxonomy | S | Low | No blockers |
 | #294 | Reusable Platform Primitives epic | XL | High | Long-horizon |
