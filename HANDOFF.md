@@ -8,12 +8,13 @@
 
 ## Last Session
 
-**Triage + docs batch: #251 epic closed, #309/#308/#307 docs shipped, local SNAPSHOT rebuild, eviction rethink**
+**Triage + docs batch + build fixes: #251 epic closed, #309/#308/#307 shipped, build-all clone failures fixed**
 
-- **#251** (auth retrofit epic): all four harnesses confirmed done (devtown#90, openclaw#41, life#40, clinical#88). Epic closed.
-- **#309, #308, #307** (docs batch): iot-api→ops/iot dep row, named MCP server convention, qhorus deep-dive audit/CommitmentContext sync.
-- **Local SNAPSHOT rebuild**: full chain parent→engine installed to `.m2` — devtown's reported DEEP_MERGE/SubjectSequenceStats breaks were stale JARs, not API changes.
-- **Idle eviction**: launchd daemon unloaded. Script rewritten for on-demand use (`evict-idle-claude.sh 3h`). Stop hook still timestamps every interaction.
+- **#251** (auth retrofit epic): all four harnesses done → epic closed.
+- **#309, #308, #307** (docs batch): iot-api dep row, named MCP server convention, qhorus deep-dive sync.
+- **Local SNAPSHOT rebuild**: full chain parent→engine. Devtown's reported breaks were stale JARs, not API changes.
+- **Idle eviction**: launchd daemon unloaded, script rewritten for on-demand use (`evict-idle-claude.sh 3h`).
+- **build-all fixes** (post-close): added `worker` → `casehubio/casehub-worker` REPO_OVERRIDE in CI; disabled `quarkus-langchain4j` in modules-local.csv (forked build no longer needed).
 
 ## Immediate Next Step
 
@@ -21,7 +22,7 @@ Switch to **casehub-engine session** → engine#543 (Worker primitive migration,
 
 ## Cross-Module: Worker Foundation Extraction
 
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
+*Unchanged — `git show HEAD~2:HANDOFF.md`*
 
 ## What's Left
 
