@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-23
+**Date:** 2026-06-25
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,31 +8,20 @@
 
 ## Last Session
 
-**Docs/build batch + triage: #301, #303, #305, #306, #277 closed; casehub-worker registered**
+**Triage + docs batch: #251 epic closed, #309/#308/#307 docs shipped, local SNAPSHOT rebuild, eviction rethink**
 
-- **#277** (CloudEvent rollout epic): all 5 sub-issues closed → epic closed. Found missing RAS consumer issue → filed casehub-ras#11 before closing. Auth retrofit issues filed for openclaw (openclaw#41) and clinical (clinical#88).
-- **#301–#306** (docs/build batch): casehub-worker registered in modules-core.csv, dashboards, README, index.html; new casehub-worker deep-dive created; PLATFORM.md stale type names fixed (WorkerContext/WorkerSpec/WorkerCapability → Worker/Capability/WorkerFunction, 5 occurrences); openclaw.md deferred note resolved; neural-text JVM-mode-by-design documented.
-- **#304** closed as duplicate of #288 (already done).
-- **idle eviction**: launchd daemon + Stop hook → `~/.claude_idle/<pid>.touch` timestamps; kills claude sessions idle >1h. Initial scan freed ~4.5 GB (13 processes killed).
+- **#251** (auth retrofit epic): all four harnesses confirmed done (devtown#90, openclaw#41, life#40, clinical#88). Epic closed.
+- **#309, #308, #307** (docs batch): iot-api→ops/iot dep row, named MCP server convention, qhorus deep-dive audit/CommitmentContext sync.
+- **Local SNAPSHOT rebuild**: full chain parent→engine installed to `.m2` — devtown's reported DEEP_MERGE/SubjectSequenceStats breaks were stale JARs, not API changes.
+- **Idle eviction**: launchd daemon unloaded. Script rewritten for on-demand use (`evict-idle-claude.sh 3h`). Stop hook still timestamps every interaction.
 
 ## Immediate Next Step
 
-Switch to **casehub-engine session** → engine#543 (Worker primitive migration, 60+ files). This is the critical path for the entire Worker Foundation Extraction chain.
+Switch to **casehub-engine session** → engine#543 (Worker primitive migration, 60+ files). Critical path for Worker Foundation Extraction.
 
 ## Cross-Module: Worker Foundation Extraction
 
-Tracking: `casehub-desiredstate#40`
-
-| Step | Repo | Issue | Status |
-|------|------|-------|--------|
-| 0a | platform | platform#104 | ✅ Done |
-| 0b | casehub-worker | — | ✅ Done |
-| 1 | parent | parent#288 | ✅ Done |
-| **2** | **engine** | **engine#543** | **Next — 60+ file migration** |
-| 3 | desiredstate | desiredstate#41 | Blocked on engine#543 |
-| 4–7 | claudony, workers, openclaw, ops | 4 issues | Blocked on engine#543 |
-
-*Updated: platform#108, work#273 closed — removed from backlog.*
+*Unchanged — `git show HEAD~1:HANDOFF.md`*
 
 ## What's Left
 
@@ -43,6 +32,5 @@ Tracking: `casehub-desiredstate#40`
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
 | engine#543 | Worker primitive migration | L | High | Critical path; do in casehub-engine session |
-| #251 | Auth retrofit epic — devtown#90, openclaw#41, clinical#88 | S | Low | Each in own session |
 | #293 | Formalise channel taxonomy | S | Low | No blockers |
 | #294 | Reusable Platform Primitives epic | XL | High | Long-horizon |
