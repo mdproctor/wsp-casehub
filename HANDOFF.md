@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-25
+**Date:** 2026-06-26
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,23 +8,16 @@
 
 ## Last Session
 
-**Triage + docs batch + build fixes: #251 epic closed, #309/#308/#307 shipped, build-all clone failures fixed**
+**#293 channel taxonomy formalisation — complete. Branch closed, issue closed, blog published.**
 
-- **#251** (auth retrofit epic): all four harnesses done → epic closed.
-- **#309, #308, #307** (docs batch): iot-api dep row, named MCP server convention, qhorus deep-dive sync.
-- **Local SNAPSHOT rebuild**: full chain parent→engine. Devtown's reported breaks were stale JARs, not API changes.
-- **Idle eviction**: launchd daemon unloaded, script rewritten for on-demand use (`evict-idle-claude.sh 3h`).
-- **build-all fixes** (post-close): added `worker` → `casehubio/casehub-worker` REPO_OVERRIDE in CI; disabled `quarkus-langchain4j` in modules-local.csv (forked build no longer needed).
-
-*Updated: engine#543 closed — removed from backlog.*
+- Rewrote `docs/CHANNELS.md` as a 7-section design reference: FIPA 22→9 speech act lineage, 5 purpose categories (12 channel patterns), 8 discriminator dimensions, purpose × semantic matrix, FIPA cross-reference, layered protocol stack, academic lineage.
+- Fixed PLATFORM.md: removed EXPIRED from /work (CommitmentState, not MessageType), /observe → EVENT only, removed stale CaseChannelLayout placement violation.
+- Fixed qhorus deep-dive: NormativeChannelLayout home updated, /work and /observe types corrected.
+- Key design decisions: governance folded into coordination (same speech act pattern); consensus uses APPEND semantic (threshold in backend, not transport); three open patterns sketched (negotiation, consensus, planning).
 
 ## Immediate Next Step
 
-Pick up **#293** (formalise channel taxonomy) or switch to another peer repo for Worker Foundation Extraction follow-up.
-
-## Cross-Module: Worker Foundation Extraction
-
-*Unchanged — `git show HEAD~2:HANDOFF.md`*
+Pick next work from the backlog — #294 (Reusable Platform Primitives epic) or qhorus#294 (QhorusCloudEventAdapter timestamp bug).
 
 ## What's Left
 
@@ -34,5 +27,10 @@ Pick up **#293** (formalise channel taxonomy) or switch to another peer repo for
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #293 | Formalise channel taxonomy | S | Low | No blockers |
-| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon |
+| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon; channel taxonomy patterns are now ready for implementation issues |
+
+## References
+
+- `docs/CHANNELS.md` — the rewritten taxonomy (authoritative)
+- `docs/superpowers/specs/2026-06-25-channel-taxonomy-design.md` — design spec
+- `blog/2026-06-26-mdp01-channel-taxonomy-fipa-to-first-principles.md` — diary entry
