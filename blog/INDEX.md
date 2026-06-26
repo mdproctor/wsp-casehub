@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-26-mdp01-channel-taxonomy-fipa-to-first-principles.md](2026-06-26-mdp01-channel-taxonomy-fipa-to-first-principles.md) | 2026-06-26 | Channel taxonomy formalisation — FIPA 22→9 speech act lineage, governance→coordination fold, BARRIER vs APPEND for consensus, layered protocol stack |
 | [2026-06-15-mdp02-fourteen-issues-one-pass.md](2026-06-15-mdp02-fourteen-issues-one-pass.md) | 2026-06-15 | 14 doc syncs in one pass; clinical Layer 8 complete; casehub-engine-inbound SPI placement; quarkmind Phase 1 poc→engine-api migration begins |
 | [2026-06-15-mdp01-three-questions-three-repos.md](2026-06-15-mdp01-three-questions-three-repos.md) | 2026-06-15 | P0 layering decisions: CloudEvents as event envelope, CompositeTransitionExecutor for multi-domain provisioning, GoalCompiler trajectory, circular dep discovery |
 | [2026-06-13-mdp01-five-syncs-one-parse-bug.md](2026-06-13-mdp01-five-syncs-one-parse-bug.md) | 2026-06-13 | ctx.py bold-markdown parse bug (OWNER_REPO=**); QhorusInboundCurrentPrincipal @DefaultBean CDI change; EndpointRegistry platform SPI; devtown ledger layer complete; clinical Layer 8 partial |
