@@ -1,0 +1,9 @@
+branch: issue-314-docs-spi-rename-sync
+project-sha: 34473991f9e7ed13a6c26e570d6578d6bee0669d
+date: 2026-06-27
+issue: 314
+issue-repo: casehubio/parent
+covers: 314,313
+flyway-next-v: unknown
+design-repo: project
+design-section-hashes: 
