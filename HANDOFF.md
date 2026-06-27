@@ -1,5 +1,3 @@
-*Updated: qhorus#294, engine#575 closed — removed from backlog.*
-
 # HANDOFF — casehub
 
 **Date:** 2026-06-27
@@ -10,11 +8,11 @@
 
 ## Last Session
 
-**LIFECYCLE.md sync + doc batch (#312, #311, #302) — complete. Branch closed, all issues closed, blog published.**
+**Docs batch (#314, #313, #210) — complete. All three issues closed.**
 
-- Synced LIFECYCLE.md with verified enum state across 3 peer repos (engine, work, qhorus). All had drifted from code. Filed engine#575 (Javadoc gap) and qhorus#309 (missing `isActive()`).
-- Updated PLATFORM.md for casehub-ops 5th endpoint node type (#312) and openclaw DirectCallBridge (#311). Updated openclaw deep-dive with Direct-Call Bridge section.
-- Evaluated dual-channel CDI event firing (#302) across 5 repos. Conclusion: repo-specific, not a platform mandate. Filed ledger#159 to normalize remaining producers.
+- #314: Updated casehub-work deep-dive — WorkItemCreator/WorkItemLifecycle SPIs, WorkItemRef/WorkItemEvent/WorkItemSpiAdapter types, engine work-adapter dependency note (work#275, engine#578).
+- #313: Renamed agent-claude-langchain4j → agent-langchain4j across PLATFORM.md and casehub-platform.md deep-dive — bidirectional LangChain4j interop (platform#105).
+- #210: Closed as already addressed — casehub-rag-api rows already present in PLATFORM.md cross-dependency table.
 
 ## Immediate Next Step
 
@@ -33,7 +31,4 @@ Pick next work from the backlog — #294 (Reusable Platform Primitives epic) or 
 
 ## References
 
-- `docs/LIFECYCLE.md` — synced state machine table
-- `docs/PLATFORM.md` — ops endpoint + openclaw DirectCallBridge rows
-- `docs/repos/casehub-openclaw.md` — Direct-Call Bridge section added
-- `blog/2026-06-27-mdp01-three-stale-enums-and-transactions.md` — diary entry
+*Unchanged — `git show HEAD~1:HANDOFF.md`*
