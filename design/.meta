@@ -1,0 +1,9 @@
+branch: issue-315-neural-text-deep-dive-sync
+project-sha: f5f349d5bc6e4b485ac5f99f9672e9d5437b9a40
+date: 2026-06-27
+issue: 315
+issue-repo: casehubio/parent
+covers: 315
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
