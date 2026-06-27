@@ -1,0 +1,9 @@
+branch: issue-312-platform-doc-sync-batch
+project-sha: fd10a5eb36b5c75ffc3e357c1bd2f10befb6c964
+date: 2026-06-27
+issue: 312
+issue-repo: casehubio/parent
+covers: 312,311,302
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
