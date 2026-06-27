@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-26
+**Date:** 2026-06-27
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,12 +8,11 @@
 
 ## Last Session
 
-**#293 channel taxonomy formalisation — complete. Branch closed, issue closed, blog published.**
+**LIFECYCLE.md sync + doc batch (#312, #311, #302) — complete. Branch closed, all issues closed, blog published.**
 
-- Rewrote `docs/CHANNELS.md` as a 7-section design reference: FIPA 22→9 speech act lineage, 5 purpose categories (12 channel patterns), 8 discriminator dimensions, purpose × semantic matrix, FIPA cross-reference, layered protocol stack, academic lineage.
-- Fixed PLATFORM.md: removed EXPIRED from /work (CommitmentState, not MessageType), /observe → EVENT only, removed stale CaseChannelLayout placement violation.
-- Fixed qhorus deep-dive: NormativeChannelLayout home updated, /work and /observe types corrected.
-- Key design decisions: governance folded into coordination (same speech act pattern); consensus uses APPEND semantic (threshold in backend, not transport); three open patterns sketched (negotiation, consensus, planning).
+- Synced LIFECYCLE.md with verified enum state across 3 peer repos (engine, work, qhorus). All had drifted from code. Filed engine#575 (Javadoc gap) and qhorus#309 (missing `isActive()`).
+- Updated PLATFORM.md for casehub-ops 5th endpoint node type (#312) and openclaw DirectCallBridge (#311). Updated openclaw deep-dive with Direct-Call Bridge section.
+- Evaluated dual-channel CDI event firing (#302) across 5 repos. Conclusion: repo-specific, not a platform mandate. Filed ledger#159 to normalize remaining producers.
 
 ## Immediate Next Step
 
@@ -22,15 +21,19 @@ Pick next work from the backlog — #294 (Reusable Platform Primitives epic) or 
 ## What's Left
 
 - `qhorus#294` — bug: QhorusCloudEventAdapter wrong timestamp (affects Drools CEP) · XS · Low
+- `qhorus#309` — add `isActive()` to CommitmentState · XS · Low
+- `engine#575` — PlanItemStatus class Javadoc omits SUSPENDED · XS · Low
+- `ledger#159` — normalize remaining event producers to dual-channel · S · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon; channel taxonomy patterns are now ready for implementation issues |
+| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon; channel taxonomy patterns ready for implementation issues |
 
 ## References
 
-- `docs/CHANNELS.md` — the rewritten taxonomy (authoritative)
-- `docs/superpowers/specs/2026-06-25-channel-taxonomy-design.md` — design spec
-- `blog/2026-06-26-mdp01-channel-taxonomy-fipa-to-first-principles.md` — diary entry
+- `docs/LIFECYCLE.md` — synced state machine table
+- `docs/PLATFORM.md` — ops endpoint + openclaw DirectCallBridge rows
+- `docs/repos/casehub-openclaw.md` — Direct-Call Bridge section added
+- `blog/2026-06-27-mdp01-three-stale-enums-and-transactions.md` — diary entry
