@@ -1,3 +1,5 @@
+*Updated: qhorus#294, engine#575 closed — removed from backlog.*
+
 # HANDOFF — casehub
 
 **Date:** 2026-06-27
@@ -16,13 +18,11 @@
 
 ## Immediate Next Step
 
-Pick next work from the backlog — #294 (Reusable Platform Primitives epic) or qhorus#294 (QhorusCloudEventAdapter timestamp bug).
+Pick next work from the backlog — #294 (Reusable Platform Primitives epic) or one of the trailing items.
 
 ## What's Left
 
-- `qhorus#294` — bug: QhorusCloudEventAdapter wrong timestamp (affects Drools CEP) · XS · Low
 - `qhorus#309` — add `isActive()` to CommitmentState · XS · Low
-- `engine#575` — PlanItemStatus class Javadoc omits SUSPENDED · XS · Low
 - `ledger#159` — normalize remaining event producers to dual-channel · S · Low
 
 ## What's Next
