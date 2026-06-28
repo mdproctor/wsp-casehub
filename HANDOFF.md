@@ -4,6 +4,8 @@
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
+*Updated: qhorus#309 closed — removed from backlog.*
+
 ---
 
 ## Last Session
@@ -20,7 +22,6 @@ Pick next work from the backlog. `soc` and `fsitrading` are ready for first doma
 
 ## What's Left
 
-- `qhorus#309` — add `isActive()` to CommitmentState · XS · Low
 - `ledger#159` — normalize remaining event producers to dual-channel · S · Low
 
 ## What's Next
