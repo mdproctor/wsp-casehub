@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-27
+**Date:** 2026-06-28
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,23 +8,20 @@
 
 ## Last Session
 
-**Docs batch (#314, #313, #210) + two new application repos (soc, fsitrading) + build infra cleanup.**
+**#315 closed — neural-text deep-dive synced with Matryoshka + quantization features from neural-text#31.**
 
-- Closed #314 (casehub-work deep-dive for WorkItemCreator SPI), #313 (agent-langchain4j rename), #210 (rag-api rows already present).
-- Created `casehubio/soc` and `casehubio/fsitrading` — full Maven scaffolds, CLAUDE.md with domain-specific docs, workspaces, symlinks, forks, remotes. Both pushed and registered in PLATFORM.md + APPLICATIONS.md.
-- Moved 5 modules (iot, desiredstate, ras, workers, ops) from `modules-local.csv` into CI pipeline. Deleted `modules-local.csv` — all modules must be in CI. Added soc + fsitrading to applications CSV. Updated both dashboards with all 8 missing repos.
-- Updated `new-repo-checklist.md` with 6 missing items discovered during bootstrap (Project Artifacts, IntelliJ MCP, Work Tracking behaviours, workspace blog-routing, module publishing verification, CI mandate).
-- Fixed IntelliJ MCP routing across parent, soc, fsitrading CLAUDE.md — `mcp__intellij__*` disabled (memory leak).
+- Updated `docs/repos/casehub-neural-text.md`: two new Key Abstractions subsections (`MatryoshkaEmbeddingModel`, `DenseQuantization`), CaseRetriever oversampling behavior, rag/ module row, LangChain4j table, C7 current-state row, ARC42STORIES.MD reference.
+- Fixed 5 stale class names from #17 refactor across rag-api, rag-testing, Key Abstractions, and C7 rows (CorpusStore → EmbeddingIngestor family). Updated `EmbeddingIngestor` description to match actual interface (pre-chunked text, not documents).
+- Also landed: `build-all.sh` parent POM install fix, `LIFECYCLE.md` CommitmentState `isActive()` registration.
 
 ## Immediate Next Step
 
-Pick next work from the backlog — #315 (neural-text deep-dive sync, XS/Low) is the only remaining non-design, non-epic issue scoped for this repo. Or start a new session on `soc` or `fsitrading` to begin domain research.
+Pick next work from the backlog. `soc` and `fsitrading` are ready for first domain research sessions. Or pick up a trailing item.
 
 ## What's Left
 
 - `qhorus#309` — add `isActive()` to CommitmentState · XS · Low
 - `ledger#159` — normalize remaining event producers to dual-channel · S · Low
-- `#315` — docs: sync casehub-neural-text deep-dive for Matryoshka + quantization · XS · Low
 
 ## What's Next
 
