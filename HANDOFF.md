@@ -1,24 +1,26 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-28
+**Date:** 2026-06-29
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
-
-*Updated: qhorus#309 closed — removed from backlog.*
 
 ---
 
 ## Last Session
 
-**#315 closed — neural-text deep-dive synced with Matryoshka + quantization features from neural-text#31.**
+**Major infrastructure session — three workstreams completed.**
 
-- Updated `docs/repos/casehub-neural-text.md`: two new Key Abstractions subsections (`MatryoshkaEmbeddingModel`, `DenseQuantization`), CaseRetriever oversampling behavior, rag/ module row, LangChain4j table, C7 current-state row, ARC42STORIES.MD reference.
-- Fixed 5 stale class names from #17 refactor across rag-api, rag-testing, Key Abstractions, and C7 rows (CorpusStore → EmbeddingIngestor family). Updated `EmbeddingIngestor` description to match actual interface (pre-chunked text, not documents).
-- Also landed: `build-all.sh` parent POM install fix, `LIFECYCLE.md` CommitmentState `isActive()` registration.
+1. **BOM consolidation (#319, closed)** — parent POM expanded to ~160 `io.casehub` artifacts. All 16 child repos slimmed (removed redundant `<dependencyManagement>`, assertj drift fixed 3.25.3→3.27.7, pluginManagement duplication removed). ~980 lines deleted across ecosystem.
+
+2. **casehub-blocks repo created (#321, closed)** — new foundation-adjacent library. Single module, qhorus-api + work-api + engine-api deps. CI green, workspace set up, parent infrastructure registered. Dispatch chain issues filed (qhorus#311, engine#583, work#283). First blocks already extracted by a separate session (P1–P3 channel utilities, 34 tests).
+
+3. **Docs audit (#324, closed)** — comprehensive audit of all 23 deep-dive docs + PLATFORM.md + APPLICATIONS.md against source code. Created 3 missing deep-dive docs (desiredstate, ras, workers). Fixed 7 existing docs (connectors discord module, neural-text 5 modules, test counts, life status, qhorus typo, PLATFORM.md repo map).
+
+4. **Docs batch (#316, #317, #318, #323 — all closed)** — ProvisionerConfigRegistry + BridgeAuditStore in PLATFORM.md, openclaw plugin auth sync, claudony multi-tenancy sync.
 
 ## Immediate Next Step
 
-Pick next work from the backlog. `soc` and `fsitrading` are ready for first domain research sessions. Or pick up a trailing item.
+Pick next work from the backlog. All infrastructure and docs issues scoped to this repo are now closed.
 
 ## What's Left
 
@@ -28,6 +30,7 @@ Pick next work from the backlog. `soc` and `fsitrading` are ready for first doma
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon; channel taxonomy patterns ready |
+| #294 | Reusable Platform Primitives epic | XL | High | Long-horizon; blocks repo now exists |
+| #310 | casehub-blocks epic | XL | High | Repo created; P1–P3 landed; P4–P6 next |
 | — | casehub-soc first session | M | Med | Domain research + brainstorming |
 | — | casehub-fsitrading first session | M | Med | Domain research + brainstorming |
