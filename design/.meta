@@ -1,0 +1,9 @@
+branch: issue-325-docs-sync-batch
+project-sha: 72cc75dbf30deefcb5c67c91fd2c859e278e5369
+date: 2026-06-30
+issue: 325
+issue-repo: casehubio/parent
+covers: 325,326,328,329,330,332,333
+flyway-next-v: unknown
+design-repo: project
+design-section-hashes: 
