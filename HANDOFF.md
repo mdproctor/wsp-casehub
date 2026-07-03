@@ -22,9 +22,7 @@
 
 Pick next work from the backlog. All infrastructure and docs issues scoped to this repo are now closed.
 
-## What's Left
-
-- `ledger#159` — normalize remaining event producers to dual-channel · S · Low
+*Updated: ledger#159 closed — removed from backlog.*
 
 ## What's Next
 
