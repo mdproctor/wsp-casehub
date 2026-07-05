@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-06-29
+**Date:** 2026-07-05
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,21 +8,15 @@
 
 ## Last Session
 
-**Major infrastructure session — three workstreams completed.**
+**Docs sync batch — 7 issues closed in one branch.**
 
-1. **BOM consolidation (#319, closed)** — parent POM expanded to ~160 `io.casehub` artifacts. All 16 child repos slimmed (removed redundant `<dependencyManagement>`, assertj drift fixed 3.25.3→3.27.7, pluginManagement duplication removed). ~980 lines deleted across ecosystem.
+Synced PLATFORM.md, 4 deep-dive docs (qhorus, worker, neocortex, platform), README badge table, and dashboard index.html with cross-repo changes: qhorus Store SPI migration (#331) and service facades (#341), worker capability-aware execution (#339), memory backend migration to neocortex (#336), desiredstate NodeSpec.requiresHuman (#337), IoT webapp modules (#342), soc registration (#334).
 
-2. **casehub-blocks repo created (#321, closed)** — new foundation-adjacent library. Single module, qhorus-api + work-api + engine-api deps. CI green, workspace set up, parent infrastructure registered. Dispatch chain issues filed (qhorus#311, engine#583, work#283). First blocks already extracted by a separate session (P1–P3 channel utilities, 34 tests).
-
-3. **Docs audit (#324, closed)** — comprehensive audit of all 23 deep-dive docs + PLATFORM.md + APPLICATIONS.md against source code. Created 3 missing deep-dive docs (desiredstate, ras, workers). Fixed 7 existing docs (connectors discord module, neural-text 5 modules, test counts, life status, qhorus typo, PLATFORM.md repo map).
-
-4. **Docs batch (#316, #317, #318, #323 — all closed)** — ProvisionerConfigRegistry + BridgeAuditStore in PLATFORM.md, openclaw plugin auth sync, claudony multi-tenancy sync.
+Also discussed `engine` repo naming — concluded it's fine as-is given ecosystem context.
 
 ## Immediate Next Step
 
-Pick next work from the backlog. All infrastructure and docs issues scoped to this repo are now closed.
-
-*Updated: ledger#159 closed — removed from backlog.*
+Pick next work from the backlog. All docs sync issues scoped to this repo are closed.
 
 ## What's Next
 
