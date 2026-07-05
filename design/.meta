@@ -1,0 +1,9 @@
+branch: issue-331-docs-sync-batch
+project-sha: 3566fdd786c406c9a486d20f275db721b36f841a
+date: 2026-07-05
+issue: 331
+issue-repo: casehubio/parent
+covers: 331,334,336,337,339,341,342
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
