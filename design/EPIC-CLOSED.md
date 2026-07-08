@@ -1,5 +1,5 @@
-# Branch Closed: issue-293-channel-taxonomy
+# Branch Closed: issue-357-platform-doc-restructuring
 
-**Date:** 2026-06-26
-**Issues:** 293
+**Date:** 2026-07-08
+**Issues:** 357
 **Status:** merged to main
