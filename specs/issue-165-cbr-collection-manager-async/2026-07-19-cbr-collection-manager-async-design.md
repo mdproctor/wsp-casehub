@@ -18,13 +18,15 @@ Pre-existing bug: `purgeCollection()` calls `deleteByFilter` via `Uni.createFrom
 
 ### 1. QdrantFutures utility (new file)
 
-Package-private utility class in `io.casehub.neocortex.memory.cbr.qdrant`, matching the `rag` module's existing `QdrantFutures` pattern. Single static method:
+Package-private utility class in `io.casehub.neocortex.memory.cbr.qdrant`, mirroring the `rag` module's existing `QdrantFutures`. Single static method:
 
 ```java
 static <T> Uni<T> toUni(ListenableFuture<T> future)
 ```
 
-Includes cancellation propagation (`em.onTermination(() -> future.cancel(false))`). Replaces the private static copy in `ReactiveQdrantCbrCaseMemoryStore`.
+Includes cancellation propagation (`em.onTermination(() -> future.cancel(false))`). Replaces the private static `toUni()` in `ReactiveQdrantCbrCaseMemoryStore`, which lacks cancellation propagation — cancelled Uni subscriptions (timeout, client disconnect, competing Uni arm failure) now cancel the underlying gRPC `ListenableFuture`. This is an intentional improvement affecting all existing `toUni()` callers in the reactive store, matching the rag module's established behavior.
+
+**Duplication rationale:** `memory-qdrant` has no Maven dependency on the `rag` module, and the rag copy is package-private. Both are internal implementation details of their respective modules — a shared utility module for a 12-line static method would be over-engineering. Each copy has its own test class (`QdrantFuturesTest`).
 
 ### 2. CbrCollectionManager — async canonical
 
@@ -43,7 +45,13 @@ Domain exceptions (`CbrDimensionMismatchException`, `CbrSparseVectorMigrationExc
 
 **`registerSchemaIndexesAsync(CbrFeatureSchema schema, int vectorDimension)` → `Uni<Void>`**
 
-Chains `ensureCollectionAsync()` then iterates schema fields, creating payload indexes via `toUni(createPayloadIndexAsync(...))` sequentially (concatenated Multi or chained Unis).
+Chains `ensureCollectionAsync()` then iterates schema fields sequentially via `Multi.createFrom().iterable(schema.fields()).onItem().transformToUniAndConcatenate(field -> indexesForField(collection, "f_" + field.name(), field)).toUni().replaceWithVoid()`.
+
+**Private helper:** `indexesForField(String collection, String payloadKey, FeatureField field)` → `Uni<Void>` — handles the per-field switch:
+- Simple types (`Categorical`, `Numeric`, `Text`, `CategoricalList`, `NumericList`): single `toUni(createPayloadIndexAsync(collection, payloadKey, type, ...)).replaceWithVoid()`
+- `NestedObject`: `Multi.createFrom().iterable(no.innerFields()).onItem().transformToUniAndConcatenate(inner -> toUni(createPayloadIndexAsync(collection, payloadKey + "." + inner.name(), innerPayloadType(inner), ...)).replaceWithVoid())` — flattens the nested loop into a sequential Multi chain
+- `ObjectList`: same as `NestedObject` but with `payloadKey + "[]." + inner.name()` key format
+- `TimeSeries`, `DiscreteSequence`: `Uni.createFrom().voidItem()` (no indexes)
 
 **`deleteByFilterAsync(String collection, Filter filter)` → `Uni<Integer>`**
 
@@ -73,10 +81,11 @@ return collectionManager.registerSchemaIndexesAsync(schema, vectorDimension());
 ```
 
 **`store()`** — restructured into a pipeline separating blocking from async:
-1. Worker pool: `delegate.store()`, `embeddingModel.embed()`, `sparseEmbedder.embed()`, `CamelCaseExpander.expand()` → intermediate record
-2. Event loop: `collectionManager.ensureCollectionAsync()` (async, no pool needed)
-3. Event loop: `CbrPointBuilder.buildPoint()` (pure CPU)
-4. Event loop: `upsertWithRetry()` (async)
+1. Worker pool: `delegate.store()`, `embeddingModel.embed()`, `sparseEmbedder.embed()`, `CamelCaseExpander.expand()`, `CbrPointBuilder.buildPoint()`, `collectionManager.collectionName()` → `StoreContext` (existing record, unchanged)
+2. Event loop: `collectionManager.ensureCollectionAsync(caseType, dim).replaceWith(ctx)` (async, no pool needed)
+3. Event loop: `upsertWithRetry(ctx.collection(), List.of(ctx.point()), config.maxRetries()).replaceWith(ctx.memoryId())`
+
+`buildPoint()` stays on the worker pool — it depends only on embeddings and metadata, not on collection existence. This reuses the existing `StoreContext(memoryId, collection, point)` record with no new intermediate types.
 
 **`eraseFromAllCollections()`** — replace `Uni.createFrom().item(() -> deleteByFilter(...)).runSubscriptionOn(workerPool)` with `collectionManager.deleteByFilterAsync(collection, filter)`.
 
@@ -93,12 +102,17 @@ return collectionManager.registerSchemaIndexesAsync(schema, vectorDimension());
 | File | Change type |
 |------|-------------|
 | `QdrantFutures.java` | New — package-private `toUni()` utility |
+| `QdrantFuturesTest.java` | New — unit tests mirroring rag module's `QdrantFuturesTest` |
 | `CbrCollectionManager.java` | Modified — async methods canonical, blocking wrappers |
 | `ReactiveQdrantCbrCaseMemoryStore.java` | Modified — use async methods, restructure `store()`, remove private `toUni()` |
 
 ## Testing
 
-Existing `QdrantCbrCaseMemoryStoreTest` and `CbrReconciliationServiceTest` (Testcontainers) validate behavior end-to-end. The refactor is internal — no SPI or API changes. Tests should pass without modification. Any new async-specific edge cases (cancellation, error propagation) are covered by the existing contract test suite.
+Existing `QdrantCbrCaseMemoryStoreTest` and `CbrReconciliationServiceTest` (Testcontainers) validate functional correctness end-to-end. The refactor is internal — no SPI or API changes. Existing tests should pass without modification.
+
+**New:** `QdrantFuturesTest` for the CBR copy, mirroring `io.casehub.neocortex.rag.runtime.QdrantFuturesTest` — success propagation, failure propagation, cancellation propagation, pre-completed future.
+
+**Event-loop safety limitation:** Existing tests run on JUnit threads where blocking is harmless. They validate functional correctness but not event-loop safety — a regression reintroducing a blocking `.get()` call inside a reactive chain would not be caught. The async-canonical conversion structurally eliminates this class of bug: all gRPC calls flow through `toUni()`, leaving no `.get()` calls in reactive code paths.
 
 ## Garden entries referenced
 
