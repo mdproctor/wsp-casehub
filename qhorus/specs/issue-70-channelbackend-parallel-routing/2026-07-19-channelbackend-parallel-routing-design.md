@@ -104,8 +104,8 @@ Implementations that need updating:
 `ReactiveCaseChannelProvider` gets the same breaking treatment.
 
 **Parameter proliferation (deferred):** This is the 7th positional parameter.
-A `PostRequest` record would consolidate future growth. Filed as a follow-on
-concern, not blocking for this change.
+A `PostRequest` record would consolidate future growth. Filed as engine#759,
+not blocking for this change.
 
 ### Layer 3: Engine dispatch — set target
 
@@ -118,6 +118,10 @@ caseChannelProvider.postToChannel(
     MessageType.COMMAND, String.valueOf(eventLogId), deadline,
     worker.name());
 ```
+
+`AgentRoutingEscalationHandler.postQuery()` passes `target = null` — QUERYs
+to the oversight channel are for human supervisors, not targeted agents.
+Mechanical update only (add 7th arg `null`).
 
 ### Layer 4: OpenClaw — route by target
 
@@ -179,7 +183,7 @@ silently.
 |------|---------|
 | casehub-qhorus | `OutboundMessage` + 6 production sites + ~30 test sites |
 | casehub-engine-api | `CaseChannelProvider` + `ReactiveCaseChannelProvider` (breaking — 7-param replaces 6-param) |
-| casehub-engine | `WorkerScheduleEventHandler.dispatchCommand()` |
+| casehub-engine | `WorkerScheduleEventHandler.dispatchCommand()` + `AgentRoutingEscalationHandler.postQuery()` (mechanical — `null` target) |
 | casehub-openclaw | `OpenClawCaseChannelProvider` + `ReactiveOpenClawCaseChannelProvider` + `OpenClawChannelBackend` + tests |
 
 ## Testing
@@ -205,4 +209,4 @@ silently.
 `DeliveryBatchExecutor.toOutbound()` resolves `actorType` via
 `ActorTypeResolver.resolve(m.sender())` instead of using `m.actorType()`.
 This is a pre-existing divergence unrelated to target routing. Out of scope
-for this change.
+for this change — filed as qhorus#374.
