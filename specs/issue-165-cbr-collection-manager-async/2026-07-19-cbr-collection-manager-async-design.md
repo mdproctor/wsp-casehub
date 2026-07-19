@@ -45,13 +45,15 @@ Domain exceptions (`CbrDimensionMismatchException`, `CbrSparseVectorMigrationExc
 
 **`registerSchemaIndexesAsync(CbrFeatureSchema schema, int vectorDimension)` → `Uni<Void>`**
 
-Chains `ensureCollectionAsync()` then iterates schema fields sequentially via `Multi.createFrom().iterable(schema.fields()).onItem().transformToUniAndConcatenate(field -> indexesForField(collection, "f_" + field.name(), field)).toUni().replaceWithVoid()`.
+Chains `ensureCollectionAsync()` then iterates schema fields sequentially via `Multi.createFrom().iterable(schema.fields()).onItem().transformToUniAndConcatenate(field -> indexesForField(collection, "f_" + field.name(), field)).collect().asList().replaceWithVoid()`.
 
 **Private helper:** `indexesForField(String collection, String payloadKey, FeatureField field)` → `Uni<Void>` — handles the per-field switch:
 - Simple types (`Categorical`, `Numeric`, `Text`, `CategoricalList`, `NumericList`): single `toUni(createPayloadIndexAsync(collection, payloadKey, type, ...)).replaceWithVoid()`
-- `NestedObject`: `Multi.createFrom().iterable(no.innerFields()).onItem().transformToUniAndConcatenate(inner -> toUni(createPayloadIndexAsync(collection, payloadKey + "." + inner.name(), innerPayloadType(inner), ...)).replaceWithVoid())` — flattens the nested loop into a sequential Multi chain
+- `NestedObject`: `Multi.createFrom().iterable(no.innerFields()).onItem().transformToUniAndConcatenate(inner -> toUni(createPayloadIndexAsync(collection, payloadKey + "." + inner.name(), innerPayloadType(inner), ...)).replaceWithVoid()).collect().asList().replaceWithVoid()` — flattens the nested loop into a sequential Multi chain, drained fully before completing
 - `ObjectList`: same as `NestedObject` but with `payloadKey + "[]." + inner.name()` key format
 - `TimeSeries`, `DiscreteSequence`: `Uni.createFrom().voidItem()` (no indexes)
+
+All Multi chains use `.collect().asList()` as the terminal operator, matching the established pattern in `ReactiveQdrantCbrCaseMemoryStore` (6 existing instances). `.toUni()` is not used — it requests only one item and cancels the upstream, which would risk incomplete index creation.
 
 **`deleteByFilterAsync(String collection, Filter filter)` → `Uni<Integer>`**
 
