@@ -124,16 +124,17 @@ to the oversight channel are for human supervisors, not targeted agents.
 Mechanical update only (add 7th arg `null`).
 
 **ObligorTrustPolicy interaction.** Setting `target = worker.name()` triggers
-the `ObligorTrustPolicy` check in `MessageService.dispatch()`. The check
-fires when `type == COMMAND && target != null && !target.contains(":")`.
-Currently engine-dispatched COMMANDs bypass this because `target` is null.
-After this change, `target = "researcher"` (no `:`) triggers the check —
-a behavioral regression for deployments with `min-obligor-trust > 0`.
+the `ObligorTrustPolicy` check in both `MessageService.dispatch()` and
+`ReactiveMessageService.doDispatch()`. The check fires when
+`type == COMMAND && target != null && !target.contains(":")`. Currently
+engine-dispatched COMMANDs bypass this because `target` is null. After this
+change, `target = "researcher"` (no `:`) triggers the check — a behavioral
+regression for deployments with `min-obligor-trust > 0`.
 
-Fix: add a sender-based exemption. System senders (sender contains `:`,
-e.g. `"casehub-engine:orchestrator"`) bypass the obligor trust check —
-the engine's provisioning decision IS the trust authority for worker
-assignments:
+Fix: add a sender-based exemption to **both** services. System senders
+(sender contains `:`, e.g. `"casehub-engine:orchestrator"`) bypass the
+obligor trust check — the engine's provisioning decision IS the trust
+authority for worker assignments:
 
 ```java
 if (ch != null && dispatch.type() == MessageType.COMMAND
@@ -144,6 +145,8 @@ if (ch != null && dispatch.type() == MessageType.COMMAND
 
 This preserves trust-gating for peer agent COMMANDs (where both sender and
 target are agent identifiers) while exempting engine-orchestrated dispatch.
+Applied identically in `MessageService` (blocking) and
+`ReactiveMessageService` (reactive) for consistent trust semantics.
 
 **Commitment obligor side effect.** Setting `target` on the `MessageDispatch`
 also populates the commitment obligor in `commitmentService.open()`. Currently
@@ -190,11 +193,11 @@ does not return the resolved `agentId`. The engine uses `worker.name()` as
 config via `OpenClawAgentConfigResolver`. There is no runtime verification that
 these match.
 
-**Mitigation for this change:** add a WARN-level log assertion in
-`OpenClawWorkerProvisioner.provision()` when the resolved `agentId` differs
-from the `taskType` (the closest available proxy for worker identity). This
-catches obvious mismatches at provisioning time rather than silently at routing
-time.
+No effective runtime validation of the `workerName == agentId` convention
+exists in this change. Mismatches are detected operationally: the targeted
+agent is not found → COMMAND is dropped → Watchdog `OBLIGATION_FAN_OUT`
+escalates → operator investigates. This is adequate for a pre-release platform
+where case YAML and agent config are authored by the same team.
 
 **Structural fix (deferred):** return `agentId` in `ProvisionResult` so the
 engine uses the provisioner's resolved identity as `target` instead of assuming
@@ -225,7 +228,7 @@ silently.
 
 | Repo | Changes |
 |------|---------|
-| casehub-qhorus | `OutboundMessage` + 6 production sites + ~30 test sites + `MessageService` trust check sender exemption |
+| casehub-qhorus | `OutboundMessage` + 6 production sites + ~30 test sites + `MessageService` + `ReactiveMessageService` trust check sender exemption |
 | casehub-engine-api | `CaseChannelProvider` + `ReactiveCaseChannelProvider` (breaking — 7-param replaces 6-param) |
 | casehub-engine | `WorkerScheduleEventHandler.dispatchCommand()` + `AgentRoutingEscalationHandler.postQuery()` (mechanical — `null` target) |
 | casehub-openclaw | `OpenClawCaseChannelProvider` + `ReactiveOpenClawCaseChannelProvider` + `OpenClawChannelBackend` + tests |
@@ -237,6 +240,9 @@ silently.
 - `ReactiveMessageService` carries `target` through reactive dispatch (normal + LAST_WRITE)
 - `DeliveryBatchExecutor.toOutbound()` carries `target` through cursor-based re-delivery
 - `ChannelGateway.deliverRemote()` carries `target` through cross-node delivery
+- Trust policy sender exemption: system sender (contains `:`) with target set → COMMAND bypasses trust check
+- Trust policy sender exemption: agent sender (no `:`) with target set → COMMAND passes through trust check
+- Both `MessageService` and `ReactiveMessageService` trust paths verified
 
 ### engine
 - `WorkerScheduleEventHandler` test verifies `postToChannel` receives `worker.name()` as target
