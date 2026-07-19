@@ -123,6 +123,36 @@ caseChannelProvider.postToChannel(
 to the oversight channel are for human supervisors, not targeted agents.
 Mechanical update only (add 7th arg `null`).
 
+**ObligorTrustPolicy interaction.** Setting `target = worker.name()` triggers
+the `ObligorTrustPolicy` check in `MessageService.dispatch()`. The check
+fires when `type == COMMAND && target != null && !target.contains(":")`.
+Currently engine-dispatched COMMANDs bypass this because `target` is null.
+After this change, `target = "researcher"` (no `:`) triggers the check —
+a behavioral regression for deployments with `min-obligor-trust > 0`.
+
+Fix: add a sender-based exemption. System senders (sender contains `:`,
+e.g. `"casehub-engine:orchestrator"`) bypass the obligor trust check —
+the engine's provisioning decision IS the trust authority for worker
+assignments:
+
+```java
+if (ch != null && dispatch.type() == MessageType.COMMAND
+        && dispatch.target() != null
+        && !dispatch.target().contains(":")
+        && !dispatch.sender().contains(":")) {
+```
+
+This preserves trust-gating for peer agent COMMANDs (where both sender and
+target are agent identifiers) while exempting engine-orchestrated dispatch.
+
+**Commitment obligor side effect.** Setting `target` on the `MessageDispatch`
+also populates the commitment obligor in `commitmentService.open()`. Currently
+null for engine-dispatched COMMANDs, it becomes `worker.name()`. This enables
+agent-specific obligation tracking: the Watchdog can name the delinquent agent
+in `OBLIGATION_FAN_OUT` escalations, and trust scoring credits/penalizes the
+specific agent rather than the channel. This is a positive change — named
+obligations are more precise and useful.
+
 ### Layer 4: OpenClaw — route by target
 
 **`OpenClawCaseChannelProvider.postToChannel()`** overrides the 7-param method
@@ -147,14 +177,28 @@ OBLIGATION_FAN_OUT condition detects unacknowledged COMMANDs and escalates.
 ## Convention Dependency
 
 This design relies on `workerName == agentId` — case YAML worker names match
-OpenClaw agent config identifiers. This convention is already enforced by
+OpenClaw agent config identifiers. This convention is used by
 `WorkerProvisioner.terminate(workerId)` which calls
-`registry.deregister(workerId)` keyed by agentId.
+`registry.deregister(workerId)` keyed by agentId, and is now also load-bearing
+for routing: `target = worker.name()` must match the `agentId` registered in
+`OpenClawAgentRegistry` by the provisioner. A mismatch means the targeted agent
+is not found → COMMAND dropped → Watchdog escalation.
 
-If the convention ever breaks, the fix is adding `workerId` to
-`ProvisionResult` so the provisioner explicitly returns the resolved identity.
-The engine would then track `provisionedWorkerId` per worker assignment and use
-it as `target` instead of `worker.name()`.
+The gap: `ProvisionContext` has no `workerName` field, and `ProvisionResult`
+does not return the resolved `agentId`. The engine uses `worker.name()` as
+`target` while the provisioner independently resolves `agentId` from capability
+config via `OpenClawAgentConfigResolver`. There is no runtime verification that
+these match.
+
+**Mitigation for this change:** add a WARN-level log assertion in
+`OpenClawWorkerProvisioner.provision()` when the resolved `agentId` differs
+from the `taskType` (the closest available proxy for worker identity). This
+catches obvious mismatches at provisioning time rather than silently at routing
+time.
+
+**Structural fix (deferred):** return `agentId` in `ProvisionResult` so the
+engine uses the provisioner's resolved identity as `target` instead of assuming
+`worker.name()`. This eliminates the convention entirely. Filed as engine#760.
 
 ## Alternatives Considered
 
@@ -181,7 +225,7 @@ silently.
 
 | Repo | Changes |
 |------|---------|
-| casehub-qhorus | `OutboundMessage` + 6 production sites + ~30 test sites |
+| casehub-qhorus | `OutboundMessage` + 6 production sites + ~30 test sites + `MessageService` trust check sender exemption |
 | casehub-engine-api | `CaseChannelProvider` + `ReactiveCaseChannelProvider` (breaking — 7-param replaces 6-param) |
 | casehub-engine | `WorkerScheduleEventHandler.dispatchCommand()` + `AgentRoutingEscalationHandler.postQuery()` (mechanical — `null` target) |
 | casehub-openclaw | `OpenClawCaseChannelProvider` + `ReactiveOpenClawCaseChannelProvider` + `OpenClawChannelBackend` + tests |
@@ -196,6 +240,7 @@ silently.
 
 ### engine
 - `WorkerScheduleEventHandler` test verifies `postToChannel` receives `worker.name()` as target
+- Contract tests (`CaseChannelProviderContractTest`, `ReactiveCaseChannelProviderContractTest`) updated for 7-param signature
 
 ### openclaw
 - Target set, agent registered for correct case — COMMAND delivered to target agent
