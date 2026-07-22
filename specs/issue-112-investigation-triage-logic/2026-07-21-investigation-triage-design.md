@@ -167,7 +167,8 @@ factors list is empty (gate is the sole reason).
 ### RiskScorer
 
 Accumulates a weighted risk score from specialist findings. Returns
-`ScoringResult(double score, List<RiskFactor> factors)`.
+`ScoringResult(double score, List<RiskFactor> factors)` — an inner record of
+`RiskScorer` (return-only type, not a top-level file).
 
 | Factor | Weight | Value |
 |--------|--------|-------|
@@ -190,7 +191,7 @@ information, not confirmed risk.
 Shifts SAR and FALSE_POSITIVE thresholds based on CBR path advice. Both thresholds
 move symmetrically toward the predominant historical outcome.
 
-- No adjustment when: `cbrPathAdvice` is null, `caseCount == 0`, `confidence < cbrMinConfidence` (default 0.3), or `error == true`
+- No adjustment when: `cbrPathAdvice` is null, `caseCount == 0`, `confidence < cbrMinConfidence` (default 0.3), `error == true`, or `predominantOutcome == null`
 - Predominant `FALSE_POSITIVE`:
   - SAR threshold raised (harder to file SAR)
   - FP threshold raised (easier to classify as false positive)
@@ -335,6 +336,7 @@ The output is richer (additional fields) but backward-compatible.
 - Predominant FALSE_POSITIVE → SAR threshold raised
 - Predominant SAR_WARRANTED → SAR threshold lowered
 - Adjustment capped at max
+- Predominant INCONCLUSIVE → thresholds unchanged
 - CBR with error → thresholds unchanged
 
 **`InvestigationTriageEvaluatorTest`:**
