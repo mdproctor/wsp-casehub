@@ -143,7 +143,6 @@ public record EntityResolutionResult(
 ### Existing types (unchanged)
 
 - `TriageDecision` — `SAR_WARRANTED`, `FALSE_POSITIVE`, `INCONCLUSIVE`
-- `EntityResolutionResult` — `entityId`, `ownershipChain`, `entityType`, `riskScore`
 - `PatternAnalysisResult` — `structuringDetected`, `description`
 - `SuspiciousTransaction` — `id`, `originAccountId`, `destinationAccountId`, `amount`, `currency`, `timestamp`, `flagReason`
 
@@ -198,6 +197,8 @@ move symmetrically toward the predominant historical outcome.
 - Predominant `SAR_WARRANTED`:
   - SAR threshold lowered (easier to file SAR)
   - FP threshold lowered (harder to classify as false positive)
+- Predominant `INCONCLUSIVE`: no adjustment — ambiguous historical outcomes provide
+  no directional signal. Thresholds remain at their configured defaults.
 - Adjustment magnitude: `confidence × predominantOutcomeFrequency × maxAdjustment`
 - Each threshold capped at `±maxCbrAdjustment` (default 0.15) individually
 
@@ -271,9 +272,30 @@ declare `PlannedAction(INVESTIGATION_CLEARANCE)`, and FlowWorkerExecutor does no
 yet support PlannedAction (engine#564).
 
 Worker behaviour by decision:
-- `SAR_WARRANTED` → returns result directly (no PlannedAction — MLRO gate is downstream via SAR_FILING)
-- `FALSE_POSITIVE` → returns result directly (positive analytical conclusion, no gate needed)
-- `INCONCLUSIVE` → returns `WorkerResult.withPlannedAction(PlannedAction.of(AmlActionType.INVESTIGATION_CLEARANCE))` — engine pauses for compliance officer approval before writing triage result to context
+- `SAR_WARRANTED` → `WorkerResult.of(resultMap)` — no PlannedAction (MLRO gate is downstream via SAR_FILING)
+- `FALSE_POSITIVE` → `WorkerResult.of(resultMap)` — positive analytical conclusion, no gate needed
+- `INCONCLUSIVE` → `WorkerResult.of(resultMap, PlannedAction.of(description, AmlActionType.INVESTIGATION_CLEARANCE.actionType(), parameters))` — engine pauses for compliance officer approval before writing triage result to context
+
+INCONCLUSIVE PlannedAction parameters (context for the gate reviewer):
+
+```java
+Map.of(
+    "riskScore", triageResult.riskScore(),
+    "reason", triageResult.reason(),
+    "factors", triageResult.factors().stream()
+        .map(f -> f.name() + "=" + f.weight())
+        .collect(Collectors.joining(", ")))
+```
+
+**Gate rejection behaviour:** When the compliance officer rejects the
+INVESTIGATION_CLEARANCE gate, the engine marks the capability execution as
+completed-rejected. The triage result is NOT committed to context. The triage
+binding's condition (`.investigationTriage == null`) remains true, but the engine's
+execution tracking prevents re-fire — the capability has already been executed for
+this context state. The case remains open with no completion path satisfied,
+requiring manual intervention. This is the correct regulatory posture: an
+inconclusive case that a compliance officer refuses to clear must not auto-resolve.
+The same gate rejection semantics apply to the existing SAR_FILING PlannedAction.
 
 **`AmlInvestigationCaseDescriptor`** gains `PreferenceProvider` as a new constructor
 parameter, wired from `AmlInvestigationCaseHub`.
@@ -329,7 +351,7 @@ The output is richer (additional fields) but backward-compatible.
 **`InvestigationTriageFlowTest`** — retrofit existing + add scenarios:
 - SAR path: high risk → SAR_WARRANTED → SAR drafted → compliance review → `investigation-complete`
 - FALSE_POSITIVE path: low risk → FALSE_POSITIVE → `investigation-cleared` (no SAR)
-- INCONCLUSIVE path: mixed signals → INCONCLUSIVE → `investigation-cleared`
+- INCONCLUSIVE path: mixed signals → INCONCLUSIVE → gate approval (INVESTIGATION_CLEARANCE) → `investigation-cleared`
 - All paths drain to completion (protocol PP-20260604-820c35)
 - Verify structured output in case context
 
@@ -368,6 +390,7 @@ The output is richer (additional fields) but backward-compatible.
 | `AmlActionType.java` | Add `INVESTIGATION_CLEARANCE` constant |
 | `InvestigationSummary.java` | Update `OsintResult` type reference |
 | `DefaultOsintScreeningService.java` | Update `new OsintResult(...)` constructor call (3-arg → 4-arg) |
-| `AmlInvestigationCaseDescriptorTest.java` | Update constructor call for new PreferenceProvider param |
+| `AmlInvestigationCaseDescriptorTest.java` | Update constructor call for new PreferenceProvider param; move `investigation-triage-agent` from `FLOW_WORKERS` to `SYNC_WORKERS` in execution model classification test |
 | `AmlInvestigationCoordinatorTest.java` | Update `new OsintResult(...)` constructor calls (2 sites) |
 | `DefaultSarDraftingServiceTest.java` | Update `new OsintResult(...)` constructor call |
+| `AmlActionRiskClassifierTest.java` | Add test for `INVESTIGATION_CLEARANCE`: GatePolicy.ALWAYS, candidateGroups=[AML_COMPLIANCE], reversible=true |
