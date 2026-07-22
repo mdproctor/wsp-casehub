@@ -22,6 +22,9 @@ raw `Map<String, Object>` extraction.
 | CBR integration | Threshold adjustment | CBR nudges thresholds based on historical outcomes; hard gates remain absolute |
 | Triage output | Structured explanation | Triage is the most consequential decision — must be reconstructable from output alone |
 | Evaluator structure | Strategy decomposition (gates + scorer + adjuster) | Each component has one concern; CBR adjustment is isolated and independently testable |
+| PlannedAction for triage | INCONCLUSIVE gate only | SAR_WARRANTED has downstream MLRO gate via SAR_FILING; FALSE_POSITIVE is a positive analytical conclusion; INCONCLUSIVE means ambiguous evidence — regulatory frameworks expect human review before clearance |
+| Worker function type | `WorkerFunction.Sync` | FlowWorkerFunction does not support PlannedAction (engine#564); INCONCLUSIVE path requires PlannedAction(INVESTIGATION_CLEARANCE) |
+| SuspiciousTransaction in TriageInput | Excluded | Specialist findings subsume raw transaction attributes; triage evaluates processed conclusions, not raw input — if a signal is lost, the fix belongs in the specialist worker's output model |
 
 ## Domain Model (api/)
 
@@ -69,7 +72,7 @@ public record TriageResult(
 ```java
 public enum HardGate {
     SANCTIONS_HIT,
-    PEP_WITH_SANCTIONS,
+    CONFIRMED_PEP,
     SHELL_COMPANY
 }
 ```
@@ -92,11 +95,50 @@ public record OsintResult(
     boolean pepHit,
     boolean declined,    // added — true when agent lacked clearance
     String reason        // added — replaces 'detail' to match worker output
-) {}
+) {
+    public OsintResult {
+        if (declined && (sanctionsHit || pepHit)) {
+            throw new IllegalArgumentException(
+                "declined screening cannot report sanctions or PEP hits");
+        }
+    }
+}
 ```
 
-This is a breaking change to `OsintResult`. All existing callers (buildSummary in
-`AmlInvestigationCaseDescriptor`, `InvestigationSummary`, and tests) must be updated.
+Semantics: `declined` and `sanctionsHit`/`pepHit` are mutually exclusive. A declined
+screening did not complete, so it cannot report hits. If partial screening (found PEP
+but could not complete full clearance) is needed in future, model it as a separate
+outcome rather than overloading `declined`.
+
+This is a breaking change to `OsintResult`. All constructor call sites must be updated
+(see Modified files table for complete list).
+
+**`AmlActionType`** — add `INVESTIGATION_CLEARANCE` constant for INCONCLUSIVE triage
+decisions requiring human review before case clearance:
+
+```java
+INVESTIGATION_CLEARANCE(
+    GatePolicy.ALWAYS, true,
+    List.of(AmlGroups.AML_COMPLIANCE),
+    "Investigation clearance on inconclusive evidence — compliance review required"),
+```
+
+**`EntityResolutionResult`** — add compact constructor to enforce `riskScore` invariant:
+
+```java
+public record EntityResolutionResult(
+        String entityId,
+        String ownershipChain,
+        String entityType,
+        double riskScore) {
+    public EntityResolutionResult {
+        if (riskScore < 0.0 || riskScore > 1.0) {
+            throw new IllegalArgumentException(
+                "riskScore must be in [0.0, 1.0], got: " + riskScore);
+        }
+    }
+}
+```
 
 ### Existing types (unchanged)
 
@@ -117,7 +159,7 @@ Checks absolute gates in priority order. Returns `Optional<TriageResult>`.
 | Priority | Gate | Condition | Decision |
 |----------|------|-----------|----------|
 | 1 | `SANCTIONS_HIT` | `osintScreening.sanctionsHit() == true` | SAR_WARRANTED |
-| 2 | `PEP_WITH_SANCTIONS` | `osintScreening.pepHit() == true && entityType == "PEP"` | SAR_WARRANTED |
+| 2 | `CONFIRMED_PEP` | `osintScreening.pepHit() == true && entityType == "PEP"` | SAR_WARRANTED |
 | 3 | `SHELL_COMPANY` | `entityType == "SHELL_COMPANY"` | SAR_WARRANTED |
 
 When a gate fires: `riskScore = 1.0`, the gate enum is set, `cbrThresholdAdjustment = null`,
@@ -130,26 +172,41 @@ Accumulates a weighted risk score from specialist findings. Returns
 
 | Factor | Weight | Value |
 |--------|--------|-------|
-| Entity risk score | 0.35 | `entityResolution.riskScore()` directly |
+| Entity risk score | 0.35 | `clamp(entityResolution.riskScore(), 0.0, 1.0)` |
 | Structuring detected | 0.25 | 1.0 if true, 0.0 if false |
 | PEP entity type | 0.20 | 1.0 if entityType is PEP, 0.0 otherwise |
 | OSINT declined | 0.10 | 0.5 if declined (uncertainty), 0.0 otherwise |
 | PEP hit (OSINT) | 0.10 | 1.0 if pepHit, 0.0 otherwise |
 
-Score formula: `Σ(factor_value × weight)` — always in [0.0, 1.0].
+Score formula: `Σ(factor_value × weight)` — always in [0.0, 1.0]. The entity risk
+score input is defensively clamped to [0.0, 1.0] before weighting.
+`EntityResolutionResult` now enforces this invariant at construction (see Modified
+existing types), but the clamp provides defense-in-depth.
 
 OSINT declined gets a partial value (0.5) rather than full — it signals incomplete
 information, not confirmed risk.
 
 ### CbrAdjuster
 
-Shifts SAR and FALSE_POSITIVE thresholds based on CBR path advice.
+Shifts SAR and FALSE_POSITIVE thresholds based on CBR path advice. Both thresholds
+move symmetrically toward the predominant historical outcome.
 
 - No adjustment when: `cbrPathAdvice` is null, `caseCount == 0`, `confidence < cbrMinConfidence` (default 0.3), or `error == true`
-- Predominant `FALSE_POSITIVE` → raises SAR threshold (harder to file SAR)
-- Predominant `SAR_WARRANTED` → lowers SAR threshold (easier to file SAR)
+- Predominant `FALSE_POSITIVE`:
+  - SAR threshold raised (harder to file SAR)
+  - FP threshold raised (easier to classify as false positive)
+- Predominant `SAR_WARRANTED`:
+  - SAR threshold lowered (easier to file SAR)
+  - FP threshold lowered (harder to classify as false positive)
 - Adjustment magnitude: `confidence × predominantOutcomeFrequency × maxAdjustment`
-- Capped at `±maxCbrAdjustment` (default 0.15)
+- Each threshold capped at `±maxCbrAdjustment` (default 0.15) individually
+
+**Threshold ordering invariant:** After adjustment, the CbrAdjuster validates
+`adjustedSarThreshold > adjustedFpThreshold`. If violated (misconfigured preferences
+or extreme CBR adjustment), both thresholds are clamped to their midpoint ± 0.05:
+`mid = (adjustedSar + adjustedFp) / 2; sar = mid + 0.05; fp = mid - 0.05`. This
+maintains a minimum 0.10 gap for the INCONCLUSIVE band. The adjuster logs a warning
+when clamping activates.
 
 ### InvestigationTriageEvaluator
 
@@ -171,7 +228,9 @@ Default thresholds (from preferences):
 
 ## Triage Preferences
 
-**`AmlTriagePolicyKeys`** — follows the `AmlMemoryPolicyKeys` pattern:
+**`AmlTriagePolicyKeys`** — follows the `AmlMemoryPolicyKeys` pattern, using
+`PreferenceKey<DoublePreference>` (engine-api `io.casehub.api.spi.routing.DoublePreference`)
+with `DoublePreference.of(...)` and `DoublePreference::parse`:
 
 | Key | Namespace | Default |
 |-----|-----------|---------|
@@ -204,8 +263,17 @@ construct fixed return maps without reading input.
 **`InvestigationTriageWorker.create()` signature:**
 
 ```java
-public static Worker create(ObjectMapper objectMapper, PreferenceProvider preferenceProvider, CurrentPrincipal principal)
+public static Worker create(ObjectMapper objectMapper, PreferenceProvider preferenceProvider)
 ```
+
+Uses `WorkerFunction.Sync` (not `FlowWorkerFunction`) because INCONCLUSIVE decisions
+declare `PlannedAction(INVESTIGATION_CLEARANCE)`, and FlowWorkerExecutor does not
+yet support PlannedAction (engine#564).
+
+Worker behaviour by decision:
+- `SAR_WARRANTED` → returns result directly (no PlannedAction — MLRO gate is downstream via SAR_FILING)
+- `FALSE_POSITIVE` → returns result directly (positive analytical conclusion, no gate needed)
+- `INCONCLUSIVE` → returns `WorkerResult.withPlannedAction(PlannedAction.of(AmlActionType.INVESTIGATION_CLEARANCE))` — engine pauses for compliance officer approval before writing triage result to context
 
 **`AmlInvestigationCaseDescriptor`** gains `PreferenceProvider` as a new constructor
 parameter, wired from `AmlInvestigationCaseHub`.
@@ -291,10 +359,15 @@ The output is richer (additional fields) but backward-compatible.
 
 | File | Change |
 |------|--------|
-| `InvestigationTriageWorker.java` | Replace stub with typed deserialization + evaluator call |
-| `AmlInvestigationCaseDescriptor.java` | Add PreferenceProvider param; retrofit typed inputs in sarDrafting, complianceReview, entityResolution workers |
+| `InvestigationTriageWorker.java` | Replace stub with `WorkerFunction.Sync` + evaluator call + PlannedAction for INCONCLUSIVE |
+| `AmlInvestigationCaseDescriptor.java` | Add PreferenceProvider param; retrofit typed inputs in sarDrafting, complianceReview, entityResolution workers; update `new OsintResult(...)` call in buildSummary |
 | `AmlInvestigationCaseHub.java` | Wire PreferenceProvider to descriptor |
 | `InvestigationTriageFlowTest.java` | Add FALSE_POSITIVE and INCONCLUSIVE test paths |
-| `OsintResult.java` | Add `declined` and `reason` fields; remove `detail` |
-| `InvestigationSummary.java` | Update for new `OsintResult` shape (if it constructs OsintResult) |
-| `AmlInvestigationCaseDescriptorTest.java` | Update constructor call for new param |
+| `OsintResult.java` | Add `declined` and `reason` fields; remove `detail`; add compact constructor validation |
+| `EntityResolutionResult.java` | Add compact constructor with riskScore [0.0, 1.0] validation |
+| `AmlActionType.java` | Add `INVESTIGATION_CLEARANCE` constant |
+| `InvestigationSummary.java` | Update `OsintResult` type reference |
+| `DefaultOsintScreeningService.java` | Update `new OsintResult(...)` constructor call (3-arg → 4-arg) |
+| `AmlInvestigationCaseDescriptorTest.java` | Update constructor call for new PreferenceProvider param |
+| `AmlInvestigationCoordinatorTest.java` | Update `new OsintResult(...)` constructor calls (2 sites) |
+| `DefaultSarDraftingServiceTest.java` | Update `new OsintResult(...)` constructor call |
