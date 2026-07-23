@@ -179,24 +179,44 @@ After `backend.post(ref, outbound)` succeeds in `deliverBatch()`, advance the de
 | `slack-bot` | AT_LEAST_ONCE | `advanceDeliveredCursorForMembers(channelId, platformMemberIds, sequenceId)` | One post reaches all Slack members |
 | `openclaw` | AT_LEAST_ONCE | `updateLastDeliveredMessageId(channelId, consumerId, sequenceId)` | Per-consumer webhook delivery |
 
-For `connector-human` and `slack-bot`, the caller must resolve `platformMemberIds` — the set of channel members whose delivery path is the external platform. This excludes agent members (whose delivery path is `check_messages`) and members on other backends (A2A, WebSocket). The resolution queries `channelMembershipStore.findByChannel()` and filters to members served by this backend. The exact filtering mechanism (by actor type lookup or backend consumer registry) is an implementation detail.
+For `connector-human` and `slack-bot`, the caller must resolve `platformMemberIds` — the set of channel members whose delivery path is the external platform. This excludes agent members (whose delivery path is `check_messages`) and members on other backends (A2A, WebSocket).
 
-**BEST_EFFORT push backends — via `ChannelGateway.fanOut()`:**
+**Member-to-backend resolution:** Each `ChannelBackend` declares its served actor type via `actorType()` (e.g., `ConnectorChannelBackend` returns `ActorType.HUMAN`, `A2AChannelBackend` returns `ActorType.AGENT`). Each member's actor type is resolvable via `ActorTypeResolver.resolve(memberId)` — a static utility already used in `DeliveryBatchExecutor.toOutbound()`. The resolution is:
 
-BEST_EFFORT backends are dispatched in fire-and-forget virtual threads via `Thread.ofVirtual().start()`. Three constraints apply:
+```java
+Set<String> platformMemberIds = channelMembershipStore.findByChannel(channelId)
+    .stream()
+    .filter(m -> ActorTypeResolver.resolve(m.memberId()) == backend.actorType())
+    .map(ChannelMembership::memberId)
+    .collect(toSet());
+```
 
-1. No completion signal back to the calling thread
-2. CDI `@Transactional` does not propagate to virtual threads started with `Thread.ofVirtual().start()`
-3. The virtual thread closure captures only the variables explicitly referenced
+This assumes one backend per actor type per channel, which matches the current architecture (a channel has at most one `HumanParticipatingChannelBackend`). If multi-backend-per-actor-type channels become needed, a backend consumer registry would replace this resolution.
 
-For cursor advancement in BEST_EFFORT virtual threads, use programmatic transaction management: `QuarkusTransaction.requiringNew()` opens a new transaction within the virtual thread after `backend.post()` succeeds. The virtual thread closure must capture: (a) the `ChannelMembershipStore` reference (injected into `ChannelGateway`), (b) the channel ID, (c) the `OutboundMessage` (which now carries `sequenceId`), and (d) the delivery tracking enabled flag.
+**BEST_EFFORT push backends — via `A2AResource.streamTask()`:**
 
-| Backend | Guarantee | Advancement method | Rationale |
-|---------|-----------|-------------------|-----------|
-| `a2a` | BEST_EFFORT | `updateLastDeliveredMessageId(channelId, consumerId, sequenceId)` | Per-participant SSE stream |
-| `qhorus-internal` | N/A (skipped in fanOut) | N/A | Agents pull via MCP; cursor advances in `check_messages` |
+The A2A backend is the only BEST_EFFORT push backend. `ChannelGateway.fanOut()` dispatches A2A via `Thread.ofVirtual().start()` → `A2AChannelBackend.post()`, but `post()` merely enqueues the `OutboundMessage` to a `LinkedBlockingQueue` via registered SSE consumers — it does not deliver to the end participant. True delivery happens in `A2AResource.streamTask()` when `sink.send()` writes the SSE frame to the client.
 
-For A2A, the consumer ID comes from the SSE stream's correlation-to-consumer mapping.
+Cursor advancement hooks into `streamTask()`, not the fanOut virtual thread:
+
+1. **Identity resolution at stream setup:** `streamTask()` already reads the task's message history in a `QuarkusTransaction.requiringNew()` block. At this point, resolve the consumer's `memberId` from the task context — the sender of the initial message in the correlation set is the SSE consumer (the external agent that initiated the task).
+
+2. **Advancement on delivery:** After each successful `sink.send()` of a non-keepalive message, advance the cursor using `QuarkusTransaction.requiringNew()` (already proven in `streamTask()`'s existing transactional reads, running on `@RunOnVirtualThread` with full CDI context):
+
+```java
+if (isDeliveryTrackingEnabled(channel)) {
+    QuarkusTransaction.requiringNew().run(() ->
+        channelMembershipStore.updateLastDeliveredMessageId(
+            channelId, consumerMemberId, msg.sequenceId()));
+}
+```
+
+| Backend | Guarantee | Advancement method | Hook point | Rationale |
+|---------|-----------|-------------------|------------|-----------|
+| `a2a` | BEST_EFFORT | `updateLastDeliveredMessageId(channelId, consumerId, sequenceId)` | `A2AResource.streamTask()` after `sink.send()` | Advances at actual delivery (SSE frame sent), not at enqueue |
+| `qhorus-internal` | N/A (skipped in fanOut) | N/A | N/A | Agents pull via MCP; cursor advances in `check_messages` |
+
+This avoids `QuarkusTransaction.requiringNew()` in unmanaged virtual threads (`Thread.ofVirtual().start()` closures have no CDI context). `streamTask()` runs on `@RunOnVirtualThread` — a Quarkus-managed virtual thread with proper CDI context propagation — where `QuarkusTransaction.requiringNew()` is already used and proven.
 
 **Guard:** Before any advancement, the delivery code checks `isDeliveryTrackingEnabled(channel)`. If false, no store call.
 
@@ -275,10 +295,15 @@ public record ConversationStallContext(
         UUID channelId, String channelName,
         int stalledCount, List<String> correlationIds,
         long stalledSeconds,
-        boolean deliveryConfirmed) implements AlertContext { ... }
+        Boolean deliveryConfirmed) implements AlertContext { ... }
 ```
 
-`deliveryConfirmed` = true when the obligor received the COMMAND (delivery cursor past the COMMAND's message ID). False or null when delivery status is unknown (tracking not enabled, or no membership record).
+`deliveryConfirmed` has three states:
+- `true` — obligor received the COMMAND (delivery cursor past the COMMAND's message ID)
+- `false` — obligor has NOT received the COMMAND (delivery cursor behind the COMMAND's message ID, tracking IS enabled)
+- `null` — delivery status unknown (tracking not enabled for this channel, or no membership record)
+
+The distinction matters for watchdog remediation: `false` (not delivered) suggests a transport issue worth retrying; `null` (unknown) means the watchdog cannot determine delivery status and should fall back to existing heuristics.
 
 **`DELIVERY_LAG` — out of scope.** Separate follow-up issue depending on #376. New condition type, threshold semantics, evaluation cadence — distinct from enriching existing conditions.
 
@@ -300,10 +325,10 @@ Takes UUID-or-name channel reference and boolean. Updates `channel.trackDelivery
 
 ## Out of Scope
 
-- **`DELIVERY_LAG` watchdog condition** — net-new condition type. GitHub issue to be filed before implementation begins.
-- **Platform delivery SPI integration** — qhorus messages are not the right consumer (see rationale above). GitHub issue to be filed for tracking purposes.
-- **Per-message delivery status queries** — "which participants received message #42?" Could be derived from cursor comparison but no dedicated tool in this issue. GitHub issue to be filed.
-- **Retry logic for failed deliveries** — the existing `DeliveryService` retry/reconciliation infrastructure handles backend-level retries. Per-participant retry for push failures is future work. GitHub issue to be filed.
+- **`DELIVERY_LAG` watchdog condition** — net-new condition type (#377). Depends on #376.
+- **Platform delivery SPI integration** — qhorus messages are not the right consumer (see rationale above). Decision tracked in #378.
+- **Per-message delivery status queries** — "which participants received message #42?" Could be derived from cursor comparison but no dedicated tool in this issue (#379). Depends on #376.
+- **Retry logic for failed deliveries** — the existing `DeliveryService` retry/reconciliation infrastructure handles backend-level retries. Per-participant retry for push failures is future work (#380). Depends on #376.
 
 ## Testing Strategy
 
@@ -323,7 +348,10 @@ Takes UUID-or-name channel reference and boolean. Updates `channel.trackDelivery
 - `check_messages` with null `reader_instance_id` does not advance
 - `wait_for_reply` advances delivery cursor when returning a matched message
 - `DeliveryBatchExecutor.deliverBatch()` advances cursor for AT_LEAST_ONCE backends on tracked channels
-- `fanOut` advances cursor for BEST_EFFORT push backends on tracked channels (A2A)
+- `A2AResource.streamTask()` advances cursor after SSE frame sent on tracked channels
+- WebSocket observer cursor advancement via `TransactionSynchronization.afterCompletion()` (post-commit callback, member identity lookup from registry)
+- Webhook observer cursor advancement (HTTP 2xx → cursor advance, member association)
+- Observer transaction rollback does NOT advance cursor (negative test)
 - `BARRIER_STUCK` watchdog produces `notDelivered` / `deliveredNoResponse` split
 - `CONVERSATION_STALL` watchdog populates `deliveryConfirmed`
 - Channel creation with explicit `track_delivery` override
