@@ -84,6 +84,19 @@ Nullable. Null means "use semantic default."
 
 **`ChannelCreateRequest`** — add `trackDelivery(Boolean)` to builder. Null default.
 
+**`OutboundMessage` record** — add `Long sequenceId`:
+
+```java
+public record OutboundMessage(
+        UUID messageId,
+        Long sequenceId,        // database sequence ID for cursor advancement
+        String sender, MessageType type, String content,
+        String correlationId, Long inReplyTo, ActorType senderActorType,
+        List<ArtefactRef> artefactRefs, String target) {}
+```
+
+The existing `messageId` (UUID) serves as a correlation/idempotency key. The new `sequenceId` carries the `Message.id()` Long value needed for cursor advancement. All `OutboundMessage` construction sites must pass the sequence ID: `MessageService.dispatch()` has it from `messageStore.put(message)`, `DeliveryBatchExecutor.toOutbound()` has it from the `Message` record, and `ChannelGateway.deliverRemote()` receives it as a parameter.
+
 **Resolution helper:**
 
 ```java
@@ -94,6 +107,18 @@ boolean isDeliveryTrackingEnabled(Channel ch) {
 }
 ```
 
+All five semantics have defined defaults:
+
+| Semantic | Default | Rationale |
+|----------|---------|-----------|
+| BARRIER | On | Coordination depends on knowing who received the gate command |
+| COLLECT | On | Fan-in aggregation depends on knowing contributors received the prompt |
+| APPEND | Off | General conversation; delivery tracking is overhead without coordination benefit |
+| EPHEMERAL | Off | Fire-and-forget by design |
+| LAST_WRITE | Off | Single-value blackboard; no coordination semantics |
+
+Any semantic can be overridden via explicit `channel.trackDelivery`.
+
 **Three-way diagnostic from the two cursors:**
 
 | Condition | Meaning | Remediation |
@@ -102,10 +127,14 @@ boolean isDeliveryTrackingEnabled(Channel ch) {
 | `lastDeliveredMessageId > lastReadMessageId` | Delivered, not processed | Wait or escalate |
 | `lastReadMessageId >= latestMessageId` | Fully caught up | No action |
 
+For BARRIER and COLLECT channels where messages are deleted after delivery: the diagnostic is meaningful during the in-progress period (between message dispatch and agent pull). After a successful delivery cycle, messages are deleted and the channel is empty until the next round. `latestMessageId` refers to the highest message ID currently in the channel — after deletion this may be null or an EVENT message ID. The "fully caught up" state is implicitly satisfied when no undelivered messages remain.
+
+Cursor advancement in `check_messages` happens **before** message deletion in the BARRIER/COLLECT paths, ensuring the delivery record is captured before messages are removed.
+
 **Migrations:**
 
-- **V36:** `ALTER TABLE channel ADD COLUMN track_delivery BOOLEAN`
-- **V37:** `ALTER TABLE channel_membership ADD COLUMN last_delivered_message_id BIGINT`
+- **V40:** `ALTER TABLE channel ADD COLUMN track_delivery BOOLEAN`
+- **V41:** `ALTER TABLE channel_membership ADD COLUMN last_delivered_message_id BIGINT`
 
 ### 2. Store layer
 
@@ -113,27 +142,22 @@ boolean isDeliveryTrackingEnabled(Channel ch) {
 
 ```java
 void updateLastDeliveredMessageId(UUID channelId, String memberId, Long messageId);
-void advanceDeliveredCursorForAll(UUID channelId, Long messageId);
+void advanceDeliveredCursorForMembers(UUID channelId, Set<String> memberIds, Long messageId);
 ```
 
 Both are forward-only — implementation advances only if `messageId > current`.
 
-`updateLastDeliveredMessageId` is for per-participant transports (A2A SSE, WebSocket).
+`updateLastDeliveredMessageId` is for per-participant transports (A2A SSE, WebSocket, `check_messages` pull).
 
-`advanceDeliveredCursorForAll` is for per-room transports (connector-human, slack-bot) where one post reaches all channel members. Single UPDATE with WHERE clause instead of N individual updates.
+`advanceDeliveredCursorForMembers` is for transports where one post reaches a known set of participants (e.g., external platform backends). The caller provides the specific member IDs to advance — not all channel members. Single UPDATE with WHERE clause instead of N individual updates.
 
-**`ReactiveChannelMembershipStore`** — reactive parity:
+**Reactive parity:** Deferred. The `issue-384-retire-reactive` branch is in progress locally. Adding new reactive API surface while the reactive stack is being evaluated for retirement is premature. If the reactive retirement does not proceed, reactive parity methods can be added as a follow-up.
 
-```java
-Uni<Void> updateLastDeliveredMessageId(UUID channelId, String memberId, Long messageId);
-Uni<Void> advanceDeliveredCursorForAll(UUID channelId, Long messageId);
-```
-
-**InMemory implementations** — both blocking and reactive in `persistence-memory`.
+**InMemory implementations** — blocking in `persistence-memory`.
 
 **Contract tests** — new test methods in `ChannelMembershipStoreContractTest`:
 - Forward-only advancement (second call with lower ID is a no-op)
-- `advanceDeliveredCursorForAll` advances all members of a channel
+- `advanceDeliveredCursorForMembers` advances specified members of a channel
 - Null → first value advancement
 - Idempotent repeated calls with same ID
 
@@ -141,43 +165,62 @@ Uni<Void> advanceDeliveredCursorForAll(UUID channelId, Long messageId);
 
 Advancement lives **inside each transport's delivery path**, not centralized. Only the transport knows whether delivery succeeded and which participant received it.
 
-**Push backends — via `ChannelGateway.fanOut()`:**
+The hook location depends on the backend's `DeliveryGuarantee`:
 
-After `backend.post()` returns without exception, the gateway advances the delivery cursor. The backend type (from `BackendEntry.backendType()`) determines which store method:
+**AT_LEAST_ONCE backends — via `DeliveryBatchExecutor.deliverBatch()`:**
 
-| Backend type | Advancement method | Rationale |
-|-------------|-------------------|-----------|
-| `a2a` | `updateLastDeliveredMessageId(channelId, consumerId, messageId)` | Per-participant SSE stream |
-| `connector-human` | `advanceDeliveredCursorForAll(channelId, messageId)` | One post reaches all external members |
-| `slack-bot` | `advanceDeliveredCursorForAll(channelId, messageId)` | One post reaches all Slack members |
-| `qhorus-internal` | N/A | No-op post(); agents pull via MCP |
+Backends declaring `DeliveryGuarantee.AT_LEAST_ONCE` are skipped by `fanOut()` and delivered through the delivery pump (`DeliveryService` → `DeliveryBatchExecutor`). `deliverBatch()` is already `@Transactional`, reads messages from the `DeliveryCursor`, and has access to the full `Message` record (including `Long id`). This is the natural hook point for cursor advancement.
 
-The gateway already has the channel ID and message from the `OutboundMessage`. It needs to resolve the message ID — `OutboundMessage` carries `messageId`.
+After `backend.post(ref, outbound)` succeeds in `deliverBatch()`, advance the delivery cursor:
 
-For per-participant backends, the gateway needs the participant identity. A2A provides this via the SSE stream's correlation-to-consumer mapping. WebSocket provides it via the connection's user identity.
+| Backend | Guarantee | Advancement method | Rationale |
+|---------|-----------|-------------------|-----------|
+| `connector-human` | AT_LEAST_ONCE | `advanceDeliveredCursorForMembers(channelId, platformMemberIds, sequenceId)` | One post reaches all external platform members |
+| `slack-bot` | AT_LEAST_ONCE | `advanceDeliveredCursorForMembers(channelId, platformMemberIds, sequenceId)` | One post reaches all Slack members |
+| `openclaw` | AT_LEAST_ONCE | `updateLastDeliveredMessageId(channelId, consumerId, sequenceId)` | Per-consumer webhook delivery |
 
-**Guard:** Before any advancement, the gateway checks `isDeliveryTrackingEnabled(channel)`. If false, no store call.
+For `connector-human` and `slack-bot`, the caller must resolve `platformMemberIds` — the set of channel members whose delivery path is the external platform. This excludes agent members (whose delivery path is `check_messages`) and members on other backends (A2A, WebSocket). The resolution queries `channelMembershipStore.findByChannel()` and filters to members served by this backend. The exact filtering mechanism (by actor type lookup or backend consumer registry) is an implementation detail.
+
+**BEST_EFFORT push backends — via `ChannelGateway.fanOut()`:**
+
+BEST_EFFORT backends are dispatched in fire-and-forget virtual threads via `Thread.ofVirtual().start()`. Three constraints apply:
+
+1. No completion signal back to the calling thread
+2. CDI `@Transactional` does not propagate to virtual threads started with `Thread.ofVirtual().start()`
+3. The virtual thread closure captures only the variables explicitly referenced
+
+For cursor advancement in BEST_EFFORT virtual threads, use programmatic transaction management: `QuarkusTransaction.requiringNew()` opens a new transaction within the virtual thread after `backend.post()` succeeds. The virtual thread closure must capture: (a) the `ChannelMembershipStore` reference (injected into `ChannelGateway`), (b) the channel ID, (c) the `OutboundMessage` (which now carries `sequenceId`), and (d) the delivery tracking enabled flag.
+
+| Backend | Guarantee | Advancement method | Rationale |
+|---------|-----------|-------------------|-----------|
+| `a2a` | BEST_EFFORT | `updateLastDeliveredMessageId(channelId, consumerId, sequenceId)` | Per-participant SSE stream |
+| `qhorus-internal` | N/A (skipped in fanOut) | N/A | Agents pull via MCP; cursor advances in `check_messages` |
+
+For A2A, the consumer ID comes from the SSE stream's correlation-to-consumer mapping.
+
+**Guard:** Before any advancement, the delivery code checks `isDeliveryTrackingEnabled(channel)`. If false, no store call.
 
 **Observer transports — `MessageObserver` implementations:**
 
-WebSocket and webhook observers fan out internally to per-connection or per-registration endpoints:
+Observers fire **before the enclosing transaction commits** (documented in `MessageObserver` Javadoc). Cursor advancement inside an observer's `onMessage()` path would run pre-commit — if the transaction rolls back, the cursor may be advanced for a message that was never persisted.
 
-- **WebSocket observer:** After frame sent, advance cursor for the connected user. `WebSocketConnectionRegistry` tracks user identity per connection.
-- **Webhook observer:** After HTTP 2xx received, advance cursor. If registration carries a member association, advance per-participant; otherwise advance for all members.
+To handle this: cursor advancement for observers uses `TransactionSynchronization.afterCompletion()` — the observer records the delivery event (connection ID → member ID mapping, message sequence ID), and a post-commit callback advances the cursor only if the transaction committed. This pattern already exists in `MessageService.dispatch()` for delivery signalling.
 
-**AT_LEAST_ONCE backends — `DeliveryBatchExecutor`:**
+- **WebSocket observer:** After frame sent, record the delivery for post-commit cursor advancement. **Requires adding member identity tracking to `WebSocketConnectionRegistry`** — the current registry maps `channelId → Set<WebSocketConnection>` with no member identity. `subscribe()` must gain a `memberId` parameter, and the registry must maintain a `connection → memberId` mapping. This is new infrastructure.
+- **Webhook observer:** After HTTP 2xx received, record the delivery. If registration carries a member association, advance per-participant; otherwise skip (no member identity to advance).
+- **Kafka observer:** Not applicable. `KafkaMessageObserver` is a LOCAL-scoped observer that publishes message events to a Kafka topic for external consumers (system integration). Kafka consumers are not channel members with membership records — delivery tracking does not apply.
 
-After `deliverBatch()` successfully posts to a backend, advance the delivery cursor. Same per-participant vs per-room logic. The batch executor already iterates messages and knows the backend.
-
-**Pull path — `check_messages`:**
+**Pull path — `check_messages` and `wait_for_reply`:**
 
 After the query returns messages, advance the delivery cursor for the calling agent. Details in Section 4.
 
-### 4. `check_messages` delivery advancement
+### 4. `check_messages` and `wait_for_reply` delivery advancement
 
-`checkMessages()` gains a side effect when delivery tracking is enabled. After querying messages, it advances the delivery cursor for the calling agent.
+Both MCP pull paths gain a side effect when delivery tracking is enabled.
 
-**Where it hooks in:** Each semantic variant (`checkMessagesAppend`, `checkMessagesBarrier`, `checkMessagesCollect`, `checkMessagesEphemeral`) returns a `CheckResult` with messages and a `lastId`. Before returning, if tracking is enabled, advance the cursor.
+**`check_messages`:**
+
+Each semantic variant (`checkMessagesAppend`, `checkMessagesBarrier`, `checkMessagesCollect`, `checkMessagesEphemeral`) returns a `CheckResult` with messages and a `lastId`. Before returning (and before any message deletion for BARRIER/COLLECT), if tracking is enabled, advance the cursor.
 
 **Guard conditions:**
 - `isDeliveryTrackingEnabled(ch)` = true
@@ -186,9 +229,20 @@ After the query returns messages, advance the delivery cursor for the calling ag
 
 **Semantic:** "You asked for the messages, that counts as delivery." No opt-out parameter. An agent calling `check_messages` has received the messages — they're in the response. If a "peek without advancing" operation is needed later, adding `mark_delivered=false` is backward-compatible.
 
-**Reactive parity:** Same logic in `ReactiveQhorusMcpTools.checkMessages()`.
-
 **Transaction boundary:** `checkMessages()` is already `@Transactional`. The cursor update happens in the same transaction as the message query.
+
+**Ordering for BARRIER/COLLECT:** Cursor advancement happens before `messageStore.deleteNonEvent()`. The sequence is: (1) query messages, (2) advance delivery cursor to `lastId`, (3) delete messages. This ensures the delivery record is captured before messages are removed.
+
+**`wait_for_reply`:**
+
+`wait_for_reply` is a separate code path from `check_messages` — it polls `CommitmentStore.findByCorrelationId()` and `MessageService.findResponseByCorrelationId()` / `findDoneByCorrelationId()` in a loop. It does not delegate to `check_messages`.
+
+When `wait_for_reply` finds a matching RESPONSE or DONE message and returns it, advance the delivery cursor for the calling agent to that message's sequence ID. Guard conditions:
+- `isDeliveryTrackingEnabled(ch)` = true
+- Instance ID is available from the calling context
+- The matched message has a valid sequence ID
+
+**Transaction boundary:** `wait_for_reply` polls outside a long-running transaction. The cursor advancement should use a dedicated transaction for the update (same pattern as the poll's message lookups).
 
 ### 5. Watchdog enrichments
 
@@ -210,7 +264,7 @@ public record BarrierStuckContext(
         long elapsedSeconds) implements AlertContext { ... }
 ```
 
-`missingContributors` remains the full list for backward compatibility — it's the union of `notDelivered` and `deliveredNoResponse`.
+This is a **breaking change** to the record's canonical constructor — all call sites constructing `BarrierStuckContext` must be updated to pass the two new fields. `missingContributors` remains as the union of both lists for callers that don't need the split.
 
 **`CONVERSATION_STALL` — delivery context:**
 
@@ -242,36 +296,39 @@ set_delivery_tracking(channel, enabled)
 
 Takes UUID-or-name channel reference and boolean. Updates `channel.trackDelivery`. Follows the UUID-first service pattern per `mcp-tool-channel-resolution-boundary` protocol.
 
-**No other new tools.** Delivery tracking is transparent — a side effect of existing operations (`check_messages`, `fanOut`, observer delivery), not a new API surface.
+**No other new tools.** Delivery tracking is transparent — a side effect of existing operations (`check_messages`, `wait_for_reply`, delivery pump, observer delivery), not a new API surface.
 
 ## Out of Scope
 
-- **`DELIVERY_LAG` watchdog condition** — net-new condition type. Follow-up issue.
-- **Platform delivery SPI integration** — qhorus messages are not the right consumer (see rationale above).
-- **Per-message delivery status queries** — "which participants received message #42?" Could be derived from cursor comparison but no dedicated tool in this issue.
-- **Retry logic for failed deliveries** — the existing `DeliveryService` retry/reconciliation infrastructure handles backend-level retries. Per-participant retry for push failures is future work.
+- **`DELIVERY_LAG` watchdog condition** — net-new condition type. GitHub issue to be filed before implementation begins.
+- **Platform delivery SPI integration** — qhorus messages are not the right consumer (see rationale above). GitHub issue to be filed for tracking purposes.
+- **Per-message delivery status queries** — "which participants received message #42?" Could be derived from cursor comparison but no dedicated tool in this issue. GitHub issue to be filed.
+- **Retry logic for failed deliveries** — the existing `DeliveryService` retry/reconciliation infrastructure handles backend-level retries. Per-participant retry for push failures is future work. GitHub issue to be filed.
 
 ## Testing Strategy
 
 **Unit tests (CDI-free):**
-- `isDeliveryTrackingEnabled()` for all semantic × explicit-override combinations
+- `isDeliveryTrackingEnabled()` for all five semantics × explicit-override combinations
 - Forward-only cursor advancement semantics
-- `advanceDeliveredCursorForAll` batch advancement
+- `advanceDeliveredCursorForMembers` batch advancement
 
 **Store contract tests:**
 - `updateLastDeliveredMessageId` forward-only
-- `advanceDeliveredCursorForAll` advances all members
+- `advanceDeliveredCursorForMembers` advances specified members
 - Null → first value
 - Idempotent repeated calls
 
 **Integration tests (`@QuarkusTest`):**
 - `check_messages` advances delivery cursor when tracking enabled, skips when disabled
 - `check_messages` with null `reader_instance_id` does not advance
-- `fanOut` advances cursor for push backends on tracked channels
+- `wait_for_reply` advances delivery cursor when returning a matched message
+- `DeliveryBatchExecutor.deliverBatch()` advances cursor for AT_LEAST_ONCE backends on tracked channels
+- `fanOut` advances cursor for BEST_EFFORT push backends on tracked channels (A2A)
 - `BARRIER_STUCK` watchdog produces `notDelivered` / `deliveredNoResponse` split
 - `CONVERSATION_STALL` watchdog populates `deliveryConfirmed`
 - Channel creation with explicit `track_delivery` override
 - `set_delivery_tracking` toggle on existing channel
+- Cursor advancement before message deletion in BARRIER/COLLECT paths
 
 **Migration test:**
-- `FlywayMigrationSchemaTest` extended to verify V36 and V37 produce correct schema
+- `FlywayMigrationSchemaTest` extended to verify V40 and V41 produce correct schema
