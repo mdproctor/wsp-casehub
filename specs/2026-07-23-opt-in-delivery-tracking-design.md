@@ -313,13 +313,21 @@ The distinction matters for watchdog remediation: `false` (not delivered) sugges
 
 **`get_channel` / `list_channels`** — `ChannelDetail` gains `trackDelivery` field showing effective state (resolved, not raw — so callers see `true` for BARRIER channels even when the column is null).
 
-**`set_delivery_tracking`** — new tool to toggle tracking on an existing channel:
+**`set_delivery_tracking`** — new tool to set or reset tracking on an existing channel:
 
 ```
-set_delivery_tracking(channel, enabled)
+set_delivery_tracking(channel, tracking)
 ```
 
-Takes UUID-or-name channel reference and boolean. Updates `channel.trackDelivery`. Follows the UUID-first service pattern per `mcp-tool-channel-resolution-boundary` protocol.
+Takes UUID-or-name channel reference and `Boolean` (nullable). Updates `channel.trackDelivery`. Follows the UUID-first service pattern per `mcp-tool-channel-resolution-boundary` protocol.
+
+- `true` = explicit opt-in regardless of semantic
+- `false` = explicit opt-out regardless of semantic
+- `null` (or omitted) = revert to semantic default
+
+**Cursor initialization on enablement:** When tracking transitions from disabled to enabled on a channel that already has messages, initialize all members' `lastDeliveredMessageId` to the channel's current latest message ID. This establishes a "start tracking from now" baseline — consistent with the V41 migration principle ("tracking starts from next message after feature is enabled"). Without initialization, the watchdog would immediately flag every member as having undelivered messages for the channel's entire message history.
+
+The initialization uses `advanceDeliveredCursorForMembers(channelId, allMemberIds, latestMessageId)` — the same forward-only method used by delivery hooks. If a member already has a cursor value (from a previous enablement cycle), the forward-only guard ensures no regression.
 
 **No other new tools.** Delivery tracking is transparent — a side effect of existing operations (`check_messages`, `wait_for_reply`, delivery pump, observer delivery), not a new API surface.
 
@@ -356,6 +364,8 @@ Takes UUID-or-name channel reference and boolean. Updates `channel.trackDelivery
 - `CONVERSATION_STALL` watchdog populates `deliveryConfirmed`
 - Channel creation with explicit `track_delivery` override
 - `set_delivery_tracking` toggle on existing channel
+- `set_delivery_tracking` with `null` reverts to semantic default
+- `set_delivery_tracking` enabling on channel with existing messages initializes member cursors to latest message ID
 - Cursor advancement before message deletion in BARRIER/COLLECT paths
 
 **Migration test:**
