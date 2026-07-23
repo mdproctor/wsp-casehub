@@ -48,10 +48,11 @@ default MultiModalEmbedding embedSeparate(String denseText, String nonDenseText)
     if (denseText.equals(nonDenseText)) return embed(denseText);
     var map = new EnumMap<>(EmbeddingMode.class);
     map.put(EmbeddingMode.DENSE, denseText);
-    if (supportedModes().contains(EmbeddingMode.SPARSE))
-        map.put(EmbeddingMode.SPARSE, nonDenseText);
-    if (supportedModes().contains(EmbeddingMode.COLBERT))
-        map.put(EmbeddingMode.COLBERT, nonDenseText);
+    for (EmbeddingMode mode : supportedModes()) {
+        if (mode != EmbeddingMode.DENSE) {
+            map.put(mode, nonDenseText);
+        }
+    }
     return embed(map);
 }
 ```
