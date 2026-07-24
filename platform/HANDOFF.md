@@ -7,66 +7,56 @@
 
 ## What's Done
 
-| Repo | Status | PR |
-|------|--------|----|
+| Repo | Status | Notes |
+|------|--------|-------|
 | **platform** | Merged | casehubio/platform#194 |
-| **ras** | PR open | casehubio/casehub-ras#54 |
-| **ops** | PR open | casehubio/casehub-ops#63 |
-| **desiredstate** | PR open | casehubio/casehub-desiredstate#88 |
-| **iot** | PR open | casehubio/iot#70 |
+| **ras** | Merged | casehubio/casehub-ras#54 |
+| **connectors** | Clean | Zero reactive code |
+| **claudony** | Clean | Zero reactive code |
+| **openclaw** | Clean | Zero reactive code |
+| **blocks** | Clean | Zero reactive code |
+| **ledger** | Committed | 40 files, 2329 lines deleted |
+| **eidos** | Committed | 50 files, 2245 lines deleted. Also fixed SettingsScope.root() (platform #193 API change) |
+| **qhorus** | Committed | 103 files, 9574 lines deleted. Dashboard service rewritten to blocking. Pre-existing connector-backend SRCFG00050 test failure (unrelated) |
+| **ops** | PR open | casehubio/casehub-ops#63 — different issue (#10,#21), not #384 |
+| **desiredstate** | PR open | casehubio/casehub-desiredstate#88 — CI failing: SettingsScope.root() API change |
+| **iot** | PR open | casehubio/iot#70 — CI failing: Worker.Builder.function() type mismatch |
 
-### Platform (merged)
-- Deleted `ReactiveNotificationStore`, `ReactiveSubscriptionStore` SPIs + all impls (NoOp, InMemory, JPA reactive)
-- Deleted `ReactiveAgentIdentityVerificationService` identity bridge
-- Rewrote `JpaNotificationStore` and `JpaSubscriptionStore` from Hibernate Reactive Panache to standard JPA (`EntityManager` + `@Transactional`)
-- Converted `NotificationResource` + `SubscriptionResource` to `@RunOnVirtualThread`
-- Converted `NotificationSseResource` — blocking store + `Executors.newVirtualThreadPerTaskExecutor()` offload (per `sse-endpoint-no-virtual-thread` protocol)
-- POMs: `quarkus-hibernate-reactive-panache` → `quarkus-hibernate-orm`
+## What's Left — Neocortex
 
-### ras, ops, desiredstate, iot (PRs open)
-- Done in a prior session (Phase A complete before this session started)
-- Phase B completed this session: rebased, ff-merged, pushed forks, opened PRs
-- Check CI status before merging — all should be green
+**Architecture difference:** Neocortex is reactive-primary. Unlike every other repo where blocking owns the logic and reactive wraps it, neocortex's reactive implementations ARE the real code (Qdrant gRPC, Mem0 REST, Graphiti REST). Blocking classes are thin `.await().indefinitely()` wrappers.
 
-## What's Left
+**The cookbook doesn't apply.** Cannot "delete reactive, keep blocking." Must convert reactive → blocking in-place.
 
-| Repo | Scope | Complexity |
-|------|-------|------------|
-| **qhorus** | ~15 dual-stack pairs + services + `@IfBuildProperty` gating + `QhorusBuildTimeConfig.reactive()` + 42 `@Blocking` annotations | **Heavy** — full session |
-| **neocortex** | ~10 dual-stack pairs + full decorator chain (9 reactive decorators) + bridges | **Heavy** — full session |
-| **ledger** | Consumes engine SPIs — reactive usage retires when engine SPIs change | Medium |
-| **eidos** | Consumes engine SPIs — has `ReactiveRenderedPromptCache` (garden protocol `reactive-rendered-prompt-cache-canonical-spi` becomes moot) | Medium |
-| **connectors** | Unknown scope — audit needed | Unknown |
-| **claudony** | Implements engine Reactive* SPIs — switch to blocking | Small–Medium |
-| **openclaw** | Implements engine Reactive* SPIs — switch to blocking | Small |
-| **blocks** | Implements engine Reactive* SPIs — switch to blocking | Small |
+### Conversion plan (3 categories)
 
-### Recommended order
-1. Merge the 4 open PRs (ras, ops, desiredstate, iot) — check CI first
-2. Small app repos (claudony, openclaw, blocks) — mechanical, follow cookbook
-3. Medium repos (ledger, eidos, connectors) — depend on engine #381 landing first
-4. Heavy repos (qhorus, neocortex) — dedicated sessions each
+**Category 1 — Straight deletion (~36 files):**
+Reactive SPI interfaces (10), bridges (6), InMemory reactive wrappers (2), parity tests (~18). Same mechanical pattern as other repos.
 
-### Dependency: engine #381
-The issue says ledger, eidos, and work repos' reactive usage retires when engine SPIs change (#381). Check whether #381 has landed before touching those repos. If not, they may need to wait.
+**Category 2 — Backend conversion (3 backends, ~1hr each):**
+- **Qdrant:** `ReactiveQdrantCbrCaseMemoryStore` → `QdrantCbrCaseMemoryStore`. Convert `QdrantFutures.toUni(future)` → `future.get()`. Delete thin blocking wrapper.
+- **Mem0:** `ReactiveMem0CaseMemoryStore` → `Mem0CaseMemoryStore`. Create blocking `Mem0Client` interface (drop `Uni<>` from return types). Delete thin blocking wrapper.
+- **Graphiti:** Same pattern as Mem0 — `ReactiveGraphitiClient` → blocking `GraphitiClient`.
 
-## Artifacts Created This Session
+**Category 3 — Decorator chain (4 decorators):**
+ReactiveTemporalDecay, ReactiveOutcomeWeighting, ReactiveScopeDecay, ReactiveTrendEnrichment. Check if blocking decorators exist — if yes, just delete reactive. If not, convert.
 
-- **Protocol:** `sse-endpoint-no-virtual-thread` in garden — SSE endpoints must not use `@RunOnVirtualThread`
-- **Migration guide update:** `engine/docs/guides/virtual-thread-migration.md` §7 + §9 — SSE warning + common mistake
-- **Garden entry:** GE-20260723-fbbdb6 — IntelliJ MCP worktree mismatch gotcha
-- **Plan:** `plans/2026-07-23-retire-reactive-platform.md` (workspace)
-- **Diary entries:** `2026-07-23-mdp01-reactive-layer-already-dead.md`, `2026-07-23-mdp02-thirteen-repos-one-branch.md`
+### Execution order
+1. Category 1 first (mechanical deletion)
+2. Category 2 backend-by-backend (Qdrant → Mem0 → Graphiti)
+3. Category 3 last
+4. POM cleanup (11 mutiny deps already identified)
+5. Build and verify
 
-## Key Decisions
+**Garden entry:** GE-20260724-115ce0 documents the gotcha.
 
-- `@RunOnVirtualThread` on regular REST endpoints, NOT on SSE endpoints (protocol)
-- SSE blocking calls offloaded via `Executors.newVirtualThreadPerTaskExecutor()` static field
-- `@ObservesAsync` CDI handlers can block directly (managed executor threads)
-- JPA stores use named parameters (`:param`) not positional (`?1`) — matches platform convention
-- Entity classes use plain `@Entity` not `PanacheEntityBase` after migration (notifications-jpa, subscriptions-jpa)
-- `findAllEnabled()` uses eager `getResultList().stream()` not lazy `getResultStream()` — code review catch
+## Open PRs Needing Attention
 
-## IntelliJ Worktree Warning
+- **desiredstate #88** and **iot #70** — CI failing from upstream API changes (SettingsScope, WorkerFunction), not from #384 work. Need rebase onto latest main.
+- **Engine #381** — delivered locally, PR still open. Once merged, CI for all downstream repos will pass.
 
-When working in git worktrees, IntelliJ MCP operates on whichever project is open — not necessarily the worktree. Must call `ide_open_project` with the worktree's absolute path first, then verify with `ide_project_status` that module paths point to the worktree. See GE-20260723-fbbdb6.
+## Artifacts
+
+- **Blog:** `2026-07-24-mdp01-twelve-out-of-thirteen.md` (workspace)
+- **Garden:** GE-20260724-115ce0 (neocortex reactive-primary gotcha), GE-20260724-c35265 (IntelliJ safe_delete line shift)
+- **Protocol:** `sse-endpoint-no-virtual-thread` (prior session, unchanged)
