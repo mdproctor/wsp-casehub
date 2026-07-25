@@ -28,6 +28,11 @@ with explicit visibility, priority, and format-discriminated rendering.
   invite hair-splitting between SECONDARY and TERTIARY with no behavioral difference
   in prompt rendering. Equal-priority goals are expressed by giving multiple goals
   the same level.
+- **Briefing may still contain legacy goal text** — descriptor authors should
+  migrate goal-related content from `briefing` to the `goals` field. When both
+  briefing and goals contain the same objective, the text appears in both sections
+  (whether enrichment is on or off). This spec does not enforce or automate
+  migration — it is author guidance. No programmatic deduplication is planned.
 - **Standing goals in A2A_CARD are consistent with ADR-0002** — ADR-0002 prohibits
   transient `GoalContext` from contaminating A2A cards. Standing `AgentGoal` on the
   descriptor IS stable identity metadata, not transient request state. PUBLIC goals
@@ -182,6 +187,16 @@ You also aim to Z."). Constraints as behavioral directives
 ```
 Only PUBLIC items. PRIVATE items completely absent.
 
+### Empty Section Handling
+
+Sections for empty collections are **omitted entirely**, consistent with
+how other optional sections (Data Handling, Current Goal, Resources) behave:
+
+- **MARKDOWN/PROSE:** No "Objectives" heading when `goals` is empty.
+  No "Constraints" heading when `constraints` is empty.
+- **A2A_CARD:** `"goals"` and `"constraints"` keys are absent (not `[]`).
+  An agent with no public goals produces no goals key at all.
+
 ### Enrichment Pipeline
 
 Goals and constraints render **structurally always**. They are NOT sent
@@ -200,7 +215,10 @@ alphabetically by name within each priority level. This ordering is
 applied at render time, not via JPA `@OrderBy` — render-time sorting
 is deterministic regardless of database insertion order or query plan.
 
-Constraints are rendered in insertion order (no priority axis).
+Constraints are rendered sorted alphabetically by name. Without a
+deterministic render-time sort, `@OneToMany` without `@OrderBy` produces
+non-deterministic ordering after JPA round-trip, causing cache pollution
+and flaky test assertions.
 
 ### Pipeline Integration
 
@@ -341,6 +359,8 @@ and constraint name uniqueness in the compact constructor.
 - MARKDOWN rendering: goals sorted by priority (PRIMARY first), then by name
 - PROSE rendering with goals and constraints
 - A2A_CARD rendering — PUBLIC only, PRIVATE absent
+- Empty goals: no "Objectives" section rendered; A2A_CARD has no `"goals"` key
+- Empty constraints: no "Constraints" section rendered; A2A_CARD has no `"constraints"` key
 - Combined rendering: descriptor with `AgentGoal` (standing) AND prompt context
   with `GoalContext` (current) renders both "Objectives" and "Current Goal"
   sections with distinguishable headings
