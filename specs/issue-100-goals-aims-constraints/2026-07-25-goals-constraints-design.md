@@ -273,6 +273,12 @@ descriptors:
 New inner config classes `GoalConfig` and `ConstraintConfig` in
 `ClasspathYamlDescriptorRegistrar`.
 
+All fields are required — no YAML defaults. `priority` and `visibility`
+must be specified explicitly on every goal; `visibility` must be specified
+on every constraint. A missing field deserializes as `null` and the
+compact constructor throws. This is intentional: defaulting `visibility`
+to PUBLIC risks accidentally exposing PRIVATE goals.
+
 ## JPA Persistence
 
 Flyway V7 — two new child entity tables:
@@ -357,6 +363,7 @@ and constraint name uniqueness in the compact constructor.
 - YAML loading with missing/empty goals and constraints (backward compat)
 - MARKDOWN rendering with goals and constraints sections
 - MARKDOWN rendering: goals sorted by priority (PRIMARY first), then by name
+- MARKDOWN rendering: constraints sorted alphabetically by name
 - PROSE rendering with goals and constraints
 - A2A_CARD rendering — PUBLIC only, PRIVATE absent
 - Empty goals: no "Objectives" section rendered; A2A_CARD has no `"goals"` key
