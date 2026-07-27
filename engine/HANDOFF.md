@@ -1,32 +1,32 @@
-# Handoff — 2026-07-21
+# Handoff — 2026-07-27
 
 ## What's Done
 
-- **engine#762**: Extracted `casehub-engine-rest` module — 5 JAX-RS resources, 9 DTOs,
-  CaseService, exception mappers. Virtual threads, SPI pagination, no Panache, no ACL.
-  PR #766 merged upstream. Design spec adversarially reviewed (4 rounds, 24 issues).
+- **blocks#60 Phases 0–3D**: Unified execution model migration — sealed `PlanItemDefinition` hierarchy (Primitive/Compound), `DispatchMode`, `CompletionSemantics`, `PlanItemExecutionState`, `CompoundCompletionEvaluator`, `CompoundStrategyDispatcher`. Module renamed `blackboard` → `engine-planning` (artifact + package). DagPlan/DagNode/JoinType moved to engine-api. `@DefaultBean` ChoreographyLoopControl, `ChoreographyStrategy` rename. 383 planning tests green. 11 commits on `issue-60-unified-execution-model` branch in engine slot 38.
 
 ## Immediate Next Step
 
-**scaffold#35** — replace scaffold's inline REST with `casehub-engine-rest` dependency.
-Delete 19 source files, add `ContainerRequestFilter` for ACL, update test imports.
-https://github.com/casehubio/scaffold/issues/35
+Continue blocks#60 — Phase 3D.3 (Stage builder compatibility). The plan at `/Users/mdproctor/claude/public/casehub/blocks/plans/2026-07-26-unified-execution-model-migration.md` has full task detail. Run `/work` to resume.
 
-## Cross-Module
+## Plan Corrections Discovered This Session
 
-**Enabled:**
-- `scaffold` — `casehub-engine-rest` jar published; scaffold#35 replaces inline REST · M · Med
+Two plan bugs found and fixed during implementation — the next session should be aware:
+1. **Phase 0 Task 0.2**: Plan said "add engine-common as dependency of engine-api" — creates a circular dependency. Fixed: moved DagPlan types to engine-api instead. Protocol PP-20260727-5267d2.
+2. **Phase 1**: Plan said "delete ChoreographyLoopControl" — blocked by blackboard→runtime Maven cycle. Fixed: `@DefaultBean` pattern instead.
 
 ## What's Left
 
-- engine#764: update architecture spec §5 Connectors · S · Low
-- Work repo DataRef support — follow-on from #740 (not yet filed) · M · Med
+- Phase 3D.3: Stage builder compat (Stage.builder() produces Compound PlanItems) · S · Med
+- Phase 4: DAG plan unification in blocks (ExecutionPlan → DagPlan) · M · Med
+- Phase 5: HTN decomposition SPI promotion to engine-api · M · Med
+- Phase 6: Composable strategy wiring via StrategyResolver · S · Low
+- Phase 7: Agent dispatch wiring + GOAP + disposition routing · L · Med
+- Phase 8: Quarkus Flow backend for workflow patterns · M · Med
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| scaffold#35 | Replace scaffold inline REST with engine-rest | M | Med | engine-rest jar available |
-| #754 | HumanTask CBR routing implementation | M | Med | Follow-on from #741 |
-| #755 | HumanTask routing constraint impl | M | Med | Follow-on from #741 |
-| #764 | Update architecture spec §5 Connectors | S | Low | |
+| blocks#60 | Phase 3D.3 — Stage builder compat | S | Med | Next in sequence |
+| blocks#60 | Phase 4 — ExecutionPlan → DagPlan in blocks | M | Med | Parallel with 3D.3 |
+| blocks#60 | Phase 5 — HTN SPI promotion | M | Med | After Phase 4 |
