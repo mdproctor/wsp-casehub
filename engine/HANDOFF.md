@@ -1,24 +1,26 @@
-# Handoff — 2026-07-27
+# Handoff — 2026-07-28
 
 ## What's Done
 
-- **blocks#60 Phases 0–3D**: Unified execution model migration — sealed `PlanItemDefinition` hierarchy (Primitive/Compound), `DispatchMode`, `CompletionSemantics`, `PlanItemExecutionState`, `CompoundCompletionEvaluator`, `CompoundStrategyDispatcher`. Module renamed `blackboard` → `engine-planning` (artifact + package). DagPlan/DagNode/JoinType moved to engine-api. `@DefaultBean` ChoreographyLoopControl, `ChoreographyStrategy` rename. 383 planning tests green. 11 commits on `issue-60-unified-execution-model` branch in engine slot 38.
+- **blocks#60 Phases 0–3D + compound wiring**: PlanningStrategyLoopControl now uses Compound-based gating (scopedBindings + definition status), CompoundLifecycleEvaluator for activation, and CompoundStrategyDispatcher for per-compound strategy dispatch. Stage-based gating removed from the dispatch path. 6 commits this session: Compound.builder() + scopedBindings, design review fixes (index bug, dispatchMode, HYBRID), CompoundLifecycleEvaluator, PlanningStrategyLoopControl rewiring, compound completion for scoped bindings. Design review subagent caught a critical index conflation bug before wiring. PlanItemDefinition naming validated against HTN/BPMN/CMMN/Temporal/Airflow — follows the established Definition/Instance pattern. Unit tests pass (394+). 10 integration tests fail (Stage-using @QuarkusTest tests need migration).
 
 ## Immediate Next Step
 
-Continue blocks#60 — Phase 3D.3 (Stage builder compatibility). The plan at `/Users/mdproctor/claude/public/casehub/blocks/plans/2026-07-26-unified-execution-model-migration.md` has full task detail. Run `/work` to resume.
+Migrate 10 failing integration tests from Stage to Compound. The tests are in `planning/src/test/java/io/casehub/engine/planning/it/` — StageBlackboardTest (5 errors), ExitConditionBlackboardTest, LambdaEntryConditionBlackboardTest, PlanConfigurerBlackboardTest, SequentialStagesBlackboardTest, SequentialStrategyIntegrationTest. Pattern: replace `Stage.alwaysActivate()/builder()` + `addStage()` with `Compound.builder()` + `registerDefinition()`. Replace `stage.getStatus() == StageStatus.ACTIVE` assertions with `plan.getDefinitionStatus(id) == TaskStatus.RUNNING`. After migration, delete Stage and related files (Stage, StageStatus, StageLifecycleEvaluator, StageAutocompleteEvaluator, StageResetOutcomesCleaner, Stage events, Stage methods on CasePlanModel).
 
 ## Plan Corrections Discovered This Session
 
-Two plan bugs found and fixed during implementation — the next session should be aware:
-1. **Phase 0 Task 0.2**: Plan said "add engine-common as dependency of engine-api" — creates a circular dependency. Fixed: moved DagPlan types to engine-api instead. Protocol PP-20260727-5267d2.
-2. **Phase 1**: Plan said "delete ChoreographyLoopControl" — blocked by blackboard→runtime Maven cycle. Fixed: `@DefaultBean` pattern instead.
+1. **evaluateCompletion gap**: Compounds with only `scopedBindings` (no structural children) need completion to check PlanItem statuses of scoped bindings. Fixed — `evaluateCompletion()` now counts both structural children (definition status) AND scoped bindings (PlanItem status).
+2. **DispatchMode.HYBRID removed**: Undefined enum value with no semantics.
+3. **dispatchMode moved to Compound only**: Primitives are atomic — no dispatch semantics.
+4. **PlanItemDefinition naming validated**: Research against HTN/BPMN/CMMN/Temporal/Airflow confirmed Definition/Instance is the dominant naming pattern. Keep PlanItemDefinition/PlanItem.
 
 ## What's Left
 
-- Phase 3D.3: Stage builder compat (Stage.builder() produces Compound PlanItems) · S · Med
+- Migrate 10 integration tests from Stage to Compound · M · Med
+- Delete Stage and related files (Stage, StageStatus, evaluators, events, CasePlanModel Stage methods) · S · Low
 - Phase 4: DAG plan unification in blocks (ExecutionPlan → DagPlan) · M · Med
-- Phase 5: HTN decomposition SPI promotion to engine-api · M · Med
+- Phase 5: HTN SPI promotion to engine-api · M · Med
 - Phase 6: Composable strategy wiring via StrategyResolver · S · Low
 - Phase 7: Agent dispatch wiring + GOAP + disposition routing · L · Med
 - Phase 8: Quarkus Flow backend for workflow patterns · M · Med
@@ -27,6 +29,6 @@ Two plan bugs found and fixed during implementation — the next session should 
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| blocks#60 | Phase 3D.3 — Stage builder compat | S | Med | Next in sequence |
-| blocks#60 | Phase 4 — ExecutionPlan → DagPlan in blocks | M | Med | Parallel with 3D.3 |
+| blocks#60 | Migrate integration tests + delete Stage | M | Med | Next — clears the path |
+| blocks#60 | Phase 4 — ExecutionPlan → DagPlan in blocks | M | Med | Independent, blocks repo |
 | blocks#60 | Phase 5 — HTN SPI promotion | M | Med | After Phase 4 |
