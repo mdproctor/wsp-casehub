@@ -31,5 +31,34 @@ Replaced StageAutocompleteEvaluator in PlanItemCompletionHandler, WorkerRetryExh
 ### CompoundStrategyDispatcher case-level strategy
 Free-floating bindings (not scoped to any compound) now use `CaseDefinition.getPlanningStrategy()` instead of hardcoded "default". Fixes SequentialStrategyIntegrationTest — sequential strategy was being ignored for cases without compounds.
 
+## 2026-07-28 — Phase 4: DAG plan unification
+
+### ExecutionPlan deleted — DagPlan is the single plan type
+`ExecutionPlan<T>` (blocks, 245 lines) deleted. Blocks uses `DagPlan<LeafTask<T>>` from engine-api. The type parameter carries the blocks constraint — the plan infrastructure is generic.
+
+### DagPlan API improved
+- Renamed `sequence(List<DagNode<T>>)` → `fromNodes()` — the old name was misleading; it didn't auto-wire dependencies, just converted a list to a map.
+- Added `singleton(T)` with auto-generated ID `"node-0"`.
+- Added `sequence(List<? extends T>)` — auto-wires a sequential chain with generated IDs. This is the real sequence factory (from blocks' `ExecutionPlan.sequence`).
+- Widened `parallel(List<T>)` → `parallel(List<? extends T>)` for subtype acceptance.
+- `fromList()` alias dropped (was just `sequence()`).
+
+### JoinType consolidated
+Engine's top-level `JoinType` is the single source. Blocks' inner `ExecutionPlan.JoinType` deleted. Values identical (ALL_OF, ANY_OF).
+
+## 2026-07-28 — Phase 5: HTN decomposition SPI promotion
+
+### TaskNode promoted with non-sealed LeafTask
+`TaskNode<T>` (sealed: `LeafTask<T>` + `CompoundTask<T>`) moved to engine-api `io.casehub.engine.plan`. `LeafTask` is `non-sealed` — blocks defines concrete implementations (`PrimitiveTask`, `PlannedTask`) without engine-api knowing about them. This is the key design decision: Java sealed interfaces require permits in the same compilation unit, but `non-sealed` within a sealed hierarchy allows cross-module extension while keeping `TaskNode` itself closed.
+
+### DecompositionContext as interface
+`DecompositionContext<T>` promoted as an interface (not record) with `state()` and `depth()`. Blocks provides `AgenticDecompositionContext<T>` adding `agents()`. Strategies cast when they need the richer context — safe because the builder always constructs the blocks-specific context. Alternative considered: `List<? extends ExecutorRef>` on the engine context — rejected because `RoutingCandidate` (which carries `AgentDescriptor` for LLM prompt building) doesn't extend `ExecutorRef`.
+
+### DecompositionStrategy extends NamedStrategy
+Ready for `StrategyResolver` wiring in Phase 6. Default id `"identity"`. `EngineStrategyResolver` will need a new `Instance<DecompositionStrategy<?>>` injection point.
+
+### PrimitiveTask and PlannedTask promoted to top-level records
+Were inner records of `TaskNode` in blocks. Now top-level records in `io.casehub.blocks.agentic.decomposition` implementing `TaskNode.LeafTask<T>`. `executor()` delegates to `agent()` field. `agent()` remains blocks-specific (not on the `LeafTask` interface).
+
 ### What remains
-Phase 4 (blocks DAG unification), Phase 5 (HTN SPI promotion), Phase 6 (composable strategy wiring), Phase 7 (agent dispatch + GOAP), Phase 8 (Quarkus Flow backend).
+Phase 6 (composable strategy wiring via StrategyResolver), Phase 7 (agent dispatch + GOAP + disposition routing), Phase 8 (Quarkus Flow backend).
