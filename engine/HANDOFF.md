@@ -2,30 +2,22 @@
 
 ## What's Done
 
-All 8 phases of blocks#60 (unified execution model migration) are complete. Plus two deferred features:
+Branch `issue-60-unified-execution-model` is closed. All work delivered via PRs:
 
-- **Phases 4–6** (prior session): DagPlan unification, HTN SPI promotion, DecompositionStrategy wired into EngineStrategyResolver
-- **blocks#70**: GoalOrientedDecomposition (GOAP) — backward-chains through `AgentCapability.inputTypes/outputTypes` to produce `DagPlan<LeafTask<T>>`. 14 tests.
-- **blocks#71**: DispositionAwareRouting — `RoutingSignalProvider` scoring candidates by `AgentDisposition` match against case context profile (`_routing.disposition.<cap>`). 15 tests.
-- **Phase 7**: AgentInvoker handles ExternalAgent + ComposedAgent (recursive via OrchestratedDriver). `withFallback()` for composition. LlmSelectedRouting and ConvergenceTermination verified clean. 7 tests.
-- **Phase 8**: `ExecutionBackend<T>` pluggable abstraction, `PatternType` enum on `ExecutionModel`, `backend()` on pattern builders. Flow backend implementation deferred to engine-flow. 11 tests.
+- **casehubio/engine#799** — engine-side: module rename (blackboard→planning), sealed PlanItemDefinition, Compound container (lifecycle, completion, gating), Stage retirement, DagPlan unification, HTN SPI promotion, DecompositionStrategy wiring
+- **casehubio/blocks#73** — blocks-side: migrate to engine-api types, GoalOrientedDecomposition (GOAP), DispositionAwareRouting, agent dispatch wiring, ExecutionBackend, PatternType
 
-691 blocks tests green. No engine changes this session.
-
-## Immediate Next Step
-
-**Exhaustive code review of the full branch diff** — covers all 8 phases across both repos. Start a new session for independent review perspective.
+Issues closed: blocks#60, blocks#70, blocks#71. Squashed: engine 22→5 commits, blocks 7→4 commits. 691 blocks tests green. Engine rebase conflicts (4 trivial `AgentDescriptor` constructor parameter conflicts) resolved.
 
 ## What's Left
 
-- Code review of the full branch diff · M · Med
-- Close blocks#70 and blocks#71 after review · XS · Low
-- Engine-flow `FlowExecutionBackend` implementation (consumer of `ExecutionBackend` + `PatternType`) · M · Med — separate issue
+- Merge the PRs (engine#799 first, then blocks#73 — blocks depends on engine-api SNAPSHOT)
+- Engine-flow `FlowExecutionBackend` implementation (separate issue — uses serverlessworkflow SDK)
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| — | Code review (new session) | M | Med | Full branch diff, both repos |
-| — | work-end to close the branch | S | Low | After review passes |
-| — | Engine-flow FlowExecutionBackend | M | Med | Separate issue — uses serverlessworkflow SDK to generate Workflow from ExecutionModel |
+| engine#799 | Merge engine PR | XS | Low | 5 squashed commits |
+| blocks#73 | Merge blocks PR | XS | Low | 4 squashed commits, depends on engine#799 |
+| — | FlowExecutionBackend | M | Med | Separate issue — consumer of ExecutionBackend + PatternType |
