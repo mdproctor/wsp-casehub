@@ -169,6 +169,18 @@ the `@DefaultBean` `NoOpHumanTaskRoutingStrategy` (id `"default"`) is used.
 
 ## Tests
 
+### Prerequisite tests
+
+`api/src/test/java/io/casehub/api/spi/routing/ExperienceAnalyserTest.java` — extend
+existing test class with DECLINED coverage:
+
+| Test | Assertion |
+|------|-----------|
+| `declinedOutcomeContributesToEvidenceMass` | DECLINED steps (weight 0.0) dilute the score — a worker with 1 SUCCESS and 1 DECLINED scores 0.5, not 1.0 |
+| `frequentDeclinesProduceLowScore` | 9 DECLINED + 1 SUCCESS → score ≈ 0.1 (the spec's motivating scenario) |
+
+### Strategy tests
+
 `runtime/src/test/java/io/casehub/engine/internal/routing/CbrHumanTaskRoutingStrategyTest.java`
 
 Plain JUnit 5 + AssertJ. No `@QuarkusTest` needed — no CDI injection.
@@ -190,6 +202,10 @@ Plain JUnit 5 + AssertJ. No `@QuarkusTest` needed — no CDI injection.
 
 ## Downstream impact
 
+- **engine-api changes (§Prerequisite):** `RoutingOutcome` gains a `DECLINED` value
+  and `ExperienceAnalyser.DEFAULT_OUTCOME_WEIGHTS` gains a `DECLINED → 0.0` entry.
+  Both are additive — no existing code breaks. Callers that construct their own weights
+  map are unaffected (the new enum value only matters if they choose to include it).
 - No engine wiring changes. `EngineStrategyResolver` already discovers
   `HumanTaskRoutingStrategy` beans.
 - No handler changes. `publishHumanTaskSchedule()` already threads strategy
