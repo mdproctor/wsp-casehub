@@ -35,12 +35,40 @@ candidate users using plan trace history.
 - The shared CBR scoring logic is in `ExperienceAnalyser` (engine-api) — no duplication
   between agent and humanTask strategies.
 
+## Prerequisite: RoutingOutcome.DECLINED
+
+`CbrCaseRetainObserver.OUTCOME_MAP` maps `TaskStatus.REJECTED → "DECLINED"` when
+storing plan traces. But `RoutingOutcome` only has four values (SUCCESS, FAILURE,
+GATE_REJECTED, GATE_EXPIRED). Steps with DECLINED outcomes hit `IllegalArgumentException`
+in `ExperienceAnalyser.workerSuccessRates()`, are caught, and silently skipped.
+
+For humanTasks this is a data integrity gap: DECLINED is the primary negative signal.
+A human who declines 9 tasks but completes 1 would score 1.0 (perfect) because only
+the SUCCESS is counted.
+
+**Fix (part of engine#754):**
+
+1. Add `DECLINED` to `RoutingOutcome`:
+   ```java
+   public enum RoutingOutcome {
+     SUCCESS, FAILURE, GATE_REJECTED, GATE_EXPIRED, DECLINED
+   }
+   ```
+2. Add `DECLINED → 0.0` to `ExperienceAnalyser.DEFAULT_OUTCOME_WEIGHTS`.
+
+DECLINED scores 0.0 — same weight as FAILURE. From a routing perspective, a declined
+task is at least as negative as a failed one: the human explicitly refused the work.
+
+CANCELLED and OBSOLETE remain unmapped in `RoutingOutcome`. These carry no worker
+signal (external cancellation, plan obsolescence) and are correctly skipped.
+
 ## Design
 
 ### Class
 
 ```java
 @ApplicationScoped
+@Unremovable
 public class CbrHumanTaskRoutingStrategy implements HumanTaskRoutingStrategy {
 
   @Override
@@ -52,8 +80,9 @@ public class CbrHumanTaskRoutingStrategy implements HumanTaskRoutingStrategy {
 }
 ```
 
-No constructor injection. No CDI dependencies. Pure function from context + candidates
-to result.
+No injected dependencies — stateless CDI bean. `@Unremovable` prevents Arc from
+pruning the bean during build-time optimization, since it is only consumed via
+`Instance<HumanTaskRoutingStrategy>` in `EngineStrategyResolver`.
 
 ### Algorithm
 
@@ -65,6 +94,14 @@ to result.
    ExperienceAnalyser.DEFAULT_OUTCOME_WEIGHTS)`.
 5. If scores map is empty (no matching plan trace data), return `Unchanged`.
 6. Return `Enriched(candidates.groups(), candidates.users(), scores)`.
+
+**Identity invariant:** the scoring in step 4 depends on
+`eligibleWorkerIds.contains(step.workerName())` in `ExperienceAnalyser`. This
+assumes that `candidateUsers` (from `CandidateSetStrategy` evaluation) and
+`executorName` (from `PlanItemRecord`, set via `ExecutorRef.name()` on task
+completion) use the same identifier format. Both paths share the platform's
+identity namespace — `ExecutorRef.name()` records the same user ID that candidate
+resolution produces. No normalization is needed.
 
 ### Matching key: bindingName
 
@@ -83,21 +120,33 @@ The `ExperienceAnalyser` predicate overload (added in #741) supports this:
 - `Enriched`: groups and users pass through unchanged (the strategy enriches, not filters).
   `candidateScores` keys are from `candidateUsers` only — group scoring requires group
   membership resolution (engine#757).
+- `Escalated`: this strategy never returns `Escalated`. That variant exists for future
+  strategies (e.g. the constraint-based strategy, engine#755) that may need to escalate
+  when constraints are unsatisfiable.
 
 Unlike `CbrAgentRoutingStrategy` which returns `Unresolvable` when it cannot select,
 this strategy never blocks dispatch. Human tasks always proceed.
 
 ### Outcome weights
 
-Uses `ExperienceAnalyser.DEFAULT_OUTCOME_WEIGHTS` directly:
+Uses `ExperienceAnalyser.DEFAULT_OUTCOME_WEIGHTS` directly (updated with DECLINED):
 - SUCCESS: 1.0
 - GATE_EXPIRED: 0.5
 - GATE_REJECTED: 0.25
 - FAILURE: 0.0
+- DECLINED: 0.0
 
-Same values as blocks' `DefaultCbrOutcomeWeights`. No configurable weights SPI.
-If a domain needs custom humanTask outcome weights, a `HumanTaskCbrOutcomeWeights`
-interface can be added later — YAGNI now.
+For humanTask traces, the effective outcomes are SUCCESS, FAILURE, and DECLINED.
+GATE_EXPIRED and GATE_REJECTED never appear in humanTask traces (no oversight gates)
+but are harmless in the map — unused keys cost nothing.
+
+No configurable weights SPI. Blocks' `CbrOutcomeWeights` is an SPI in the blocks
+module for `CbrAgentRoutingStrategy`. The humanTask strategy lives in engine and uses
+the shared `DEFAULT_OUTCOME_WEIGHTS` directly. This is intentional: agent and humanTask
+routing have different SPI surfaces. Agent routing composes trust + graph + CBR in
+blocks with a richer configurability model. HumanTask routing is engine infrastructure
+with a minimal, focused API. A `HumanTaskCbrOutcomeWeights` SPI can be added if a
+domain needs custom weights — the extension point is trivial and backward-compatible.
 
 ### Activation
 
@@ -130,7 +179,7 @@ Plain JUnit 5 + AssertJ. No `@QuarkusTest` needed — no CDI injection.
 | `emptyExperiencesReturnsUnchanged` | No CBR data → `Unchanged` |
 | `emptyUsersReturnsUnchanged` | No candidate users → `Unchanged` |
 | `scoresUsersByBindingName` | Scores computed using `bindingName` match |
-| `selectsUserWithHighestSuccessRate` | Highest-scored user in `candidateScores` |
+| `enrichesUsersWithSuccessRateScores` | All candidate scores present in `candidateScores` |
 | `ignoresUsersNotInCandidateSet` | Scores only contain eligible user IDs |
 | `ignoresStepsWithDifferentBindingName` | Steps for other bindings excluded |
 | `addedStepsExcluded` | ADDED adaptation steps skipped |
