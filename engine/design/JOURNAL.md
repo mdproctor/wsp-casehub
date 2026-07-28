@@ -17,5 +17,19 @@ Added as default methods on the interface — existing implementations work unch
 ### Phase 3C-3D: Evaluator and dispatch
 CompoundCompletionEvaluator walks the parent chain upward, completing each compound whose CompletionSemantics is satisfied. CompoundStrategyDispatcher groups eligible bindings by containing compound, resolves strategy by name, calls the 4-arg select. Free-floating bindings use the default (choreography) strategy.
 
+## 2026-07-28 — Phase 3C.3: Stage retirement
+
+### Stage fully retired
+12 Stage files deleted, 6 integration tests migrated to Compound. Stage.java, StageStatus.java, StageLifecycleEvaluator, StageAutocompleteEvaluator, StageResetOutcomesCleaner, 3 Stage event types, 4 Stage test files. CasePlanModel Stage methods removed. Net -2233 lines.
+
+### Gating order fix
+CompoundLifecycleEvaluator must evaluate BEFORE gating in PlanningStrategyLoopControl. Without this, compounds activated in the current cycle are still PENDING when gating runs — their scoped bindings are silently filtered out. No error, test just times out. Garden entry GE-20260728-0dc033.
+
+### CompoundCompletionEvaluator wired into handlers
+Replaced StageAutocompleteEvaluator in PlanItemCompletionHandler, WorkerRetryExhaustionHandler, WorkerOutcomeResolvedHandler. Key change: passes `item.getBindingName()` (not planItemId) because the compound parent index maps binding names, not PlanItem UUIDs.
+
+### CompoundStrategyDispatcher case-level strategy
+Free-floating bindings (not scoped to any compound) now use `CaseDefinition.getPlanningStrategy()` instead of hardcoded "default". Fixes SequentialStrategyIntegrationTest — sequential strategy was being ignored for cases without compounds.
+
 ### What remains
-Phase 3D.3 (Stage builder compat), Phase 4 (blocks DAG unification), Phase 5 (HTN SPI promotion), Phase 6 (composable strategy wiring), Phase 7 (agent dispatch + GOAP), Phase 8 (Quarkus Flow backend).
+Phase 4 (blocks DAG unification), Phase 5 (HTN SPI promotion), Phase 6 (composable strategy wiring), Phase 7 (agent dispatch + GOAP), Phase 8 (Quarkus Flow backend).
