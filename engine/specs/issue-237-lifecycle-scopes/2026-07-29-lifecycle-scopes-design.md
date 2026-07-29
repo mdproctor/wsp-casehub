@@ -82,8 +82,8 @@ Enum in `engine-api`, package `io.casehub.api.model`.
 
 ```java
 public enum ExecutionMode {
-    SINGLE,      // fire-and-forget (current default)
-    PERSISTENT,  // long-running thread, receives context events via mailbox
+    TRANSIENT,   // fire-and-forget, no session continuity (current default)
+    PERSISTENT,  // long-running virtual thread, receives context events via mailbox
     REINVOKED    // re-invoked on each context change with accumulated state
 }
 ```
@@ -107,7 +107,7 @@ public class Binding {
     // ... existing fields ...
     private LifecycleScope lifecycleScope;    // default BINDING
     private Participation participation;       // default PARTICIPANT
-    private ExecutionMode executionMode;        // default SINGLE
+    private ExecutionMode executionMode;        // default TRANSIENT
 }
 ```
 
@@ -115,11 +115,13 @@ Builder methods: `.lifecycleScope(LifecycleScope)`, `.participation(Participatio
 
 ### Validation rules (build-time, in `Binding.Builder.build()`)
 
-- `BINDING` scope requires `ExecutionMode.SINGLE`
+- `BINDING` scope requires `ExecutionMode.TRANSIENT`
 - `COMPOUND` scope requires the binding to be in a Compound's `scopedBindings`
 - `CASE` scope is valid on any binding (case-global, no compound membership required)
+- `CASE` scope requires `Participation.COMPANION` — case completion is goal-based (`GoalBasedCompletion`), so PARTICIPANT has no mechanism to block it; use compound-level composition to gate case completion
 - `COMPANION` participation requires `COMPOUND` or `CASE` scope
 - `ScopeActivatedTrigger` requires `COMPOUND` or `CASE` scope
+- `lifecycleScope != BINDING` requires `CapabilityTarget` — SubCase and HumanTask targets have their own lifecycle models incompatible with scoped sessions; `publishByTarget()` dispatches them through separate paths (`publishSubCaseSchedule`, `publishHumanTaskSchedule`)
 
 ## Runtime Infrastructure
 
@@ -152,7 +154,7 @@ public sealed interface ScopedWorkerSession
 }
 ```
 
-**Persistent sessions** have a mailbox (`BlockingQueue<ContextEvent>`) and a running virtual thread. The worker function runs in a loop: take from mailbox → process → apply output via `WorkerRuntime.signal()`.
+**Persistent sessions** have a mailbox (`BlockingQueue<ContextEvent>`) and a running virtual thread. The worker's `Persistent` handler receives a `PersistentScope` backed by the mailbox — `nextEvent()` blocks on the queue, `emit()` applies output to the case context. The engine manages the virtual thread lifecycle.
 
 **Reinvoked sessions** hold accumulated state from prior invocations. On each context change, the engine re-invokes the worker function with current context merged with accumulated state. Output is merged back into accumulated state.
 
@@ -200,9 +202,20 @@ PlanItem transitions to COMPLETED (COMPANION) or is left in current state (PARTI
 
 ### Scope-activated dispatch
 
-`CompoundLifecycleEvaluator.activatePendingCompounds()` — after transitioning a compound to RUNNING, collects bindings with `ScopeActivatedTrigger` owned by the compound and publishes `WorkerScheduleEvent`s. The dispatch then enters the normal scheduling path.
+`CompoundLifecycleEvaluator.activatePendingCompounds()` transitions compounds to RUNNING (no change to its current responsibilities). A new `CompoundActivatedEvent(caseId, tenancyId, compoundId, compoundName)` — symmetric to the existing `CompoundCompletedEvent` — is published by the caller when compounds transition. A new `CompoundActivatedEventHandler` (in `runtime`, which has access to `CaseDefinition`, bindings, `EventBus`, and the full dispatch infrastructure) consumes the event and dispatches scope-activated bindings via the normal `WorkerScheduleEvent` path.
+
+This follows the existing architectural pattern: lifecycle evaluators produce state transitions, event handlers perform side effects.
 
 For CASE-scoped scope-activated bindings, `CaseStartedEventHandler` dispatches them at case start.
+
+### ScheduleTrigger interaction with scoped bindings
+
+`ScheduleTrigger` (cron or delay) is valid with scoped bindings. The interaction follows the same registry-check pattern as `ContextChangeTrigger`:
+
+- **First fire:** creates PlanItem, registers scoped session, dispatches worker normally.
+- **Subsequent fires:** checks `ScopedWorkerRegistry`. If session exists, routes to it (mailbox for PERSISTENT, re-invocation for REINVOKED). No new PlanItem.
+- **Delay-based (`ScheduleTrigger.delay`):** the delay governs initial activation timing; after first fire, the scoped session persists for the scope lifetime.
+- **Cron-based (`ScheduleTrigger.cron`):** each cron tick routes to the existing session. Useful for periodic workers that accumulate state (e.g., scheduled health checks).
 
 ### Binding-triggered scoped dispatch
 
@@ -222,7 +235,7 @@ For CASE-scoped scope-activated bindings, `CaseStartedEventHandler` dispatches t
 
 `CompoundCompletionEvaluator.evaluate()` — after a compound transitions to COMPLETED, a new `ScopedWorkerTerminationHandler` (in `planning` module) consumes `CompoundCompletedEvent` and calls `scopedWorkerRegistry.terminateByScope(caseId, compoundId)`.
 
-`CaseStatusChangedHandler` — on terminal case state, calls `scopedWorkerRegistry.terminateByCase(caseId)`.
+`CaseStatusChangedHandler` — on terminal case state (COMPLETED, FAULTED, CANCELLED), calls `scopedWorkerRegistry.terminateByCase(caseId)`. `ScopedWorkerRegistry` is injected into `CaseStatusChangedHandler` — both are in the `runtime` module, so the dependency is module-internal. The call is placed in the `isTerminalState(newState)` block alongside `schedulerService.cancelAllTriggers()` and channel closure.
 
 Termination ordering matches Kubernetes: COMPANION workers terminate AFTER the compound completes, not during.
 
@@ -237,19 +250,45 @@ One PlanItem per scoped worker for the entire scope lifetime:
 
 ### How PARTICIPANT workers signal "done"
 
-- **Persistent:** Worker loop exits normally (returns from run method). PlanItem → COMPLETED.
-- **Reinvoked:** Worker sets `_lifecycle.<bindingName>.done = true` in its output. Engine detects this, transitions PlanItem → COMPLETED. Session stays alive (can still receive events) but no longer blocks completion.
+- **Persistent:** Worker handler returns normally (exits the `PersistentScope.nextEvent()` loop). Engine transitions PlanItem → COMPLETED.
+- **Reinvoked:** Worker returns `WorkerResult.completed(output)` — a new factory method producing `WorkerOutcome.Completed`. Engine detects `Completed` outcome, transitions PlanItem → COMPLETED. Session stays alive (can still receive events) but no longer blocks completion.
+
+`WorkerOutcome.Completed` is a new permit in the sealed `WorkerOutcome<R>` hierarchy in `casehub-worker-api`. This is type-safe (compile-time checked by exhaustive switch), discoverable (autocomplete, API docs), and consistent with the existing outcome model. The context-key approach (`_lifecycle.<bindingName>.done`) is rejected — it violates the context layer model and is invisible to the compiler.
 
 ## Completion Semantics
 
+### Compound.scopedBindings carries Participation metadata
+
+`PlanItemDefinition.Compound.scopedBindings` changes from `Set<String>` to `Map<String, Participation>`. The `Compound.Builder.binding(String)` method becomes `binding(String, Participation)`. This keeps participation metadata in the definition where it belongs — `evaluateCompletion` needs no external lookups to distinguish COMPANION from PARTICIPANT.
+
 ### CompoundCompletionEvaluator changes
 
-`evaluateCompletion` must distinguish between COMPANION and PARTICIPANT scoped bindings:
+`evaluateCompletion` in `DefaultCasePlanModel` filters COMPANION bindings before counting toward completion:
 
-- COMPANION PlanItems are excluded from the completion check entirely.
-- PARTICIPANT PlanItems count toward `CompletionSemantics` (All/MOfN/FirstWins) like any other child.
+```java
+Map<String, Participation> scoped = compound.scopedBindings();
 
-The existing `scopedBindings` on Compound tracks binding ownership. The evaluator looks up each binding's `Participation` from the `CaseDefinition` when checking completion.
+long scopedTerminal = scoped.entrySet().stream()
+    .filter(e -> e.getValue() == Participation.PARTICIPANT)
+    .map(e -> {
+        PlanItem pi = latestByBinding.get(e.getKey());
+        return pi != null ? pi.getStatus() : TaskStatus.PENDING;
+    })
+    .filter(TaskStatus::isTerminal)
+    .count();
+
+long scopedParticipantCount = scoped.values().stream()
+    .filter(p -> p == Participation.PARTICIPANT)
+    .count();
+
+long totalCount = children.size() + scopedParticipantCount;
+```
+
+COMPANION PlanItems are excluded from the count entirely. PARTICIPANT PlanItems count toward `CompletionSemantics` (All/MOfN/FirstWins) like any other child.
+
+### No CASE-level completion gating
+
+CASE scope is restricted to COMPANION participation (see validation rules). Case completion is goal-based (`GoalBasedCompletion` evaluated by `GoalReachedEventHandler`), which checks named goal events in the event log — it has no concept of plan item state gating. Workers that need to block case completion should be COMPOUND-scoped PARTICIPANTs of a compound that gates the case's completion goal.
 
 ### Completion truth table
 
@@ -262,19 +301,20 @@ The existing `scopedBindings` on Compound tracks binding ownership. The evaluato
 
 | Scenario | Behavior |
 |----------|----------|
-| COMPANION faults | Logged, session removed. Does NOT fault the compound. |
-| PARTICIPANT faults | Normal fault handling — OutcomePolicy applies (REROUTE or FAULT). |
+| COMPANION faults on first activation | `OutcomePolicy` applies normally (REROUTE or FAULT). Rerouted COMPANION inherits COMPANION participation from the binding and is registered as a new scoped session. |
+| COMPANION faults after first activation | Logged, session removed. Does NOT fault the compound. No reroute — `OutcomePolicy` governs first activation only. |
+| PARTICIPANT faults | Normal fault handling — `OutcomePolicy` applies (REROUTE or FAULT). |
 | Compound exits via exit condition | All scoped workers (both roles) terminated immediately. |
 | Case cancelled | All scoped workers across all scopes terminated. |
-| Repeatable compound resets | Sessions terminated on completion, new sessions created on re-activation. |
+| Repeatable compound resets | `ScopedWorkerRegistry.register()` uses replace-on-register semantics: if a session exists for the same `ScopeKey`, it is terminated before the new session is registered. This eliminates the race window between asynchronous `CompoundCompletedEvent` termination and re-activation dispatch. |
 
 ## Interaction with Existing Features
 
 | Feature | Impact |
 |---------|--------|
 | Agent routing | First activation only — not on re-invocations |
-| Outcome policy | First activation failure only. Re-invocation failures: logged, session state preserved |
-| Input projection | First activation only. Re-invocations get full context snapshot |
+| Outcome policy | First activation only. Re-invocation failures: logged, session state preserved |
+| Input projection | Applied on every invocation (first and re-invocations) — worker type contract `T` must be consistent across all invocations |
 | CBR retrieval | First activation only |
 | Signal settlement | Scoped workers don't participate — they outlive individual signals |
 | Action risk classifier | Per output application, same as current |
@@ -302,7 +342,7 @@ bindings:
     capability: processing
     trigger:
       contextChange: ".input != null"
-    # all defaults: BINDING / PARTICIPANT / SINGLE
+    # all defaults: BINDING / PARTICIPANT / TRANSIENT
 ```
 
 `CaseDefinitionYamlMapper` parses `lifecycleScope`, `participation`, `executionMode` from binding nodes. `trigger: scope-activated` creates `ScopeActivatedTrigger`. All default to current behavior when absent.
@@ -321,6 +361,8 @@ On JVM restart:
 ### PlanItem persistence
 
 One new field on `PlanItemRecord`/`PlanItemEntity`: `lifecycle_scope` (VARCHAR, nullable — null = BINDING).
+
+`execution_mode` and `participation` are NOT persisted on `PlanItemRecord`. They are definitional properties of the `Binding` in `CaseDefinition`, derivable during recovery via the already-persisted `bindingName` and `CaseDefinitionRegistry`. `lifecycle_scope` serves as a recovery marker for filtering queries (`WHERE lifecycle_scope IS NOT NULL AND status = 'RUNNING'`). Case definitions are immutable once registered — no stale-data risk from deriving at recovery time.
 
 ### EventLog metadata
 
@@ -342,22 +384,51 @@ Worker schedule events for scoped workers carry:
 | `ScopedWorkerRegistry` | `runtime` | `io.casehub.engine.internal.worker.scope` |
 | `ContextEvent` | `runtime` | `io.casehub.engine.internal.worker.scope` |
 | `ScopedWorkerTerminationHandler` | `planning` | `io.casehub.engine.planning.handler` |
+| `CompoundActivatedEvent` | `planning` | `io.casehub.engine.planning.event` |
+| `CompoundActivatedEventHandler` | `runtime` | `io.casehub.engine.internal.engine.handler` |
 
-No changes to `casehubio/worker`, `casehub-engine-common`, `casehubio/blocks`, or `casehubio/platform`.
+### Changes to `casehubio/worker`
+
+The persistent execution model requires a new `WorkerFunction` variant and a new `WorkerOutcome` permit:
+
+```java
+// New WorkerFunction variant for persistent execution
+record Persistent<T>(Class<T> inputType,
+    Consumer<PersistentScope<T>> handler) implements WorkerFunction<T, Void> {
+    @Override public Class<Void> outputType() { return Void.class; }
+}
+
+// PersistentScope extends WorkerScope with mailbox access
+interface PersistentScope<T> extends WorkerScope {
+    T nextEvent();                          // blocking take from mailbox
+    void emit(Map<String, Object> output);  // apply output to case context
+}
+
+// New WorkerOutcome permit for lifecycle completion signaling
+record Completed<R>() implements WorkerOutcome<R> {}
+```
+
+`WorkerFunction.Persistent` workers run on a virtual thread managed by the engine. The handler receives a `PersistentScope` with `nextEvent()` (blocking take from the mailbox) and `emit()` (apply output to case context). Natural return from the handler signals lifecycle completion.
+
+`WorkerOutcome.Completed` extends the sealed `WorkerOutcome` hierarchy. `TRANSIENT` workers returning `Completed` is a validation error. Exhaustive switches on `WorkerOutcome` will require a new case — the breakage is intentional.
+
+No changes to `casehub-engine-common`, `casehubio/blocks`, or `casehubio/platform`.
 
 ## Cross-Repo Impact
 
 | Repo | Impact |
 |------|--------|
-| `casehubio/engine` | All changes |
-| `casehubio/worker` | None |
+| `casehubio/engine` | All engine changes |
+| `casehubio/worker` | `WorkerFunction.Persistent`, `PersistentScope`, `WorkerOutcome.Completed` |
 | `casehubio/blocks` | None |
 | `casehubio/platform` | None |
 | Consumer repos | None until they opt into scoped bindings |
 
 ## Follow-On Issues
 
-- Durable accumulated state for reinvoked sessions (depends on engine#732)
-- Persistent session recovery with mailbox replay from EventLog
-- External worker (WorkerFunction.None) lifecycle scope — Qhorus channel lifetime scoping
-- YAML schema validation tooling for scope/participation/trigger consistency
+Filed as GitHub issues against `casehubio/engine`:
+
+- **engine#TBD** — Durable accumulated state for reinvoked sessions (depends on engine#732)
+- **engine#TBD** — Persistent session recovery with mailbox replay from EventLog
+- **engine#TBD** — External worker (WorkerFunction.None) lifecycle scope — Qhorus channel lifetime scoping
+- **engine#TBD** — YAML schema validation tooling for scope/participation/trigger consistency
