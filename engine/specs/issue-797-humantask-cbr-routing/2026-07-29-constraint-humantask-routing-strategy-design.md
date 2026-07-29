@@ -48,7 +48,9 @@ humanTaskConstraints:
 - `condition` — `ExpressionEvaluator` (JQ, MVEL, or Lambda)
 - `effect` — sealed: `Prefer(Set<String> groups, Set<String> users)` |
   `Exclude(Set<String> groups, Set<String> users)`
-- `weight` — `double`, 0.0–1.0 (scoring magnitude for `Prefer`; ignored for `Exclude`)
+- `weight` — `double`, 0.0–1.0 (scoring magnitude for `Prefer`; ignored for `Exclude`).
+  Values outside 0.0–1.0 are rejected with `IllegalArgumentException` in the compact
+  constructor.
 
 **Effect semantics:**
 - `Prefer` — additive score boost. Each matching user gets `+weight` added to their
@@ -56,10 +58,12 @@ humanTaskConstraints:
 - `Exclude` — hard filter. Matching users are removed from candidates before scoring.
   Irreversible within this evaluation cycle.
 
-**Condition evaluation:** the `condition` is evaluated against
-`context.layer(ContextLayer.WORKING).asJsonNode()` for JQ/MVEL, or
-`context` directly for Lambda. Boolean result. Non-boolean or evaluation
-failure → condition treated as false (logged, not thrown).
+**Condition evaluation:** the strategy uses
+`ExpressionEngineRegistry.evaluate(constraint.condition(), context.caseContext())`
+where `caseContext` is the `CaseContext` from `HumanTaskRoutingContext`. This is
+polymorphic — JQ, Lambda, MVEL, and any future expression language are dispatched
+automatically by the registry. Non-boolean or evaluation failure → condition
+treated as false (logged, not thrown).
 
 **Location:** `api/src/main/java/io/casehub/api/model/routing/ContextConstraint.java`
 
@@ -89,6 +93,8 @@ humanTaskConstraints:
 - `loadBalanceWeight` — `Double`, nullable, 0.0–1.0. Scoring weight for load
   balancing. Lower active count → higher score, normalised across candidates.
   Score formula: `weight * (1.0 - (userCount / maxCountAmongCandidates))`.
+  When `maxCountAmongCandidates == 0` (all candidates equally idle), workload scoring
+  is skipped — no differentiation is needed.
 
 **Location:** `api/src/main/java/io/casehub/api/model/routing/WorkloadConstraint.java`
 
@@ -101,7 +107,7 @@ public interface WorkloadDataProvider extends NamedStrategy {
     Map<String, WorkloadSnapshot> getWorkload(Set<String> userIds, String tenancyId);
 }
 
-public record WorkloadSnapshot(int activeTaskCount, Instant lastAssignedAt) {}
+public record WorkloadSnapshot(int activeTaskCount) {}
 ```
 
 **Location:** `api/src/main/java/io/casehub/api/spi/routing/WorkloadDataProvider.java`
@@ -125,35 +131,46 @@ workload constraints degrade gracefully — `maxActiveTaskCount` excludes nobody
 
 **CDI:** `@ApplicationScoped @Unremovable`, id `"constraint"`.
 
-**Dependencies:** `WorkloadDataProvider` (optional via `Instance<>`),
-`JQEvaluator` for JQ expression evaluation.
+**Dependencies:** `ExpressionEngineRegistry` for polymorphic condition evaluation,
+`@Inject WorkloadDataProvider` (CDI resolves `@DefaultBean NoOpWorkloadDataProvider`
+when no real implementation is present — the provider is always injected, never absent).
 
 ### Algorithm
 
-1. Copy `candidates.users()` to a mutable `eligibleUsers` set.
-2. **Context constraints (global):** for each `ContextConstraint` on the
+1. Read constraints from `context.caseDefinition()`:
+   `humanTaskContextConstraints` and `humanTaskWorkloadConstraint`.
+2. Copy `candidates.users()` to a mutable `eligibleUsers` set.
+3. **Context constraints (global):** for each `ContextConstraint` on the
    case definition:
-   a. Evaluate `condition` against the case context working layer.
+   a. Evaluate `condition` using
+      `expressionEngineRegistry.evaluate(condition, context.caseContext())`.
    b. If false, skip.
    c. If `Exclude` effect: remove named users from `eligibleUsers`. Group-based
       exclusion deferred to engine#757 (no-op until group membership resolution).
    d. If `Prefer` effect: accumulate `+weight` for each named user present in
       `eligibleUsers`. Group-based preference deferred to engine#757.
-3. If `eligibleUsers` is empty after exclusions → return
+4. If `eligibleUsers` is empty after exclusions → return
    `Escalated("all candidates excluded by context constraints")`.
-4. **Workload constraints (per-candidate):** if `WorkloadConstraint` is configured
+5. **Workload constraints (per-candidate):** if `WorkloadConstraint` is configured
    AND `WorkloadDataProvider` returns non-empty data:
    a. Query `provider.getWorkload(eligibleUsers, tenancyId)`.
    b. If `maxActiveTaskCount` set: exclude users above threshold from `eligibleUsers`.
    c. If `eligibleUsers` empty after workload exclusion → return
       `Escalated("all candidates excluded by workload constraints")`.
-   d. If `loadBalanceWeight` set: compute normalised load-balance scores for
-      remaining candidates. Formula: `weight * (1.0 - (count / maxCount))`.
+   d. If `loadBalanceWeight` set AND `maxCountAmongCandidates > 0`: compute normalised
+      load-balance scores for remaining candidates.
+      Formula: `weight * (1.0 - (count / maxCount))`.
       Users without workload data get score 0.0 (no boost, not excluded).
-5. **Combine scores:** context preference scores + workload balance scores
-   (additive). If combined scores map is empty (no Prefer constraints matched,
-   no workload scoring) → return `Unchanged`.
-6. Return `Enriched(candidates.groups(), eligibleUsers, combinedScores)`.
+      When `maxCountAmongCandidates == 0`, skip — all candidates equally idle.
+6. **Combine scores:** context preference scores + workload balance scores
+   (additive).
+7. If no changes were made (no exclusions from `candidates.users()` AND combined
+   scores map is empty) → return `Unchanged`.
+8. Return `Enriched(candidates.groups(), eligibleUsers, combinedScores)`.
+
+Step 7 ensures that exclusion-only scenarios (no Prefer, no workload scoring)
+return `Enriched` with the reduced `eligibleUsers` set rather than `Unchanged`,
+which would cause the handler to restore the original candidates.
 
 **Key differences from CbrHumanTaskRoutingStrategy:**
 - CAN filter candidates (Exclude, maxActiveTaskCount)
@@ -163,47 +180,80 @@ workload constraints degrade gracefully — `maxActiveTaskCount` excludes nobody
 
 ### Expression evaluation
 
-The strategy needs to evaluate `ExpressionEvaluator` conditions against the case
-context. `HumanTaskRoutingContext.caseContext()` is a `JsonNode` (working layer).
+The strategy injects `ExpressionEngineRegistry` (api module) for all condition
+evaluation. This is polymorphic — JQ, Lambda, MVEL, and any future expression
+language are dispatched automatically:
 
-For JQ: inject `JQEvaluator` (engine-common, `@ApplicationScoped`). Call
-`evaluator.evaluateBoolean(expression, caseContext)`.
+```java
+boolean match = expressionEngineRegistry.evaluate(constraint.condition(), context.caseContext());
+```
 
-For MVEL: not yet implemented in the engine's evaluator infrastructure. JQ and
-Lambda cover the YAML and Java DSL paths respectively. MVEL support is additive
-when needed.
+The `CaseContext` overload handles JQ (extracts working layer as `JsonNode`
+internally), Lambda (passes `CaseContext` directly), and MVEL. No `instanceof`
+dispatch in the strategy. Consistent with `ExpressionSetStrategy` and
+`CaseContextChangedEventHandler` which both use `ExpressionEngineRegistry`.
 
-For Lambda: `LambdaExpressionEvaluator.test(caseContext)` — but the context type
-is `CaseContext`, not `JsonNode`. The strategy receives `JsonNode` in
-`HumanTaskRoutingContext`. Lambda constraints need the full `CaseContext`.
+### HumanTaskRoutingContext change
 
-**Resolution:** the strategy accepts an additional `CaseContext` parameter via
-a new field on `HumanTaskRoutingContext`, or evaluates Lambda constraints by
-reconstructing a `CaseContext` from the `JsonNode`. The simpler path: add
-`CaseContext caseContextObj` to `HumanTaskRoutingContext` alongside the existing
-`JsonNode caseContext`. The handler already has the `CaseContext` — threading it
-costs nothing. JQ evaluates against the `JsonNode`; Lambda evaluates against the
-`CaseContext`. No reconstruction needed.
-
-**HumanTaskRoutingContext change:**
 ```java
 public record HumanTaskRoutingContext(
     UUID caseId,
     String bindingName,
     String tenancyId,
-    JsonNode caseContext,
-    CaseContext caseContextObj,
+    CaseContext caseContext,
+    CaseDefinition caseDefinition,
     List<RetrievedExperience> experiences) {}
 ```
 
-This is a breaking change to the record (new parameter). All construction sites
-update. Pre-release platform — the cost is trivial.
+Changes from current:
+- `JsonNode caseContext` → `CaseContext caseContext` — strategies that need the JSON
+  form call `caseContext.layer(ContextLayer.WORKING).asJsonNode()`. The
+  `ExpressionEngineRegistry.evaluate(evaluator, CaseContext)` overload requires
+  `CaseContext`, not `JsonNode`.
+- Added `CaseDefinition caseDefinition` — gives any strategy access to definition-level
+  configuration (constraints, routing config, etc.) without strategy-specific context
+  fields. The handler already has `CaseDefinition` — threading it costs nothing.
+
+This is a breaking change to the record (parameter change + addition). All construction
+sites update. Pre-release platform — the cost is trivial.
+
+## Handler changes
+
+### Escalated result handling
+
+The current `CaseContextChangedEventHandler.publishHumanTaskSchedule()` switch on
+`HumanTaskRoutingResult.Escalated` logs a warning but continues to publish
+`HumanTaskScheduleEvent` with the original candidates — the escalation has no
+effect. This is a bug: the task dispatches to the full candidate pool as if no
+constraints existed.
+
+**Fix:** The `Escalated` branch returns early without publishing the event,
+leaving the PlanItem in PENDING state. This is consistent with how the handler
+returns early on bridge validation failure (line ~553). A warning log is retained
+for observability.
+
+```java
+case HumanTaskRoutingResult.Escalated e -> {
+    LOG.warnf(
+        "HumanTask routing escalated for caseId=%s binding=%s: %s — PlanItem stays PENDING",
+        caseInstance.getUuid(), binding.getName(), e.reason());
+    return;
+}
+```
+
+This handler change is a deliverable of engine#755, not a follow-on.
 
 ## CaseDefinition changes
 
 `CaseDefinition` gains:
 - `List<ContextConstraint> humanTaskContextConstraints` (empty by default)
 - `WorkloadConstraint humanTaskWorkloadConstraint` (nullable)
+
+**Scope:** constraints are case-level, consistent with `humanTaskRouting` (also
+case-level). All human task bindings in a case share the same constraints.
+Binding-level constraints (per-binding overrides) are out of scope for #755 and
+can be added in a follow-on if needed — the constraint model and algorithm are
+compatible with binding-level scoping.
 
 **Builder:**
 ```java
@@ -219,7 +269,17 @@ update. Pre-release platform — the cost is trivial.
 ```
 
 **YAML mapper:** `humanTaskConstraints:` block in `CaseDefinitionYamlMapper` with
-`context:` array and `workload:` object sub-blocks.
+`context:` array and `workload:` object sub-blocks. The `when:` field in each
+context constraint is converted to an `ExpressionEvaluator` at parse time using
+`ExpressionEngineRegistry.create(expression, "jq")`, following the
+`ExpressionSetStrategy` precedent. JQ is the only YAML expression language for
+#755 scope — Lambda is available via the Java DSL only.
+
+**Registration-time validation:** When `CaseDefinition` is registered, if any
+context constraint has group-based effects (`preferGroups` / `excludeGroups`),
+a warning is logged: "Group-based constraint effects configured but not evaluable
+until engine#757 — group membership resolution required." The constraint is stored
+(data model complete); evaluation skips group effects.
 
 ## Activation
 
@@ -244,9 +304,10 @@ to which groups. The strategy receives `HumanTaskCandidates(groups, users)` — 
 sets, no membership mapping.
 
 For #755: group-based effects are stored on the constraint but have no effect at
-evaluation time. `excludeUsers`/`preferUsers` work immediately. Group evaluation
-is deferred to engine#757 (group scoring via group membership resolution). The
-constraint model is complete; the group evaluation is deferred.
+evaluation time. A warning is logged at CaseDefinition registration time when
+group-based effects are configured. `excludeUsers`/`preferUsers` work immediately.
+Group evaluation is deferred to engine#757 (group scoring via group membership
+resolution). The constraint model is complete; the group evaluation is deferred.
 
 ## Tests
 
@@ -260,7 +321,7 @@ constraint model is complete; the group evaluation is deferred.
 | `preferGroupsEffect` | Builder creates Prefer with groups |
 | `excludeUsersEffect` | Builder creates Exclude with users |
 | `excludeGroupsEffect` | Builder creates Exclude with groups |
-| `weightClamped` | Weight outside 0.0–1.0 clamped or rejected |
+| `weightOutOfRangeRejected` | Weight outside 0.0–1.0 → IllegalArgumentException |
 | `conditionRequired` | Null condition rejected |
 | `effectRequired` | No effect set rejected |
 
@@ -285,16 +346,26 @@ constraint model is complete; the group evaluation is deferred.
 | `noConstraintsReturnsUnchanged` | No constraints configured → Unchanged |
 | `preferUsersBoostsScores` | Matching Prefer adds weight to named users |
 | `excludeUsersRemovesCandidates` | Matching Exclude removes named users |
+| `excludeOnlyReturnsEnrichedNotUnchanged` | Exclude with no Prefer/workload → Enriched with reduced users, empty scores |
 | `falseConditionSkipped` | Condition evaluates false → no effect |
 | `multipleConstraintsStack` | Multiple Prefer weights are additive |
 | `allExcludedEscalates` | All users excluded → Escalated |
 | `workloadExcludesAboveThreshold` | Users above maxActiveTaskCount removed |
 | `workloadLoadBalanceScoring` | Lower load → higher score |
+| `workloadAllIdleSkipsScoring` | All candidates have 0 tasks → no workload scores (avoids 0/0) |
 | `workloadAllExcludedEscalates` | All users above threshold → Escalated |
 | `noWorkloadProviderSkipsWorkload` | No provider → workload constraints have no effect |
 | `combinedContextAndWorkload` | Both constraint types combine scores additively |
 | `groupEffectsDeferredNoOp` | preferGroups/excludeGroups stored but no effect (pending #757) |
-| `lambdaConditionEvaluated` | Lambda ExpressionEvaluator works |
+| `lambdaConditionEvaluated` | Lambda ExpressionEvaluator works via ExpressionEngineRegistry |
+
+### Handler tests — Escalated result
+
+`runtime/src/test/java/io/casehub/engine/internal/engine/handler/CaseContextChangedEventHandlerRoutingTest.java` — extend:
+
+| Test | Assertion |
+|------|-----------|
+| `humanTaskEscalatedReturnsEarly` | Escalated result → no HumanTaskScheduleEvent published, PlanItem stays PENDING |
 
 ### YAML mapper tests
 
@@ -302,21 +373,26 @@ constraint model is complete; the group evaluation is deferred.
 
 | Test | Assertion |
 |------|-----------|
-| `humanTaskConstraints_contextParsed` | YAML context constraints parsed |
+| `humanTaskConstraints_contextParsed` | YAML context constraints parsed with baked-in ExpressionEvaluator |
 | `humanTaskConstraints_workloadParsed` | YAML workload constraint parsed |
 
 ## Downstream impact
 
-- **HumanTaskRoutingContext** gains `caseContextObj` field — all construction sites
-  in `CaseContextChangedEventHandler.publishHumanTaskSchedule()` update. Pre-release
+- **HumanTaskRoutingContext** changes: `JsonNode caseContext` → `CaseContext caseContext`,
+  added `CaseDefinition caseDefinition`. All construction sites in
+  `CaseContextChangedEventHandler.publishHumanTaskSchedule()` update. Pre-release
   breaking change.
+- **CaseContextChangedEventHandler** handler fix: `Escalated` branch returns early
+  without publishing event (deliverable of #755).
 - **CaseDefinition** gains two fields — additive, no existing code breaks.
-- **CaseDefinitionYamlMapper** gains `humanTaskConstraints:` parsing.
+- **CaseDefinitionYamlMapper** gains `humanTaskConstraints:` parsing with
+  `ExpressionEngineRegistry.create()` for baked-in evaluators.
 - **EngineStrategyResolver** — no changes (auto-discovers `NamedStrategy` beans).
 - **WorkloadDataProvider** SPI + no-op default — additive.
 
 ## Future work
 
 - engine#757: Group membership resolution — enables group-based Prefer/Exclude effects
+- Follow-on: Binding-level constraint overrides (per-binding scoping beyond case-level)
 - Follow-on: Real `WorkloadDataProvider` implementation (actor-state or work adapter)
 - Follow-on: MVEL expression evaluator support in the constraint evaluation path
