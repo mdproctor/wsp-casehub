@@ -115,8 +115,10 @@ that group effects are functional — `builder.preferGroups(g).preferUsers(u)`
 silently discards the groups.
 
 Fix: accumulate within the same effect type. `preferGroups(g)` followed
-by `preferUsers(u)` produces `Prefer(g, u)`. Switching effect types
-(e.g. `preferGroups(g).excludeUsers(u)`) replaces the previous effect
+by `preferUsers(u)` produces `Prefer(g, u)`. Repeated calls to the same
+dimension also accumulate: `preferGroups(g1).preferGroups(g2)` produces
+`Prefer(g1 ∪ g2, Set.of())`. Switching effect types (e.g.
+`preferGroups(g).excludeUsers(u)`) replaces the previous effect
 (consistent with current behavior — a constraint has one sealed effect
 type).
 
