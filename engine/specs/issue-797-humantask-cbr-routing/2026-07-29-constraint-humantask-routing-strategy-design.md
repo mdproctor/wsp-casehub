@@ -163,7 +163,9 @@ when no real implementation is present — the provider is always injected, neve
       Users without workload data get score 0.0 (no boost, not excluded).
       When `maxCountAmongCandidates == 0`, skip — all candidates equally idle.
 6. **Combine scores:** context preference scores + workload balance scores
-   (additive).
+   (additive). Filter combined scores to only include keys present in
+   `eligibleUsers` — a Prefer may have scored a user who was subsequently
+   removed by an Exclude or workload threshold.
 7. If no changes were made (no exclusions from `candidates.users()` AND combined
    scores map is empty) → return `Unchanged`.
 8. Return `Enriched(candidates.groups(), eligibleUsers, combinedScores)`.
@@ -176,7 +178,8 @@ which would cause the handler to restore the original candidates.
 - CAN filter candidates (Exclude, maxActiveTaskCount)
 - CAN escalate (all candidates excluded)
 - Modifies `candidateUsers` in the Enriched result (excluded users removed)
-- Does not use `ExperienceAnalyser` — complementary to CBR, not overlapping
+- Does not use `ExperienceAnalyser` — independent of CBR (single-strategy selection
+  model means one or the other, not both; see §Future work for composition)
 
 ### Expression evaluation
 
@@ -355,6 +358,7 @@ resolution). The constraint model is complete; the group evaluation is deferred.
 | `workloadAllIdleSkipsScoring` | All candidates have 0 tasks → no workload scores (avoids 0/0) |
 | `workloadAllExcludedEscalates` | All users above threshold → Escalated |
 | `noWorkloadProviderSkipsWorkload` | No provider → workload constraints have no effect |
+| `preferThenExcludeCleansScores` | Prefer scores user, subsequent Exclude removes user — scores filtered to eligibleUsers only |
 | `combinedContextAndWorkload` | Both constraint types combine scores additively |
 | `groupEffectsDeferredNoOp` | preferGroups/excludeGroups stored but no effect (pending #757) |
 | `lambdaConditionEvaluated` | Lambda ExpressionEvaluator works via ExpressionEngineRegistry |
@@ -393,6 +397,8 @@ resolution). The constraint model is complete; the group evaluation is deferred.
 ## Future work
 
 - engine#757: Group membership resolution — enables group-based Prefer/Exclude effects
+- Follow-on: Composite strategy combining CBR scoring with constraint filtering
+  (implementable as a standalone strategy bean that delegates to both — no SPI changes)
 - Follow-on: Binding-level constraint overrides (per-binding scoping beyond case-level)
 - Follow-on: Real `WorkloadDataProvider` implementation (actor-state or work adapter)
 - Follow-on: MVEL expression evaluator support in the constraint evaluation path
