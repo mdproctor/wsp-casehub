@@ -2,21 +2,17 @@
 
 ## What's Done
 
-- **engine#754**: `CbrHumanTaskRoutingStrategy` (id `"cbr"`) — scores candidate users
-  via `ExperienceAnalyser` with bindingName-based plan trace matching. Prerequisite:
-  added `RoutingOutcome.DECLINED` to close silent data-drop gap. Both adversarially
-  reviewed (5 rounds, 9 issues).
-- **engine#755**: `ConstraintHumanTaskRoutingStrategy` (id `"constraint"`) — context-driven
-  rules (`ContextConstraint` → Prefer/Exclude) + `WorkloadDataProvider` SPI for load
-  balancing. Breaking: `HumanTaskRoutingContext` now carries `CaseContext` + `CaseDefinition`
-  instead of `JsonNode`. Handler `Escalated` branch returns early. Adversarially reviewed
-  (4 rounds, 16 issues).
-- **Epic #797 Batch 1 complete.** Both #754 and #755 committed, GitHub epic checkboxes ticked.
-- Fixed pre-existing `VocabularyRegistry.registeredUris()` compile errors (2 sites).
+- **engine#754**: CBR humanTask routing strategy (Batch 1)
+- **engine#755**: Constraint humanTask routing strategy (Batch 1)
+- **engine#757**: HumanTask group scoring via `GroupMembershipProvider` (Batch 2) — 6 commits:
+  `HumanTaskCandidates` gains `groupMembership` + `allUsers()`, `ContextConstraint.Builder`
+  accumulation fix, CBR scores `allUsers()`, constraint applies group Exclude/Prefer,
+  handler expands groups, javadoc + CLAUDE.md updated. Design-reviewed (5 rounds, $15.79).
 
 ## Immediate Next Step
 
-**Epic #797 Batch 2** — run `/work` to continue. `.slot` is advanced to #757.
+**engine#756** — Work repo: consume experiences and scores from `HumanTaskScheduleEvent`.
+Cross-repo issue (casehub-work). Run `/work` to continue — `.slot` is advanced to #756.
 
 ## What's Left
 
@@ -29,5 +25,4 @@
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #757 | HumanTask group scoring via group membership resolution | S | Med | Batch 2, enables group-based Prefer/Exclude |
-| #756 | Work repo: consume experiences and scores from HumanTaskScheduleEvent | M | Med | Batch 2, cross-repo (work repo in worktree) |
+| #756 | Work repo: consume experiences and scores from HumanTaskScheduleEvent | M | Med | Batch 2, cross-repo (work repo) |
