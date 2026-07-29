@@ -156,7 +156,59 @@ public sealed interface ScopedWorkerSession
 
 **Persistent sessions** have a mailbox (`BlockingQueue<ContextEvent>`) and a running virtual thread. The worker's `Persistent` handler receives a `PersistentScope` backed by the mailbox — `nextEvent()` blocks on the queue, `emit()` applies output to the case context. The engine manages the virtual thread lifecycle.
 
-**Reinvoked sessions** hold accumulated state from prior invocations. On each context change, the engine re-invokes the worker function with current context merged with accumulated state. Output is merged back into accumulated state.
+#### `PersistentScope.emit()` semantics
+
+`emit()` is asynchronous and non-blocking from the worker's perspective:
+
+1. Applies output to the case context (direct context mutation)
+2. Publishes a `CaseContextChangedEvent` via the event bus (fire-and-forget)
+3. Returns immediately to the worker
+
+The `CaseContextChangedEvent` is consumed by `CaseContextChangedEventHandler` on a separate virtual thread and enters `CaseEvaluationSerializer` like any other context change. The worker's virtual thread never enters the serializer — it is decoupled from the evaluation pipeline. This avoids head-of-line blocking: the serializer uses a non-blocking coalescing pattern (lock + pending evaluator), but the worker doesn't participate in that at all.
+
+#### `PersistentScope.nextEvent()` shutdown signaling
+
+`nextEvent()` throws `ScopeTerminatedException` (unchecked, extends `RuntimeException`) when the engine sends a shutdown signal. This cleanly distinguishes:
+
+- **Worker-initiated exit:** handler returns normally → PlanItem → COMPLETED (PARTICIPANT done)
+- **Engine-initiated shutdown:** `nextEvent()` throws `ScopeTerminatedException` → engine catches it, treats as normal termination (scope ended)
+
+Worker loop pattern:
+```java
+new WorkerFunction.Persistent<>(MyInput.class, scope -> {
+    var state = initState();
+    while (true) {
+        MyInput event = scope.nextEvent(); // throws ScopeTerminatedException on shutdown
+        state = process(state, event);
+        scope.emit(state.output());
+        if (state.isDone()) return; // worker-initiated exit → COMPLETED
+    }
+    // ScopeTerminatedException propagates naturally — engine catches it
+});
+```
+
+#### Persistent worker fault detection
+
+The engine wraps the `Persistent` handler in a try/catch on the managed virtual thread. If the handler throws an unhandled exception (not `ScopeTerminatedException`):
+
+1. Publishes `WorkflowExecutionCompleted` with `WorkerOutcome.Failed` outcome
+2. Removes the session from `ScopedWorkerRegistry`
+3. Applies `OutcomePolicy` for first-invocation faults, or logs for post-activation faults
+
+This mirrors the TRANSIENT fault detection path in `QuartzWorkerExecutionJob.executeInternal()`.
+
+**Reinvoked sessions** hold accumulated state from prior invocations (`AtomicReference<Map<String, Object>>`). On each context change, the engine re-invokes the worker function with projected input of type `T`. Prior output is accessible via `WorkerScope.accumulatedState()` — a new method returning `Map<String, Object>` (empty for TRANSIENT workers). Output `R` is serialized and stored as the new accumulated state.
+
+#### REINVOKED accumulated state access
+
+Accumulated state is NOT merged with the typed input `T`. Input type `T` (from projection) and output type `R` are distinct types that cannot be safely merged. Instead:
+
+- The worker receives projected input `T` on every invocation (consistent contract, per R1-04)
+- Prior invocation output is accessible via `scope.accumulatedState()` as `Map<String, Object>`
+- The worker combines current input with prior state as it sees fit
+- Output `R` is serialized to `Map<String, Object>` and stored as the new accumulated state
+
+`WorkerScope.accumulatedState()` is added to `casehub-worker-api`. Returns empty map for TRANSIENT workers; returns the prior invocation's serialized output for REINVOKED workers.
 
 ### ContextEvent
 
@@ -233,7 +285,7 @@ For CASE-scoped scope-activated bindings, `CaseStartedEventHandler` dispatches t
 
 ### Scope termination
 
-`CompoundCompletionEvaluator.evaluate()` — after a compound transitions to COMPLETED, a new `ScopedWorkerTerminationHandler` (in `planning` module) consumes `CompoundCompletedEvent` and calls `scopedWorkerRegistry.terminateByScope(caseId, compoundId)`.
+`CompoundCompletionEvaluator.evaluate()` — after a compound transitions to COMPLETED, a new `ScopedWorkerTerminationHandler` (in `runtime` module) consumes `CompoundCompletedEvent` via the event bus and calls `scopedWorkerRegistry.terminateByScope(caseId, compoundId)`. Placed in `runtime` alongside `CompoundActivatedEventHandler` — both consume planning events and interact with worker infrastructure.
 
 `CaseStatusChangedHandler` — on terminal case state (COMPLETED, FAULTED, CANCELLED), calls `scopedWorkerRegistry.terminateByCase(caseId)`. `ScopedWorkerRegistry` is injected into `CaseStatusChangedHandler` — both are in the `runtime` module, so the dependency is module-internal. The call is placed in the `isTerminalState(newState)` block alongside `schedulerService.cancelAllTriggers()` and channel closure.
 
@@ -245,7 +297,7 @@ One PlanItem per scoped worker for the entire scope lifetime:
 - Created at first activation
 - Transitions to RUNNING immediately
 - Stays RUNNING for scope duration
-- Intermediate output applied via `signal()` (persistent) or modified completion handler (reinvoked)
+- Intermediate output applied via `emit()` (persistent) or accumulated state merge (reinvoked)
 - Transitions to COMPLETED when scope ends (COMPANION) or when worker signals "done" (PARTICIPANT)
 
 ### How PARTICIPANT workers signal "done"
@@ -307,6 +359,7 @@ CASE scope is restricted to COMPANION participation (see validation rules). Case
 | Compound exits via exit condition | All scoped workers (both roles) terminated immediately. |
 | Case cancelled | All scoped workers across all scopes terminated. |
 | Repeatable compound resets | `ScopedWorkerRegistry.register()` uses replace-on-register semantics: if a session exists for the same `ScopeKey`, it is terminated before the new session is registered. This eliminates the race window between asynchronous `CompoundCompletedEvent` termination and re-activation dispatch. |
+| Case suspension (SUSPENDED) | Scoped sessions stay registered. Persistent workers receive no new mailbox events (no `CaseContextChangedEvent` fires while suspended). Reinvoked workers are not re-invoked. On resume (RUNNING), `CaseStatusChangedHandler` publishes a `CaseContextChangedEvent` which flows through normal dispatch — persistent workers receive it via their mailbox, reinvoked workers are re-invoked. No session teardown or recreation. |
 
 ## Interaction with Existing Features
 
@@ -383,7 +436,7 @@ Worker schedule events for scoped workers carry:
 | `ScopedWorkerSession` | `runtime` | `io.casehub.engine.internal.worker.scope` |
 | `ScopedWorkerRegistry` | `runtime` | `io.casehub.engine.internal.worker.scope` |
 | `ContextEvent` | `runtime` | `io.casehub.engine.internal.worker.scope` |
-| `ScopedWorkerTerminationHandler` | `planning` | `io.casehub.engine.planning.handler` |
+| `ScopedWorkerTerminationHandler` | `runtime` | `io.casehub.engine.internal.engine.handler` |
 | `CompoundActivatedEvent` | `planning` | `io.casehub.engine.planning.event` |
 | `CompoundActivatedEventHandler` | `runtime` | `io.casehub.engine.internal.engine.handler` |
 
@@ -398,19 +451,32 @@ record Persistent<T>(Class<T> inputType,
     @Override public Class<Void> outputType() { return Void.class; }
 }
 
-// PersistentScope extends WorkerScope with mailbox access
+// PersistentScope extends WorkerScope with mailbox access and shutdown signaling
 interface PersistentScope<T> extends WorkerScope {
-    T nextEvent();                          // blocking take from mailbox
-    void emit(Map<String, Object> output);  // apply output to case context
+    T nextEvent() throws ScopeTerminatedException;  // blocking take; throws on shutdown
+    void emit(Map<String, Object> output);           // async fire-and-forget to event bus
 }
+
+// Unchecked exception thrown by nextEvent() on engine-initiated shutdown
+class ScopeTerminatedException extends RuntimeException {}
 
 // New WorkerOutcome permit for lifecycle completion signaling
 record Completed<R>() implements WorkerOutcome<R> {}
+
+// New method on WorkerScope for REINVOKED accumulated state access
+// In WorkerScope interface:
+Map<String, Object> accumulatedState();  // empty for TRANSIENT, prior output for REINVOKED
 ```
 
-`WorkerFunction.Persistent` workers run on a virtual thread managed by the engine. The handler receives a `PersistentScope` with `nextEvent()` (blocking take from the mailbox) and `emit()` (apply output to case context). Natural return from the handler signals lifecycle completion.
+`WorkerFunction.Persistent` workers run on a virtual thread managed by the engine. The handler receives a `PersistentScope` with `nextEvent()` (blocking take; throws `ScopeTerminatedException` on shutdown) and `emit()` (async fire-and-forget to the event bus). Natural return signals lifecycle completion.
 
 `WorkerOutcome.Completed` extends the sealed `WorkerOutcome` hierarchy. `TRANSIENT` workers returning `Completed` is a validation error. Exhaustive switches on `WorkerOutcome` will require a new case — the breakage is intentional.
+
+#### Cascading changes from `WorkerOutcome.Completed`
+
+- `OutcomeKind` (engine-api): add `COMPLETED` value. `fromWorkerOutcome()` maps `WorkerOutcome.Completed` → `OutcomeKind.COMPLETED`. `isTerminal()` returns `false` for `COMPLETED` (same as `SUCCESS` — it is not a failure).
+- `WorkflowExecutionCompletedHandler.handleSemanticFailure()` (runtime): add `case WorkerOutcome.Completed` → throw `IllegalStateException` (same pattern as `Success` — `Completed` should not reach failure handling).
+- `PlanItemCompletionHandler.onWorkerFinished()` (planning): extend the `Success` check to also accept `Completed` — both trigger PlanItem completion. For `Completed`, the engine additionally marks the scoped session as lifecycle-complete.
 
 No changes to `casehub-engine-common`, `casehubio/blocks`, or `casehubio/platform`.
 
@@ -419,7 +485,7 @@ No changes to `casehub-engine-common`, `casehubio/blocks`, or `casehubio/platfor
 | Repo | Impact |
 |------|--------|
 | `casehubio/engine` | All engine changes |
-| `casehubio/worker` | `WorkerFunction.Persistent`, `PersistentScope`, `WorkerOutcome.Completed` |
+| `casehubio/worker` | `WorkerFunction.Persistent`, `PersistentScope`, `ScopeTerminatedException`, `WorkerOutcome.Completed`, `WorkerScope.accumulatedState()` |
 | `casehubio/blocks` | None |
 | `casehubio/platform` | None |
 | Consumer repos | None until they opt into scoped bindings |
