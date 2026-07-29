@@ -1,32 +1,33 @@
-# Handoff — 2026-07-21
+# Handoff — 2026-07-29
 
 ## What's Done
 
-- **engine#762**: Extracted `casehub-engine-rest` module — 5 JAX-RS resources, 9 DTOs,
-  CaseService, exception mappers. Virtual threads, SPI pagination, no Panache, no ACL.
-  PR #766 merged upstream. Design spec adversarially reviewed (4 rounds, 24 issues).
+- **engine#754**: `CbrHumanTaskRoutingStrategy` (id `"cbr"`) — scores candidate users
+  via `ExperienceAnalyser` with bindingName-based plan trace matching. Prerequisite:
+  added `RoutingOutcome.DECLINED` to close silent data-drop gap. Both adversarially
+  reviewed (5 rounds, 9 issues).
+- **engine#755**: `ConstraintHumanTaskRoutingStrategy` (id `"constraint"`) — context-driven
+  rules (`ContextConstraint` → Prefer/Exclude) + `WorkloadDataProvider` SPI for load
+  balancing. Breaking: `HumanTaskRoutingContext` now carries `CaseContext` + `CaseDefinition`
+  instead of `JsonNode`. Handler `Escalated` branch returns early. Adversarially reviewed
+  (4 rounds, 16 issues).
+- **Epic #797 Batch 1 complete.** Both #754 and #755 committed, GitHub epic checkboxes ticked.
+- Fixed pre-existing `VocabularyRegistry.registeredUris()` compile errors (2 sites).
 
 ## Immediate Next Step
 
-**scaffold#35** — replace scaffold's inline REST with `casehub-engine-rest` dependency.
-Delete 19 source files, add `ContainerRequestFilter` for ACL, update test imports.
-https://github.com/casehubio/scaffold/issues/35
-
-## Cross-Module
-
-**Enabled:**
-- `scaffold` — `casehub-engine-rest` jar published; scaffold#35 replaces inline REST · M · Med
+**Epic #797 Batch 2** — run `/work` to continue. `.slot` is advanced to #757.
 
 ## What's Left
 
 - engine#764: update architecture spec §5 Connectors · S · Low
+- scaffold#35: replace scaffold inline REST with engine-rest dependency · M · Med
 - Work repo DataRef support — follow-on from #740 (not yet filed) · M · Med
+- Real `WorkloadDataProvider` implementation (actor-state or work adapter) — not filed · M · Med
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| scaffold#35 | Replace scaffold inline REST with engine-rest | M | Med | engine-rest jar available |
-| #754 | HumanTask CBR routing implementation | M | Med | Follow-on from #741 |
-| #755 | HumanTask routing constraint impl | M | Med | Follow-on from #741 |
-| #764 | Update architecture spec §5 Connectors | S | Low | |
+| #757 | HumanTask group scoring via group membership resolution | S | Med | Batch 2, enables group-based Prefer/Exclude |
+| #756 | Work repo: consume experiences and scores from HumanTaskScheduleEvent | M | Med | Batch 2, cross-repo (work repo in worktree) |
