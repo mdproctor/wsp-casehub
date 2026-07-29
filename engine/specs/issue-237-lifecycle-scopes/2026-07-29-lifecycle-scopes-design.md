@@ -51,6 +51,8 @@ Binding-triggered scoped workers go through the existing `CaseContextChangedEven
 
 One path means all existing features (agent routing, input projection, outcome handling, CBR, action risk classification) work for scoped workers automatically on first activation.
 
+The Quartz job's completion behavior changes for scoped workers — see §Scoped dispatch metadata below.
+
 ## Core Types
 
 ### LifecycleScope
@@ -269,6 +271,20 @@ For CASE-scoped scope-activated bindings, `CaseStartedEventHandler` dispatches t
 - **Delay-based (`ScheduleTrigger.delay`):** the delay governs initial activation timing; after first fire, the scoped session persists for the scope lifetime.
 - **Cron-based (`ScheduleTrigger.cron`):** each cron tick routes to the existing session. Useful for periodic workers that accumulate state (e.g., scheduled health checks).
 
+### Scoped dispatch metadata
+
+`WorkerScheduleEvent` gains two nullable fields: `LifecycleScope lifecycleScope` and `ExecutionMode executionMode`. Null = TRANSIENT (backward compatible — existing constructors pass null).
+
+`QuartzWorkerExecutionJob` branches on these fields to suppress premature PlanItem completion:
+
+- **`executionMode == null` or `TRANSIENT`:** current behavior — `onSuccess()` publishes `WorkflowExecutionCompleted`, `PlanItemCompletionHandler` transitions PlanItem → COMPLETED.
+
+- **`PERSISTENT` (initial invocation):** the Quartz job creates the `ScopedWorkerSession.Persistent`, starts the virtual thread, registers the session in `ScopedWorkerRegistry`, and returns. It does NOT publish `WorkflowExecutionCompleted`. The PlanItem stays RUNNING. The virtual thread's fault detection wrapper (§Persistent worker fault detection) handles eventual completion or failure.
+
+- **`REINVOKED` (initial and subsequent invocations):** the Quartz job executes the worker function normally, applies output to the case context, and stores output as accumulated state in the session. On `WorkerOutcome.Success`: does NOT publish `WorkflowExecutionCompleted` — PlanItem stays RUNNING. On `WorkerOutcome.Completed`: publishes `WorkflowExecutionCompleted` with `Completed` outcome — `PlanItemCompletionHandler` transitions PlanItem → COMPLETED. On failure outcomes (`Declined`/`Failed`/`Expired`): applies `OutcomePolicy` for first invocation; logs and preserves session for subsequent invocations.
+
+This generalizes the "re-invocation flag" previously mentioned: there is no separate flag. `executionMode` on the schedule event determines behavior for both initial and subsequent invocations.
+
 ### Binding-triggered scoped dispatch
 
 `CaseContextChangedEventHandler.publishWorkerSchedule()` — before creating a new PlanItem:
@@ -281,7 +297,7 @@ For CASE-scoped scope-activated bindings, `CaseStartedEventHandler` dispatches t
 **Routing context to an existing session:**
 
 - Persistent: put `ContextEvent` on session's mailbox.
-- Reinvoked: publish `WorkerScheduleEvent` with a re-invocation flag. `QuartzWorkerExecutionJob` reads accumulated state from session, merges with current context, invokes worker function, merges output back, applies output to case context. PlanItem stays RUNNING.
+- Reinvoked: publish `WorkerScheduleEvent` with `executionMode = REINVOKED`. `QuartzWorkerExecutionJob` reads accumulated state from session, invokes worker function with projected input (accumulated state accessible via `WorkerScope.accumulatedState()`), stores output as new accumulated state, applies output to case context. PlanItem stays RUNNING (see §Scoped dispatch metadata for completion suppression).
 
 ### Scope termination
 
@@ -296,7 +312,7 @@ Termination ordering matches Kubernetes: COMPANION workers terminate AFTER the c
 One PlanItem per scoped worker for the entire scope lifetime:
 - Created at first activation
 - Transitions to RUNNING immediately
-- Stays RUNNING for scope duration
+- Stays RUNNING for scope duration — `QuartzWorkerExecutionJob` suppresses `WorkflowExecutionCompleted` on `Success` for non-TRANSIENT `executionMode` (see §Scoped dispatch metadata)
 - Intermediate output applied via `emit()` (persistent) or accumulated state merge (reinvoked)
 - Transitions to COMPLETED when scope ends (COMPANION) or when worker signals "done" (PARTICIPANT)
 
@@ -311,7 +327,14 @@ One PlanItem per scoped worker for the entire scope lifetime:
 
 ### Compound.scopedBindings carries Participation metadata
 
-`PlanItemDefinition.Compound.scopedBindings` changes from `Set<String>` to `Map<String, Participation>`. The `Compound.Builder.binding(String)` method becomes `binding(String, Participation)`. This keeps participation metadata in the definition where it belongs — `evaluateCompletion` needs no external lookups to distinguish COMPANION from PARTICIPANT.
+`PlanItemDefinition.Compound.scopedBindings` changes from `Set<String>` to `Map<String, Participation>`. `Compound.Builder` gains a two-arg overload `binding(String, Participation)`. The existing no-arg `binding(String)` overload is retained, defaulting to `Participation.PARTICIPANT`:
+
+```java
+public Builder binding(String name) { return binding(name, Participation.PARTICIPANT); }
+public Builder binding(String name, Participation p) { ... }
+```
+
+This keeps participation metadata in the definition where it belongs — `evaluateCompletion` needs no external lookups to distinguish COMPANION from PARTICIPANT.
 
 ### CompoundCompletionEvaluator changes
 
@@ -476,7 +499,7 @@ Map<String, Object> accumulatedState();  // empty for TRANSIENT, prior output fo
 
 - `OutcomeKind` (engine-api): add `COMPLETED` value. `fromWorkerOutcome()` maps `WorkerOutcome.Completed` → `OutcomeKind.COMPLETED`. `isTerminal()` returns `false` for `COMPLETED` (same as `SUCCESS` — it is not a failure).
 - `WorkflowExecutionCompletedHandler.handleSemanticFailure()` (runtime): add `case WorkerOutcome.Completed` → throw `IllegalStateException` (same pattern as `Success` — `Completed` should not reach failure handling).
-- `PlanItemCompletionHandler.onWorkerFinished()` (planning): extend the `Success` check to also accept `Completed` — both trigger PlanItem completion. For `Completed`, the engine additionally marks the scoped session as lifecycle-complete.
+- `PlanItemCompletionHandler.onWorkerFinished()` (planning): extend the `Success` check to also accept `Completed` — both trigger PlanItem completion. The PlanItem's `TaskStatus.COMPLETED` is the authoritative completion signal; `evaluateCompletion` reads it via `latestByBinding.get(bindingName).getStatus()`. No separate session-level flag is needed.
 
 No changes to `casehub-engine-common`, `casehubio/blocks`, or `casehubio/platform`.
 
