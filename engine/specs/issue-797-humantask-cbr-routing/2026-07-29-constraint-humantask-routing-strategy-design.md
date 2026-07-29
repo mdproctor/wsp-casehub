@@ -89,12 +89,15 @@ humanTaskConstraints:
 
 **Record fields:**
 - `maxActiveTaskCount` — `Integer`, nullable. Exclude users with active task count
-  above this threshold. Hard filter.
+  above this threshold. Hard filter. Negative values rejected with
+  `IllegalArgumentException` in the compact constructor.
 - `loadBalanceWeight` — `Double`, nullable, 0.0–1.0. Scoring weight for load
   balancing. Lower active count → higher score, normalised across candidates.
   Score formula: `weight * (1.0 - (userCount / maxCountAmongCandidates))`.
   When `maxCountAmongCandidates == 0` (all candidates equally idle), workload scoring
-  is skipped — no differentiation is needed.
+  is skipped — no differentiation is needed. Values outside 0.0–1.0 are rejected
+  with `IllegalArgumentException` in the compact constructor (consistent with
+  `ContextConstraint.weight`).
 
 **Location:** `api/src/main/java/io/casehub/api/model/routing/WorkloadConstraint.java`
 
@@ -337,6 +340,8 @@ resolution). The constraint model is complete; the group evaluation is deferred.
 | `maxActiveTaskCountOnly` | Builds with threshold, null weight |
 | `loadBalanceWeightOnly` | Builds with weight, null threshold |
 | `bothSet` | Both fields populated |
+| `loadBalanceWeightOutOfRangeRejected` | Weight outside 0.0–1.0 → IllegalArgumentException |
+| `maxActiveTaskCountNegativeRejected` | Negative threshold → IllegalArgumentException |
 | `emptyConstraintRejected` | Neither field set → rejected |
 
 ### Unit tests — ConstraintHumanTaskRoutingStrategy
