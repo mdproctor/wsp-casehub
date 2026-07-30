@@ -1,18 +1,29 @@
-# Handoff — 2026-07-29
+# Handoff — 2026-07-30
 
 ## What's Done
 
 - **engine#754**: CBR humanTask routing strategy (Batch 1)
 - **engine#755**: Constraint humanTask routing strategy (Batch 1)
-- **engine#757**: HumanTask group scoring via `GroupMembershipProvider` (Batch 2) — 6 commits:
-  `HumanTaskCandidates` gains `groupMembership` + `allUsers()`, `ContextConstraint.Builder`
-  accumulation fix, CBR scores `allUsers()`, constraint applies group Exclude/Prefer,
-  handler expands groups, javadoc + CLAUDE.md updated. Design-reviewed (5 rounds, $15.79).
+- **engine#757**: HumanTask group scoring via `GroupMembershipProvider` (Batch 2)
+- **engine#756**: Work repo: consume experiences and scores from `HumanTaskScheduleEvent` (Batch 2)
+  - `WorkItemCreateRequest` gains `candidateScores` and `routingExperiences` (String, JSON)
+  - `WorkItem` entity: two new TEXT columns via Flyway V44
+  - `WorkItemService.create()` copies both fields
+  - `WorkItemTemplateService.mergeRequestWithTemplate()` passes both through
+  - `WorkItemResponse` and `WorkItemWithAuditResponse` expose both fields
+  - `WorkItemMapper` maps both in `toResponse()` and `toWithAudit()`
+  - `HumanTaskScheduleHandler` serializes candidateScores and experiences to JSON
+    for both inline and template modes
+  - 3 test methods added, all passing. Full engine-adapter suite: 82 tests, 0 failures
+  - Also synced engine-adapter with blackboard→planning rename (artifact, imports, properties)
+  - Fixed pre-existing API drift: PlanItemSaveRequest/PlanItemRecord.primitive(),
+    GateRequired 7-arg constructor
 
-## Immediate Next Step
+## Engine OutcomeKind Fix
 
-**engine#756** — Work repo: consume experiences and scores from `HumanTaskScheduleEvent`.
-Cross-repo issue (casehub-work). Run `/work` to continue — `.slot` is advanced to #756.
+Committed on the engine worktree: `WorkerOutcome.Completed` case added to
+`OutcomeKind.fromWorkerOutcome()` switch. Also fixed duplicate Completed
+case in the main engine repo's OutcomeKind and WorkerResultExpiredTest.
 
 ## What's Left
 
@@ -23,6 +34,4 @@ Cross-repo issue (casehub-work). Run `/work` to continue — `.slot` is advanced
 
 ## What's Next
 
-| # | Description | Scale | Complexity | Notes |
-|---|-------------|-------|------------|-------|
-| #756 | Work repo: consume experiences and scores from HumanTaskScheduleEvent | M | Med | Batch 2, cross-repo (work repo) |
+All 4 epic children (754, 755, 757, 756) are implemented and tested. Epic #797 is ready for work-end.
