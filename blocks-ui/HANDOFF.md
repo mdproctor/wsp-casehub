@@ -1,26 +1,27 @@
+*Updated: parent#393 closed — removed from backlog. Uncommitted changes resolved (working tree clean).*
+
 # HANDOFF — casehub-blocks-ui
 
-**Branch:** issue-89-trust-workbench (closed)
-**Date:** 2026-07-21
-**Issue:** casehubio/blocks-ui#89
+**Branch:** main (no active branch)
+**Date:** 2026-07-30
+**Issues:** #102 (still open per GitHub)
 
 ## What landed
 
-`<trust-workbench>` — composite trust visibility component composing trust-score-panel, routing-rationale, and trust-feedback-display in a pre-wired split-workbench layout. Capability drill-down filters routing history. Three consumption tiers (drop-in, custom renderers, direct composition). 29 tests.
+Fixed CI flakiness and session-list row selection (#102). Four production fixes: entity-tree Array.isArray guard, channel-feed scrollIntoView optional chaining, channel-topic-bar active class misplaced in size attribute, session-list selection="single" + selectedKeys tracking. Removed three stale test files (themes.test.ts, trend-source-mixin DataSource tests, fetch-source extraction test). CI green.
 
-**Prerequisites landed alongside:**
-- trust-score-panel: event topic migrated from dot to colon separator (`trust:capability-selected`), switched from raw CustomEvent to `emitPagesEvent` (payload convention), SVG gauge replaced with compact score header, trend section hidden when no data
-- routing-rationale: `PHASE_STYLES` exported for downstream reuse
+Fixed session-workbench example page — mock fetch now returns per-session terminal, git, and health data so row selection visibly changes the detail pane.
 
-**Showcase:** `examples/src/pages/trust-workbench-page.ts` with full mock data layer (routing-history endpoints in mock-fetch.ts). Vite alias fix: pages-component source alias removed (source uses refactored SourceConnector API incompatible with DataSourceAdapter).
+Closed three completed epics: #56 (app delivery), #35 (cross-repo migration), #36 (openclaw). All five consuming apps fully migrated. Zero open issues.
+
+## What's left
+
+- pages-table pagination buttons still use light backgrounds (upstream pages fix) · S · Low
 
 ## Known issues
 
-- **pages-component source/dist mismatch:** The pages repo source has a refactored SourceConnector API that breaks DataSourceAdapter.connect(). The examples vite config works around this by NOT aliasing pages-component to source. This needs resolving when pages-component is next released.
-- **Backend routing-history endpoints:** Don't exist yet. trust-workbench works via inline data mode. Engine team needs to build `GET /trust/{actorId}/routing-history` and `GET /trust/{actorId}/routing-history/{decisionId}`.
-- **Worktree + IntelliJ MCP:** IntelliJ MCP edits target the main repo, not the worktree. File syncing via shutil.copy2 was needed throughout. Garden entry GE-20260720-3573ac documents the root cause.
+*Unchanged — retrieve with: `git show HEAD~2:HANDOFF.md`*
 
-## Garden entries
+## What's next
 
-- GE-20260720-ebe1cd — onPagesEvent callback receives payload directly, not CustomEvent
-- GE-20260720-3573ac — git worktree + yarn workspace symlink resolution crosses working trees
+Zero open issues on blocks-ui. New work requires filing issues first.
