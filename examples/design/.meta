@@ -1,0 +1,9 @@
+branch: issue-5-observation-accumulator-blocks
+project-sha: d798b62a686b871b67b4e0180ea19fa1590fb18e
+date: 2026-07-31
+issue: 5
+issue-repo: casehubio/examples
+covers: 5
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
