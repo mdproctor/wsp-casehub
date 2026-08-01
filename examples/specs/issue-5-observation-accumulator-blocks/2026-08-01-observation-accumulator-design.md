@@ -449,14 +449,18 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
   is acceptable — the new room's events will be captured on the next drain
   cycle.
 - Room position: `CharacterState.currentRoom` is the single source of
-  truth. Written by the game loop thread (via `ActionResolver`), read by
-  character virtual threads (via `drain()` to determine current vs
-  remembered rooms). Visibility is guaranteed by the happens-before chain
-  through `PendingAction`: the game loop writes `currentRoom`, then calls
-  `pending.complete(result)` (`CompletableFuture.complete()`). The character
-  thread calls `pending.awaitResult()` (`CompletableFuture.get()`) before
-  the next `drain()`. Per JMM, `complete()` happens-before `get()`, so
-  the `currentRoom` write is visible to the character thread.
+  truth, declared `volatile`. Written by the game loop thread (via
+  `ActionResolver`), read by character virtual threads from two paths:
+  - **Own-character reads** (via `drain()` to determine current vs
+    remembered rooms): visibility is guaranteed by the happens-before
+    chain through `PendingAction` — `complete()` happens-before `get()`.
+  - **Cross-character reads** (via `publishEvent()` routing from a
+    character thread that reads OTHER characters' `currentRoom`): the
+    PendingAction chain only covers own-character visibility. Since
+    `publishEvent()` is called from character virtual threads (for
+    dialogue/aside events), routing reads all characters' `currentRoom`.
+    The `volatile` declaration ensures cross-thread visibility without
+    relying on happens-before chains between unrelated characters.
 
 ---
 
@@ -470,6 +474,7 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 | `MechanicalCompactor.java` | **New** — deterministic supersession compaction (pure function) |
 | `ManorObservationRenderer.java` | **New** — `ObservationRenderer<ManorEvent>` composing compaction + `TieredObservationRenderer` |
 | `ManorLlmSummariser.java` | **New** — `Summariser<ManorEvent, String>` backed by `AgentProvider` |
+| `CharacterState.java` | **Modified** — `currentRoom` field declared `volatile` for cross-thread visibility |
 | `ManorEvent.java` | **Modified** — enriched with `ActionType actionType`, `String target`, `String withItem`, `String departureRoom` fields + convenience constructor for non-action events |
 | `WorldState.java` | **Modified** — new `addEvent(ManorEvent)` overload accepting pre-constructed events |
 | `ObservationBuilder.java` | **Modified** — new `ObservationDrain` parameter, replace `recentActivitySection` with `recentActivity` + `remembered` sections |
