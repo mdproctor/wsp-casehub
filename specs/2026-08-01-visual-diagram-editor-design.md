@@ -335,16 +335,23 @@ import { JSONSchema7 } from 'json-schema';
 type StencilTemplate = TemplateResult | SVGTemplateResult;
 type PropertySchema = JSONSchema7;
 
-interface StructuralStencil {
+// Registered with graph-core — structural rules only, no rendering
+interface StencilGrammar {
   type: string;                           // e.g. "binding", "worker", "milestone"
-  label: string;
-  icon: string;
   connections: {
     inbound: { min: number; max: number; allowedFrom: string[] };
     outbound: { min: number; max: number; allowedTo: string[] };
   };
+}
+
+// Registered with graph-renderer — full descriptor including rendering
+interface StencilDescriptor {
+  type: string;                           // matches StencilGrammar.type
+  label: string;
+  icon: string;
+  grammar: StencilGrammar;                // also registered separately with graph-core
   properties: PropertySchema;
-  render: (node: GraphNode, runtime?: RuntimeState) => StencilTemplate;
+  render: (node: GraphNode, decoration?: NodeDecoration) => StencilTemplate;
 }
 ```
 
@@ -358,7 +365,7 @@ interface WorkStencil {
   properties: PropertySchema;
   input: JSONSchema7;
   output: JSONSchema7;
-  render: (node: GraphNode, runtime?: RuntimeState) => StencilTemplate;
+  render: (node: GraphNode, decoration?: NodeDecoration) => StencilTemplate;
 }
 ```
 
@@ -368,7 +375,7 @@ The viewer must visually distinguish:
 
 - **Case-controlled zone** — bindings, milestones, goals, completion evaluation. The Case engine owns lifecycle.
 - **Worker-controlled zone** — once a binding dispatches to a Worker, the Worker owns execution. If the Worker runs a SWF workflow, the workflow has its own state machine.
-- **The boundary** — a PlanItem transitions RUNNING → DELEGATED when handed to a Worker. Visually: a containment border change (different stroke/fill for delegated nodes) or an explicit delegation indicator. In the definition view, this boundary is shown as the edge between a Binding and its target Worker.
+- **The boundary** — a PlanItem transitions PENDING → DELEGATED when handed to a Worker (`PlanItem.markDelegated()` uses `compareAndSet(PENDING, DELEGATED)`; RUNNING → DELEGATED is rejected). Visually: a containment border change (different stroke/fill for delegated nodes) or an explicit delegation indicator. In the definition view, this boundary is shown as the edge between a Binding and its target Worker.
 
 ## 4. Implementation Order
 
@@ -461,9 +468,9 @@ Epic 4A: Structural editing           Epic 4B: Persistence backends
 Epic 5: graph-stencil-swf
 ├── SWF domain adapter: workflow YAML → graph model
 ├── Workflow step stencils (call, switch, raise, catch, entry, exit)
-├── Drill-down trigger (expand Primitive with SWF executor → sub-graph)
+├── Drill-down trigger (expand Worker with SWF workflow → sub-graph)
 ├── casehub:dispatch trace lines (workflow step → Case capability)
-└── Collapse back to single Primitive node
+└── Collapse back to single Worker node
 ```
 
 ### Phase 6 — Work Registry
@@ -475,7 +482,7 @@ Epic 6: graph-work-registry
 ├── Marketplace YAML descriptor schema
 ├── URL-based discovery (fetch + parse + register)
 ├── Category index and palette integration
-├── Work stencil → Primitive node binding
+├── Work stencil → Worker node binding
 ├── Custom property forms per work type
 └── Marketplace configuration UI (manage URLs)
 ```
