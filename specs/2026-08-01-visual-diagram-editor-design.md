@@ -191,7 +191,7 @@ Same graph, same layout. Runtime data is projected as decoration:
 **Generic decoration model** (graph-core — domain-agnostic):
 ```typescript
 interface NodeDecoration {
-  badge?: { icon: string; color: string; pulse?: boolean };
+  badge?: { icon: string; color: string; pulse?: boolean; count?: number };
   border?: { style: string; color: string };
   overlay?: { type: 'heatmap' | 'highlight'; intensity: number };
   tooltip?: string;
@@ -205,15 +205,6 @@ Domain stencil packages (graph-stencil-case) provide a `RuntimeAdapter` that map
 1. If any PlanItem is in an active state, show the worst active status (priority: SUSPENDED > DELEGATED > RUNNING > PENDING)
 2. If all PlanItems are terminal, show the most recent terminal status (by `createdAt`)
 3. When multiple PlanItems exist, `badge.count` shows the total and `tooltip` shows the full breakdown (e.g., "3 completed, 1 faulted, 1 running")
-
-```typescript
-interface NodeDecoration {
-  badge?: { icon: string; color: string; pulse?: boolean; count?: number };
-  border?: { style: string; color: string };
-  overlay?: { type: 'heatmap' | 'highlight'; intensity: number };
-  tooltip?: string;
-}
-```
 
 The stencil rendering function takes optional decoration:
 ```typescript
