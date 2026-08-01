@@ -72,8 +72,10 @@ public class ObservationService {
   safe concurrent access between the game loop thread (collect via
   `publishEvent`) and character virtual threads (drain). Accumulators are
   lazy-created via `computeIfAbsent()` on first event routed to a room.
-- `Map<String, ObservationResult> rememberedDrainCache` — cached drain
-  results for remembered rooms (see §2.3)
+- `LinkedHashMap<String, RememberedRoom> rememberedDrainCache` — cached
+  drain results for remembered rooms, insertion-ordered by departure time
+  (most recent last). `RememberedRoom` wraps `ObservationResult` with a
+  `cachedAt` timestamp for elapsed-time computation (see §2.3, §5.2)
 
 Room position is **not** duplicated here — `CharacterState.currentRoom` is
 the single source of truth, read at drain time to identify the current-room
@@ -92,8 +94,8 @@ accumulator.
 drains. If a character's virtual thread blocks (e.g., on LLM timeout), events
 accumulate without compaction. At POC scale (5 characters, ~5 rooms) this is
 bounded by the game loop's turn-based event generation rate and is not a memory
-concern. Phase 2.9 (6 rooms) should re-evaluate if buffer growth becomes
-significant.
+concern. Tracked for re-evaluation at Phase 2.9 scale in
+casehubio/examples#6.
 
 No `EventStreamBus` — direct method call from the game loop. The bus model
 assumes static, per-agent subscription predicates (`bus.subscribe(e ->
@@ -112,6 +114,7 @@ The issue (casehubio/examples#5) references `KeyedAccumulator` and
 pipeline (`ChannelEventAdapter` → `KeyedAccumulator` → `Summariser` →
 `ChannelEventPublisher`) as a Phase 3 addition.
 
+The full blocks pipeline transition is tracked in casehubio/examples#8.
 `ObservationAccumulator` is the right primitive for this phase:
 
 - **Observer-driven drain model.** `ObservationAccumulator` buffers events
@@ -195,23 +198,30 @@ When a character moves rooms:
 remembered room's accumulator (events only route to characters present in
 the room). The accumulator buffer is static. On the first drain
 post-departure, the accumulator drains normally (at-most-once) and the
-`ObservationResult` is cached in `rememberedDrainCache`. Subsequent turns
-return the cached result directly — the empty accumulator is not
-re-drained. The cache IS the retention: the initial drain already applied
-mechanical compaction and tier selection via the renderer, so the cached
-result is at its optimal compression level. No progressive re-compression
-is needed because the event set is static.
+result is cached as a `RememberedRoom(result, cachedAt)` in
+`rememberedDrainCache`, where `cachedAt` is the drain timestamp (`now`).
+Subsequent turns return the cached result directly — the empty accumulator
+is not re-drained. The cache IS the retention: the initial drain already
+applied mechanical compaction and tier selection via the renderer, so the
+cached result is at its optimal compression level. No progressive
+re-compression is needed because the event set is static.
+
+`rememberedDrainCache` is a `LinkedHashMap` with insertion order —
+rooms appear in departure order (most recent last). `ObservationBuilder`
+iterates in reverse to render the most recently visited room first.
+`cachedAt` enables `ObservationBuilder` to compute wall-clock elapsed
+time since departure (e.g., "Kitchen (30s ago)").
 
 When the character returns to a previously visited room:
 
-- The cached result for that room is **not** removed from
+- The cached `RememberedRoom` entry for that room is **not** removed from
   `rememberedDrainCache` — it persists silently
 - The accumulator resumes its role as the current-room accumulator
 - New events arriving in the room are collected normally
-- On the first non-empty drain of the now-current room, the cached result
-  is overwritten by the fresh drain result
-- If the character leaves again later, the cache holds their latest memory
-  of the room (from the most recent non-empty drain)
+- On the first non-empty drain of the now-current room, the cached entry
+  is overwritten by a fresh `RememberedRoom` with updated `cachedAt`
+- If the character leaves again later, the entry is removed and re-inserted
+  in `rememberedDrainCache` to maintain departure-order (most recent last)
 
 This avoids a memory discontinuity: without cache persistence, the
 character would lose their prior-visit memory the moment they return
@@ -256,8 +266,8 @@ static final EventLevel MANOR = new EventLevel("manor", 0);
 ```
 
 `TieredObservationRenderer` tiers by event count, not by level — a single
-level is sufficient. Per-type levels (dialogue > action > movement) can be
-introduced when level-based filtering is needed.
+level is sufficient. Per-type levels (dialogue > action > movement) are
+tracked as a future enhancement in casehubio/examples#7.
 
 `LevelEvent.timestamp` is derived from
 `manorEvent.timestamp().toEpochMilli()` — not from a separate
@@ -281,7 +291,6 @@ never on narrative text parsing.
 | Rule | Supersession logic | Structured fields |
 |------|-------------------|-------------------|
 | **Position** | Later MOVE supersedes earlier MOVE for same character — keep only latest | `actionType == MOVE`, `characterId` |
-| **Presence** | Events implying character X is present are stale when a later MOVE shows X departed | `actionType == MOVE`, `departureRoom` |
 | **Inventory** | Later TAKE targeting same object supersedes earlier | `actionType == TAKE`, `target` |
 | **Object state** | Later INTERACT/USE targeting same object supersedes earlier | `actionType ∈ {INTERACT, USE}`, `target` |
 | **Duplicate dialogue** | Same character, same description — keep first occurrence | `type == "dialogue"`, `characterId`, `description` |
@@ -300,7 +309,22 @@ public class ManorObservationRenderer implements ObservationRenderer<ManorEvent>
     public CompletionStage<ObservationResult> render(
             List<LevelEvent<ManorEvent>> events, ObservationContext context) {
         List<LevelEvent<ManorEvent>> compacted = compactor.compact(events);
-        return delegate.render(compacted, context);
+        return delegate.render(compacted, context)
+                .exceptionally(ex -> renderFallback(compacted, context));
+    }
+
+    private ObservationResult renderFallback(
+            List<LevelEvent<ManorEvent>> compacted, ObservationContext context) {
+        // Defense-in-depth: if the delegate (including LLM summarisation)
+        // fails despite ManorLlmSummariser's internal catch, render the
+        // compacted events as plain text at GROUPED-equivalent tier.
+        // This guards against contract violations in the summariser —
+        // events are irrecoverable after at-most-once drain.
+        String text = compacted.stream()
+                .map(e -> e.payload().description())
+                .collect(Collectors.joining("\n"));
+        return new ObservationResult(text, List.of(), compacted.size(),
+                context.timeSinceLastDrain(), ObservationTier.GROUPED);
     }
 }
 ```
@@ -394,10 +418,17 @@ public static String buildObservation(
 ### 5.2 ObservationDrain Record
 
 ```java
+public record RememberedRoom(ObservationResult result, long cachedAt) {}
+
 public record ObservationDrain(
     ObservationResult currentRoom,
-    Map<String, ObservationResult> rememberedRooms) {}
+    Map<String, RememberedRoom> rememberedRooms) {}
 ```
+
+The `rememberedRooms` map is insertion-ordered (`LinkedHashMap`) by
+departure time — most recently departed room last. `cachedAt` is the
+wall-clock timestamp when the room was drained post-departure, enabling
+`ObservationBuilder` to compute elapsed time for display.
 
 ### 5.3 New Observation Sections
 
@@ -409,13 +440,26 @@ is replaced by two sections:
 {current-room accumulator drain — verbatim, grouped, or summarised}
 
 == Remembered ==
-Kitchen (3 turns ago): Sneekly was examining the cabinet. You saw rat poison on the shelf.
-Entrance Hall (5 turns ago): Dastardly gave Muttley a fake medal.
+Kitchen (30s ago): Sneekly was examining the cabinet. You saw rat poison on the shelf.
+Entrance Hall (2 minutes ago): Dastardly gave Muttley a fake medal.
 ```
+
+The elapsed time annotation (e.g., "30s ago") is computed by
+`ObservationBuilder` from `RememberedRoom.cachedAt()` vs the current
+drain timestamp. This is wall-clock elapsed time since the room was
+last drained, not a turn count.
 
 The "Remembered" section only appears if the character has visited other
 rooms and those rooms have cached drain results (§2.3) or non-empty
-accumulators. Rooms ordered by most recently visited.
+accumulators. Rooms ordered by most recently visited (reverse iteration
+of the insertion-ordered `rememberedRooms` map).
+
+**Per-event timestamps in cached results:** If a remembered room was
+drained at VERBATIM tier, the cached `renderedText` contains `[Ns ago]`
+timestamps computed at drain time. These describe the relative timing of
+events within the visit (event A happened before event B) and remain
+valid as intra-visit ordering. The room-level elapsed annotation
+provides the correct temporal framing for when the visit occurred.
 
 ### 5.4 CharacterAgentLoop Change
 
@@ -433,9 +477,9 @@ String observation = ObservationBuilder.buildObservation(character, world, goals
 1. Reads `CharacterState.currentRoom` to identify the current-room accumulator
 2. Calls `drainObservation(now)` on the current-room accumulator →
    `CompletionStage<ObservationResult>`
-3. For each remembered room: returns cached result if available (§2.3),
-   otherwise calls `drainObservation(now)` →
-   `CompletionStage<ObservationResult>`
+3. For each remembered room: returns cached `RememberedRoom` if available
+   (§2.3), otherwise calls `drainObservation(now)` and wraps the result
+   as `RememberedRoom(result, now)`
 4. Awaits all `CompletionStages` in parallel via `CompletableFuture.allOf()`
    — drain runs on a character virtual thread where blocking is appropriate
 5. On partial failure: any room whose summarisation fails returns its
@@ -484,7 +528,8 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 |------|--------|
 | `ObservationService.java` | **New** — central event distribution + per-character accumulators + drain assembly |
 | `CharacterObservationState.java` | **New** — per-character room→accumulator map + remembered drain cache |
-| `ObservationDrain.java` | **New** — record holding drain results |
+| `RememberedRoom.java` | **New** — record wrapping `ObservationResult` with `cachedAt` timestamp for remembered rooms |
+| `ObservationDrain.java` | **New** — record holding drain results (uses `RememberedRoom` for remembered rooms) |
 | `MechanicalCompactor.java` | **New** — deterministic supersession compaction (pure function) |
 | `ManorObservationRenderer.java` | **New** — `ObservationRenderer<ManorEvent>` composing compaction + `TieredObservationRenderer` |
 | `ManorLlmSummariser.java` | **New** — `Summariser<ManorEvent, String>` backed by `AgentProvider` |
