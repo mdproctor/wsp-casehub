@@ -109,7 +109,7 @@ Edges represent relationships derived from the YAML definition:
 | **HumanTask creation** | Binding → HumanTask (sub-node) | Binding.humanTask object present |
 | **Completion criteria** | Goal → Case completion | GoalExpression references goal by name |
 
-Edges are derived by the domain adapter during `toGraph()` — they are not stored separately in YAML. The adapter resolves string references (capability names) into graph edges. Unresolvable references (e.g., binding references a capability no worker owns) are flagged as validation warnings.
+Edges are derived by the domain adapter during `toGraph()` — they are not stored separately in YAML. The adapter resolves string references (capability names) into graph edges. Unresolvable references (binding references a capability no in-definition worker owns) are shown as **informational annotations** (dashed edge with "external?" label), not warnings — CaseHub workers can be registered externally at runtime, so an unresolvable in-definition reference is normal, not an error. When a runtime connection is available (Phase 7), the editor can validate against the full worker registry to distinguish external capabilities from typos.
 
 ELK layout uses hierarchical mode. Workers are containers; their capabilities are internal labels (not separate nodes). Bindings connect to workers via capability edges.
 
