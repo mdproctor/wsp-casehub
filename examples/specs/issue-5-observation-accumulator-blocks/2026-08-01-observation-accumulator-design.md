@@ -550,7 +550,7 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 
 | Test class | Coverage |
 |-----------|----------|
-| `MechanicalCompactorTest` | Position, inventory, object state, presence supersession. Duplicate dialogue removal. Mixed event types. Empty input. Single event passthrough. |
+| `MechanicalCompactorTest` | Position, inventory, object state supersession. Duplicate dialogue removal. Mixed event types. Empty input. Single event passthrough. |
 | `ObservationServiceTest` | Event routing by room. Visibility filtering. Room transition partitioning. Movement events to departure room observers. Drain returns current + remembered rooms. |
 | `ObservationDrainIntegrationTest` | Full flow: publish → drain → verify compacted output. Current room verbatim, remembered room compacted. Budget threshold triggers summarisation (mocked AgentProvider). |
 | `ObservationBuilderTest` | New `ObservationDrain` parameter renders Recent Activity and Remembered sections. Empty remembered rooms omits section. Existing sections unchanged (regression). |
