@@ -387,7 +387,8 @@ The viewer must visually distinguish:
 |------|--------|-------|
 | Verify CaseDefinition.yaml JSON Schema against current Java model | S | Schema may be stale after stages removal |
 | Generate TypeScript types from verified schema | S | Use json-schema-to-typescript or similar |
-| Spike: React Flow + Lit bridge proof of concept | S | Validate the 50-line bridge pattern works with Pages design tokens |
+| Cross-parser YAML compatibility test | S | Parse→serialize with `yaml` npm, then parse with Jackson, verify semantic equivalence (§2.1) |
+| Spike: React Flow + Lit bridge proof of concept | M | Validates: (1) bridge pattern with Pages design tokens, (2) CSS isolation without Shadow DOM against Pages shell global resets (§2.2 hard gate), (3) ELK layout integration |
 
 ### Phase 1 — Foundation (graph-core + graph-renderer)
 
@@ -494,11 +495,11 @@ Epic 6: graph-work-registry
 ```
 Epic 7: Runtime overlay
 ├── Runtime data source (WebSocket or polling from Case engine)
-├── PlanItem state badges on nodes
-├── Milestone progression indicators
+├── TaskStatus badges on nodes (all 9 states via NodeDecoration)
+├── Milestone progression indicators (MilestoneLifecycleStatus)
 ├── Heatmap colouring (usage frequency)
-├── Active compound highlighting
-├── Blackboard data preview on hover
+├── Active planning highlighting (which bindings the planning strategy is evaluating)
+├── CaseContext data preview on hover
 └── Design ↔ Runtime mode toggle in toolbar
 ```
 
