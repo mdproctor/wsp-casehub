@@ -1,67 +1,49 @@
 # HANDOFF — casehub
 
-**Date:** 2026-07-26
-**Project:** `/Users/mdproctor/claude/casehub/examples`
+**Date:** 2026-08-01
+**Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
 ---
 
 ## Last Session
 
-**Wacky Manor POC — Phase 0 validated.** Brainstormed a multi-agent LLM demo
-using Wacky Races characters in a haunted mansion. Built and validated Phase 0:
-character behavior tests via Eidos descriptors, templates, and goals/constraints.
-17/17 LLM eval tests pass — all five characters produce recognisable cartoon-grade
-dialogue with expository soliloquy, plot device recognition, disguise maintenance,
-and sustained multi-turn interaction.
-
-Three platform features were built mid-session to support the POC:
-- blocks#68: observation accumulator (tiered, RAG-able situation summaries)
-- eidos#99: descriptor templates (reusable prose fragments)
-- eidos#100: goals and constraints on AgentDescriptor
+Designed a visual diagram editor for CaseHub case definitions. Evaluated React Flow, Cytoscape.js, xyflow headless, GoJS, JointJS+, and lienzo-core. Ran a 4-dimension adversarial design review (57 issues, all resolved, $60). Bootstrapped package structure across pages and blocks-ui.
 
 ## Immediate Next Step
 
-Start Phase 1 — game engine. Branch `feat/wacky-manor-poc` in `casehub-examples`
-is open with Phase 0 complete. Run `/work` from the examples repo.
+Run `yarn install` in both repos to resolve new dependencies, then push:
+```
+cd /Users/mdproctor/claude/casehub/pages && yarn install    # branch: feature/graph-packages
+cd /Users/mdproctor/claude/casehub/blocks-ui && yarn install  # branch: feature/graph-stencils
+```
+Commit updated `yarn.lock` files, then push both branches.
 
-## Key Resources for Phase 1
+## Cross-Module
 
-The next session must read these before implementation:
-
-| Resource | Path | What it contains |
-|---|---|---|
-| Vision | `examples/wacky-manor/docs/VISION.md` | Full scenario design — mansion, cast, plot beats, all ideas |
-| POC Spec | `examples/wacky-manor/docs/POC-SPEC.md` | Phased spec with game engine design (§1.1–§1.7), UI (§2), reviewed and updated by adversarial design review |
-| Implementation plan | `public/casehub/plans/2026-07-25-wacky-manor-poc.md` | Phase 0 tasks (done). Phase 1+2 deferred — needs new plan |
-| Blog entry | `public/casehub/blog/2026-07-26-mdp01-wacky-manor-characters-come-alive.md` | Character output examples and architecture rationale |
-| Memory | `~/.claude/projects/-Users-mdproctor-claude-casehub/memory/project_wacky-manor.md` | Project summary with key decisions |
-
-## Phase 1 Scope (from POC-SPEC.md §1)
-
-- §1.1 World model — rooms, objects, characters in YAML (`rooms.yaml`, `characters.yaml`)
-- §1.2 ScenarioOrchestrator — single-threaded game loop with action queue, virtual threads per character
-- §1.3 Action resolution — move, interact, take, give, use, look (deterministic, proximity-enforced)
-- §1.4 Triggers and scenes — condition→effect pairs, scripted beat sequences with alternatives
-- §1.5 Qhorus channels — `/manor/work` (dialogue), `/manor/audience` (narrator/asides), `/manor/oversight`
-- §1.6 Narrator — per-scene-beat narration (full summarisation pipeline deferred to Phase 3)
-- §1.7 Observation format — structured prompt template for character world view
-- **blocks#68** — `ObservationAccumulator` for batching game events to LLM agents (tiered: verbatim/grouped/summarised)
+**Blocking** (we owe something):
+- `engine` — verify CaseDefinition.yaml JSON Schema against current Java model (engine#847, gates blocks-ui#103 type generation) · S · Low
 
 ## What's Left
 
-- REPL explorer (Task 8) skipped — automated tests covered the same ground · XS · Low
-- `CharacterProfile` and `CharacterProfileLoader` are now unused (superseded by Eidos runtime) — can be deleted · XS · Low
-
-## Enabled
-
-- `blocks` — observation accumulator (#68) shipped, ready for Phase 1 game engine integration
-- `eidos` — templates (#99) and goals/constraints (#100) shipped and integrated in wacky-manor
+- Push `feature/graph-packages` on pages (after yarn install + yarn.lock commit) · XS · Low
+- Push `feature/graph-stencils` on blocks-ui (after yarn install + yarn.lock commit) · XS · Low
+- Split spec into repo-localized specs for pages and blocks-ui · S · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| — | Phase 1: game engine (world model + action loop + triggers + scenes) | L | Med | POC-SPEC.md §1.1–§1.7 fully designed |
-| — | Phase 2: UI (mansion view + room chat columns + narrator panel) | M | Med | POC-SPEC.md §2.1–§2.6; Lit + Vite + Quinoa |
-| — | Phase 3: full scenario (6 rooms, all characters, summarisation pipeline) | XL | High | Vision.md has full design |
+| pages#259 | React Flow + Lit bridge spike | S | Med | Phase 0 gate — validates CSS isolation |
+| pages#260 | Cross-parser compatibility test (yaml npm vs Jackson) | S | Med | Phase 0 |
+| engine#847 | Verify CaseDefinition JSON Schema | S | Low | Phase 0 — blocks type generation |
+| pages#258 | graph-core + graph-renderer implementation | M | High | Phase 1A+1B — parallel |
+| blocks-ui#103 | Case stencil read-only viewer | L | High | Phase 2 — first visual output |
+
+## References
+
+- Spec: `specs/2026-08-01-visual-diagram-editor-design.md`
+- Blog: `blog/2026-08-01-mdp01-visual-case-editor.md`
+- Review workspaces: `~/reviews/casehub-engine/visual-diagram-editor-{coherence,structure,robustness,crosscutting}-*/`
+- Pages epic: casehubio/casehub-pages#258
+- blocks-ui epic: casehubio/blocks-ui#103
