@@ -39,8 +39,11 @@ Game Loop                    ObservationService                     CharacterAge
     │                              │                                       │
     │                              │◄──── drain(charId, now) ──────────────┤
     │                              │                                       │
-    │                              │  1. mechanical compaction             │
-    │                              │  2. LLM summarisation (if over budget)│
+    │                              │  current room:                        │
+    │                              │    accumulator.drainObservation(now)   │
+    │                              │    → renderer (compact + tier select)  │
+    │                              │  remembered rooms:                     │
+    │                              │    return cached result (§2.3)         │
     │                              │                                       │
     │                              ├───── ObservationDrain ────────────────►│
     │                              │                                       │
@@ -54,19 +57,26 @@ public class ObservationService {
 
     Map<String, CharacterObservationState> characterStates;
     WorldState worldState;
-    AgentProvider agentProvider;
+    ManorObservationRenderer renderer;  // shared, stateless — see §3.2
 
-    // configuration
-    int currentRoomMaxLines;      // default: 10
-    int rememberedRoomsMaxLines;  // default: 5
-    int summarisationThreshold;   // default: 15
+    // configuration (maps to TieredObservationRenderer thresholds)
+    int verbatimThreshold;   // default: 10
+    int groupedThreshold;    // default: 15
 }
 ```
 
 **`CharacterObservationState`** holds:
-- `Map<String, ObservationAccumulator<ManorEvent>>` — one accumulator per
-  room the character has visited
-- `String currentRoom` — updated when the character moves
+- `ConcurrentHashMap<String, ObservationAccumulator<ManorEvent>>` — one
+  accumulator per room the character has visited. `ConcurrentHashMap` for
+  safe concurrent access between the game loop thread (collect via
+  `publishEvent`) and character virtual threads (drain). Accumulators are
+  lazy-created via `computeIfAbsent()` on first event routed to a room.
+- `Map<String, ObservationResult> rememberedDrainCache` — cached drain
+  results for remembered rooms (see §2.3)
+
+Room position is **not** duplicated here — `CharacterState.currentRoom` is
+the single source of truth, read at drain time to identify the current-room
+accumulator.
 
 ### 1.3 Lifecycle
 
@@ -77,9 +87,22 @@ public class ObservationService {
 - **Scenario complete:** accumulators are abandoned. No explicit cleanup.
 - **Scenario restart:** new `init()` call creates fresh state.
 
-No `EventStreamBus` — direct method call from the game loop. This avoids
-the subscription-drop gotcha documented in GE-20260629-e8b16d where
-`bus.clear()` silently kills the pipeline on lifecycle reset.
+**Known limitation — buffer growth:** Event buffers grow unboundedly between
+drains. If a character's virtual thread blocks (e.g., on LLM timeout), events
+accumulate without compaction. At POC scale (5 characters, ~5 rooms) this is
+bounded by the game loop's turn-based event generation rate and is not a memory
+concern. Phase 2.9 (6 rooms) should re-evaluate if buffer growth becomes
+significant.
+
+No `EventStreamBus` — direct method call from the game loop. The bus model
+assumes static, per-agent subscription predicates (`bus.subscribe(e ->
+agent.canSee(e), accumulator::collect)`), but the spec's routing is
+per-room with dynamic room tracking — the publisher decides which
+accumulator to target based on the character's current room, which changes
+during the scenario. A static predicate cannot express this. Additionally,
+direct calls avoid the subscription-drop gotcha documented in
+GE-20260629-e8b16d where `bus.clear()` silently kills the pipeline on
+lifecycle reset.
 
 ---
 
@@ -87,85 +110,183 @@ the subscription-drop gotcha documented in GE-20260629-e8b16d where
 
 ### 2.1 Event Publishing
 
-The game loop calls `observationService.publishEvent(event)` after each
-action resolution, in addition to the existing `world.addEvent()` call.
-`WorldState.recentEvents()` stays — used by the WebSocket UI. The two
-consumers (UI and character observations) are decoupled.
+Events are published to `observationService.publishEvent(event)` from two
+sources:
 
-Movement events must also be published so the service can track position
-changes for supersession compaction.
+1. **Game loop thread** — after each action resolution (MOVE, TAKE, USE,
+   INTERACT, GIVE, LOOK). The game loop captures `departureRoom` before
+   calling `ActionResolver.resolve()`, then constructs the enriched
+   `ManorEvent` with structured action metadata (see §2.4).
+2. **Character virtual threads** — for dialogue and aside events,
+   immediately after the LLM response is parsed in `CharacterAgentLoop`.
+
+Both paths call `publishEvent(event)` in addition to the existing
+`world.addEvent()` call. `WorldState.recentEvents()` stays — used by the
+WebSocket UI. The two consumers (UI and character observations) are
+decoupled.
+
+Events with `event.room() == null` (narrator events) are silently skipped
+by `publishEvent()` — they have no room context for routing. Narrator
+events continue to be delivered via `ManorChannels` and `ManorEventBus`
+only.
 
 ### 2.2 Routing Logic
 
 When `publishEvent(event)` is called:
 
-1. Determine the event's room from `event.room()`
-2. For each character:
-   - If character is in that room → route to their **current-room** accumulator
+1. **Guard:** if `event.room() == null`, return immediately (narrator events)
+2. Determine the event's room from `event.room()`
+3. For each character:
+   - If `characterState.currentRoom()` equals event room → route to their
+     accumulator for that room (lazy-created via `computeIfAbsent()`)
    - If character is NOT in that room → skip
-3. Movement events about other characters are also routed to every character
-   who was in the **departure** room — they saw the person leave
+4. **Movement events** (`event.actionType() == MOVE`): also route to every
+   character whose `currentRoom()` equals `event.departureRoom()` — they
+   saw the person leave. The departure room is carried in the event itself
+   (see §2.4), not derived from mutable state — this eliminates the
+   ordering dependency between state update and event routing.
 
-### 2.3 Room Transitions
+### 2.3 Room Transitions and Memory Retention
 
 When a character moves rooms:
 
-- The service updates `characterState.currentRoom`
+- `ActionResolver.resolveMove()` updates `CharacterState.currentRoom` —
+  this is the authoritative room state. **No duplicate room tracking** in
+  `ObservationService`.
 - The old room's accumulator stays in the map as a "remembered room"
   partition
-- If the character returns later, that accumulator still has their
-  compacted history
+
+**Retention mechanism:** After departure, no new events route to the
+remembered room's accumulator (events only route to characters present in
+the room). The accumulator buffer is static. On the first drain
+post-departure, the accumulator drains normally (at-most-once) and the
+`ObservationResult` is cached in `rememberedDrainCache`. Subsequent turns
+return the cached result directly — the empty accumulator is not
+re-drained. The cache IS the retention: the initial drain already applied
+mechanical compaction and tier selection via the renderer, so the cached
+result is at its optimal compression level. No progressive re-compression
+is needed because the event set is static.
+
+When the character returns to a previously visited room:
+
+- The cached result for that room is removed from `rememberedDrainCache`
+- The accumulator resumes its role as the current-room accumulator
+- New events arriving in the room are collected normally
 
 ### 2.4 Event Payload
 
-`ObservationAccumulator<ManorEvent>` — the existing `ManorEvent` record
-is the payload, wrapped in `LevelEvent<ManorEvent>` when collected.
+`ManorEvent` is enriched with structured action metadata to support
+mechanical compaction without narrative parsing:
+
+```java
+public record ManorEvent(
+    Instant timestamp,
+    String type,            // "dialogue", "action", "aside", "narrator"
+    String characterId,
+    String room,
+    String description,     // narrative text (for rendering)
+    ActionType actionType,  // non-null for type="action", null otherwise
+    String target,          // action target (room-id, object-id, character-id)
+    String withItem,        // item used in the action
+    String departureRoom    // departure room for MOVE actions only
+) {
+    // Convenience constructor for non-action events (dialogue, aside, narrator)
+    public ManorEvent(Instant timestamp, String type, String characterId,
+                      String room, String description) {
+        this(timestamp, type, characterId, room, description,
+             null, null, null, null);
+    }
+}
+```
+
+`ObservationAccumulator<ManorEvent>` — wrapped in `LevelEvent<ManorEvent>`
+when collected. `LevelEvent.timestamp` is derived from
+`manorEvent.timestamp().toEpochMilli()` — not from a separate
+`System.currentTimeMillis()` call at wrapping time. This ensures the
+`TieredObservationRenderer`'s "[N ago]" display uses the event's logical
+timestamp.
 
 ---
 
-## 3. Two-Tier Compaction
+## 3. Rendering Pipeline
 
-### 3.1 Tier 1: Mechanical Compaction
+### 3.1 MechanicalCompactor
 
-A `MechanicalCompactor` — pure function, no world state dependency, no LLM.
-Takes `List<LevelEvent<ManorEvent>>`, returns a reduced list with superseded
+A pure function — no world state dependency, no LLM. Takes
+`List<LevelEvent<ManorEvent>>`, returns a reduced list with superseded
 entries removed.
 
-| Rule | Supersession logic |
-|------|-------------------|
-| **Position** | "X moved to Kitchen" superseded by later "X moved to Ballroom" — keep only the latest position per character |
-| **Presence** | "X is in the Kitchen" stale when we have "X moved to Ballroom" |
-| **Inventory** | "Brass key is on the floor" superseded by "Y picked up something" targeting the same object |
-| **Object state** | "Cabinet is locked" superseded by "Y interacted with Cabinet" successfully |
-| **Duplicate dialogue** | Same character saying the same thing — keep only the first occurrence |
+**Operates on structured fields** (`actionType`, `target`, `characterId`),
+never on narrative text parsing.
 
-Compaction runs lazily — at drain time, not on collect. This gives the
-compactor more context (the character's current room is known at drain time).
+| Rule | Supersession logic | Structured fields |
+|------|-------------------|-------------------|
+| **Position** | Later MOVE supersedes earlier MOVE for same character — keep only latest | `actionType == MOVE`, `characterId` |
+| **Presence** | Events implying character X is present are stale when a later MOVE shows X departed | `actionType == MOVE`, `departureRoom` |
+| **Inventory** | Later TAKE targeting same object supersedes earlier | `actionType == TAKE`, `target` |
+| **Object state** | Later INTERACT/USE targeting same object supersedes earlier | `actionType ∈ {INTERACT, USE}`, `target` |
+| **Duplicate dialogue** | Same character, same description — keep first occurrence | `type == "dialogue"`, `characterId`, `description` |
 
-### 3.2 Tier 2: LLM Summarisation
+### 3.2 ManorObservationRenderer
 
-After mechanical compaction, if the result exceeds `summarisationThreshold`,
-an `LlmObservationRenderer` implementing `ObservationRenderer<ManorEvent>`
-fires:
+A single `ManorObservationRenderer implements ObservationRenderer<ManorEvent>`
+that composes with the blocks SPI rather than reimplementing rendering logic
+at the service level:
 
-1. Takes the mechanically-compacted events
-2. Sends to `AgentProvider` with a system prompt instructing factual
-   compression — preserve names, items, and facts; compress dialogue into
-   summaries; do not invent events
-3. Returns `ObservationResult` with tier `SUMMARISED`
+```java
+public class ManorObservationRenderer implements ObservationRenderer<ManorEvent> {
+    private final MechanicalCompactor compactor;
+    private final TieredObservationRenderer<ManorEvent> delegate;
 
-If the budget is not exceeded, events return as-is with tier `VERBATIM`
-(current room) or `GROUPED` (remembered rooms after mechanical compaction).
+    public CompletionStage<ObservationResult> render(
+            List<LevelEvent<ManorEvent>> events, ObservationContext context) {
+        List<LevelEvent<ManorEvent>> compacted = compactor.compact(events);
+        return delegate.render(compacted, context);
+    }
+}
+```
+
+The `TieredObservationRenderer` is configured with:
+- `eventRenderer` — renders `ManorEvent::description`
+- `groupKeyExtractor` — extracts `ManorEvent::type` (Dialogue, Movement, etc.)
+- `verbatimThreshold` — configurable (default 10)
+- `groupedThreshold` — configurable (default 15)
+- `summariser` — a `ManorLlmSummariser implements Summariser<ManorEvent, String>`
+  backed by `AgentProvider`. System prompt instructs factual compression — preserve
+  names, items, and facts; compress dialogue into summaries; do not invent events.
+- `headerFormatter` — empty (`ctx -> ""`); section headers are added by
+  `ObservationBuilder` during assembly (§5.3)
+
+The renderer is stateless, shared across all accumulators. Tier selection
+happens automatically based on post-compaction batch size:
+
+| Post-compaction events | Tier | Typical context |
+|----------------------|------|-----------------|
+| ≤ verbatimThreshold (10) | VERBATIM | Current room, 1 turn of events |
+| ≤ groupedThreshold (15) | GROUPED | Moderate remembered room |
+| > groupedThreshold (15) | SUMMARISED | Large remembered room |
+
+This eliminates the separate `LlmObservationRenderer` and the service-level
+tier selection logic. The `AgentProvider` dependency moves from
+`ObservationService` to `ManorLlmSummariser`, cleanly separating event
+routing from rendering concerns.
 
 ### 3.3 Drain Flow
 
+Rendering is fully delegated to the `ObservationRenderer` SPI via
+`accumulator.drainObservation(now)`:
+
 ```
-Raw buffer (N events)
-  → Mechanical compaction (remove superseded)
-  → Count lines
-  → If lines ≤ budget: return as GROUPED tier
-  → If lines > budget: LLM summarise → return as SUMMARISED tier
+drainObservation(now)
+  → atomic copy-and-clear buffer (ObservationAccumulator)
+  → renderer.render(events, context)
+      → MechanicalCompactor.compact(events)
+      → TieredObservationRenderer selects tier by batch size
+      → returns ObservationResult
 ```
+
+For remembered rooms with cached results (§2.3), `ObservationService`
+returns the cache directly without draining.
 
 ---
 
@@ -175,10 +296,18 @@ Quarkus `@ConfigProperty` with defaults. Overridable in
 `application.properties` or via system properties for testing.
 
 ```properties
-manor.observation.current-room.max-lines=10
-manor.observation.remembered-rooms.max-lines=5
-manor.observation.summarisation-threshold=15
+manor.observation.verbatim-threshold=10
+manor.observation.grouped-threshold=15
 ```
+
+These map directly to `TieredObservationRenderer` constructor parameters:
+- `verbatim-threshold` — batch sizes at or below this render as VERBATIM
+  (one timestamped line per event). Current room events typically fall here.
+- `grouped-threshold` — batch sizes above verbatim and at or below this
+  render as GROUPED (events partitioned by type). Moderate remembered rooms
+  fall here.
+- Batch sizes above `grouped-threshold` trigger the `ManorLlmSummariser`
+  and render as SUMMARISED. No separate config — it's implicit.
 
 ---
 
@@ -215,8 +344,8 @@ Entrance Hall (5 turns ago): Dastardly gave Muttley a fake medal.
 ```
 
 The "Remembered" section only appears if the character has visited other
-rooms and those accumulators are non-empty after compaction. Rooms ordered
-by most recently visited.
+rooms and those rooms have cached drain results (§2.3) or non-empty
+accumulators. Rooms ordered by most recently visited.
 
 ### 5.4 CharacterAgentLoop Change
 
@@ -241,9 +370,15 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 - `drain()` — called from each character's virtual thread
 - `ObservationAccumulator` is `synchronized` on collect/drain — safe for
   this access pattern
-- `CharacterObservationState.currentRoom` updates happen from the game
-  loop thread only (via `publishEvent` processing movement events) — no
-  race with drain calls
+- `CharacterObservationState.currentRoom` — written by the game loop
+  thread (via `publishEvent` processing movement events), read by the
+  character's virtual thread (via `drain()` to determine current vs
+  remembered rooms). Visibility is guaranteed by the happens-before chain
+  through `PendingAction`: the game loop writes `currentRoom`, then calls
+  `pending.complete(result)` (`CompletableFuture.complete()`). The character
+  thread calls `pending.awaitResult()` (`CompletableFuture.get()`) before
+  the next `drain()`. Per JMM, `complete()` happens-before `get()`, so
+  the `currentRoom` write is visible to the character thread.
 
 ---
 
@@ -251,15 +386,16 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 
 | File | Change |
 |------|--------|
-| `ObservationService.java` | **New** — central event distribution + per-character accumulators |
-| `CharacterObservationState.java` | **New** — per-character room→accumulator map |
+| `ObservationService.java` | **New** — central event distribution + per-character accumulators + drain assembly |
+| `CharacterObservationState.java` | **New** — per-character room→accumulator map + remembered drain cache |
 | `ObservationDrain.java` | **New** — record holding drain results |
-| `MechanicalCompactor.java` | **New** — deterministic supersession compaction |
-| `LlmObservationRenderer.java` | **New** — `ObservationRenderer<ManorEvent>` impl using AgentProvider |
+| `MechanicalCompactor.java` | **New** — deterministic supersession compaction (pure function) |
+| `ManorObservationRenderer.java` | **New** — `ObservationRenderer<ManorEvent>` composing compaction + `TieredObservationRenderer` |
+| `ManorLlmSummariser.java` | **New** — `Summariser<ManorEvent, String>` backed by `AgentProvider` |
 | `ObservationBuilder.java` | **Modified** — new `ObservationDrain` parameter, replace `recentActivitySection` with `recentActivity` + `remembered` sections |
 | `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService` instead of reading world events directly |
 | `ScenarioOrchestrator.java` | **Modified** — init `ObservationService` at scenario start, pass to character loops, publish events after action resolution |
-| `application.properties` | **Modified** — add observation budget config properties |
+| `application.properties` | **Modified** — add observation threshold config properties |
 
 ---
 
