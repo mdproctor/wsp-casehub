@@ -8,12 +8,12 @@
 
 ## 1. Problem
 
-CaseHub case definitions are authored in YAML. There is no visual tool to view, navigate, or edit the structure of a case — its compounds, primitives, milestones, goals, sub-cases, bindings, or embedded SWF workflows. Users need:
+CaseHub case definitions are authored in YAML. There is no visual tool to view, navigate, or edit the structure of a case — its bindings, workers, milestones, goals, sub-cases, human tasks, or embedded SWF workflows. Users need:
 
-- A **read-only viewer** that renders a case definition as a graph with auto-layout
-- A **property editor** that lets users select a node and edit its properties in a side panel
-- A **structural editor** that lets users add, remove, and replace nodes at specific points (auto-layout recalculates)
-- A **runtime overlay** that projects live execution state (PlanItem status, milestone progression, heatmaps) onto the same graph
+- A **read-only viewer** that renders a case definition as a directed graph with auto-layout — Workers as nodes, Bindings as edges, Milestones/Goals as markers
+- A **property editor** that lets users select a node or edge and edit its properties in a side panel
+- A **structural editor** that lets users add, remove, and replace elements at specific points (auto-layout recalculates)
+- A **runtime overlay** that projects live execution state (TaskStatus across all 9 states, MilestoneLifecycleStatus across all 5 states, heatmaps) onto the same graph
 - A **multi-model view** that can drill into SWF workflows embedded inside Workers, rendering them in the same canvas
 - **Pluggable work stencils** discovered at runtime from marketplace YAML definitions
 
@@ -26,18 +26,44 @@ Free-form drag-and-drop is explicitly deferred. Auto-layout and structural editi
 The editor reads and writes YAML. There is no intermediate JSON graph model. The flow is:
 
 ```
-YAML → parse (js-yaml) → domain objects → domain adapter → React Flow nodes/edges → ELK layout → render
-Edit → mutate domain objects → serialize (js-yaml) → write YAML via persistence backend
+YAML → parse (yaml npm, CST-preserving) → domain objects → domain adapter → React Flow nodes/edges → ELK layout → render
+Edit → mutate domain objects → serialize (yaml npm, CST-preserving) → write YAML via persistence backend
 ```
+
+The `yaml` npm package (v2+) uses a Concrete Syntax Tree (CST) that preserves comments, formatting, quoting style, and key ordering. Parse with `parseDocument()` to retain the CST; mutations update nodes in-place; `toString()` emits YAML with original formatting preserved for untouched sections. This ensures round-trip fidelity — editing one property does not rewrite the entire file.
+
+**Cross-parser fidelity:** The Java engine uses Jackson + SnakeYAML. Expression strings like `${ .document.contentType }` may be quoted differently. Phase 0 must include a cross-parser compatibility test: parse→serialize with the `yaml` npm package, then parse with Jackson, and verify semantic equivalence.
+
+**What the editor visualizes:** The domain adapter (`toGraph()`) produces a logical graph from the YAML definition structure. This is the *definition-time* view — what the author wrote, not what the engine produces at runtime.
+
+The graph shows:
+- **Bindings** as the primary behavioral nodes (each binding declares: trigger → target)
+- **Workers** as containers that own capabilities
+- **Milestones** and **Goals** as landmark nodes
+- **SubCases** and **HumanTasks** as binding-target detail
+
+Edges represent relationships derivable from the YAML: binding-to-worker (via capability name matching), goal-to-completion criteria, sub-case references. The domain adapter resolves string-based references (e.g., `binding.capability: "review"` → worker whose `capabilities` array includes `"review"`) into graph edges.
+
+The engine's planning decomposition — `PlanItemDefinition.Compound` / `PlanItemDefinition.Primitive` hierarchy, `CompletionSemantics`, per-compound strategy — is a *runtime* concept. It is NOT what the definition-view editor visualizes. A future planning-view adapter could project the engine's `CasePlanModel` state as a separate graph, but this is not in scope for Phases 1–6. The runtime overlay (Phase 7) projects `TaskStatus` badges onto definition-view nodes, not a separate planning graph.
 
 ### 2.2 React Flow + Lit bridge (now), @xyflow/lit (later)
 
-The CaseHub frontend is Lit 3.x Web Components. React Flow is the most capable open-source graph editor library (MIT). The bridge pattern is straightforward:
+The CaseHub frontend is Lit 3.x Web Components. React Flow v11 (`reactflow` npm package, React 16+ compatible) is the most capable open-source graph editor library (MIT). The bridge pattern is straightforward:
 
 - Skip Shadow DOM on the wrapper component (`createRenderRoot() { return this; }`)
 - Mount React Flow via `ReactDOM.createRoot` in `connectedCallback`
 - Pass Lit properties as React props; React callbacks emit Lit custom events
 - ~50 lines of bridge code, ~45KB bundle overhead for React + ReactDOM
+
+**React version:** React Flow v11 requires React 16+, compatible with pages' current React 17. React Flow v12 (`@xyflow/react`) requires React 18 — the migration target when pages upgrades React. The v11 API is stable and sufficient for all phases.
+
+**Shadow DOM skip justification:** The `casehub-diagram` wrapper skips Shadow DOM (`createRenderRoot() { return this; }`) because React Flow relies on document-level event handlers, portal-based controls (minimap, controls panel), and CSS-in-JS injection that are incompatible with Shadow DOM encapsulation. This is specific to `casehub-diagram` — it is a full-viewport canvas component, not a composable widget embedded alongside other blocks-ui components. Theme tokens (`--pages-*` CSS custom properties) propagate through CSS inheritance regardless of Shadow DOM. The component emits `pages-event` with `composed: true` for consistency, though no shadow boundary needs crossing.
+
+**CSS isolation strategy** (required because Shadow DOM is disabled):
+- The React Flow container gets a scoping class (`casehub-diagram-root`) and `style="all: initial"` to reset inherited host styles
+- React Flow CSS is loaded as a scoped `@layer` — CSS cascade layers prevent host globals (`* { box-sizing }`, `button { appearance }`) from affecting internals
+- Pages design tokens (`--pages-*`) are explicitly forwarded as CSS custom properties on the container, not inherited from the document
+- The Phase 0 spike must validate isolation against the Pages shell with its global resets — this is a hard gate (blocks-ui ARC42STORIES §6 documents three classes of cross-shadow rendering bugs; disabling Shadow DOM inherits all of them)
 
 React is isolated to a single package (`graph-renderer`). When @xyflow/lit is built (or if the xyflow project ships one), the renderer swaps with no impact on the graph model, stencils, or domain adapters.
 
@@ -53,30 +79,80 @@ React is isolated to a single package (`graph-renderer`). When @xyflow/lit is bu
 ### 2.3 Two tiers of stencils
 
 **Structural stencils (compile-time)** — the graph grammar. Fixed set per domain:
-- Case: Compound, Primitive, Milestone, Goal, SubCase
+- Case (definition view): Binding, Worker, Milestone, Goal, SubCase
 - SWF: Call, Switch, Raise, Catch, Entry, Exit (drill-down view)
 
-Each structural stencil defines:
-- Containment rules ("Compound can contain: Primitive, Compound")
-- Connection rules ("Goal has zero outgoing edges")
-- Port cardinality ("Primitive has 0..* in, 0..1 out")
-- Property schema (typed fields for the side panel editor)
-- SVG rendering template (function of node state → visual)
+| Stencil | Shape | Key visuals |
+|---------|-------|-------------|
+| **Binding** | Rounded rectangle | Trigger type icon (contextChange/cloudEvent/schedule/scopeActivated), target type badge (capability/subCase/humanTask), when-condition preview |
+| **Worker** | Container rectangle | Capability list, executor type indicator (SWF/agent/sequence/external), description |
+| **Milestone** | Diamond | Condition preview, SLA indicator (integrates with existing `sla-indicator` component), entryCriteria badge |
+| **Goal** | Hexagon terminal | Kind badge (success/failure/custom), condition preview |
+| **SubCase** | Double-bordered rectangle | Namespace/name/version, I/O mapping indicator, M-of-N group badge (groupId/requiredCount/totalInGroup) |
 
-**Work stencils (runtime-discoverable)** — the leaf vocabulary. What a Primitive actually does:
+HumanTask is a binding target, not a standalone YAML element — it is rendered as the target detail within a Binding node (title, candidateGroups, outcomes, SLA).
+
+Each structural stencil defines:
+- Connection rules (e.g., "Goal has zero outgoing edges", "Binding has exactly one outgoing edge to its target")
+- Port cardinality (e.g., "Worker has 0..* inbound capability edges")
+- Property schema (JSON Schema scoped to the stencil's YAML element — see §3.3)
+- Rendering template (function of node state → `StencilTemplate` from lit-html; wrapped into React Flow custom nodes by graph-renderer)
+
+### 2.3a Edge model
+
+Edges represent relationships derived from the YAML definition:
+
+| Edge type | Source → Target | Derivation |
+|-----------|----------------|------------|
+| **Capability dispatch** | Binding → Worker | Binding.capability string matches Worker.capabilities[] entry |
+| **SubCase spawn** | Binding → SubCase (sub-node) | Binding.subCase object present |
+| **HumanTask creation** | Binding → HumanTask (sub-node) | Binding.humanTask object present |
+| **Completion criteria** | Goal → Case completion | GoalExpression references goal by name |
+
+Edges are derived by the domain adapter during `toGraph()` — they are not stored separately in YAML. The adapter resolves string references (capability names) into graph edges. Unresolvable references (e.g., binding references a capability no worker owns) are flagged as validation warnings.
+
+ELK layout uses hierarchical mode. Workers are containers; their capabilities are internal labels (not separate nodes). Bindings connect to workers via capability edges.
+
+### 2.3b Property categories
+
+YAML properties not represented as graph nodes are handled as property-panel fields:
+
+| Category | Properties | Where shown |
+|----------|-----------|-------------|
+| **Case-level** | `planningStrategy`, `decompositionStrategy`, `completion`, `authorization`, `cbr`, `use` (secrets/configMaps), `episodic`, `semanticData`, `layers`, `signals`, `types`, `labels` | Case root property panel (top-level selection or dedicated toolbar section) |
+| **Binding-level** | `name`, `on` (trigger), `when`, `conflictResolverStrategy`, `outcomePolicy`, `inputProjectionOverride`, `contextWrite`, `producedKeys`, `lifecycleScope`, `participation`, `executionMode` | Binding node property panel |
+| **Worker-level** | `name`, `description`, `capabilities`, `executionPolicy`, `sequence`, agent/SWF config | Worker node property panel |
+| **Milestone-level** | `name`, `description`, `condition`, `entryCriteria`, `slaDuration`, `slaStartFrom` | Milestone node property panel |
+| **Goal-level** | `name`, `description`, `kind`, `condition` | Goal node property panel |
+
+Phase 3 (property editing) implements schema-driven form generation from these categories.
+
+**Work stencils (runtime-discoverable)** — the leaf vocabulary. What a Worker actually executes:
 - Discovered from marketplace YAML at configurable URLs
 - Grouped by category (connectors/messaging, ai/agents, human/tasks, etc.)
 - Each defines: icon, property schema, sync/async, input/output contract
-- Rendered as Primitive nodes with work-type-specific visuals
+- Rendered as Worker sub-visuals with work-type-specific detail
 
 ### 2.4 Persistence is pluggable
 
 ```typescript
+type ReadResult =
+  | { status: 'ok'; yaml: string; version: string }
+  | { status: 'not_found'; uri: string }
+  | { status: 'parse_error'; message: string; raw: string }
+  | { status: 'schema_error'; errors: ValidationError[]; yaml: string; version: string };
+
 interface PersistenceBackend {
-  read(uri: string): Promise<string>;   // returns YAML
-  write(uri: string, yaml: string): Promise<void>;
+  read(uri: string): Promise<ReadResult>;
+  write(uri: string, yaml: string, expectedVersion: string): Promise<WriteResult>;
 }
+
+type WriteResult =
+  | { status: 'ok'; version: string }
+  | { status: 'conflict'; currentVersion: string };
 ```
+
+`read()` returns a discriminated union so the editor can route to create-new, show-error, or show-with-warnings flows. `write()` takes an `expectedVersion` (opaque string — Git SHA, ETag, last-modified timestamp) for optimistic concurrency: if the backing store has changed since `read()`, `write()` returns `conflict` and the editor shows a merge/overwrite dialog. The in-memory backend uses a monotonic counter; the Git backend uses commit SHA.
 
 Backends: Git (read/write GitHub URLs), Electron (local filesystem), REST API, in-memory (playground). The editor doesn't know or care where the YAML lives.
 
@@ -91,19 +167,45 @@ Backends: Git (read/write GitHub URLs), Electron (local filesystem), REST API, i
 ### 2.6 Runtime overlay — lightweight, not a separate view
 
 Same graph, same layout. Runtime data is projected as decoration:
-- Node state badges (RUNNING → green pulse, COMPLETED → checkmark, FAULTED → red)
+- Node state badges (all 9 `TaskStatus` values — see table below)
 - Heatmaps for usage frequency (hot/cold path colouring)
-- Active compound highlighting (which compound the planning strategy is expanding)
-- Worker execution indicators (SWF workflow progress inside a Primitive)
-- Milestone progression (PENDING → ACTIVE → COMPLETED)
-- Blackboard data preview on hover
+- Active planning highlighting (which bindings the planning strategy is evaluating)
+- Worker execution indicators (SWF workflow progress inside a Worker)
+- Milestone progression (full `MilestoneLifecycleStatus`: PENDING → ACTIVE → COMPLETED | FAILED | CANCELLED)
+- CaseContext data preview on hover
 
-The stencil rendering function takes optional runtime state:
+**TaskStatus badge visuals** (from `io.casehub.api.model.TaskStatus`):
+
+| State | Badge | Visual treatment |
+|-------|-------|-----------------|
+| PENDING | Gray outline | Empty circle, no fill — work defined, not yet started |
+| RUNNING | Green pulse | Animated green ring — actively executing |
+| DELEGATED | Blue arrow | Right-pointing arrow badge — control passed to external actor |
+| SUSPENDED | Yellow pause | Pause icon — execution paused, resumes without re-dispatch |
+| COMPLETED | Green checkmark | Filled green check — finished successfully |
+| FAULTED | Red exclamation | Red circle with exclamation — system failure, deadline breach, or gate rejection |
+| REJECTED | Orange X | Orange X mark — actor deliberately refused the work |
+| OBSOLETE | Strikethrough | Dimmed node with strikethrough — context changed, work became irrelevant |
+| CANCELLED | Gray slash | Gray diagonal slash — deliberate stop by human or system |
+
+**Generic decoration model** (graph-core — domain-agnostic):
 ```typescript
-render(node: NodeDefinition, runtime?: RuntimeState): SVGTemplate
+interface NodeDecoration {
+  badge?: { icon: string; color: string; pulse?: boolean };
+  border?: { style: string; color: string };
+  overlay?: { type: 'heatmap' | 'highlight'; intensity: number };
+  tooltip?: string;
+}
 ```
 
-No runtime state → design mode. Runtime state present → overlay decorations.
+Domain stencil packages (graph-stencil-case) provide a `RuntimeAdapter` that maps domain state to decorations: `TaskStatus.RUNNING` → `{ badge: { icon: 'play', color: 'green', pulse: true } }`. graph-core and graph-renderer never import domain state enums.
+
+The stencil rendering function takes optional decoration:
+```typescript
+render(node: GraphNode, decoration?: NodeDecoration): StencilTemplate
+```
+
+No decoration → design mode. Decoration present → overlay visuals.
 
 ## 3. Architecture
 
@@ -114,19 +216,19 @@ Pages (framework-level, domain-agnostic)
 │
 ├── @casehubio/graph-core
 │   ├── Graph model (nodes, edges, containment tree)
-│   ├── Stencil registry (register/lookup structural + work stencils)
-│   ├── Constraint validator (containment rules, connection rules, cardinality)
+│   ├── StencilGrammar registry (connection rules, port cardinality — SPI)
+│   ├── Constraint validator (enforces registered grammar rules)
+│   ├── PropertySchema contract (JSON Schema for stencil property panels)
+│   ├── NodeDecoration model (generic badge/border/overlay — no domain enums)
 │   ├── Persistence SPI (PersistenceBackend interface)
-│   ├── Runtime overlay data model (RuntimeState, badges, heatmap data)
-│   └── Edit operations (add, remove, replace node — validated against stencil rules)
+│   └── Edit operations (add, remove, replace node — validated against grammar)
 │
 ├── @casehubio/graph-renderer
-│   ├── React Flow bridge (Lit wrapper, React lifecycle management)
-│   ├── ELK layout integration (hierarchical auto-layout with containment)
-│   ├── Stencil → React Flow node type mapping
-│   ├── SVG rendering pipeline (stencil templates → React Flow custom nodes)
-│   ├── Property panel contract (selected node → property schema → form)
-│   ├── Runtime overlay renderer (badge, heatmap, pulse decorations)
+│   ├── React Flow v11 bridge (Lit wrapper, React lifecycle management)
+│   ├── ELK layout integration (hierarchical auto-layout)
+│   ├── StencilDescriptor registry (rendering templates keyed by stencil type)
+│   ├── Stencil template → React Flow custom node wrapping
+│   ├── Decoration renderer (badge, heatmap, pulse from NodeDecoration)
 │   └── Mode switching (design / runtime)
 │
 └── @casehubio/graph-work-registry
@@ -139,27 +241,49 @@ blocks-ui (domain-specific, consumes Pages)
 │
 ├── @casehubio/graph-stencil-case
 │   ├── Case domain adapter
-│   │   ├── toGraph(caseYaml): GraphModel — parse YAML, produce nodes/edges/containment
+│   │   ├── toGraph(caseYaml): GraphModel — parse YAML, produce nodes/edges
+│   │   │   Resolves capability string references into binding→worker edges
 │   │   └── applyEdit(model, edit): CaseYaml — apply structural edit, serialize back
 │   ├── TypeScript types generated from CaseDefinition.yaml JSON Schema
-│   ├── Structural stencils: Compound, Primitive, Milestone, Goal, SubCase
-│   ├── SVG templates per node type (with state variants)
-│   └── Case runtime overlay adapter (PlanItem states, milestone progression)
+│   ├── Structural stencils: Binding, Worker, Milestone, Goal, SubCase
+│   ├── Stencil templates per node type (Lit TemplateResult, with state variants)
+│   └── Case runtime overlay adapter (TaskStatus badges, milestone progression)
 │
 ├── @casehubio/graph-stencil-swf
 │   ├── SWF domain adapter (workflow YAML ↔ graph)
 │   ├── Workflow step stencils (call, switch, raise, catch, entry, exit)
-│   ├── SVG templates per step type
+│   ├── Stencil templates per step type
 │   ├── Drill-down integration (expand SWF Worker → sub-graph of workflow steps)
 │   └── SWF runtime overlay adapter (step execution state, lineage)
 │
-└── casehub-diagram (Lit wrapper component for blocks-ui)
-    ├── Assembles graph-core + graph-renderer + stencil sets
-    ├── Persistence backend configuration
-    ├── Palette UI (structural stencils + work registry results)
-    ├── Property panel UI (bound to selected node's stencil schema)
-    ├── Toolbar (mode switch, zoom controls, layout reset)
-    └── Design / runtime mode toggle
+└── casehub-diagram (Lit components for blocks-ui)
+    ├── <casehub-diagram> — layout shell (composition root)
+    │   Assembles sub-components, persistence backend config,
+    │   case-explorer integration (entity-detail renderer — see §3.5)
+    ├── <casehub-diagram-canvas> — graph rendering surface
+    │   Mounts graph-renderer, stencil sets; Shadow DOM skip is HERE ONLY
+    ├── <casehub-diagram-palette> — stencil/work type palette
+    │   Structural stencils + work registry results; Shadow DOM enabled
+    ├── <casehub-diagram-properties> — property panel
+    │   Schema-driven form from selected node's PropertySchema; Shadow DOM enabled
+    └── <casehub-diagram-toolbar> — mode switch, zoom, layout reset
+        Shadow DOM enabled
+```
+
+### 3.5 Relationship to case-explorer
+
+blocks-ui's `case-explorer` (#87) is a registration-based entity browser for case *instances* — runtime entities with lifecycle status, commands, and relationships. The diagram editor visualizes case *definitions* — the YAML structure that defines what a case type can do.
+
+They are complementary views of different data:
+
+| Concern | case-explorer | casehub-diagram |
+|---------|--------------|-----------------|
+| Subject | Case instances (runtime) | Case definitions (design-time) |
+| Data source | REST API (EntityInstance) | YAML (CaseDefinition) |
+| Navigation | Entity list → detail → tree | Graph canvas with pan/zoom |
+| Editing | Commands (dynamic, per-instance) | Property editing, structural editing |
+
+**Integration point:** `casehub-diagram` can be registered as an `entity-detail` renderer for the `caseDefinition` entity type in case-explorer. When a user selects a case definition in case-explorer's entity-list, the diagram renders as the detail view. This uses case-explorer's existing three-tier renderer resolution — no changes to case-explorer are needed.
 ```
 
 ### 3.2 Data flow
@@ -200,21 +324,27 @@ blocks-ui (domain-specific, consumes Pages)
 
 ### 3.3 Stencil definition contract
 
+**`StencilTemplate`** is a `TemplateResult` or `SVGTemplateResult` from lit-html. Stencils are authored in Lit (since they live in blocks-ui). The rendering pipeline in graph-renderer wraps each `StencilTemplate` into a React Flow custom node component — the stencil author never touches React.
+
+**`PropertySchema`** is a standard JSON Schema object scoped to the stencil's YAML element. It reuses the CaseDefinition.yaml JSON Schema `$defs` directly — e.g., the Binding stencil's PropertySchema is the `#/$defs/Binding` schema subset. Complex types (HumanTask with `oneOf` constraints, Trigger with exclusive `oneOf`) are handled by JSON Schema's existing composition keywords. Phase 3's schema-driven form generation consumes PropertySchema via the same pipeline as blocks-ui's existing `schema-form` component in pages-primitives.
+
 ```typescript
+import { TemplateResult, SVGTemplateResult } from 'lit-html';
+import { JSONSchema7 } from 'json-schema';
+
+type StencilTemplate = TemplateResult | SVGTemplateResult;
+type PropertySchema = JSONSchema7;
+
 interface StructuralStencil {
-  type: string;                           // e.g. "compound", "primitive", "milestone"
+  type: string;                           // e.g. "binding", "worker", "milestone"
   label: string;
-  icon: string;                           // icon identifier
-  containment: {
-    canContain: string[];                 // types this can contain ([] = leaf)
-    canBeContainedBy: string[];           // types that can contain this
-  };
+  icon: string;
   connections: {
     inbound: { min: number; max: number; allowedFrom: string[] };
     outbound: { min: number; max: number; allowedTo: string[] };
   };
-  properties: PropertySchema;            // typed property definitions for side panel
-  render: (node: GraphNode, runtime?: RuntimeState) => SVGTemplate;
+  properties: PropertySchema;
+  render: (node: GraphNode, runtime?: RuntimeState) => StencilTemplate;
 }
 ```
 
@@ -226,9 +356,9 @@ interface WorkStencil {
   icon: string;
   async: boolean;
   properties: PropertySchema;
-  input: JsonSchema;
-  output: JsonSchema;
-  render: (node: GraphNode, runtime?: RuntimeState) => SVGTemplate;
+  input: JSONSchema7;
+  output: JSONSchema7;
+  render: (node: GraphNode, runtime?: RuntimeState) => StencilTemplate;
 }
 ```
 
@@ -236,9 +366,9 @@ interface WorkStencil {
 
 The viewer must visually distinguish:
 
-- **Case-controlled zone** — PlanItems on the agenda, compound expansion, milestone progression. The Case engine owns lifecycle.
-- **Worker-controlled zone** — once a Primitive dispatches to a Worker, the Worker owns execution. If the Worker runs a SWF workflow, the workflow has its own state machine.
-- **The boundary** — a Primitive PlanItem transitions RUNNING → DELEGATED when handed to a Worker. Visually: a containment border change (different stroke/fill for delegated nodes) or an explicit delegation indicator.
+- **Case-controlled zone** — bindings, milestones, goals, completion evaluation. The Case engine owns lifecycle.
+- **Worker-controlled zone** — once a binding dispatches to a Worker, the Worker owns execution. If the Worker runs a SWF workflow, the workflow has its own state machine.
+- **The boundary** — a PlanItem transitions RUNNING → DELEGATED when handed to a Worker. Visually: a containment border change (different stroke/fill for delegated nodes) or an explicit delegation indicator. In the definition view, this boundary is shown as the edge between a Binding and its target Worker.
 
 ## 4. Implementation Order
 
@@ -275,14 +405,15 @@ Epic 1A: graph-core                    Epic 1B: graph-renderer
 ```
 Epic 2: graph-stencil-case (viewer)
 ├── Case domain adapter: toGraph() — YAML → graph model
-├── Structural stencils with SVG templates
-│   ├── Compound (with completion semantics badge: all/any/M-of-N)
-│   ├── Primitive (with executor type indicator)
-│   ├── Milestone (diamond shape, lifecycle state)
-│   ├── Goal (terminal node, SUCCESS/FAILURE variant)
-│   └── SubCase (recursive, with input/output mapping indicator)
-├── Containment rules registered with graph-core
-├── Connection rules (bindings, triggers, criteria)
+│   Resolves capability references into binding→worker edges
+├── Structural stencils with Lit templates
+│   ├── Binding (trigger type icon, target type badge, when-condition preview)
+│   ├── Worker (capability list, executor type indicator)
+│   ├── Milestone (diamond shape, condition, SLA indicator via sla-indicator)
+│   ├── Goal (terminal node, kind badge: success/failure/custom)
+│   └── SubCase (recursive, I/O mapping indicator, M-of-N group badge)
+├── Connection rules registered with graph-core
+├── Edge derivation (capability dispatch, subCase spawn, completion criteria)
 └── casehub-diagram Lit component (viewer mode only)
 ```
 
@@ -425,17 +556,15 @@ Phase 1B (graph-renderer) ──┤ parallel
 
 ## 7. Open Questions
 
-1. **Schema freshness** — the CaseDefinition.yaml JSON Schema must be verified against the current Java domain model before type generation. The schema may be stale.
+1. **SWF visual language** — should the SWF drill-down render workflow steps in CaseHub's visual language (unified) or adopt SWF community visual conventions (familiar to SWF users)? Recommendation: CaseHub visual language for consistency, since SWF is always experienced through CaseHub.
 
-2. **SWF visual language** — should the SWF drill-down render workflow steps in CaseHub's visual language (unified) or adopt SWF community visual conventions (familiar to SWF users)? Recommendation: CaseHub visual language for consistency, since SWF is always experienced through CaseHub.
+2. **blocks-ui package structure** — new workspace packages (recommended) vs subdirectories in existing blocks-ui structure. Recommendation: new workspace packages for type-safe boundaries and independent consumption.
 
-3. **blocks-ui package structure** — new workspace packages (recommended) vs subdirectories in existing blocks-ui structure. Recommendation: new workspace packages for type-safe boundaries and independent consumption.
+3. **@xyflow/lit timeline** — when to invest in a native Lit binding for xyflow. Not before Phase 4 is complete. Could be contributed upstream to the xyflow project.
 
-4. **@xyflow/lit timeline** — when to invest in a native Lit binding for xyflow. Not before Phase 4 is complete. Could be contributed upstream to the xyflow project.
+4. **Lienzo port** — strategic option for full canvas control. Revisit after the React Flow approach proves out or hits limitations. 6-10 person-week investment. Provides canvas-level drawing API, scene graph, hit-testing, pan/zoom — but requires maintaining alone.
 
-5. **Lienzo port** — strategic option for full canvas control. Revisit after the React Flow approach proves out or hits limitations. 6-10 person-week investment. Provides canvas-level drawing API, scene graph, hit-testing, pan/zoom — but requires maintaining alone.
-
-6. **fn() vs function()** — CaseHub YAML allows `fn()` as a shortcut for `function()`. SWF uses `call`. Confirm this is the only divergence from SWF YAML conventions.
+5. **YAML divergences from SWF** — Confirm the full list of CaseHub YAML conventions that diverge from the Serverless Workflow spec (known: CaseHub-specific fields like `bindings`, `milestones`, `goals`, `capabilities`, `cbr`, `authorization`, `episodic`). Ensure the domain adapter handles both correctly.
 
 ## 8. Non-Goals
 
