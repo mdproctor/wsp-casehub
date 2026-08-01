@@ -204,9 +204,23 @@ is needed because the event set is static.
 
 When the character returns to a previously visited room:
 
-- The cached result for that room is removed from `rememberedDrainCache`
+- The cached result for that room is **not** removed from
+  `rememberedDrainCache` — it persists silently
 - The accumulator resumes its role as the current-room accumulator
 - New events arriving in the room are collected normally
+- On the first non-empty drain of the now-current room, the cached result
+  is overwritten by the fresh drain result
+- If the character leaves again later, the cache holds their latest memory
+  of the room (from the most recent non-empty drain)
+
+This avoids a memory discontinuity: without cache persistence, the
+character would lose their prior-visit memory the moment they return
+(the accumulator is empty, the cache would be deleted). With persistence,
+the cache stays available as remembered-room context if the character
+leaves again before any new events occur. `ObservationService.drain()`
+does NOT include the current room's cache in `rememberedRooms` — only
+rooms the character is not currently in appear there. The current room's
+context comes from the live accumulator drain.
 
 ### 2.4 Event Payload
 
@@ -479,7 +493,8 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 | `WorldState.java` | **Modified** — new `addEvent(ManorEvent)` overload accepting pre-constructed events |
 | `ObservationBuilder.java` | **Modified** — new `ObservationDrain` parameter, replace `recentActivitySection` with `recentActivity` + `remembered` sections |
 | `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService`, publish dialogue/aside events through `ObservationService` |
-| `ScenarioOrchestrator.java` | **Modified** — init `ObservationService` at scenario start, capture departure room before resolve, publish enriched events after action resolution |
+| `SceneDirector.java` | **Modified** — accepts an event callback (`Consumer<ManorEvent>`) alongside the existing narration callback; `runBeat()` calls the event callback for dialogue/aside events so they flow through `publishEvent()` |
+| `ScenarioOrchestrator.java` | **Modified** — init `ObservationService` at scenario start, capture departure room before resolve, publish enriched events after action resolution. Passes event callback to `SceneDirector` that mirrors events to `observationService.publishEvent()` |
 | `application.properties` | **Modified** — add observation threshold config properties |
 
 ---
