@@ -250,7 +250,7 @@ Pages (framework-level, domain-agnostic)
     ├── Marketplace YAML loader (fetch + parse work stencil descriptors)
     ├── Work stencil schema (name, category, icon, properties, I/O contract)
     ├── Category index (grouped palette data)
-    └── Property schema → form generation (typed form from YAML descriptor)
+    └── PropertySchema definitions per work stencil (consumed by casehub-diagram-properties)
 
 blocks-ui (domain-specific, consumes Pages)
 │
@@ -509,11 +509,18 @@ Epic 6: graph-work-registry
 
 ```
 Epic 7: Runtime overlay
-├── Runtime data source (WebSocket or polling from Case engine)
+├── Runtime data source via casehub-pages PushSource
+│   ├── PushPool.acquire() for connection pooling (one connection per origin)
+│   ├── PushSourceError.permanent for transient vs fatal error classification
+│   ├── Auto-reconnect with full-snapshot re-subscription
+│   └── Staleness indicator when connection is lost (gray overlay badge)
+├── RuntimeAdapter: PlanItem[] → NodeDecoration per binding
+│   ├── Active-worst-first aggregation for many-to-one PlanItem-to-Binding mapping
+│   └── Tooltip shows full PlanItem status breakdown per binding
 ├── TaskStatus badges on nodes (all 9 states via NodeDecoration)
-├── Milestone progression indicators (MilestoneLifecycleStatus)
+├── Milestone progression indicators (full MilestoneLifecycleStatus: 5 states)
 ├── Heatmap colouring (usage frequency)
-├── Active planning highlighting (which bindings the planning strategy is evaluating)
+├── Active binding highlighting (which bindings the planning strategy is evaluating)
 ├── CaseContext data preview on hover
 └── Design ↔ Runtime mode toggle in toolbar
 ```
