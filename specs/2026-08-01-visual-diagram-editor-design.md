@@ -200,6 +200,21 @@ interface NodeDecoration {
 
 Domain stencil packages (graph-stencil-case) provide a `RuntimeAdapter` that maps domain state to decorations: `TaskStatus.RUNNING` → `{ badge: { icon: 'play', color: 'green', pulse: true } }`. graph-core and graph-renderer never import domain state enums.
 
+**PlanItem-to-Binding aggregation:** A single Binding can fire multiple times (e.g., `validate-on-upload` fires on every document upload), producing multiple PlanItems with the same `bindingName`. The `RuntimeAdapter` aggregates these per-binding using an **active-worst-first** strategy:
+
+1. If any PlanItem is in an active state, show the worst active status (priority: SUSPENDED > DELEGATED > RUNNING > PENDING)
+2. If all PlanItems are terminal, show the most recent terminal status (by `createdAt`)
+3. When multiple PlanItems exist, `badge.count` shows the total and `tooltip` shows the full breakdown (e.g., "3 completed, 1 faulted, 1 running")
+
+```typescript
+interface NodeDecoration {
+  badge?: { icon: string; color: string; pulse?: boolean; count?: number };
+  border?: { style: string; color: string };
+  overlay?: { type: 'heatmap' | 'highlight'; intensity: number };
+  tooltip?: string;
+}
+```
+
 The stencil rendering function takes optional decoration:
 ```typescript
 render(node: GraphNode, decoration?: NodeDecoration): StencilTemplate
