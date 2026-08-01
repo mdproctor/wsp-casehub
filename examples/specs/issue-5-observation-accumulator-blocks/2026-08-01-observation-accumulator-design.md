@@ -283,10 +283,21 @@ drainObservation(now)
       → MechanicalCompactor.compact(events)
       → TieredObservationRenderer selects tier by batch size
       → returns ObservationResult
+      └─ On LLM failure: return GROUPED tier (over budget but complete)
 ```
 
 For remembered rooms with cached results (§2.3), `ObservationService`
 returns the cache directly without draining.
+
+**LLM failure fallback:** The `ManorLlmSummariser` must catch
+`AgentProvider` exceptions internally and degrade gracefully. If LLM
+summarisation fails (timeout, quota exhaustion, malformed response), the
+summariser returns the mechanically-compacted event descriptions as plain
+text — the `TieredObservationRenderer.renderSummarised()` path falls back
+to GROUPED-equivalent output. Data is never lost due to a summarisation
+failure. This is a contract on the summariser implementation, not a change
+to `ObservationAccumulator` (which correctly provides at-most-once delivery
+to the renderer per the blocks API contract documented in ARC42STORIES).
 
 ---
 
@@ -358,6 +369,21 @@ ObservationDrain drain = observationService.drain(character.agentId(), now);
 String observation = ObservationBuilder.buildObservation(character, world, goals, drain);
 ```
 
+`ObservationService.drain()` internally:
+
+1. Reads `CharacterState.currentRoom` to identify the current-room accumulator
+2. Calls `drainObservation(now)` on the current-room accumulator →
+   `CompletionStage<ObservationResult>`
+3. For each remembered room: returns cached result if available (§2.3),
+   otherwise calls `drainObservation(now)` →
+   `CompletionStage<ObservationResult>`
+4. Awaits all `CompletionStages` in parallel via `CompletableFuture.allOf()`
+   — drain runs on a character virtual thread where blocking is appropriate
+5. On partial failure: any room whose summarisation fails returns its
+   GROUPED-tier fallback (per §3.3). The overall drain succeeds as long as
+   at least the current-room drain produces a result.
+6. Builds `ObservationDrain` from the collected results
+
 ### 5.5 WorldState.recentEvents() Unchanged
 
 Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
@@ -366,13 +392,20 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 
 ## 6. Thread Safety
 
-- `publishEvent()` — called from the game loop thread (single-threaded)
+- `publishEvent()` — called from **both** the game loop thread (action
+  events) and character virtual threads (dialogue/aside events)
 - `drain()` — called from each character's virtual thread
 - `ObservationAccumulator` is `synchronized` on collect/drain — safe for
-  this access pattern
-- `CharacterObservationState.currentRoom` — written by the game loop
-  thread (via `publishEvent` processing movement events), read by the
-  character's virtual thread (via `drain()` to determine current vs
+  concurrent access from any combination of threads
+- `CharacterObservationState` uses `ConcurrentHashMap<String,
+  ObservationAccumulator>` — concurrent iteration during drain is safe but
+  **weakly consistent**: a drain in progress might not see a room
+  accumulator that was just created by a concurrent `publishEvent`. This
+  is acceptable — the new room's events will be captured on the next drain
+  cycle.
+- Room position: `CharacterState.currentRoom` is the single source of
+  truth. Written by the game loop thread (via `ActionResolver`), read by
+  character virtual threads (via `drain()` to determine current vs
   remembered rooms). Visibility is guaranteed by the happens-before chain
   through `PendingAction`: the game loop writes `currentRoom`, then calls
   `pending.complete(result)` (`CompletableFuture.complete()`). The character
@@ -392,9 +425,14 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 | `MechanicalCompactor.java` | **New** — deterministic supersession compaction (pure function) |
 | `ManorObservationRenderer.java` | **New** — `ObservationRenderer<ManorEvent>` composing compaction + `TieredObservationRenderer` |
 | `ManorLlmSummariser.java` | **New** — `Summariser<ManorEvent, String>` backed by `AgentProvider` |
+| `ManorEvent.java` | **Modified** — enriched with `ActionType actionType`, `String target`, `String withItem`, `String departureRoom` + convenience constructor |
+| `WorldState.java` | **Modified** — new `addEvent(ManorEvent)` overload accepting pre-constructed events |
 | `ObservationBuilder.java` | **Modified** — new `ObservationDrain` parameter, replace `recentActivitySection` with `recentActivity` + `remembered` sections |
-| `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService` instead of reading world events directly |
-| `ScenarioOrchestrator.java` | **Modified** — init `ObservationService` at scenario start, pass to character loops, publish events after action resolution |
+| `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService`, publish dialogue/aside events through `ObservationService` |
+| `ManorEvent.java` | **Modified** — enriched with `ActionType actionType`, `String target`, `String withItem`, `String departureRoom` fields + convenience constructor for non-action events |
+| `WorldState.java` | **Modified** — new `addEvent(ManorEvent)` overload accepting pre-constructed events |
+| `ScenarioOrchestrator.java` | **Modified** — init `ObservationService` at scenario start, capture departure room before resolve, publish enriched events after action resolution |
+| `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService`, publish dialogue/aside events through `ObservationService` |
 | `application.properties` | **Modified** — add observation threshold config properties |
 
 ---
