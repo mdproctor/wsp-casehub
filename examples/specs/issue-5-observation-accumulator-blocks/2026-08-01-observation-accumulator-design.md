@@ -27,15 +27,16 @@ per-character accumulation.
 ### 1.1 Data Flow
 
 ```
-Game Loop                    ObservationService                     CharacterAgentLoop
-    │                              │                                       │
-    ├─ resolveAction() ──────────► publishEvent(event) ──┐                 │
-    │                              │                     │                 │
-    │                              │  for each character: │                │
-    │                              │    visibility check  │                │
-    │                              │    route to room     │                │
-    │                              │    partition         │                │
-    │                              │◄────────────────────┘                 │
+Game Loop / Character Threads  ObservationService                     CharacterAgentLoop
+    │                                │                                       │
+    ├─ publishEvent(event) ──────►   │                                       │
+    │  (action, dialogue, aside,     │                                       │
+    │   scripted scene events)       │                                       │
+    │                                │  for each character:                  │
+    │                                │    room presence check               │
+    │                                │    aside privacy filter              │
+    │                                │    route to room accumulator         │
+    │                                │                                       │
     │                              │                                       │
     │                              │◄──── drain(charId, now) ──────────────┤
     │                              │                                       │
