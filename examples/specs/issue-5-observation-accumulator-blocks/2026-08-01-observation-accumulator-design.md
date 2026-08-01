@@ -470,14 +470,11 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 | `MechanicalCompactor.java` | **New** — deterministic supersession compaction (pure function) |
 | `ManorObservationRenderer.java` | **New** — `ObservationRenderer<ManorEvent>` composing compaction + `TieredObservationRenderer` |
 | `ManorLlmSummariser.java` | **New** — `Summariser<ManorEvent, String>` backed by `AgentProvider` |
-| `ManorEvent.java` | **Modified** — enriched with `ActionType actionType`, `String target`, `String withItem`, `String departureRoom` + convenience constructor |
+| `ManorEvent.java` | **Modified** — enriched with `ActionType actionType`, `String target`, `String withItem`, `String departureRoom` fields + convenience constructor for non-action events |
 | `WorldState.java` | **Modified** — new `addEvent(ManorEvent)` overload accepting pre-constructed events |
 | `ObservationBuilder.java` | **Modified** — new `ObservationDrain` parameter, replace `recentActivitySection` with `recentActivity` + `remembered` sections |
 | `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService`, publish dialogue/aside events through `ObservationService` |
-| `ManorEvent.java` | **Modified** — enriched with `ActionType actionType`, `String target`, `String withItem`, `String departureRoom` fields + convenience constructor for non-action events |
-| `WorldState.java` | **Modified** — new `addEvent(ManorEvent)` overload accepting pre-constructed events |
 | `ScenarioOrchestrator.java` | **Modified** — init `ObservationService` at scenario start, capture departure room before resolve, publish enriched events after action resolution |
-| `CharacterAgentLoop.java` | **Modified** — drain from `ObservationService`, publish dialogue/aside events through `ObservationService` |
 | `application.properties` | **Modified** — add observation threshold config properties |
 
 ---
