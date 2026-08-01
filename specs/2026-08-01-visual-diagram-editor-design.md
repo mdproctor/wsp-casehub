@@ -57,13 +57,30 @@ The CaseHub frontend is Lit 3.x Web Components. React Flow v11 (`reactflow` npm 
 
 **React version:** React Flow v11 requires React 16+, compatible with pages' current React 17. React Flow v12 (`@xyflow/react`) requires React 18 — the migration target when pages upgrades React. The v11 API is stable and sufficient for all phases.
 
-**Shadow DOM skip justification:** The `casehub-diagram` wrapper skips Shadow DOM (`createRenderRoot() { return this; }`) because React Flow relies on document-level event handlers, portal-based controls (minimap, controls panel), and CSS-in-JS injection that are incompatible with Shadow DOM encapsulation. This is specific to `casehub-diagram` — it is a full-viewport canvas component, not a composable widget embedded alongside other blocks-ui components. Theme tokens (`--pages-*` CSS custom properties) propagate through CSS inheritance regardless of Shadow DOM. The component emits `pages-event` with `composed: true` for consistency, though no shadow boundary needs crossing.
+**Shadow DOM topology:** Two components skip Shadow DOM; three keep it:
 
-**CSS isolation strategy** (required because Shadow DOM is disabled):
+| Component | Shadow DOM | Rationale |
+|-----------|-----------|-----------|
+| `casehub-diagram` | **Skipped** | Layout shell with no CSS of its own to protect. Skipping ensures React Flow portals and document-level event handlers from the canvas face no shadow boundary above them. |
+| `casehub-diagram-canvas` | **Skipped** | React Flow relies on document-level event handlers, portal-based controls (minimap, controls panel), and CSS-in-JS injection incompatible with Shadow DOM. |
+| `casehub-diagram-palette` | Enabled | Self-contained Lit component; Shadow DOM provides CSS encapsulation. |
+| `casehub-diagram-properties` | Enabled | Self-contained Lit component; Shadow DOM provides CSS encapsulation. |
+| `casehub-diagram-toolbar` | Enabled | Self-contained Lit component; Shadow DOM provides CSS encapsulation. |
+
+The palette, properties, and toolbar are custom elements rendered as light DOM children of the shell. Each creates its own shadow root internally for style encapsulation. The canvas renders React Flow content directly in light DOM — no shadow boundary between the canvas content and the document. This means React Flow CSS injected into `document.head` applies normally, portals render at `document.body` without crossing shadow boundaries, and event handlers work without retargeting.
+
+The component emits `pages-event` with `composed: true` for consistency, though no shadow boundary needs crossing for the shell or canvas.
+
+**CSS isolation strategy** (required because Shadow DOM is disabled on the canvas):
 - The React Flow container gets a scoping class (`casehub-diagram-root`) and `style="all: initial"` to reset inherited host styles
-- React Flow CSS is loaded as a scoped `@layer` — CSS cascade layers prevent host globals (`* { box-sizing }`, `button { appearance }`) from affecting internals
-- Pages design tokens (`--pages-*`) are explicitly forwarded as CSS custom properties on the container, not inherited from the document
+- After the `all: initial` reset, the **complete set of `--pages-*` design tokens** is re-declared on the container element. This explicit re-declaration is necessary because `all: initial` resets custom properties. The token list must be maintained as design tokens evolve.
+- React Flow CSS is loaded as a scoped `@layer diagram.reactflow` — CSS cascade layers prevent host globals (`* { box-sizing }`, `button { appearance }`) from affecting internals
 - The Phase 0 spike must validate isolation against the Pages shell with its global resets — this is a hard gate (blocks-ui ARC42STORIES §6 documents three classes of cross-shadow rendering bugs; disabling Shadow DOM inherits all of them)
+
+**CSS contract for stencil templates** (rendered inside the light-DOM canvas):
+- Stencil templates MUST use **inline styles** or **CSS custom properties** (`--pages-*` tokens re-declared on the container) for all styling. No `<style>` blocks.
+- graph-renderer wraps each stencil template into a React Flow custom node container. Styling scoped to the stencil's container class is acceptable (e.g., `.casehub-stencil-binding { ... }`), but must be loaded via `@layer diagram.stencils` to avoid cascade conflicts.
+- Different stencil packages (graph-stencil-case, graph-stencil-swf, work registry stencils) MUST NOT have selector collisions. The `@layer` ordering is: `diagram.reactflow` < `diagram.stencils` < `diagram.decorations`.
 
 React is isolated to a single package (`graph-renderer`). When @xyflow/lit is built (or if the xyflow project ships one), the renderer swaps with no impact on the graph model, stencils, or domain adapters.
 
@@ -75,6 +92,21 @@ React is isolated to a single package (`graph-renderer`). When @xyflow/lit is bu
 - **Lienzo port**: 6–10 person-weeks to port GWT → TypeScript. Strategic option for the future but premature now.
 
 **SWF team alignment:** Same rendering framework as the SWF editor. Shared knowledge, same mental model for graph editing, potential for shared custom node utilities.
+
+### 2.8 SWF editor reuse opportunities
+
+The SWF editor (`@openworkflowspec/diagram-editor`) uses React Flow + ELK — the same rendering stack we've chosen. Beyond the shared framework, specific reuse opportunities:
+
+| Asset | Package | Reuse how |
+|-------|---------|-----------|
+| **SWF YAML parser + FlatGraph builder** | `@openworkflowspec/sdk` | Direct npm dependency for `graph-stencil-swf`. The SDK parses SWF YAML, validates it, classifies node types, and produces a `FlatGraph` (nodes, edges, parent containment). No need to write our own SWF parser. |
+| **ELK layout wiring** | SWF editor `react-flow/` | Pattern reference — how they map containment to ELK `INCLUDE_CHILDREN` and translate ELK output to React Flow positions. |
+| **React Flow custom node patterns** | SWF editor `react-flow/nodes/` | Pattern reference — their custom node component structure, prop patterns, and state handling. |
+| **YAML ↔ graph round-trip** | SWF editor `core/workflowSdk.ts` | Pattern reference — their approach to parsing YAML into domain objects and constructing the graph. |
+
+The `@openworkflowspec/sdk` dependency means the SWF team owns the parser. When the SWF spec evolves, the SDK updates, and our drill-down view picks up changes without maintaining SWF parsing logic. This reduces Phase 5 effort — `graph-stencil-swf` becomes an adapter + stencil templates, not a parser + adapter + stencils.
+
+**All parsing is client-side.** The `@openworkflowspec/sdk`, `yaml` npm package, and all domain adapters run entirely in the browser. The only server interaction is the persistence backend's read/write of YAML strings. Parsing, graph construction, layout, rendering, validation, and editing are all browser-only.
 
 ### 2.3 Two tiers of stencils
 
@@ -93,7 +125,7 @@ React is isolated to a single package (`graph-renderer`). When @xyflow/lit is bu
 HumanTask is a binding target, not a standalone YAML element — it is rendered as the target detail within a Binding node (title, candidateGroups, outcomes, SLA).
 
 Each structural stencil defines:
-- Connection rules (e.g., "Goal has zero outgoing edges", "Binding has exactly one outgoing edge to its target")
+- Connection rules (e.g., "Goal has zero outgoing edges", "Binding has 0..1 outgoing capability edges — 0 when the target Worker is external/unresolved")
 - Port cardinality (e.g., "Worker has 0..* inbound capability edges")
 - Property schema (JSON Schema scoped to the stencil's YAML element — see §3.3)
 - Rendering template (function of node state → `StencilTemplate` from lit-html; wrapped into React Flow custom nodes by graph-renderer)
@@ -110,6 +142,8 @@ Edges represent relationships derived from the YAML definition:
 | **Completion criteria** | Goal → Case completion | GoalExpression references goal by name |
 
 Edges are derived by the domain adapter during `toGraph()` — they are not stored separately in YAML. The adapter resolves string references (capability names) into graph edges. Unresolvable references (binding references a capability no in-definition worker owns) are shown as **informational annotations** (dashed edge with "external?" label), not warnings — CaseHub workers can be registered externally at runtime, so an unresolvable in-definition reference is normal, not an error. When a runtime connection is available (Phase 7), the editor can validate against the full worker registry to distinguish external capabilities from typos.
+
+**Grammar vs YAML validation for capability edges:** The graph grammar (StencilGrammar) validates **graph topology** — relationships between visible nodes. The Binding JSON Schema (`oneOf: [capability, subCase, humanTask]`) validates **YAML structure** — that a binding always has a target. These are separate concerns: a Binding always has a target in the YAML, but the graph edge to a Worker may not exist if the target Worker is external. The Binding's grammar therefore allows 0..1 outbound capability edges (0 = external/unresolved capability, 1 = resolved to an in-definition Worker). The `applyEdit()` write path enforces YAML validity (the binding must specify a capability, subCase, or humanTask), not graph edge existence. Constraint validation passes for a binding with `capability: "external-review"` even when no Worker in the definition owns that capability.
 
 ELK layout uses hierarchical mode. Workers are containers; their capabilities are internal labels (not separate nodes). Bindings connect to workers via capability edges.
 
@@ -154,6 +188,13 @@ type WriteResult =
 
 `read()` returns a discriminated union so the editor can route to create-new, show-error, or show-with-warnings flows. `write()` takes an `expectedVersion` (opaque string — Git SHA, ETag, last-modified timestamp) for optimistic concurrency: if the backing store has changed since `read()`, `write()` returns `conflict` and the editor shows a merge/overwrite dialog. The in-memory backend uses a monotonic counter; the Git backend uses commit SHA.
 
+**Conflict resolution:** When `write()` returns `conflict`, the editor presents a **yours/theirs/cancel** dialog:
+- **Overwrite** — force-write the local version, discarding the remote changes (re-issues `write()` with the current version)
+- **Reload** — discard local changes, reload the remote version via `read()`, re-run `toGraph()`
+- **Cancel** — dismiss the dialog, keep editing without saving
+
+This is deliberately NOT a three-way merge. CST-preserving YAML three-way merge (preserving comments, key ordering, quoting style across both versions) is extremely complex and out of scope. The dialog makes the user explicitly choose which version to keep. A future phase could add visual side-by-side diff of the two YAML documents to help the user decide.
+
 Backends: Git (read/write GitHub URLs), Electron (local filesystem), REST API, in-memory (playground). The editor doesn't know or care where the YAML lives.
 
 ### 2.5 All TypeScript is type-safe
@@ -164,7 +205,20 @@ Backends: Git (read/write GitHub URLs), Electron (local filesystem), REST API, i
 
 **Prerequisite:** Verify the JSON Schema is current against the Java domain model. The schema may be stale after the stages removal and recent model changes.
 
-### 2.6 Runtime overlay — lightweight, not a separate view
+### 2.6 Undo/redo — YAML-snapshot model
+
+The undo model is **YAML-snapshot-based**: each edit operation (property change, structural add/remove/replace) pushes the previous YAML string onto an undo stack. Undo restores the previous YAML, re-parses, and re-runs `toGraph()`. Redo pushes forward.
+
+- **Undo unit:** One logical edit operation — a property change, an add-node, a remove-node, a replace-node. Batch edits (e.g., "replace node and reconnect edges") are a single undo unit.
+- **Stack location:** `casehub-diagram` component owns the undo stack. It is not in graph-core (domain-agnostic) or the domain adapter (stateless transformer).
+- **Stack depth:** Bounded to 50 entries to limit memory. Older entries are discarded.
+- **Concurrency interaction:** The undo stack is cleared when the document is reloaded from persistence (e.g., after conflict resolution — the user chose "Reload" in the yours/theirs/cancel dialog). Undo never crosses a persistence boundary.
+- **Not Git-based:** Undo is in-session, not "revert to last commit". Every individual edit is undoable without requiring a save/commit cycle.
+- **Keyboard shortcuts:** Ctrl+Z (undo), Ctrl+Shift+Z (redo) — standard editor bindings, handled by `casehub-diagram`.
+
+This is simpler than a command pattern or graph-model-level undo and works because YAML is the source of truth — every undo state is a complete, self-consistent YAML document.
+
+### 2.7 Runtime overlay — lightweight, not a separate view
 
 Same graph, same layout. Runtime data is projected as decoration:
 - Node state badges (all 9 `TaskStatus` values — see table below)
@@ -256,7 +310,8 @@ blocks-ui (domain-specific, consumes Pages)
 │   └── Case runtime overlay adapter (TaskStatus badges, milestone progression)
 │
 ├── @casehubio/graph-stencil-swf
-│   ├── SWF domain adapter (workflow YAML ↔ graph)
+│   ├── Depends on @openworkflowspec/sdk (SWF YAML parsing + FlatGraph builder)
+│   ├── SWF domain adapter (sdk.buildFlatGraph() → graph model adapter)
 │   ├── Workflow step stencils (call, switch, raise, catch, entry, exit)
 │   ├── Stencil templates per step type
 │   ├── Drill-down integration (expand SWF Worker → sub-graph of workflow steps)
@@ -350,12 +405,15 @@ interface StencilGrammar {
   };
 }
 
-// Registered with graph-renderer — full descriptor including rendering
+// Registered with graph-renderer — full descriptor including rendering.
+// graph-renderer auto-registers the embedded grammar with graph-core
+// on StencilDescriptor registration — single source of truth, no
+// separate manual grammar registration needed.
 interface StencilDescriptor {
   type: string;                           // matches StencilGrammar.type
   label: string;
   icon: string;
-  grammar: StencilGrammar;                // also registered separately with graph-core
+  grammar: StencilGrammar;                // auto-registered with graph-core by graph-renderer
   properties: PropertySchema;
   render: (node: GraphNode, decoration?: NodeDecoration) => StencilTemplate;
 }
@@ -371,9 +429,12 @@ interface WorkStencil {
   properties: PropertySchema;
   input: JSONSchema7;
   output: JSONSchema7;
-  render: (node: GraphNode, decoration?: NodeDecoration) => StencilTemplate;
 }
 ```
+
+Work stencils are **declarative metadata only** — they contain no executable render functions. They are discovered from marketplace YAML definitions at configurable URLs, and loading arbitrary executable code from external URLs is a security concern that the declarative model avoids entirely.
+
+**Default rendering:** graph-renderer provides a built-in `defaultWorkStencilRenderer` that renders any WorkStencil using its declarative metadata: icon, displayName, category badge, async/sync indicator, and a summary of the I/O contract. This default renderer is sufficient for all marketplace-discovered work types. Custom visual treatment for specific work types (if ever needed) would be implemented as built-in stencil templates in the codebase, not loaded from external URLs.
 
 ### 3.4 Execution ownership boundary
 
@@ -441,10 +502,23 @@ Epic 2: graph-stencil-case (viewer)
 Epic 3: Property editing
 ├── Property panel component (Lit, in casehub-diagram)
 ├── Schema-driven form generation from stencil PropertySchema
+│   ├── Flat properties: pages-viz schema-form (string, number, boolean, enum, date)
+│   └── Complex properties: domain-specific form components in graph-stencil-case
+│       ├── Trigger type selector (oneOf: contextChange/cloudEvent/schedule/scopeActivated)
+│       ├── Target type selector (oneOf: capability/subCase/humanTask)
+│       ├── Worker execution type (anyOf: SWF/agent/sequence)
+│       └── Nested object editors (outcomePolicy, executionPolicy, cbr)
 ├── Bidirectional binding: panel edits → domain model → YAML
 ├── Validation feedback (red borders, error messages)
 └── Persistence: save edited YAML via backend
 ```
+
+**Property rendering strategy:** CaseDefinition schemas use deeply nested structures with `oneOf` and `anyOf` composition (HumanTask, Trigger, Worker execution types). The existing `pages-viz` schema-form component handles flat fields (string, number, boolean, enum, date) but does not support nested objects or JSON Schema composition keywords. Rather than blocking on a generic nested-form solution (pages issue #222), Phase 3 uses a **two-tier approach**:
+
+1. **Flat properties** (name, description, condition, when, etc.) render via schema-form directly
+2. **Complex properties** (Trigger with `oneOf`, Worker with `anyOf`, HumanTask with exclusive modes) render via domain-specific form components in graph-stencil-case that understand the CaseDefinition schema structure
+
+This is a better fit than a generic nested-form renderer because CaseDefinition's complex properties have domain-specific UX requirements (e.g., trigger type radio buttons with conditional sub-forms) that a generic renderer would handle poorly. Schema-form handles the common case; domain components handle the domain-specific case.
 
 ### Phase 4 — Structural Editing
 
@@ -473,7 +547,8 @@ Epic 4A: Structural editing           Epic 4B: Persistence backends
 
 ```
 Epic 5: graph-stencil-swf
-├── SWF domain adapter: workflow YAML → graph model
+├── Add @openworkflowspec/sdk as dependency (SWF YAML parsing + FlatGraph)
+├── Domain adapter: sdk.buildFlatGraph() → graph model (adapter only, no parser)
 ├── Workflow step stencils (call, switch, raise, catch, entry, exit)
 ├── Drill-down trigger (expand Worker with SWF workflow → sub-graph)
 ├── casehub:dispatch trace lines (workflow step → Case capability)
