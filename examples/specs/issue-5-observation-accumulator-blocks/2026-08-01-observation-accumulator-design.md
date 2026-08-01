@@ -105,13 +105,39 @@ direct calls avoid the subscription-drop gotcha documented in
 GE-20260629-e8b16d where `bus.clear()` silently kills the pipeline on
 lifecycle reset.
 
+### 1.4 Why ObservationAccumulator, not KeyedAccumulator
+
+The issue (casehubio/examples#5) references `KeyedAccumulator` and
+`ChannelEventAdapter`, and the POC-SPEC §1.6 envisages the full blocks
+pipeline (`ChannelEventAdapter` → `KeyedAccumulator` → `Summariser` →
+`ChannelEventPublisher`) as a Phase 3 addition.
+
+`ObservationAccumulator` is the right primitive for this phase:
+
+- **Observer-driven drain model.** `ObservationAccumulator` buffers events
+  and renders on demand when the observer drains. `KeyedAccumulator` groups
+  events by key and drains completed/stale groups — a producer-driven model.
+  Character observations are observer-driven: each character drains their
+  own view when they need to build their next prompt.
+
+- **No channel bridge needed.** `ChannelEventAdapter` bridges qhorus
+  channel messages to `EventStreamBus`. The manor doesn't use qhorus
+  channels for in-game events — events are direct method calls from the
+  game loop and character threads. The channel pipeline is appropriate when
+  the manor integrates with qhorus runtime channels (Phase 3).
+
+- **Built-in tiered rendering.** `ObservationAccumulator` delegates to
+  `ObservationRenderer<E>`, which has a canonical tiered implementation
+  (`TieredObservationRenderer`) with pluggable summarisation. This fits
+  the spec's compaction model directly.
+
 ---
 
 ## 2. Event Model and Room Partitioning
 
 ### 2.1 Event Publishing
 
-Events are published to `observationService.publishEvent(event)` from two
+Events are published to `observationService.publishEvent(event)` from three
 sources:
 
 1. **Game loop thread** — after each action resolution (MOVE, TAKE, USE,
@@ -120,8 +146,11 @@ sources:
    `ManorEvent` with structured action metadata (see §2.4).
 2. **Character virtual threads** — for dialogue and aside events,
    immediately after the LLM response is parsed in `CharacterAgentLoop`.
+3. **Game loop thread (scripted scenes)** — `SceneDirector.runBeat()`
+   generates dialogue and aside events during scripted scenes, called from
+   the game loop thread via `ScenarioOrchestrator`.
 
-Both paths call `publishEvent(event)` in addition to the existing
+All three paths call `publishEvent(event)` in addition to the existing
 `world.addEvent()` call. `WorldState.recentEvents()` stays — used by the
 WebSocket UI. The two consumers (UI and character observations) are
 decoupled.
@@ -138,8 +167,13 @@ When `publishEvent(event)` is called:
 1. **Guard:** if `event.room() == null`, return immediately (narrator events)
 2. Determine the event's room from `event.room()`
 3. For each character:
-   - If `characterState.currentRoom()` equals event room → route to their
-     accumulator for that room (lazy-created via `computeIfAbsent()`)
+   - If `characterState.currentRoom()` equals event room:
+     - **Aside privacy:** if `event.type() == "aside"` and the character is
+       NOT the speaker (`event.characterId()`) → skip. Asides are private
+       thoughts for the audience; only the speaker sees their own aside in
+       their observation.
+     - Otherwise → route to their accumulator for that room (lazy-created
+       via `computeIfAbsent()`)
    - If character is NOT in that room → skip
 4. **Movement events** (`event.actionType() == MOVE`): also route to every
    character whose `currentRoom()` equals `event.departureRoom()` — they
@@ -201,7 +235,17 @@ public record ManorEvent(
 ```
 
 `ObservationAccumulator<ManorEvent>` — wrapped in `LevelEvent<ManorEvent>`
-when collected. `LevelEvent.timestamp` is derived from
+when collected. All manor events use a single shared `EventLevel`:
+
+```java
+static final EventLevel MANOR = new EventLevel("manor", 0);
+```
+
+`TieredObservationRenderer` tiers by event count, not by level — a single
+level is sufficient. Per-type levels (dialogue > action > movement) can be
+introduced when level-based filtering is needed.
+
+`LevelEvent.timestamp` is derived from
 `manorEvent.timestamp().toEpochMilli()` — not from a separate
 `System.currentTimeMillis()` call at wrapping time. This ensures the
 `TieredObservationRenderer`'s "[N ago]" display uses the event's logical
@@ -348,7 +392,7 @@ is replaced by two sections:
 
 ```
 == Recent Activity ==
-{current-room accumulator drain — verbatim or grouped}
+{current-room accumulator drain — verbatim, grouped, or summarised}
 
 == Remembered ==
 Kitchen (3 turns ago): Sneekly was examining the cabinet. You saw rat poison on the shelf.
@@ -454,8 +498,9 @@ Stays for the WebSocket UI room chat panels. The two consumers are decoupled.
 | Test | Validation |
 |------|-----------|
 | `AccumulatorScenarioTest` | Autonomous scenario with mock LLM. HC moves to Kitchen, events accumulate in Entrance Hall as remembered. HC's observation shows verbatim Kitchen events + compacted Entrance Hall memory. |
-| `RoomReturnMemoryTest` | Character leaves, events happen, character returns. "While you were away" events present in current-room accumulator. |
-| `BudgetThresholdTest` | 20+ events into a room accumulator. Verify mechanical compaction runs. If over threshold, verify LLM summarisation fires (mock AgentProvider). |
+| `RoomReturnMemoryTest` | Character leaves room A, drains (memory cached in `rememberedDrainCache`). Character returns to room A — cached result available as "what you remember." New events in room A after return accumulate fresh. No "while you were away" events — routing only targets characters present in the room. |
+| `BudgetThresholdTest` | 20+ events into a room accumulator. Verify mechanical compaction runs. If over `groupedThreshold`, verify LLM summarisation fires (mock AgentProvider). Verify VERBATIM, GROUPED, and SUMMARISED tiers at appropriate event counts. |
+| `DialogueAsideRoutingTest` | Dialogue events from `CharacterAgentLoop` route to all characters in the room. Aside events route only to the speaker. SceneDirector dialogue/aside events route correctly. Verify via accumulator event counts per character. |
 | `ScriptedModeUnchangedTest` | Scripted mode regression — triggers and scenes still work with accumulator active. |
 
 ### LLM Evaluation (llm-eval profile)
