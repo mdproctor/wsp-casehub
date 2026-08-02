@@ -197,6 +197,14 @@ CharacterAgentLoop receives the dispatcher instead of `ObservationService`,
 count from 9 to 7 and removes all knowledge of downstream event consumers
 from the character decision loop.
 
+**Known issue — WorldState.addEvent() thread safety:**
+`WorldState.eventLog` is a plain `ArrayList<ManorEvent>`. Multiple character
+threads and the scenario thread already call `world.addEvent()` concurrently
+today (pre-existing, not introduced by this spec). The dispatcher centralizes
+these calls but does not add new concurrent callers. The fix belongs in
+`WorldState` (e.g. `CopyOnWriteArrayList` or `Collections.synchronizedList()`),
+not in the dispatcher — tracked as a separate issue (casehubio/examples#TBD).
+
 ### Hybrid trigger
 
 `WindowPolicy.of(15_000, 5)` — narrate after 5 events accumulate OR after
@@ -409,6 +417,15 @@ deterministic guarantee intact.
 - Publish 2 events → tick() with fresh timestamp → no narration (below threshold)
 - Publish 2 events → tick() with timestamp 16s later → narration fires (timer)
 - Verify collect() after stop() is safe (no exception)
+- Final flush: publish 3 events → stop() → verify final flush narrates remaining events
+- Timeout: mock AgentProvider blocks indefinitely → tick orTimeout(90s) fires → no exception, loop continues
+- Subscriber exception: one dispatch target throws → other target still receives narration
+
+**ManorEventDispatcherTest** — no CDI, mock targets.
+- Fan-out: publish single event → verify all targets called (world, observationService, narratorAgent, manorChannels, webEventBus)
+- Null narrator: create dispatcher with null narrator → publish event → no NPE, all other targets called
+- Exception isolation: world.addEvent() throws → observationService and narrator still called
+- Event type dispatch: verify correct ManorChannels method called per event type (dialogue → dispatchDialogue, aside → dispatchAside, action → position dispatch for MOVE)
 
 ### Integration test (llm-eval profile)
 
@@ -430,15 +447,19 @@ manor.narrator.timer-seconds=15
 ## Dependencies
 
 Requires `casehub-blocks` 0.2-SNAPSHOT with:
-- **`Compactor<E>` interface** (casehubio/blocks#83) — must be merged and
-  SNAPSHOT published before `MechanicalCompactor` can implement it.
-  Hard prerequisite — implementation cannot compile without it.
-- **`SummarisationRunner.flush()`** — unconditional drain bypassing
-  `WindowPolicy`, needed for the narrator's final drain at scenario end.
-  Trivial addition: calls `accumulator.drain()` instead of
-  `accumulator.drainIfReady(now)`, then follows the same
-  compact → summarise → publish chain as `tick()`. To be added as part
-  of casehubio/blocks#83 or a follow-up blocks issue.
+- **`Compactor<E>` interface** (casehubio/blocks#83, CLOSED) — merged and
+  available in the published 0.2-SNAPSHOT. Hard prerequisite satisfied.
+- **`SummarisationRunner.flush()`** (blocks issue to be filed) —
+  unconditional drain bypassing `WindowPolicy`, needed for the narrator's
+  final drain at scenario end. **Hard prerequisite** — the shutdown sequence
+  cannot guarantee final narration without it.
+  Implementation: adds a `flush()` method that calls `accumulator.drain()`
+  instead of `accumulator.drainIfReady(now)`, then follows the same
+  compact → summarise → publish chain as `tick()`. Trivial addition —
+  the unconditional `drain()` already exists on `EventAccumulator`.
+  Note: blocks#83 delivered `Compactor<E>` but not `flush()`. The published
+  0.2-SNAPSHOT jar confirms `SummarisationRunner` has `tick()`, `collect()`,
+  `clear()`, `size()` — no `flush()`. A separate blocks issue is required.
 
 Also uses existing:
 - `casehub-blocks` (SummarisationRunner, WindowPolicy, EventStreamBus)
