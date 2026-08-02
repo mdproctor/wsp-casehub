@@ -39,6 +39,8 @@ The visual editor works on the definition model. Not the planning model. This di
 
 We'll add a runtime overlay later — projecting execution state (TaskStatus badges, milestone progression, heatmaps) onto the definition graph. But the structural graph is the definition. Always.
 
+![Case definition view — workers, bindings, milestones, and goals rendered as a directed graph](images/visual-editor-definition.png)
+
 ## The stencil architecture
 
 Every visual modelling tool has a vocabulary — the set of shapes, connection types, and rules that define what you can draw. BPMN has tasks, gateways, events, pools. UML has classes, interfaces, associations. The wrong vocabulary forces users to think in the tool's terms instead of their own.
@@ -87,6 +89,8 @@ Consider a document processing case. It has workers for OCR, classification, and
 
 In the definition view, you see the case topology: bindings wiring triggers to capabilities, workers owning those capabilities, milestones tracking progress. Click on the OCR worker — it expands to show the embedded SWF workflow rendered with SWF-specific stencils (call, switch, raise, catch). Same canvas, same rendering engine, different stencil set for the drill-down.
 
+![SWF drill-down — expanding the OCR Worker to reveal its Serverless Workflow steps](images/visual-editor-swf-drilldown.png)
+
 The `@openworkflowspec/sdk` handles SWF YAML parsing and graph construction. We don't write our own SWF parser — the SDK produces a `FlatGraph` with nodes, edges, and containment, and our domain adapter maps it to the graph model. When the SWF spec evolves, the SDK updates, and the drill-down view picks up changes without us maintaining parsing logic.
 
 The key insight is that these aren't separate visual models that need overlaying. They're a containment hierarchy:
@@ -105,6 +109,8 @@ Case (definition view)
 
 One rendering engine, one graph model, pluggable stencil sets per domain. The SWF team uses the same rendering framework for their standalone editor. When CaseHub drills into an embedded workflow, it's the same library at both levels — same interaction model, same performance characteristics, shared knowledge across teams.
 
+![Human-in-the-loop — flat worker palette with execution history, no automated sequencing](images/visual-editor-hil.png)
+
 ## The runtime overlay
 
 The second mode isn't a separate view — it's a decoration layer over the same definition graph. Toggle it on, and every binding node gets a status badge from the engine's runtime state.
@@ -114,6 +120,8 @@ CaseHub's `TaskStatus` has nine states: PENDING, RUNNING, DELEGATED, COMPLETED, 
 The interesting part is the aggregation problem. One binding can produce multiple PlanItems at runtime — a `validate-document` binding might fire three times for three documents. The overlay badge shows the aggregate: if two are COMPLETED and one is RUNNING, the binding shows RUNNING with a "2/3" indicator. The engine's existing `PushSource` abstraction pushes state updates to the browser via SSE — the overlay subscribes like any other blocks-ui data source.
 
 Layering on heatmaps is where it gets useful for operations. Colour-code bindings by execution frequency over a time window. Cold paths are grey. Hot paths are vivid. Now you can see where the work concentrates, which bindings fire constantly, which milestones take the longest to achieve. Same graph, same layout, different data lens.
+
+![Runtime overlay — heatmaps, status badges, milestone progression, SLA tracking](images/visual-editor-runtime.png)
 
 ## Technology: React Flow in a Lit world
 
