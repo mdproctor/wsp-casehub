@@ -128,6 +128,15 @@ Narrate what just happened in 2-3 sentences:
 - Peter Perfect entered the Ballroom
 ```
 
+All events reaching the summariser originate from the three `collect()` call
+sites (action, dialogue, aside), which always carry a non-null `room`.
+Defensively, any event with a null room is grouped under `[General]`.
+
+No feedback loop: narrator output dispatches to ManorChannels and
+ManorEventBus subscribers directly — it is never fed back through
+`collect()`. The `ManorEventDispatcher` does not call `collect()` for
+narrator-originated events.
+
 System prompt — the existing narrator prompt from `NarratorAgent.java`:
 breathless, alliterative, dramatic, omniscient Wacky Races narrator style
 with CAPITAL LETTERS for emphasis, 2-3 sentences max.
@@ -212,18 +221,21 @@ In `runScenario()`, after creating `ObservationService` and before launching
 character threads:
 
 ```java
-var narratorAgent = new NarratorAgent(
-        compactor, agentProvider, manorChannels, webEventBus,
-        narratorEventThreshold, narratorTimerSeconds);
-if (mode == ScenarioMode.AUTONOMOUS) {
+NarratorAgent narratorAgent = null;
+if (narratorEnabled && mode == ScenarioMode.AUTONOMOUS) {
+    narratorAgent = new NarratorAgent(
+            compactor, agentProvider, manorChannels, webEventBus,
+            narratorEventThreshold, narratorTimerSeconds);
     narratorAgent.start(world);
 }
 
 var dispatcher = new ManorEventDispatcher(
-        world, observationService,
-        mode == ScenarioMode.AUTONOMOUS ? narratorAgent : null,
+        world, observationService, narratorAgent,
         manorChannels, webEventBus);
 ```
+
+`narratorTimerSeconds` is an `int` read from config. The constructor
+converts to milliseconds internally via `timerSeconds * 1000L`.
 
 ### Event publishing
 
