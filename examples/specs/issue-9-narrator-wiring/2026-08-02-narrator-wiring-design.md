@@ -104,7 +104,10 @@ Public API:
   `new LevelEvent<>(event, event.timestamp().toEpochMilli(), NARRATOR_LEVEL)`,
   delegates to runner
 - `start(WorldState world)` — starts the narrator virtual thread
-- `stop()` — interrupts the narrator thread (called at scenario end)
+- `stop()` — sets a volatile `stopped` flag and interrupts the narrator thread.
+  The thread loop checks both `stopped` and `world.isScenarioComplete()`.
+  `collect()` remains safe to call after `stop()` — events buffer but may
+  not be narrated if the final flush has already run.
 
 ### NarratorSummariser
 
@@ -113,6 +116,14 @@ Implements `Summariser<ManorEvent, String>`. The narrator's LLM call.
 Receives compacted events (compactor already applied by SummarisationRunner).
 Formats events into a prompt, calls `AgentProvider.invoke()` with the narrator
 system prompt, returns `List.of(narrationText)`.
+
+Timeout configuration (matching existing `NarratorAgent.narrate()` pattern):
+- `AgentSessionConfig.of(systemPrompt, eventPrompt, Duration.ofSeconds(30))`
+  — session-level timeout
+- `.await().atMost(Duration.ofSeconds(60))` — caller-level Mutiny timeout
+
+These timeouts bound the LLM call to at most 60 seconds. Failure propagates
+through SummarisationRunner's `.handle()` block, which logs and continues.
 
 Prompt format — chronological, room-grouped:
 
@@ -213,6 +224,21 @@ SummarisationRunner's `onFailure` handler (casehubio/blocks#84) logs
 the failed batch and continues. A missed narration is acceptable — the
 next batch covers new events. No retry, no dead-letter.
 
+The EventStreamBus subscriber wraps each dispatch target in independent
+try-catch blocks:
+
+```java
+outputBus.subscribe(s -> true, event -> {
+    try { manorChannels.dispatchNarration(event.payload()); }
+    catch (Exception e) { log.warn("Qhorus narration dispatch failed", e); }
+    try { webEventBus.broadcast(ManorWebSocketEvent.narrator(event.payload())); }
+    catch (Exception e) { log.warn("WebSocket narration dispatch failed", e); }
+});
+```
+
+If one dispatch target fails, the other still receives the narration.
+This isolates Qhorus failures from WebSocket delivery and vice versa.
+
 ## Integration with ScenarioOrchestrator
 
 ### Creation
@@ -253,21 +279,55 @@ know about ObservationService, NarratorAgent, ManorChannels, or ManorEventBus.
 ### Thread lifecycle
 
 Narrator thread starts after `observationService.init()`, before character
-threads launch. Stopped at scenario end via `narratorAgent.stop()`, then
-joined alongside character threads.
+threads launch.
 
 The narrator thread loop:
 
 ```java
-while (!world.isScenarioComplete()) {
+while (!stopped && !world.isScenarioComplete()) {
     runner.tick(System.currentTimeMillis())
-          .toCompletableFuture().join();
+          .toCompletableFuture()
+          .orTimeout(90, TimeUnit.SECONDS)
+          .exceptionally(ex -> { log.warn("Narrator tick timed out"); return null; })
+          .join();
     Thread.sleep(1_000);  // poll interval — WindowPolicy decides when to actually narrate
 }
-// Final drain for any remaining buffered events
-runner.tick(System.currentTimeMillis())
-      .toCompletableFuture().join();
+// Final unconditional drain — bypasses WindowPolicy to capture all remaining events
+runner.flush()
+      .toCompletableFuture()
+      .orTimeout(90, TimeUnit.SECONDS)
+      .exceptionally(ex -> { log.warn("Narrator flush timed out"); return null; })
+      .join();
 ```
+
+`orTimeout(90s)` is defense-in-depth — the LLM call's own 60-second Mutiny
+timeout is the primary bound. `CompletableFuture.join()` is not interruptible
+(`join()` internally calls `waitingGet()` which clears the interrupt flag), so
+`orTimeout()` ensures the future always completes within a known bound even if
+the Mutiny timeout fails. The `.exceptionally()` prevents `join()` from throwing
+`CompletionException` when the timeout fires.
+
+`runner.flush()` performs an unconditional drain of the EventAccumulator,
+bypassing WindowPolicy. This ensures the final moments of a scenario are always
+narrated regardless of event count or timer state. (Requires adding `flush()` to
+`SummarisationRunner` — see Dependencies.)
+
+### Shutdown ordering
+
+After the game loop exits (`world.isScenarioComplete()` is true):
+
+1. Dispatch scenario-complete events (Qhorus + WebSocket)
+2. Join character threads (5-second timeout each, then interrupt)
+   — after this, no new events arrive via `collect()`
+3. `narratorAgent.stop()` — sets stopped flag, interrupts sleep
+4. Join narrator thread (120-second timeout) — narrator runs its
+   final `flush()` before exiting, which may include an LLM call
+5. If narrator thread is still alive, interrupt and log warning
+
+Character threads are joined first so the narrator's final flush captures
+all events from the scenario's last moments. The 120-second join timeout
+accommodates the worst case: a tick in progress (60s LLM timeout) plus
+the final flush (60s LLM timeout).
 
 ### Aside filtering
 
@@ -369,8 +429,19 @@ manor.narrator.timer-seconds=15
 
 ## Dependencies
 
-No new dependencies. Uses existing:
-- `casehub-blocks` (SummarisationRunner, Compactor, WindowPolicy, EventStreamBus)
+Requires `casehub-blocks` 0.2-SNAPSHOT with:
+- **`Compactor<E>` interface** (casehubio/blocks#83) — must be merged and
+  SNAPSHOT published before `MechanicalCompactor` can implement it.
+  Hard prerequisite — implementation cannot compile without it.
+- **`SummarisationRunner.flush()`** — unconditional drain bypassing
+  `WindowPolicy`, needed for the narrator's final drain at scenario end.
+  Trivial addition: calls `accumulator.drain()` instead of
+  `accumulator.drainIfReady(now)`, then follows the same
+  compact → summarise → publish chain as `tick()`. To be added as part
+  of casehubio/blocks#83 or a follow-up blocks issue.
+
+Also uses existing:
+- `casehub-blocks` (SummarisationRunner, WindowPolicy, EventStreamBus)
 - `casehub-platform-agent-api` (AgentProvider)
 
 ## Open questions
