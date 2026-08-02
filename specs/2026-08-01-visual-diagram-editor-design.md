@@ -48,14 +48,14 @@ The engine's planning decomposition — `PlanItemDefinition.Compound` / `PlanIte
 
 ### 2.2 React Flow + Lit bridge (now), @xyflow/lit (later)
 
-The CaseHub frontend is Lit 3.x Web Components. React Flow v11 (`reactflow` npm package, React 16+ compatible) is the most capable open-source graph editor library (MIT). The bridge pattern is straightforward:
+The CaseHub frontend is Lit 3.x Web Components. React Flow v12 (`@xyflow/react`, React 18) is the most capable open-source graph editor library (MIT). The bridge pattern is straightforward:
 
 - Skip Shadow DOM on the wrapper component (`createRenderRoot() { return this; }`)
 - Mount React Flow via `ReactDOM.createRoot` in `connectedCallback`
 - Pass Lit properties as React props; React callbacks emit Lit custom events
 - ~50 lines of bridge code, ~45KB bundle overhead for React + ReactDOM
 
-**React version:** React Flow v11 requires React 16+, compatible with pages' current React 17. React Flow v12 (`@xyflow/react`) requires React 18 — the migration target when pages upgrades React. The v11 API is stable and sufficient for all phases.
+**React version:** React Flow v12 (`@xyflow/react`) requires React 18. React is isolated to `graph-renderer` — it bundles its own React, separate from pages' React 17 (used only inside iframe component documents). There is no version constraint between them. v12 has better TypeScript types (generic node/edge), subscription-based reactivity, and active development. *(Corrected from v11 in Phase 0 spike — see casehub-pages specs/issue-259-graph-phase0/)*
 
 **Shadow DOM topology:** Two components skip Shadow DOM; three keep it:
 
@@ -71,16 +71,22 @@ The palette, properties, and toolbar are custom elements rendered as light DOM c
 
 The component emits `pages-event` with `composed: true` for consistency, though no shadow boundary needs crossing for the shell or canvas.
 
-**CSS isolation strategy** (required because Shadow DOM is disabled on the canvas):
-- The React Flow container gets a scoping class (`casehub-diagram-root`) and `style="all: initial"` to reset inherited host styles
-- After the `all: initial` reset, the **complete set of `--pages-*` design tokens** is re-declared on the container element. This explicit re-declaration is necessary because `all: initial` resets custom properties. The token list must be maintained as design tokens evolve.
-- React Flow CSS is loaded as a scoped `@layer diagram.reactflow` — CSS cascade layers prevent host globals (`* { box-sizing }`, `button { appearance }`) from affecting internals
-- The Phase 0 spike must validate isolation against the Pages shell with its global resets — this is a hard gate (blocks-ui ARC42STORIES §6 documents three classes of cross-shadow rendering bugs; disabling Shadow DOM inherits all of them)
+**CSS isolation strategy** (required because Shadow DOM is disabled on the canvas). Three mechanisms, each with a distinct role:
+
+1. **`all: initial` on the container** (`.diagram-root { all: initial; display: block; position: relative; width: 100%; height: 100%; }`) — resets all inherited host styles including custom properties. This is the only mechanism that blocks inherited host CSS in light DOM. The container requires a parent with explicit height (React Flow needs known dimensions).
+
+2. **Scoped `all: revert` on children** (`.diagram-root * { all: revert; }`) — specificity 0,1,0 beats the host's `* { box-sizing }` (0,0,0) and element resets like `button { appearance: none }` (0,0,1). Reverts host author styles on container children to browser defaults. React Flow CSS (loaded after, with class selectors) overrides via source order.
+
+3. **`applyTheme()` on the container** — calls `applyTheme(currentTheme, container)` from `@casehubio/pages-ui-tokens`, which injects a `<style>` inside the container and sets the theme class. Because this `<style>` appears later in document order than the head stylesheet's `all: initial`, the theme token declarations win. No manual token list — `applyTheme()` already knows every token.
+
+**`@layer` is NOT used for host isolation.** In the CSS cascade, unlayered CSS has higher priority than layered CSS for normal declarations. Pages' global resets are unlayered. Putting our CSS in `@layer` would make it *weaker* than the host. Source order controls internal CSS cascade (React Flow base → plugin styles → decoration overrides). *(Corrected from original @layer approach in Phase 0 spike — see casehub-pages specs/issue-259-graph-phase0/)*
+
+Phase 0 validated this isolation against Pages shell globals — hard gate passed.
 
 **CSS contract for stencil templates** (rendered inside the light-DOM canvas):
-- Stencil templates MUST use **inline styles** or **CSS custom properties** (`--pages-*` tokens re-declared on the container) for all styling. No `<style>` blocks.
-- graph-renderer wraps each stencil template into a React Flow custom node container. Styling scoped to the stencil's container class is acceptable (e.g., `.casehub-stencil-binding { ... }`), but must be loaded via `@layer diagram.stencils` to avoid cascade conflicts.
-- Different stencil packages (graph-stencil-case, graph-stencil-swf, work registry stencils) MUST NOT have selector collisions. The `@layer` ordering is: `diagram.reactflow` < `diagram.stencils` < `diagram.decorations`.
+- Stencil templates MUST use **inline styles** or **CSS custom properties** (`--pages-*` tokens available via `applyTheme()`) for all styling. No `<style>` blocks.
+- graph-renderer wraps each stencil template into a React Flow custom node container. Plugin-contributed styles are injected via `NodeTypeDescriptor.defaultStyle` at registration time, positioned in the cascade after React Flow base CSS.
+- Different stencil packages (graph-stencil-case, graph-stencil-swf, work registry stencils) MUST NOT have selector collisions.
 
 React is isolated to a single package (`graph-renderer`). When @xyflow/lit is built (or if the xyflow project ships one), the renderer swaps with no impact on the graph model, stencils, or domain adapters.
 
