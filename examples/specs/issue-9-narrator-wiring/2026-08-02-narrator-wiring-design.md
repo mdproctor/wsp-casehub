@@ -13,21 +13,36 @@ LLM-generated narration in the Wacky Races narrator style. The narrator is
 omniscient — it sees all events across all rooms and generates batched commentary
 dispatched to the narrator panel and Qhorus audience channel.
 
+## Design decisions
+
+### Direct collection vs PartitionedObservationService
+
+Issue #9 acceptance criteria originally stated "NarratorAgent receives
+accumulated observations from PartitionedObservationService." During design,
+this was revised: the narrator receives raw `ManorEvent` objects via direct
+`collect()` calls at the same sites that publish to `ObservationService`.
+
+Rationale: `PartitionedObservationService` is room-scoped and
+visibility-filtered — it gives each character only events they can perceive.
+The narrator is omniscient by design (sees all events, all rooms, all asides).
+Routing events through `PartitionedObservationService` would require either
+(a) a special "sees everything" observer that defeats the partitioning, or
+(b) aggregating all per-character drains, losing compaction benefits.
+Direct collection is simpler and architecturally correct — the narrator's
+event pipeline is a separate concern from character observations.
+
+The issue acceptance criteria will be updated to reflect this decision.
+
+### Mode applicability
+
+The narrator runs in AUTONOMOUS mode only. In SCRIPTED mode, narration comes
+from trigger-fired events (static text from `triggers.yaml`) and scene beat
+narration — these are hand-authored to match specific game states. Running the
+live LLM narrator alongside would produce double-narration on the same
+`/manor/audience` channel. AUTONOMOUS mode has no trigger narration, making
+the live narrator the sole source of commentary.
+
 ## Architecture
-
-### Divergence from issue #9
-
-Issue #9 acceptance criteria state "NarratorAgent receives accumulated observations
-**from PartitionedObservationService**." This spec uses a parallel
-`SummarisationRunner<ManorEvent, String>` pipeline instead.
-
-**Rationale:** PartitionedObservationService routes events by visibility policy to
-per-observer, per-partition accumulators. The narrator is omniscient — it must see
-all events across all rooms, unpartitioned and unfiltered. Modeling an omniscient
-narrator as a "character observer" in the partitioned framework would require a
-degenerate visibility policy that bypasses the framework's core abstraction. A
-parallel SummarisationRunner pipeline is the correct use of the blocks temporal
-abstraction layer for an omniscient consumer.
 
 ### Component diagram
 
@@ -70,10 +85,24 @@ Constructor parameters:
 - `ManorChannels manorChannels`
 - `ManorEventBus webEventBus`
 - `int eventThreshold` (default 5)
-- `long timerMillis` (default 15_000)
+- `int timerSeconds` (default 15)
+
+Internal constants:
+- `NARRATOR_LEVEL = new EventLevel("narrator", 0)` — used for both
+  input wrapping and output publication
+
+The constructor creates:
+- `WindowPolicy.of(timerSeconds * 1000L, eventThreshold)` — seconds
+  converted to milliseconds at this single point
+- `EventStreamBus<String>` with a subscriber dispatching to ManorChannels
+  and ManorEventBus
+- `SummarisationRunner<ManorEvent, String>(policy, compactor, summariser,
+  outputBus, NARRATOR_LEVEL)`
 
 Public API:
-- `collect(ManorEvent event)` — wraps as LevelEvent, delegates to runner
+- `collect(ManorEvent event)` — wraps as
+  `new LevelEvent<>(event, event.timestamp().toEpochMilli(), NARRATOR_LEVEL)`,
+  delegates to runner
 - `start(WorldState world)` — starts the narrator virtual thread
 - `stop()` — interrupts the narrator thread (called at scenario end)
 
@@ -106,10 +135,23 @@ with CAPITAL LETTERS for emphasis, 2-3 sentences max.
 ### Compactor integration
 
 `MechanicalCompactor` already exists in wacky-manor. It implements the new
-`Compactor<ManorEvent>` interface from blocks (casehubio/blocks#83). The
-compactor applies deterministic supersession:
-- Multiple MOVE events for the same character collapse to the final position
-- Multiple WAIT events collapse to one
+`Compactor<ManorEvent>` interface from blocks (casehubio/blocks#83).
+
+The compactor applies two mechanisms:
+
+**Supersession** — later events replace earlier ones sharing the same key:
+- MOVE: keyed by `"move:" + characterId` → collapses to final position
+- TAKE: keyed by `"take:" + target` → collapses to final take of same object
+- INTERACT / USE: keyed by `"object-state:" + target` → collapses to final
+  interaction with same object
+
+Events without supersession keys pass through unchanged: WAIT, LOOK, GIVE.
+
+**Dialogue deduplication** — identical dialogue lines (same
+`characterId + "::" + description`) are deduplicated, keeping the first
+occurrence only.
+
+After supersession and deduplication, results are re-sorted by timestamp.
 
 SummarisationRunner applies the compactor between drain and summarise
 automatically.
@@ -148,6 +190,13 @@ Configurable via `application.properties`:
 - `manor.narrator.event-threshold` — default `5`
 - `manor.narrator.timer-seconds` — default `15`
 - `manor.narrator.enabled` — default `true`
+
+When `manor.narrator.enabled=false` (or mode is SCRIPTED):
+- `ScenarioOrchestrator` does not create `NarratorAgent`
+- `ManorEventDispatcher` receives `null` for the narrator parameter and
+  skips the `collect()` call internally
+- No narrator thread, no LLM calls, no narration dispatched
+- All other scenario behavior unchanged
 
 ### Failure handling
 
