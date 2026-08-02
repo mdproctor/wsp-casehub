@@ -138,7 +138,78 @@ Functions have continuous weights [0.0-1.0]:
 
 Plus shadow functions, opposite functions, compatible auxiliaries — structural rules for personality evolution.
 
-### 9. BehavioralExpectations
+### 9. Why These Frameworks Were Included or Excluded
+
+**The paper must explain the selection rationale, not just list frameworks.**
+
+**Included (implemented as vocabularies):**
+
+| Framework | Why included | Signal channel |
+|---|---|---|
+| **Jungian** | Deepest cognitive model — 8 functions with structural rules (shadow, auxiliary pairing, weight tiers). The JPAF paper (arXiv:2601.10025) demonstrates 100% MBTI alignment in LLMs. Subsumes DISC. | Axis (full 5-axis projection) |
+| **MBTI** | Convenience layer — 16 types decompose into Jungian function stacks via `specializes()`. Resolves the "MBTI is invalid" objection: for agents, personality is specified not measured. | Axis (via Jungian) |
+| **DISC** | Widely adopted workplace shorthand. Despite low scientific validity, its imprecision is bounded (correlates with Big Five E×A). Provides a simpler entry point than Jungian for users who think in 4 quadrants. Full axis projection. | Axis (full 5-axis projection) |
+| **Thomas-Kilmann** | Only framework that models conflict behavior. Covers the 5th disposition axis (CONFLICT_MODE) that no other framework addresses. Essential for multi-agent disagreement scenarios. | Axis (CONFLICT_MODE only) |
+| **Belbin** | Only framework that models team contribution roles. Operates through the prompt channel (slot label + description), making it orthogonal to axis-channel frameworks. The only way to answer "what does this agent contribute to a team?" | Prompt (slot vocabulary) |
+| **SVO** | Lightweight agent workflow role model (Coordinator/Performer/Evaluator). Maps agent function in multi-agent orchestration. Platform-specific rather than psychology-derived. | Prompt (slot vocabulary) |
+
+**Included as reference (not implemented):**
+
+| Framework | Why reference only |
+|---|---|
+| **Big Five/OCEAN** | Not separate — it IS the Conscientiousness vocabulary. The axis system is Big Five-grounded by design. No separate vocabulary needed because the axis terms ARE Big Five terms. |
+| **Situational Leadership** | Describes leader behavior, not agent traits. Used backwards (follower readiness → agent autonomy) as conceptual framing for the autonomy axis. Not precise enough for vocabulary terms. |
+| **Kirton Adaption-Innovation** | Single-axis model (Adaptor↔Innovator) that maps onto existing ruleFollowing + riskAppetite axes. Confirms those axes from an independent theoretical basis but adds no new terms. |
+| **O*NET / SFIA** | Occupational competence frameworks — capabilities vocabulary source (skill names), not personality. Orthogonal to disposition. |
+
+**Excluded:**
+
+| Framework | Why excluded |
+|---|---|
+| **Margerison-McCann** | Same conceptual territory as Belbin (team contribution roles) with incompatible terminology. Belbin has broader adoption and more research. Implementing both creates contradictory slot vocabulary. |
+| **DISC + Jungian together** | Redundant — both project onto the same 5 axes. Jungian is strictly deeper (8 functions with structural rules vs 4 quadrants). Using both creates contradictory disposition encodings. |
+| **MBTI (human-assessed)** | ~50% type-change on retest makes human-assessed types unreliable as vocabulary terms. Only agent-specified MBTI (via Jungian function stacks) is supported. |
+
+### 10. Room for More Frameworks
+
+**The architecture is explicitly extensible.** Adding a new framework means:
+1. Create an enum implementing `VocabularyTerm`
+2. Implement `axisExactMatch()` for axis-channel frameworks (projection onto Conscientiousness + Thomas-Kilmann)
+3. Register via a `VocabularyRegistrar` CDI bean
+4. The vocabulary registry discovers it automatically at startup
+
+**Frameworks worth adding:**
+
+| Framework | Why | What it would add | Effort |
+|---|---|---|---|
+| **Big Five (full)** | The gold standard in personality science. Currently only Conscientiousness is implemented. Adding Openness, Extraversion, Agreeableness, Neuroticism as explicit vocabularies would give agents the most scientifically validated personality encoding available. | 4 new vocabulary enums with axis projections. Would subsume DISC entirely. | Medium — mappings are well-documented |
+| **Enneagram** | 9 personality types with growth/stress dynamics. Popular in coaching and personal development. The growth/stress paths map naturally to personality evolution (shadow function activation). | New disposition vocabulary with evolution rules. Orthogonal to Jungian (motivation vs cognition). | Medium — mappings to Big Five are published |
+| **Strength Deployment Inventory (SDI)** | Relationship-focused: how people deploy their strengths in conflict vs non-conflict. Complementary to Thomas-Kilmann (which covers conflict style but not strength deployment). | Enhanced conflict-mode granularity. | Low — narrow scope, clear axis mapping |
+| **VALUES frameworks (Schwartz, Rokeach)** | What agents value — not how they think or behave, but what they optimize for. Currently no axis covers terminal vs instrumental values. | New axis: VALUE_ORIENTATION. Would need a new DispositionAxis enum value. | High — new axis, cross-vocabulary projections needed |
+
+**Frameworks NOT worth adding:**
+
+| Framework | Why not |
+|---|---|
+| **StrengthsFinder / CliftonStrengths** | 34 talent themes — too granular, overlaps heavily with capabilities (O*NET). Talent ≠ personality. |
+| **HEXACO** | Big Five variant adding Honesty-Humility. Valuable for humans but the 6th dimension adds little for LLM agents where honesty is a system constraint, not a personality trait. |
+| **Dark Triad (Machiavellianism, Narcissism, Psychopathy)** | Measures pathological personality. Inappropriate for production agent design. Could be relevant for adversarial testing or red-teaming scenarios only. |
+
+### 11. Interpretive Insights (from this session's analysis)
+
+Key judgments the next session should carry forward when writing the paper:
+
+**Why composition latency is additive, not redundant:** Each framework adds cognitive context to the system prompt. More context = more for the LLM to process before deciding. Jungian adds +2.3 turns, Belbin adds +1.0, composite adds +4.3 (close to the sum of +3.3, with a +1.0 interaction effect). The frameworks don't cancel each other out — they stack.
+
+**Why briefing text dominates function activation:** The character briefings are rich — multiple sentences of voice guidance, specific speech patterns, named quirks. A character described as "theatrical villain who schemes elaborately" will produce Ne-like behavior (possibility explosions) regardless of whether the disposition says Te. The framework adds texture WITHIN the behavioral envelope defined by the briefing, but doesn't redefine the envelope.
+
+**Why composite variance is a feature:** The composite layer's high variance (6 to 13 turns) means the agent sometimes deliberates extensively and sometimes acts quickly. A richer personality model makes behavior less predictable. For compliance/safety: use simpler encodings. For creative/emergent behavior: the variance is the point.
+
+**Why Peter Perfect fails J/P:** The briefing text says "gallant, volunteering, tunnel vision on Penelope" — which reads as spontaneous and adaptive (P), overriding the ENFJ's J disposition. This is a briefing-framework tension, not a platform bug.
+
+**Why MBTI alignment succeeds while function activation fails:** MBTI alignment evaluates the PROMPT (does it read as ENTJ?). Function activation evaluates the RESPONSE (does the agent act like Te?). The prompt correctly presents the Jungian profile, but the LLM's response is shaped more by the briefing than the disposition. The framework reaches the prompt; it doesn't control the response.
+
+### 13. BehavioralExpectations
 
 Derives operational governance from dispositions:
 - `escalationExpected()` — does the autonomy level imply supervision?
@@ -147,7 +218,7 @@ Derives operational governance from dispositions:
 
 Connects personality to platform operational behavior.
 
-### 10. Nine Eval Judges (not two)
+### 14. Nine Eval Judges (not two)
 
 The eidos-eval module has a comprehensive evaluation framework:
 
@@ -164,7 +235,7 @@ The eidos-eval module has a comprehensive evaluation framework:
 | PairContrastJudge | Do two agents with different profiles behave differently? |
 | PersonalityEvolutionJudge | Does personality evolve correctly over interactions? |
 
-### 11. Academic Citations
+### 15. Academic Citations
 
 - JPAF paper: arXiv:2601.10025 — 100% MBTI alignment across GPT-4, Llama, Qwen
 - Activation steering validation: arXiv:2607.20803 (July 2026) — confirms function-level personality control
