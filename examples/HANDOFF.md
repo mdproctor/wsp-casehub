@@ -1,56 +1,74 @@
-# HANDOFF — 2026-08-01
+# HANDOFF — 2026-08-02
 
 ## Last Session
 
-Phase 2.6 — observation accumulator wiring with casehub-blocks. Built central `ObservationService` with per-character per-room `ObservationAccumulator` instances, two-tier compaction (mechanical supersession + LLM summarisation), cross-room memory retention via drain-once caching, and aside privacy filtering. Enriched `ManorEvent` with structured action metadata. Then promoted the generic `PartitionedObservationService` to casehub-blocks (blocks#76) and refactored wacky-manor to consume it. Added self-contained multi-agent monitoring example to blocks.
+Personality composition research paper — wrote the full paper covering all 11 frameworks mapped to AgentDescriptor, the 5-axis coordinate system, 2 signal channels, compatibility matrix, experiment results, and extensibility. Corrected the results framing: the pipeline works (7-8/10 MBTI alignment), composition genuinely improves feeling/sensing activation (Penelope and Ant Hill Mob TAA 0.5→1.0), briefing dominance is a calibration problem not an architecture failure. Added a 6-point concrete engineering roadmap.
 
-Adversarial design review (4 dimensions, 48 issues, $55.60) enriched the spec significantly — drove `ConcurrentHashMap` for thread safety, `volatile` on `currentRoom`, departure-room routing from event payload, and LLM failure fallback.
+Closed #3 (12-run comparison) — all results are in. Created epic #11 with six child issues for the calibration gap work. The alignment gaps are small — coherence validation, judge calibration, and integration tuning, not architectural rework.
 
 ## Immediate Next Step
 
-Phase 2.7 — live LLM narrator consuming the accumulated event stream. The observation pipeline is the narrator's input source. `NarratorAgent` class exists but is not wired.
+Phase 2.7 — live LLM narrator (issue #9, branch `issue-9-narrator-wiring`). Design spec written. `NarratorAgent` class exists but is not wired to the event stream.
 
-## What's Left
+## Completed This Session
 
-- blocks#76 spec + blog entry — deferred from this session (the promotion was done, but no spec/blog written for blocks itself) · S · Low
-- blocks issue-47 rebased but not pushed — owning session should verify and push · XS · Low
-- Push garden entry GE-20260728-f7ad43 — committed locally, pre-push hook blocked · XS · Low
-- Wacky-manor not in parent pom modules list — `mvn` requires `-f wacky-manor/pom.xml` · XS · Low
+- #10 CLOSED — research paper written and published on main
+- #3 CLOSED — 12-run comparison done, results in the paper
+- #11 created — epic for calibration gap with 6 child issues
+- Paper pushed to both origin and upstream on main and feat/wacky-manor-poc
+
+## Issue Status
+
+| # | Title | State | Notes |
+|---|-------|-------|-------|
+| #3 | 12-scenario comparison | CLOSED | Results in the paper |
+| #4 | Cheapest model alignment | OPEN | Not priority — wait |
+| #9 | Phase 2.7 narrator wiring | OPEN | Current work, design spec done |
+| #10 | Research paper | CLOSED | Published |
+| #11 | Epic: calibration gap | OPEN | Small engineering tasks, not research |
+| #12 | Briefing-framework coherence | OPEN | Highest value — catches Peter Perfect class of problem |
+| #13 | Minimal briefing experiment | OPEN | Isolates framework contribution |
+| #14 | Stronger integration | OPEN | Blocked by #13 |
+| eidos#125 | Belbin axis implementation | OPEN | Bounded — mappings documented |
+| eidos#126 | Judge calibration (Ni/Ne) | OPEN | May fix Ni activation immediately |
+| eidos#127 | Full Big Five vocabulary | OPEN | Medium effort, well-documented mappings |
+
+## What's Left (carried forward)
+
+- blocks#76 spec + blog entry — deferred · S · Low
+- blocks issue-47 rebased but not pushed · XS · Low
+- Push garden entry GE-20260728-f7ad43 — pre-push hook blocked · XS · Low
+- Wacky-manor not in parent pom modules list · XS · Low
 
 ## What's Next
 
 | Phase | Description | Scale | Complexity | Notes |
 |---|---|---|---|---|
-| 2.7 | Live LLM narrator — wire NarratorAgent to accumulated event stream | S | Low | NarratorAgent class exists, not wired |
+| 2.7 | Live LLM narrator — wire NarratorAgent to accumulated event stream | S | Low | Design spec done, issue #9 |
 | 2.8 | NPC system — Tier 2/3 scripted fixtures, player/NPC split | M | Med | RPG framing |
-| 2.9 | Scale to 6 rooms — Library, Laboratory, Tower | L | Med | Re-evaluate buffer growth (examples#6) |
+| 2.9 | Scale to 6 rooms — Library, Laboratory, Tower | L | Med | Re-evaluate buffer growth (#6) |
 | 3.0 | Platform integration — memory, trust, HiL, replay | XL | High | Full casehub exercise |
 
 ## Cross-repo Changes This Session
 
 | Repo | What | Branch |
 |------|------|--------|
-| casehubio/examples | Phase 2.6 + blocks consumer refactor | feat/wacky-manor-poc (pushed fork + upstream) |
-| casehubio/blocks | PartitionedObservationService + example | main (pushed) |
-| casehubio/blocks | issue-47 rebase conflict resolution | issue-47-llm-htn-heuristics (local only) |
-| mdproctor.github.io | Diary entry published | main (pushed) |
-| casehubio.github.io | Diary entry published | main (pushed) |
+| casehubio/examples | Research paper + corrections | main + feat/wacky-manor-poc (pushed both remotes) |
+| casehubio/examples | Issues #10, #11, #12, #13, #14 created; #3 closed | — |
+| casehubio/eidos | Issues #125, #126, #127 created | — |
 
 ## Key Decisions
 
-- Central `ObservationService` over per-character — visibility is cross-cutting
-- Two-tier compaction: mechanical (deterministic) then LLM (conditional on budget threshold)
-- Per-room accumulators with drain-once caching for remembered partitions
-- `VisibilityPolicy<E, K>` SPI — applications define routing, blocks owns the machinery
-- EventStreamBus deliberately avoided — direct method calls for dynamic room-based routing (GE-20260629-e8b16d)
-- `ManorEvent` enriched with structured fields — compaction operates on metadata, never parses narrative text
+- Briefing dominance is a calibration problem, not architecture — the pipeline works, the gap is narrowing
+- Composition is additive not redundant — each framework adds signal the LLM acts on
+- Composite variance (6-13 turns) is a feature for creative scenarios, a cost for compliance
+- Ni/Ne misclassification may be judge-side — worth validating before assuming framework limitation
 
 ## References
 
-- Spec: `specs/issue-5-observation-accumulator-blocks/2026-08-01-observation-accumulator-design.md`
-- Blog: `~/claude/mdproctor.github.io/_notes/2026-08-01-mdp01-when-characters-need-to-remember.md`
-- Design review: `~/reviews/casehub-worktrees/observation-accumulator-*` (4 dimensions)
-- Plan: `plans/2026-08-01-observation-accumulator.md`
+- Paper: `wacky-manor/docs/structured-personality-composition-in-llm-agents.md`
+- Research brief: `work/examples/specs/issue-2-staged-layer-comparison/research-brief-personality-paper.md`
+- Primary framework source: `eidos/docs/personality-frameworks.md`
+- Narrator design spec: `work/examples/specs/issue-9-narrator-wiring/2026-08-02-narrator-wiring-design.md`
 - Phase 2.5 spec: `wacky-manor/docs/specs/2026-07-27-phase-2.5-autonomous-characters-design.md`
-- blocks issue: casehubio/blocks#76
-- Deferred issues: casehubio/examples#6 (buffer growth), #7 (per-type EventLevels), #8 (full blocks pipeline)
+- Deferred issues: #4 (cheapest model), #6 (buffer growth), #7 (per-type EventLevels), #8 (full blocks pipeline)
