@@ -15,23 +15,41 @@ dispatched to the narrator panel and Qhorus audience channel.
 
 ## Architecture
 
+### Divergence from issue #9
+
+Issue #9 acceptance criteria state "NarratorAgent receives accumulated observations
+**from PartitionedObservationService**." This spec uses a parallel
+`SummarisationRunner<ManorEvent, String>` pipeline instead.
+
+**Rationale:** PartitionedObservationService routes events by visibility policy to
+per-observer, per-partition accumulators. The narrator is omniscient — it must see
+all events across all rooms, unpartitioned and unfiltered. Modeling an omniscient
+narrator as a "character observer" in the partitioned framework would require a
+degenerate visibility policy that bypasses the framework's core abstraction. A
+parallel SummarisationRunner pipeline is the correct use of the blocks temporal
+abstraction layer for an omniscient consumer.
+
 ### Component diagram
 
 ```
-CharacterAgentLoop ──publishEvent──→ ObservationService (characters)
-        │
-        └──collect──→ SummarisationRunner<ManorEvent, String>
-                        ├── WindowPolicy.of(15_000ms, 5 events)
-                        ├── Compactor<ManorEvent> (wraps MechanicalCompactor)
-                        ├── NarratorSummariser (Summariser SPI → LLM call)
-                        └── EventStreamBus<String> (narrator output)
-                                 │
-                                 └──subscriber──→ ManorChannels.dispatchNarration()
-                                                  ManorEventBus.broadcast(narrator(...))
+CharacterAgentLoop ──publish──→ ManorEventDispatcher
+                                    ├── world.addEvent(event)
+                                    ├── observationService.publishEvent(event)
+                                    ├── narratorAgent.collect(event) [AUTONOMOUS only]
+                                    ├── manorChannels.dispatch*(...)
+                                    └── webEventBus.broadcast(...)
 
-ScenarioOrchestrator ──publishEvent──→ ObservationService (characters)
-        │
-        └──collect──→ (same SummarisationRunner above)
+ScenarioOrchestrator ──publish──→ (same ManorEventDispatcher)
+
+NarratorAgent
+    └── SummarisationRunner<ManorEvent, String>
+            ├── WindowPolicy.of(15_000ms, 5 events)
+            ├── Compactor<ManorEvent> (wraps MechanicalCompactor)
+            ├── NarratorSummariser (Summariser SPI → LLM call)
+            └── EventStreamBus<String> (narrator output)
+                     │
+                     └──subscriber──→ ManorChannels.dispatchNarration()
+                                      ManorEventBus.broadcast(narrator(...))
 ```
 
 ### NarratorAgent
@@ -47,7 +65,7 @@ Responsibilities:
    an EventStreamBus subscriber
 
 Constructor parameters:
-- `MechanicalCompactor compactor`
+- `Compactor<ManorEvent> compactor`
 - `AgentProvider agentProvider`
 - `ManorChannels manorChannels`
 - `ManorEventBus webEventBus`
@@ -96,6 +114,27 @@ compactor applies deterministic supersession:
 SummarisationRunner applies the compactor between drain and summarise
 automatically.
 
+### ManorEventDispatcher
+
+Centralizes all event fan-out. Every event creation site calls one method on
+the dispatcher instead of separately calling WorldState, ObservationService,
+NarratorAgent, ManorChannels, and ManorEventBus.
+
+Created by `ScenarioOrchestrator.runScenario()` after ObservationService and
+(optionally) NarratorAgent. Passed to `CharacterAgentLoop` in place of
+the individual services.
+
+Responsibilities:
+1. `world.addEvent(event)` — record in game state
+2. `observationService.publishEvent(event)` — route to character accumulators
+3. `narratorAgent.collect(event)` — feed narrator pipeline (when present)
+4. Channel and WebSocket dispatch based on event type
+
+CharacterAgentLoop receives the dispatcher instead of `ObservationService`,
+`ManorChannels`, and `ManorEventBus` individually. This drops its parameter
+count from 9 to 7 and removes all knowledge of downstream event consumers
+from the character decision loop.
+
 ### Hybrid trigger
 
 `WindowPolicy.of(15_000, 5)` — narrate after 5 events accumulate OR after
@@ -127,18 +166,28 @@ character threads:
 var narratorAgent = new NarratorAgent(
         compactor, agentProvider, manorChannels, webEventBus,
         narratorEventThreshold, narratorTimerSeconds);
-narratorAgent.start(world);
+if (mode == ScenarioMode.AUTONOMOUS) {
+    narratorAgent.start(world);
+}
+
+var dispatcher = new ManorEventDispatcher(
+        world, observationService,
+        mode == ScenarioMode.AUTONOMOUS ? narratorAgent : null,
+        manorChannels, webEventBus);
 ```
 
-### Dual publish
+### Event publishing
 
-At every existing `observationService.publishEvent(event)` call site, add
-`narratorAgent.collect(event)`. Three call sites:
+All event creation sites use the dispatcher. The three existing
+`world.addEvent() + observationService.publishEvent()` call sites become
+single `dispatcher.publish(event)` calls:
 
-1. `ScenarioOrchestrator.runScenario()` — after action resolution (enriched
-   action events)
+1. `ScenarioOrchestrator.runScenario()` — after action resolution
 2. `CharacterAgentLoop.run()` — dialogue events
 3. `CharacterAgentLoop.run()` — aside events
+
+The dispatcher internally fans out to all consumers. No call site needs to
+know about ObservationService, NarratorAgent, ManorChannels, or ManorEventBus.
 
 ### Thread lifecycle
 
@@ -167,11 +216,18 @@ dramatically. The narrator prompt already says "you know everyone's secrets."
 
 ### Interaction with scripted narration
 
-In SCRIPTED mode, trigger-fired narrator events (static text from
-`triggers.yaml`) and scene beat narration still dispatch directly via
-`manorChannels.dispatchNarration()`. The live narrator runs alongside.
-If double-narration is noticeable, trigger narrator events can be removed
-in a follow-up.
+The live narrator runs only in AUTONOMOUS mode. In SCRIPTED mode, narration
+comes from trigger-fired narrator events (static text from `triggers.yaml`)
+and scene beat narration, which dispatch directly via
+`manorChannels.dispatchNarration()`. The NarratorAgent is not started.
+
+**Rationale:** SCRIPTED mode exists for deterministic, repeatable scenarios
+used in testing and demo. Trigger narration is hand-authored to match
+specific game states. Running the live LLM narrator alongside would produce
+double-narration — both a scripted and an LLM-generated narration for the
+same event — on the same `manor/audience` channel. Disabling the live
+narrator in SCRIPTED mode keeps the narration source clean and the mode's
+deterministic guarantee intact.
 
 ## Event flow
 
@@ -179,24 +235,29 @@ in a follow-up.
 1. Character acts → CharacterAgentLoop
 2. Action resolved → ScenarioOrchestrator game loop
 3. ManorEvent created with enriched metadata
-4. Event published to:
-   a. ObservationService (character observations — room-scoped)
-   b. NarratorAgent.collect() (narrator — omniscient)
-5. NarratorAgent's SummarisationRunner buffers the event
-6. On next tick() where WindowPolicy fires:
+4. dispatcher.publish(event) — single call site
+5. ManorEventDispatcher fans out:
+   a. world.addEvent(event) — game state
+   b. observationService.publishEvent(event) — character observations
+   c. narratorAgent.collect(event) — narrator pipeline [AUTONOMOUS only]
+   d. manorChannels / webEventBus — UI dispatch
+6. NarratorAgent's SummarisationRunner buffers the event
+7. On next tick() where WindowPolicy fires:
    a. Events drained atomically (drainIfReady)
-   b. MechanicalCompactor applied (supersession)
+   b. Compactor<ManorEvent> applied (supersession)
    c. NarratorSummariser formats + calls LLM
    d. Narration published to EventStreamBus<String>
-7. Bus subscriber dispatches to:
+8. Bus subscriber dispatches to:
    a. ManorChannels.dispatchNarration() (Qhorus /manor/audience)
    b. ManorEventBus.broadcast(narrator(...)) (WebSocket → UI)
-8. Narrator panel renders the narration
+9. Narrator panel renders the narration
 ```
 
 ## Files changed
 
 ### New files
+- `ManorEventDispatcher.java` — centralized event fan-out
+- `ManorEventDispatcherTest.java` — unit test
 - `NarratorSummariser.java` — `Summariser<ManorEvent, String>` implementation
 - `NarratorSummariserTest.java` — unit test
 - `NarratorAgentTest.java` — unit test with real SummarisationRunner, mock LLM
@@ -204,8 +265,9 @@ in a follow-up.
 ### Modified files
 - `NarratorAgent.java` — rewrite from static utility to stateful class
 - `MechanicalCompactor.java` — implement `Compactor<ManorEvent>`
-- `ScenarioOrchestrator.java` — create narrator, add collect() calls
-- `CharacterAgentLoop.java` — add narrator collect() calls (signature change: accept NarratorAgent)
+- `ManorObservationRenderer.java` — change field type from `MechanicalCompactor` to `Compactor<ManorEvent>`
+- `ScenarioOrchestrator.java` — create dispatcher, narrator (AUTONOMOUS only), pass dispatcher to loop
+- `CharacterAgentLoop.java` — signature change: accept `ManorEventDispatcher` instead of `ObservationService`, `ManorChannels`, `ManorEventBus`
 - `application.properties` — narrator config properties
 
 ### Test files
