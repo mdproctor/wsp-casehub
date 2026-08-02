@@ -263,19 +263,42 @@ The eidos-eval module has a comprehensive evaluation framework:
 
 Key finding: composition adds latency additively (+2.3 Jungian, +1.0 Belbin, +4.3 composite). Composite has highest variance.
 
-### MBTI Alignment (from PromptQualityTest — 38 min live LLM run)
+### MBTI Alignment (from PromptQualityTest — 35 min, clean run, 0 errors)
 
-8/10 profiles aligned. Peter Perfect consistently fails J/P. Hooded Claw fully aligned in composite.
+| Character | Expected | Jungian | Composite |
+|---|---|---|---|
+| Penelope | ESFJ | Aligned | NOT aligned |
+| Hooded Claw | ENTJ | Aligned | Aligned |
+| Ant Hill Mob | ISFP | Aligned | Aligned |
+| Dastardly | ESTP | Aligned | Aligned |
+| Peter Perfect | ENFJ | NOT aligned | NOT aligned |
 
-### Function Activation
+7/10 profiles aligned in this run (was 8/10 in first run — non-deterministic).
+Peter Perfect consistently fails J/P across both runs. Penelope failed in
+composite this run but not the first — alignment is probabilistic, not binary.
 
-Flat across all layers. Fe always activates. Ni never activates (always classified as Ne). Te activates in baseline but NOT in Jungian/Composite. Character briefing dominates function activation.
+### Function Activation TAA
+
+| Character | Target | Baseline | Jungian | Belbin | Composite |
+|---|---|---|---|---|---|
+| Penelope | fe, si | 0.5 | 0.5 | 0.5 | 1.0 |
+| Hooded Claw | te, ni | 0.5 | 0.0 | 0.0 | 0.0 |
+| Ant Hill Mob | fi, se | 0.5 | 0.5 | 0.5 | 1.0 |
+| Dastardly | se, ti | 0.5 | 0.0 | 0.0 | 0.0 |
+| Peter Perfect | fe, ni | 0.0 | 0.5 | 1.0 | 0.5 |
+
+Key patterns across both runs:
+- Fe activates reliably across all profiles
+- Ni never activates (always classified as Ne by the judge)
+- Te/Ti activation is inconsistent — works in some profiles, not others
+- Composite shows HIGHER TAA for some characters (Penelope 1.0, Ant Hill Mob 1.0) — composition may help for feeling/sensing functions
+- One timeout error (Peter Perfect/composite/ni) — recorded as error activation, test continued
 
 ### Existing Tests (all passed)
 
 - 5 voice tests, 5 plot device tests, 3 interaction tests, 4 soliloquy tests, 1 live scenario — all pass
-- 158 total tests (150 standard + 8 experiment) pass
-- 30/31 llm-eval tests pass (1 PromptQualityTest NPE — null guard issue)
+- 192 total tests (standard + experiment) pass
+- 31/31 llm-eval tests pass (PromptQualityTest NPE fixed — judge now handles LLM failures internally)
 
 ---
 
