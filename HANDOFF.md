@@ -26,7 +26,6 @@ Decentralised repo deep-dives across all 28 CaseHub repos (#377) and rewrote the
 ## What's Left
 
 - **#359 partially resolved** — automated audit tooling and API catalogue generation still open. Comment posted on the issue. · L · Med
-- **Ledger audit commit on feature branch** — residual copy on `feat/aml-115-content-sanitiser-rename` (already cherry-picked to main). Will clear when branch merges. · XS · Low
 
 ## References
 
