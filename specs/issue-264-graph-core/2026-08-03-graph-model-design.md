@@ -18,6 +18,12 @@ The model is domain-agnostic. No CaseHub-specific types. Consumed by
 domain adapters (producers) and graph-renderer (consumer → React Flow
 conversion).
 
+**Out of scope for this issue:** `NodeDecoration` (generic decoration
+model) and `PropertySchema` (JSON Schema type alias) are graph-core
+type contracts assigned by the parent spec (§3.1). They are tracked
+by #277, not this issue — they support the stencil rendering layer,
+not the graph model.
+
 ## 2. Decisions
 
 ### 2.1 Plain interfaces + standalone functions
@@ -96,6 +102,11 @@ interface GraphModel {
   owned by graph-renderer.
 - No `ports` — port cardinality is a grammar constraint (StencilGrammar,
   issue #267), not a model feature.
+- Conversion from `GraphModel` to React Flow `Node[]`/`Edge[]` is
+  graph-renderer's responsibility (parent spec §3.2 data flow).
+  graph-core's types are deliberately renderer-agnostic — no
+  `position`, `data`, or rendering fields. The conversion contract
+  will be defined in graph-renderer's spec (issue #264 Phase 1B).
 
 ## 4. Containment Traversal
 
@@ -110,8 +121,18 @@ function rootNodes(model: GraphModel): readonly GraphNode[]
 |----------|-----------|
 | `childrenOf` | Direct children only (nodes whose `parentId` matches). Empty array if none or if `parentId` doesn't exist in the model. |
 | `ancestorsOf` | Walks `parentId` chain upward: `[parent, grandparent, ...]` (nearest first). Empty for root nodes. Throws on cycle. Returns empty if `nodeId` not found. |
-| `subtreeOf` | The node itself plus all descendants, breadth-first. Returns empty if `nodeId` not found. |
+| `subtreeOf` | The node itself plus all descendants, breadth-first. Returns empty array if `nodeId` not found. Throws on containment cycle (consistent with `ancestorsOf`). |
 | `rootNodes` | Nodes with no `parentId`. Top-level for ELK layout. |
+
+**"Not found" semantics:** Traversal functions return empty arrays when
+the starting `nodeId` doesn't exist in the model. This is intentional —
+these are query functions, not existence checks. A query for "what's
+related to X" correctly answers "nothing" when X doesn't exist, just as
+`Array.filter` returns `[]` when nothing matches. Callers that need to
+distinguish "node doesn't exist" from "node exists but has no
+relatives" should use `nodeById` first. Note that `subtreeOf` always
+includes the node itself when it exists, so `subtreeOf(model,
+id).length === 0` is an unambiguous "not found" signal.
 
 ## 5. Edge and Lookup Queries
 
@@ -124,6 +145,17 @@ function edgeById(model: GraphModel, edgeId: string): GraphEdge | undefined
 ```
 
 All functions are pure — take a model, return derived data, never mutate.
+
+**`edgesOf` semantics:** Returns all edges incident to the node — edges
+where `source === nodeId` or `target === nodeId`. Each edge appears at
+most once. A self-loop (where `source === target`) is a single edge
+object that matches both conditions but appears once in the result.
+Equivalent to the union of `inboundEdges` and `outboundEdges` with
+natural deduplication. No ordering guarantee beyond model array order.
+
+**Self-loop edges:** Self-loops are structurally valid at the graph-core
+level. `createGraph` does not reject them. Domain-specific constraints
+(e.g., "Bindings cannot self-loop") belong in `StencilGrammar` (#267).
 
 ## 6. Model Construction
 
@@ -139,6 +171,7 @@ Validates structural invariants on construction:
 
 | Check | Failure mode |
 |-------|-------------|
+| Empty or whitespace-only node/edge ID | Throws |
 | Duplicate node IDs | Throws |
 | Duplicate edge IDs | Throws |
 | Dangling edge source/target | Throws |
@@ -148,6 +181,28 @@ Validates structural invariants on construction:
 These are data corruption — the domain adapter produced bad data.
 Throwing is correct (not error returns) because this is not user input
 validation.
+
+**Error format:** Validation failures throw `GraphValidationError`
+(extends `Error`) with structured diagnostics:
+
+```typescript
+class GraphValidationError extends Error {
+  readonly violations: readonly GraphViolation[];
+}
+
+interface GraphViolation {
+  readonly rule: 'empty_id' | 'duplicate_node_id' | 'duplicate_edge_id'
+    | 'dangling_edge' | 'invalid_parent' | 'containment_cycle';
+  readonly message: string;
+  readonly nodeId?: string;
+  readonly edgeId?: string;
+}
+```
+
+`createGraph` collects all violations before throwing (not fail-fast),
+so a single call surfaces every structural problem. The `rule` field
+is a discriminated union for programmatic matching; `message` is
+human-readable with the offending IDs.
 
 Consumers can also construct `GraphModel` as a plain object literal and
 skip validation — useful for tests or when the adapter guarantees
@@ -160,7 +215,7 @@ packages/graph-core/
   package.json          @casehubio/graph-core, version 0.1.0
   tsconfig.json         extends pages-tsconfig, no references
   tsconfig.build.json   outDir: dist, excludes tests
-  vitest.config.ts      jsdom environment
+  vitest.config.ts      default node environment (no DOM needed)
   src/
     index.ts            barrel — types + all functions
     model.ts            GraphNode, GraphEdge, GraphModel interfaces
@@ -185,6 +240,6 @@ packages/graph-core/
 | File | What's tested |
 |------|--------------|
 | `model.test.ts` | Plain object construction satisfies the interfaces. Readonly enforcement (compile-time only — verified by type tests). |
-| `graph.test.ts` | `createGraph` happy path. Duplicate node ID rejection. Duplicate edge ID rejection. Dangling edge detection. Invalid parentId detection. Containment cycle detection. |
-| `traversal.test.ts` | `childrenOf` — direct children, no children, non-existent parent. `ancestorsOf` — single parent, multi-level, root node, cycle detection. `subtreeOf` — flat, nested, deep hierarchy. `rootNodes` — mixed root/child, all roots, all children. |
-| `query.test.ts` | `edgesOf` — node with edges, node without edges. `inboundEdges`/`outboundEdges` — direction filtering. `nodeById`/`edgeById` — found, not found. |
+| `graph.test.ts` | `createGraph` happy path. Duplicate node ID rejection. Duplicate edge ID rejection. Dangling edge detection. Invalid parentId detection. Containment cycle detection. Empty/whitespace ID rejection. Self-loop edge acceptance. Error format — `GraphValidationError` with structured violations. Multiple violations collected in single throw. |
+| `traversal.test.ts` | `childrenOf` — direct children, no children, non-existent parent. `ancestorsOf` — single parent, multi-level, root node, cycle detection. `subtreeOf` — flat, nested, deep hierarchy, breadth-first ordering verified, cycle detection. `rootNodes` — mixed root/child, all roots, all children. |
+| `query.test.ts` | `edgesOf` — node with edges, node without edges, self-loop appears once. `inboundEdges`/`outboundEdges` — direction filtering, self-loop appears in both. `nodeById`/`edgeById` — found, not found. |
