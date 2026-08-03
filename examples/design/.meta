@@ -1,0 +1,9 @@
+branch: issue-15-phase-2.8-npc-system
+project-sha: 4cac2307b2694142fd6764265a0592b119ba046d
+date: 2026-08-03
+issue: 15
+issue-repo: casehubio/examples
+covers: 15
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
