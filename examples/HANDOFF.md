@@ -1,33 +1,29 @@
-# HANDOFF — 2026-07-28
+# HANDOFF — 2026-08-03
 
 ## Last Session
 
-Wacky Manor Phase 2.5 — autonomous character validation. Built switchable SCRIPTED/AUTONOMOUS mode, goals in observations, narrative event builder, auto-positioning, USE/TAKE consequences. Validated with live LLM runs. Discovered the narrative-mechanical gap: LLMs reason correctly but generate wrong structured actions. Fixed with affordance grounding chain (identity + action tags + consequence links). Scenario ends POISONED — verdict gate passes.
+Phase 2.8 complete — added all 17 characters as autonomous LLM + Eidos agents across 6 rooms. No NPC tier system — every character runs the same CharacterAgentLoop. Engine hardened for 17 concurrent agents (thread-safe inventory, max-turns 300, configurable think delays, startup validation). Muttley and Lazy Luke/Blubber Bear promoted from room objects to full characters. Enneagram motivation layer added. Frontend updated to 2-row 6-room grid. 3 garden entries submitted (Eidos YAML descriptor gotchas).
 
 ## Immediate Next Step
 
-User is working on eidos-107 — may provide enhancements applicable to wacky-manor. When returning: file the blocks AffordanceRenderer issue (`wacky-manor/docs/issues/blocks-affordance-renderer.md`) once `gh auth` is fixed. Then either proceed to Phase 2.6 (observation accumulator wiring with casehub-blocks) or implement AffordanceRenderer in blocks first.
+Run `mvn test -pl wacky-manor -Pllm-eval` to validate all 17 character personalities with live LLM. Fix any voices that don't pass, then add pause/play controls (#27) before the next game mechanics phase.
 
 ## What's Left
 
-- File blocks AffordanceRenderer issue on casehubio/blocks — ready at `wacky-manor/docs/issues/blocks-affordance-renderer.md`, blocked on gh auth · XS · Low
-- Push garden entry GE-20260728-f7ad43 — committed locally, pre-push hook blocked · XS · Low
-- Wacky-manor not in parent pom modules list — `mvn` requires `-f wacky-manor/pom.xml` · XS · Low
+- Run llm-eval personality validation — voices not yet tested with live LLM · S · Low
+- Pause/play and speed controls (#27) — 17 characters flood text too fast · S · Low
+- Eidos rebuild needed if BigFiveTerm or SdiTerm axes wanted for characters · XS · Low
 
 ## What's Next
 
-| Phase | Description | Scale | Complexity | Notes |
+| # | Description | Scale | Complexity | Notes |
 |---|---|---|---|---|
-| 2.6 | ObservationAccumulator — wire casehub-blocks, build AffordanceRenderer | M | Med | Build AffordanceRenderer in blocks first, then wire |
-| 2.7 | Live LLM narrator — wire NarratorAgent | S | Low | NarratorAgent class exists, not wired |
-| 2.8 | NPC system — Tier 2/3 scripted fixtures, player/NPC split | M | Med | RPG framing |
-| 2.9 | Scale to 6 rooms — Library, Laboratory, Tower | L | Med | After 2.5 validates |
-| 3.0 | Platform integration — memory, trust, HiL, replay | XL | High | Full casehub exercise |
+| #27 | Pause/play and speed controls | S | Low | Server-side pause flag, think delay multiplier |
+| — | Phase 2.9: scale testing and game mechanics | M | Med | Validate 17 characters interacting, add puzzle chains |
+| #8 | Phase 3: migrate to full blocks pipeline | L | Med | ChannelEventAdapter + KeyedAccumulator |
 
 ## References
 
-- Spec: `wacky-manor/docs/specs/2026-07-27-phase-2.5-autonomous-characters-design.md`
-- Landscape: `wacky-manor/docs/llm-autonomy-landscape-2026.md`
-- Blog: `~/claude/mdproctor.github.io/_notes/2026-07-28-mdp01-the-hooded-claw-schemes-perfectly.md`
-- Garden: `GE-20260728-f7ad43` — affordance grounding chain technique
-- Memory: `project_wacky-manor.md`
+- Spec: `specs/issue-15-phase-2.8-npc-system/2026-08-03-phase-2.8-all-characters-design.md`
+- Plan: `plans/2026-08-03-phase-2.8-all-characters.md`
+- Garden: GE-20260803-c02ab3, GE-20260803-0a3c7d, GE-20260803-63cb93
