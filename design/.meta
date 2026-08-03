@@ -1,0 +1,9 @@
+branch: issue-402-spi-api-catalogue
+project-sha: 274fc6e4d12f42fc5aac6ed7775d0a36fa36ef21
+date: 2026-08-03
+issue: 402
+issue-repo: casehubio/parent
+covers: 402
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
