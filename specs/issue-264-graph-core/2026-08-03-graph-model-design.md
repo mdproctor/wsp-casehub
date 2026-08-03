@@ -1,0 +1,190 @@
+# graph-core: Graph Model — Design Spec
+
+**Date:** 2026-08-03
+**Issue:** #266 (graph-core: graph model — nodes, edges, containment tree)
+**Parent:** #264 (Phase 1A — graph-core)
+**Parent spec:** `specs/2026-08-01-visual-diagram-editor-design.md` (§3.1, §3.2)
+**Status:** Approved
+
+---
+
+## 1. Scope
+
+Core data model for `@casehubio/graph-core`: typed node and edge
+representations with a containment tree for hierarchical layout. This is
+issue #266 — the first of five graph-core issues.
+
+The model is domain-agnostic. No CaseHub-specific types. Consumed by
+domain adapters (producers) and graph-renderer (consumer → React Flow
+conversion).
+
+## 2. Decisions
+
+### 2.1 Plain interfaces + standalone functions
+
+The model uses TypeScript interfaces (not classes) with standalone
+functions for traversal and queries.
+
+**Rationale:**
+- Structural typing — any object matching the shape works. Domain
+  adapters return `{ nodes, edges }` directly without constructing a class.
+- Tree-shakeable — consumers import only the functions they use.
+- No class identity issues across package boundaries.
+- Easier testing — test data is a plain object literal.
+- Matches the codebase — `pages-data` uses interfaces + functions, not
+  classes for data models.
+
+### 2.2 Immutability via readonly + spread-copy
+
+Compile-time `readonly` on all fields and arrays. Edits produce new
+instances via the spread operator. No runtime immutability library.
+
+At the expected scale (tens to low hundreds of nodes, user-speed edits),
+spread-copy is trivially fast. Structural sharing (Immer, persistent
+data structures) adds dependency weight for no measurable benefit.
+
+### 2.3 Array storage, not Maps
+
+Nodes and edges are stored as `readonly` arrays. Lookup indices (by ID)
+are built on demand by query functions. Arrays are simpler to serialize,
+easier to spread-copy, and convert directly to React Flow arrays.
+
+O(n) scans are acceptable at this scale. If profiling ever shows a
+bottleneck, a cached index layer can be added without changing the API
+(the functions already return derived data).
+
+### 2.4 Zero dependencies
+
+`graph-core` depends on nothing — no `pages-data`, no `lit`, no `zod`.
+Pure TypeScript. It is the foundation of the graph package family.
+
+## 3. Types
+
+```typescript
+interface GraphNode {
+  readonly id: string;
+  readonly type: string;
+  readonly parentId?: string;
+  readonly properties: Readonly<Record<string, unknown>>;
+}
+
+interface GraphEdge {
+  readonly id: string;
+  readonly type: string;
+  readonly source: string;
+  readonly target: string;
+  readonly properties?: Readonly<Record<string, unknown>>;
+}
+
+interface GraphModel {
+  readonly nodes: readonly GraphNode[];
+  readonly edges: readonly GraphEdge[];
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+```
+
+**Field notes:**
+
+- `source`/`target` on edges — standard graph terminology, matches React
+  Flow. The `string` type makes it clear these are node IDs.
+- `properties` required on nodes (always carry domain data), optional on
+  edges (may be pure topology).
+- `metadata` optional on model — graph-level info the domain adapter
+  passes through (case name, schema version). Untyped because
+  graph-core is domain-agnostic.
+- No `label`, `position`, or `dimensions` — those are rendering concerns
+  owned by graph-renderer.
+- No `ports` — port cardinality is a grammar constraint (StencilGrammar,
+  issue #267), not a model feature.
+
+## 4. Containment Traversal
+
+```typescript
+function childrenOf(model: GraphModel, parentId: string): readonly GraphNode[]
+function ancestorsOf(model: GraphModel, nodeId: string): readonly GraphNode[]
+function subtreeOf(model: GraphModel, nodeId: string): readonly GraphNode[]
+function rootNodes(model: GraphModel): readonly GraphNode[]
+```
+
+| Function | Behaviour |
+|----------|-----------|
+| `childrenOf` | Direct children only (nodes whose `parentId` matches). Empty array if none or if `parentId` doesn't exist in the model. |
+| `ancestorsOf` | Walks `parentId` chain upward: `[parent, grandparent, ...]` (nearest first). Empty for root nodes. Throws on cycle. Returns empty if `nodeId` not found. |
+| `subtreeOf` | The node itself plus all descendants, breadth-first. Returns empty if `nodeId` not found. |
+| `rootNodes` | Nodes with no `parentId`. Top-level for ELK layout. |
+
+## 5. Edge and Lookup Queries
+
+```typescript
+function edgesOf(model: GraphModel, nodeId: string): readonly GraphEdge[]
+function inboundEdges(model: GraphModel, nodeId: string): readonly GraphEdge[]
+function outboundEdges(model: GraphModel, nodeId: string): readonly GraphEdge[]
+function nodeById(model: GraphModel, nodeId: string): GraphNode | undefined
+function edgeById(model: GraphModel, edgeId: string): GraphEdge | undefined
+```
+
+All functions are pure — take a model, return derived data, never mutate.
+
+## 6. Model Construction
+
+```typescript
+function createGraph(
+  nodes: readonly GraphNode[],
+  edges: readonly GraphEdge[],
+  metadata?: Readonly<Record<string, unknown>>,
+): GraphModel
+```
+
+Validates structural invariants on construction:
+
+| Check | Failure mode |
+|-------|-------------|
+| Duplicate node IDs | Throws |
+| Duplicate edge IDs | Throws |
+| Dangling edge source/target | Throws |
+| Invalid parentId (references non-existent node) | Throws |
+| Containment cycle | Throws |
+
+These are data corruption — the domain adapter produced bad data.
+Throwing is correct (not error returns) because this is not user input
+validation.
+
+Consumers can also construct `GraphModel` as a plain object literal and
+skip validation — useful for tests or when the adapter guarantees
+correctness. `createGraph` is the safe path, not the only path.
+
+## 7. Package Structure
+
+```
+packages/graph-core/
+  package.json          @casehubio/graph-core, version 0.1.0
+  tsconfig.json         extends pages-tsconfig, no references
+  tsconfig.build.json   outDir: dist, excludes tests
+  vitest.config.ts      jsdom environment
+  src/
+    index.ts            barrel — types + all functions
+    model.ts            GraphNode, GraphEdge, GraphModel interfaces
+    graph.ts            createGraph factory + validation
+    traversal.ts        childrenOf, ancestorsOf, subtreeOf, rootNodes
+    query.ts            edgesOf, inboundEdges, outboundEdges, nodeById, edgeById
+    model.test.ts       type construction, plain object compliance
+    graph.test.ts       createGraph validation (duplicates, dangling, cycles)
+    traversal.test.ts   containment traversal (flat, nested, deep, empty, cycles)
+    query.test.ts       edge queries, lookup by ID
+```
+
+- Zero dependencies.
+- `graph-*` namespace (no `pages-` prefix), matching `graph-renderer`.
+- Flat `src/` — four source files + four test files.
+- Co-located tests (`*.test.ts` next to source).
+- Not yet added to `build:packages` — no downstream consumer in the
+  build chain until graph-renderer depends on it.
+
+## 8. Test Coverage
+
+| File | What's tested |
+|------|--------------|
+| `model.test.ts` | Plain object construction satisfies the interfaces. Readonly enforcement (compile-time only — verified by type tests). |
+| `graph.test.ts` | `createGraph` happy path. Duplicate node ID rejection. Duplicate edge ID rejection. Dangling edge detection. Invalid parentId detection. Containment cycle detection. |
+| `traversal.test.ts` | `childrenOf` — direct children, no children, non-existent parent. `ancestorsOf` — single parent, multi-level, root node, cycle detection. `subtreeOf` — flat, nested, deep hierarchy. `rootNodes` — mixed root/child, all roots, all children. |
+| `query.test.ts` | `edgesOf` — node with edges, node without edges. `inboundEdges`/`outboundEdges` — direction filtering. `nodeById`/`edgeById` — found, not found. |
