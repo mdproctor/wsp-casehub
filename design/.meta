@@ -1,0 +1,9 @@
+branch: issue-401-index-consumer-contributor-split
+project-sha: 097ad104d710acd175924e157c75436a20d17635
+date: 2026-08-03
+issue: 401
+issue-repo: casehubio/parent
+covers: 401
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
