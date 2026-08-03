@@ -56,13 +56,23 @@ are built on demand by query functions. Arrays are simpler to serialize,
 easier to spread-copy, and convert directly to React Flow arrays.
 
 O(n) scans are acceptable at this scale. If profiling ever shows a
-bottleneck, a cached index layer can be added without changing the API
-(the functions already return derived data).
+bottleneck, a reference-keyed cache (e.g., `WeakMap<GraphModel,
+Index>`) can be added without changing the API — the functions
+already return derived data, and immutable spread-copy construction
+guarantees each edit produces a distinct model reference suitable
+as a cache key.
 
 ### 2.4 Zero dependencies
 
 `graph-core` depends on nothing — no `pages-data`, no `lit`, no `zod`.
-Pure TypeScript. It is the foundation of the graph package family.
+Pure TypeScript. It serves a dual role in the graph package family:
+the data model for this issue (nodes, edges, containment tree), and
+the shared contract hub for cross-cutting types that multiple graph
+packages consume (StencilGrammar #267, PersistenceBackend #270,
+NodeDecoration and PropertySchema #277 — each tracked by its own
+issue). The zero-dependency position makes graph-core the natural
+home for shared contracts: any package in the family can depend on
+graph-core without pulling in transitive dependencies.
 
 ## 3. Types
 
@@ -128,6 +138,12 @@ function rootNodes(model: GraphModel): readonly GraphNode[]
 | `ancestorsOf` | Walks `parentId` chain upward: `[parent, grandparent, ...]` (nearest first). Empty for root nodes. Per-call visited set; throws on cycle (including self-referencing `parentId`). Returns empty if `nodeId` not found. |
 | `subtreeOf` | The node itself plus all descendants, breadth-first. Per-call visited set; throws on containment cycle (consistent with `ancestorsOf`). Returns empty array if `nodeId` not found. |
 | `rootNodes` | Nodes with no `parentId`. Top-level for ELK layout. |
+
+These functions are the canonical source of containment semantics
+for the graph package family. Consumers that currently build their
+own containment structures from `parentId` (e.g., `elk-layout.ts`
+in graph-renderer) will consolidate onto these functions when
+graph-renderer (#265) depends on graph-core.
 
 **"Not found" semantics:** Traversal functions return empty arrays when
 the starting `nodeId` doesn't exist in the model. This is intentional —
