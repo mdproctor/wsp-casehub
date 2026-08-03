@@ -105,8 +105,13 @@ interface GraphModel {
 - Conversion from `GraphModel` to React Flow `Node[]`/`Edge[]` is
   graph-renderer's responsibility (parent spec §3.2 data flow).
   graph-core's types are deliberately renderer-agnostic — no
-  `position`, `data`, or rendering fields. The conversion contract
-  will be defined in graph-renderer's spec (issue #264 Phase 1B).
+  `position`, `data`, or rendering fields. Rendering-specific fields
+  (position, style, measured, selected) are excluded by design.
+  The mapping is trivial (identity for `id`/`type`/`parentId`,
+  rename `properties` → `data`, add layout position from ELK),
+  which validates that graph-core's domain-agnostic types compose
+  cleanly with React Flow without coupling to it. The conversion
+  contract will be defined in graph-renderer's spec (#265).
 
 ## 4. Containment Traversal
 
@@ -231,9 +236,22 @@ so a single call surfaces every structural problem. The `rule` field
 is a discriminated union for programmatic matching; `message` is
 human-readable with the offending IDs.
 
-Consumers can also construct `GraphModel` as a plain object literal and
-skip validation — useful for tests or when the adapter guarantees
-correctness. `createGraph` is the safe path, not the only path. On
+**Structural invariant contract:** `createGraph` is the canonical
+construction path for production code. All graph-core functions —
+traversal (§4), queries (§5), and edit operations (#269) — assume
+the input `GraphModel` satisfies the structural invariants listed
+above (no duplicate IDs, no dangling edges, no invalid parentIds,
+no containment cycles). Edit operations (#269) will maintain these
+invariants incrementally: each validates its own edit against a
+known-valid base, producing a valid result without full model
+re-validation. Together, `createGraph` and the edit operations form
+a closed system where every `GraphModel` produced through them
+satisfies the invariants.
+
+Plain-object construction remains available for test code and for
+adapters that guarantee correctness through other means. Callers
+who bypass `createGraph` accept that behavior on structurally
+invalid models is implementation-defined (§5). On
 models not validated by `createGraph`, only cycle protection in
 `ancestorsOf` and `subtreeOf` is guaranteed; other functions operate
 on the arrays as given.
