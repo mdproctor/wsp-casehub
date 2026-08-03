@@ -25,10 +25,8 @@ Decentralised repo deep-dives across all 28 CaseHub repos (#377) and rewrote the
 
 ## What's Left
 
-- **Neocortex audit commit on wrong branch** — landed on `issue-198-expansion-drift-metrics` instead of main. Needs cherry-pick when that branch lands.
-- **Ledger audit commit on feature branch** — landed on `feat/aml-115-content-sanitiser-rename` (cherry-picked to main already, but feature branch has a copy too)
-- **#359 partially resolved** — automated audit tooling and API catalogue generation still open. Comment posted on the issue.
-- **Prompt snippet update** — the corrected section 4 for the standard work prompt was provided in conversation but not persisted to a file. User should save it.
+- **#359 partially resolved** — automated audit tooling and API catalogue generation still open. Comment posted on the issue. · L · Med
+- **Ledger audit commit on feature branch** — residual copy on `feat/aml-115-content-sanitiser-rename` (already cherry-picked to main). Will clear when branch merges. · XS · Low
 
 ## References
 
