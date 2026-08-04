@@ -1,0 +1,10 @@
+branch: issue-404-jmarkdoc-maven-goal
+state: scaffolded
+project-sha: 90386d55367903cc003c6d61c1d9c5c3f6302753
+date: 2026-08-04
+issue: 404
+issue-repo: casehubio/parent
+covers: 404
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
