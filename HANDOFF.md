@@ -8,30 +8,44 @@
 
 ## Last Session
 
-Delivered the API catalogue infrastructure (#402) — machine-generated markdown API docs using jmarkdoc (Java) and TypeDoc (TypeScript), aggregated via existing subtree sync, with a cross-repo SPI overlay showing implementation matrix across repos.
+Delivered API catalogue infrastructure (#402) and ran full platform generation.
 
-Key design evolution: started from #359's per-SPI hand-curated chunks, pivoted to doclet-generated full public API reference. The "use existing tools, don't build custom" principle held — jmarkdoc for Java (requires JDK 25+ to run, analyzes any JDK source), TypeDoc for TS. Cross-repo correlation is the one custom script.
+**Post-close additions (after #402 work-end):**
+- Full platform jmarkdoc run: 1,405 types across 15 `-api` modules + blocks + platform
+- Cross-repo SPI overlay: 303 interfaces → 83 cross-repo SPIs across 17 repos
+- Engine API docs seeded into parent `docs/repos/casehub-engine/api/` (247 types)
+- README updated with Platform Documentation entry point for LLMs
+- Verified all links work via Playwright
+
+**Filed #404:** Wire jmarkdoc into parent POM `<pluginManagement>` so all repos inherit API doc generation as a Maven goal. Includes Maven toolchains for JDK 26 (javadoc runs on 26 while compiler stays on 22).
 
 ## Immediate Next Step
 
-Roll out jmarkdoc to remaining Java repos — add doc generation to each repo's CI. Start with work, eidos, qhorus (high-value API surfaces). Same pattern as engine: `java -jar jmarkdoc.jar api/src/main/java docs/guides/api/`.
+Start #404 — add jmarkdoc to parent POM's pluginManagement. Key decisions already made:
+- Maven toolchains for JDK 26 (`<jdkToolchain><version>26</version>`)
+- Plugin config in parent, activated per-repo with one line
+- jmarkdoc.jar needs publishing to GitHub Packages (not in Maven Central)
+- Don't bind to lifecycle — CI calls `mvn javadoc:javadoc` explicitly
+- Diff-gated commits, `[skip ci]` to prevent loops
 
 ## What's Left
 
-- **TypeDoc pilot for pages** — blocked on `GH_PACKAGES_TOKEN` for yarn install. Run in a session with the token, or in CI. · S · Low
-- **Roll out jmarkdoc to remaining Java repos** (work, eidos, qhorus, ledger, worker, platform, blocks, neocortex, ras, desiredstate, connectors, ops, iot) — mechanical, same pattern. · M · Low
-- **Roll out TypeDoc to blocks-ui** — after pages pilot proves the config. · S · Low
-- **Per-repo CI workflows** — add generation step to each repo's existing CI. Template from parent's generate-api-catalogue.yml. · M · Low
+- **#404** — jmarkdoc Maven integration (parent POM + toolchains) · M · Med
+- **TypeDoc pilot for pages** — blocked on `GH_PACKAGES_TOKEN` · S · Low
+- **Per-repo CI workflows** — template from parent's generate-api-catalogue.yml · M · Low
+- **Blocks** — no `-api` module, needs custom package filtering or restructuring · S · Med
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #359 | Remaining: audit tooling + implementation pattern catalogue | L | Med | API catalogue done; audit tooling and pattern catalogue still open |
+| #359 | Remaining: audit tooling + implementation pattern catalogue | L | Med | API catalogue done |
 
 ## References
 
-- #402 closed — `df406f91` on main
+- #402 closed — `df406f91` on main (squashed work-end commit)
+- #404 open — jmarkdoc Maven integration
+- Post-close commits: `651e47cc` (overlay + engine + README), `90386d55` (hygiene)
 - Spec: `docs/specs/issue-402-spi-api-catalogue/2026-08-03-api-catalogue-design.md`
 - Blog: `blog/2026-08-04-mdp01-the-mechanical-layer.md`
-- Garden: GE-20260804-7469da, GE-20260804-c1cf5c, GE-20260804-09c7dc (jmarkdoc entries)
+- Garden: GE-20260804-7469da, GE-20260804-c1cf5c, GE-20260804-09c7dc
