@@ -48,12 +48,37 @@ New endpoints on `ManorResource`:
 | POST | `/manor/pause` | — | `world.setPaused(true)`, broadcast control event |
 | POST | `/manor/resume` | — | `world.setPaused(false)`, broadcast control event |
 | POST | `/manor/speed` | `?rate=2.0` | `world.setSpeedMultiplier(rate)`, broadcast control event |
-| GET | `/manor/characters/{id}/profile` | — | Return `AgentDescriptor` as JSON |
+| GET | `/manor/characters/{id}/profile` | — | Return `CharacterProfileDTO` as JSON |
 
 The profile endpoint reads from `AgentRegistry.findById(id, TENANCY_ID)` and
-returns the full descriptor. The frontend filters `PRIVATE` visibility items.
+projects a `CharacterProfileDTO` — not the raw `AgentDescriptor`, which contains
+operational fields (`provider`, `modelFamily`, `weightsFingerprint`, `jurisdiction`,
+`dataHandlingPolicy`) that have no business reaching the frontend.
 
 Guard: pause/resume/speed return 404 if no active scenario.
+
+### CharacterProfileDTO
+
+```java
+public record CharacterProfileDTO(
+    String agentId,
+    String name,
+    String slot,           // raw slot value e.g. "shaper"
+    String slotLabel,      // resolved from VocabularyRegistry e.g. "Shaper"
+    String mbtiType,       // derived from dispositionProfile via EidosRenderPipeline.deriveMbtiType()
+    String enneagramType,  // from disposition config
+    List<FunctionWeight> dispositionProfile,  // Jungian function weights for bar chart
+    List<CapabilityDTO> capabilities,
+    List<GoalDTO> goals,          // PUBLIC visibility only
+    List<ConstraintDTO> constraints,  // PUBLIC visibility only
+    String briefing
+) {}
+```
+
+`slotLabel` is resolved by looking up the `slot` term in the vocabulary registry
+using the descriptor's `slotVocabulary` URI. `mbtiType` is derived from the
+disposition profile's Jungian function weights (same logic as the render pipeline).
+`enneagramType` comes from the `AgentDisposition` enum config.
 
 ## 3. WebSocket Protocol Extension
 
@@ -61,18 +86,24 @@ New `ManorWebSocketEvent` factory method:
 
 ```java
 public static ManorWebSocketEvent control(String status, double speedMultiplier) {
-    // type="control", status="paused"|"resumed", speedMultiplier=current value
+    // type="control", status="paused"|"resumed"|"speed", speedMultiplier=current value
 }
 ```
+
+Three status values:
+- `"paused"` — scenario paused
+- `"resumed"` — scenario resumed
+- `"speed"` — speed changed without pause/resume state change
 
 Frontend `ManorEvent` type union gains:
 
 ```typescript
-| { type: 'control'; status: 'paused' | 'resumed'; speedMultiplier: number }
+| { type: 'control'; status: 'paused' | 'resumed' | 'speed'; speedMultiplier: number }
 ```
 
 Control events broadcast to all connected clients so multi-client state stays
-in sync.
+in sync. The `speedMultiplier` field is added to `ManorWebSocketEvent` as a
+nullable `Double` (only present on `control` events).
 
 ## 4. Frontend Transport Controls
 
@@ -104,13 +135,31 @@ New Lit component `<character-profile>`. Takes a `characterId` property.
 On `characterId` change:
 1. Fetch `GET /manor/characters/{characterId}/profile`
 2. Render a slide-out panel showing:
-   - Character name and Belbin role (slot + slotLabel)
-   - MBTI type and Enneagram type
-   - Jungian function stack as SVG bar chart (8 bars, weighted)
+   - Character name and Belbin role (slot label resolved from vocabulary)
+   - MBTI type (derived from Jungian function weights) and Enneagram type
+   - Jungian function stack as SVG bar chart (8 bars, weighted from dispositionProfile)
    - Capabilities (name + tags)
    - Goals (PUBLIC visibility only, with priority)
    - Constraints (PUBLIC visibility only, with severity)
    - Briefing text
+
+### Profile response TypeScript type
+
+```typescript
+export interface CharacterProfileResponse {
+  agentId: string;
+  name: string;
+  slot: string;
+  slotLabel: string;
+  mbtiType: string | null;
+  enneagramType: string | null;
+  dispositionProfile: Array<{ term: string; weight: number }>;
+  capabilities: Array<{ name: string; tags: string[] }>;
+  goals: Array<{ name: string; description: string; priority: string }>;
+  constraints: Array<{ name: string; description: string; severity: string }>;
+  briefing: string | null;
+}
+```
 
 ### Panel position
 
@@ -127,20 +176,23 @@ character (which opens that character's profile instead).
 12 new inline SVG sprites added to the `renderCharacterAtOrigin` switch in
 `manor-view.ts`. Same scale/style as the existing 5 sprites (~20 lines each).
 
-| Character | Visual identity |
-|-----------|----------------|
-| muttley | Small snickering dog, brown |
-| pat-pending | Lab coat, goggles on head |
-| sergeant-blast | Military cap, olive drab |
-| private-meekly | Small timid figure, olive drab |
-| lazy-luke | Lanky hillbilly, straw hat |
-| blubber-bear | Large round bear, brown |
-| rock-slag | Stocky caveman, brown fur |
-| gravel-slag | Stocky caveman, grey fur |
-| rufus-ruffcut | Lumberjack, flannel, beard |
-| sawtooth | Beaver, flat tail |
-| big-gruesome | Large friendly purple monster |
-| little-gruesome | Tiny winged green creature |
+| Character | Visual identity | Colour |
+|-----------|----------------|--------|
+| muttley | Small snickering dog, brown | `#8B6914` |
+| pat-pending | Lab coat, goggles on head | `#2E8B57` |
+| sergeant-blast | Military cap, olive drab | `#556B2F` |
+| private-meekly | Small timid figure, olive drab | `#6B8E23` |
+| lazy-luke | Lanky hillbilly, straw hat | `#DAA520` |
+| blubber-bear | Large round bear, brown | `#8B4513` |
+| rock-slag | Stocky caveman, brown fur | `#A0522D` |
+| gravel-slag | Stocky caveman, grey fur | `#708090` |
+| rufus-ruffcut | Lumberjack, flannel, beard | `#B22222` |
+| sawtooth | Beaver, flat tail | `#D2691E` |
+| big-gruesome | Large friendly purple monster | `#9370DB` |
+| little-gruesome | Tiny winged green creature | `#32CD32` |
+
+`CHARACTER_COLORS` and `CHARACTER_SHORT_NAMES` in `types.ts` updated with
+entries for all 12 new characters.
 
 ## 7. File Changes
 
@@ -149,10 +201,15 @@ character (which opens that character's profile instead).
 - `CharacterAgentLoop.java` — pause gate before LLM call, speed multiplier on delay
 - `ManorResource.java` — 4 new endpoints (pause, resume, speed, profile)
 - `ManorWebSocketEvent.java` — add `control()` factory, add `speedMultiplier` field
+- `CharacterProfileDTO.java` — new record projecting AgentDescriptor for frontend
 - `ManorEventBus.java` — no changes (broadcasts already generic)
 
+### Dead code cleanup
+- Delete `CharacterProfile.java` — legacy Phase 0, zero callers
+- Delete `CharacterProfileLoader.java` — legacy Phase 0, zero callers
+
 ### TypeScript (frontend)
-- `types.ts` — add `control` event type, add profile response types
+- `types.ts` — add `control` event type, `CharacterProfileResponse` type, 12 new `CHARACTER_COLORS` + `CHARACTER_SHORT_NAMES` entries
 - `manor-app.ts` — pause/play/speed controls in toolbar, profile panel wiring
 - `manor-view.ts` — click handlers on characters, 12 new SVG sprites
 - `character-profile.ts` — new component for the slide-out profile panel
@@ -163,6 +220,7 @@ character (which opens that character's profile instead).
 - `WorldState` pause/speed: unit tests for flag behavior, clamping
 - `ManorResource` endpoints: `@QuarkusTest` for pause/resume/speed/profile
 - `CharacterAgentLoop` pause gate: test that loop blocks when paused
+- `CharacterProfileDTO`: unit test for projection from AgentDescriptor
 
 ### TypeScript
 - `layout.test.ts` extensions if layout changes
@@ -178,3 +236,21 @@ Relevant entries from work-start:
 
 These apply if we add SSE endpoints later. Current design uses WebSocket
 (already established) for all real-time communication.
+
+## 10. Review Findings
+
+Light design review (coherence + structure + robustness + cross-cutting).
+Structure and robustness clean. Coherence and cross-cutting surfaced findings,
+triaged below:
+
+| Finding | Verdict | Resolution |
+|---------|---------|------------|
+| MBTI/Enneagram not on AgentDescriptor | Valid | §2: CharacterProfileDTO derives from disposition + vocab registry |
+| `slotLabel` doesn't exist | Valid | §2: resolved from VocabularyRegistry |
+| Control event can't represent speed-only | Valid | §3: added `"speed"` status variant |
+| Full AgentDescriptor exposes operational fields | Valid | §2: project CharacterProfileDTO instead |
+| CHARACTER_COLORS not updated | Valid | §6: colour column added, types.ts update noted |
+| Profile TypeScript types unspecified | Valid | §5: CharacterProfileResponse interface defined |
+| CharacterProfileLoader conflict | False alarm | Dead code — both files deleted |
+| WorldState concurrency concern | Non-issue | Two independent volatile fields, no compound invariant |
+| AgentRegistry CDI availability | Non-issue | Already injected in ScenarioOrchestrator, verified working |
