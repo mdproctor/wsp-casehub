@@ -1,5 +1,5 @@
-# Branch Closed: issue-374-platform-docs-audit
+# Branch Closed: issue-402-spi-api-catalogue
 
-**Date:** 2026-07-17
-**Issues:** 374
+**Date:** 2026-08-04
+**Issues:** 402
 **Status:** merged to main
