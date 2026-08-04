@@ -238,7 +238,7 @@ For descriptors that specify `mbtiType` in YAML (e.g., `mbtiType: ENTJ`), the vo
 | Dick Dastardly | ESTP | Se | Ti | Fe | Ni |
 | Peter Perfect | ENFJ | Fe | Ni | Se | Ti |
 
-Utility: `DominantFunction.of(AgentDisposition) → String` extracts `dispositionProfile().get(0).term()`.
+Utility: `DominantFunction.of(AgentDisposition) → Optional<String>` — returns `Optional.of(dispositionProfile().get(0).term())` when `dispositionProfile()` is non-empty, `Optional.empty()` otherwise. BASELINE/BELBIN descriptors have a non-null `AgentDisposition` with axis values but an empty `dispositionProfile()` (no Jungian function stack) — a null check on the disposition is insufficient.
 
 ### Mechanism 1 — Response Format Constraints
 
@@ -265,12 +265,10 @@ private String renderPrompt(String agentId) {
     var ctx      = AgentPromptContext.forFormat(RenderFormat.MARKDOWN);
     var rendered = renderer.render(desc, ctx);
     String prompt = rendered.content();
-    if (desc.disposition() != null) {
-        String formatConstraint = FunctionFormatConstraint.forDisposition(desc.disposition());
-        if (formatConstraint != null) {
-            prompt += "\n\n## Response Format\n" + formatConstraint;
-        }
-    }
+    DominantFunction.of(desc.disposition()).ifPresent(dominant -> {
+        String formatConstraint = FunctionFormatConstraint.forDominant(dominant);
+        prompt += "\n\n## Response Format\n" + formatConstraint;
+    });
     return prompt;
 }
 ```
