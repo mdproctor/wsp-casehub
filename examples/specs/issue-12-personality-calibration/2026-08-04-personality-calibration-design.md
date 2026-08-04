@@ -179,7 +179,7 @@ class BriefingTransform {
 | dick-dastardly | "a scheming cheat" |
 | peter-perfect | "a gallant hero" |
 
-Hardcoded for the 5 experiment characters — this is an experiment utility, not a general-purpose tool. `inferRole` throws `IllegalArgumentException` for unmapped characters to fail fast. When using `NAME_ROLE` mode, `eval.characters` should be set to limit to mapped characters.
+Hardcoded for the 5 experiment characters — this is an experiment utility, not a general-purpose tool. `rolePhrase` throws `IllegalArgumentException` for unmapped characters to fail fast. When using `NAME_ROLE` mode, `eval.characters` should be set to limit to mapped characters.
 
 ### Experiment Matrix
 
@@ -343,7 +343,46 @@ Each mechanism is controlled by a system property, following the existing `eval.
 |---|---|---|
 | `eval.mechanisms` | `format_constraint`, `observation_directive`, `schema_reinforcement`, `all` | *(none — mechanisms off)* |
 
-Mechanisms are **off by default** — they only activate when the property is set. This ensures no effect on production game runs or existing experiments. The system property is read in `PromptQualityTest` (experiment harness), not in production code paths (`ScenarioOrchestrator`, `CharacterAgentLoop`). Production integration is a separate future decision, gated by experiment results.
+Mechanisms are **off by default** — they only activate when the property is set. This ensures no effect on production game runs or existing experiments. The `eval.mechanisms` property is read in `PromptQualityTest` only. The mechanism implementation sections (§Mechanism 1–3) describe the **production** integration points — where each mechanism lives in the running game. For the experiment, `PromptQualityTest` applies the same mechanism transforms through prompt composition (see §Experiment Prompt Composition below), not through the production code paths. Production integration is a separate future decision, gated by experiment results.
+
+### Experiment Prompt Composition
+
+In the live game loop (`CharacterAgentLoop.run()`), the agent sees two prompt surfaces: **system message** (rendered system prompt) and **user message** (`observation + RESPONSE_FORMAT_INSTRUCTION`). `FunctionActivationJudge.evaluate()` mirrors this with a simplified user message: `scenario.prompt()` replaces the observation as situational context. The experiment harness composes each mechanism's content into the surfaces FunctionActivationJudge controls:
+
+| Mechanism | Production surface | Experiment surface |
+|---|---|---|
+| 1 — Format Constraint | System prompt (post-render append in `ScenarioOrchestrator`) | System prompt (same post-render append in `PromptQualityTest`) |
+| 2 — Observation Directive | User message (observation section via `ObservationBuilder`) | Scenario prompt (prepended cognitive approach directive) |
+| 3 — Schema Reinforcement | User message (thinking field in `RESPONSE_FORMAT_INSTRUCTION`) | Scenario prompt (appended reasoning instruction) |
+
+**Mechanism 1** appends the format constraint to the rendered system prompt before passing to `functionJudge.evaluate()` — the same transform described in §Mechanism 1.
+
+**Mechanisms 2 and 3** enrich the scenario prompts. The experiment harness creates modified `FunctionScenario` instances that wrap the original scenario text with mechanism content:
+
+```java
+private List<FunctionScenario> enrichScenarios(
+        List<FunctionScenario> scenarios, AgentDisposition disposition,
+        Set<String> activeMechanisms) {
+    String prefix = "";
+    String suffix = "";
+    if (activeMechanisms.contains("observation_directive")) {
+        prefix = FunctionFormatConstraint.cognitiveApproach(disposition) + "\n\n";
+    }
+    if (activeMechanisms.contains("schema_reinforcement")) {
+        suffix = "\n\n" + FunctionFormatConstraint.reasoningInstruction(disposition);
+    }
+    String p = prefix, s = suffix;
+    return scenarios.stream()
+        .map(sc -> new FunctionScenario(sc.targetFunction(), p + sc.prompt() + s))
+        .toList();
+}
+```
+
+For Mechanism 3, the experiment uses a standalone reasoning instruction extracted from the function-aligned thinking description — not the full `RESPONSE_FORMAT_INSTRUCTION` (which includes game-specific JSON schema and action vocabulary that would force structured output, interfering with `FunctionActivationJudge`'s free-text response format). `FunctionFormatConstraint.reasoningInstruction()` returns only the cognitive steering text, e.g. for Te-dominant: _"Think through your response using systematic analysis — what options exist, which is optimal, why."_
+
+`FunctionFormatConstraint` provides all three function-specific text variants: `forDominant()` (format constraint, Mechanism 1), `cognitiveApproach()` (observation directive, Mechanism 2), and `reasoningInstruction()` (schema reinforcement, Mechanism 3) — all derived from the dominant function via `DominantFunction.of()`.
+
+This keeps all experiment logic in wacky-manor and requires no changes to `FunctionActivationJudge` in eidos-eval.
 
 The experiment tests each independently and all combined:
 
@@ -352,10 +391,15 @@ for each variant (FORMAT_CONSTRAINT, OBSERVATION_DIRECTIVE, SCHEMA_REINFORCEMENT
   for ProfileMode COMPOSITE (richest disposition data):
     for BriefingMode RICH (the problem case):
       for each character (5):
-        evaluate function activation TAA
+        systemPrompt = render(desc, ctx)
+        scenarios = SCENARIOS[character]
+        if FORMAT_CONSTRAINT active: append format constraint to systemPrompt
+        if OBSERVATION_DIRECTIVE active: prepend cognitive approach to each scenario
+        if SCHEMA_REINFORCEMENT active: append reasoning instruction to each scenario
+        functionJudge.evaluate(systemPrompt, agentId, enrichedScenarios)
 ```
 
-4 variants × 5 characters = 20 evaluation runs. Each run invokes `FunctionActivationJudge.evaluate()` with 2 scenarios; each scenario makes 2 LLM calls (1 agent + 1 judge) = 4 LLM calls per evaluation, 80 LLM calls total.
+4 variants × 5 characters = 20 evaluation runs. Each run invokes `FunctionActivationJudge.evaluate()` with 2 (possibly enriched) scenarios; each scenario makes 2 LLM calls (1 agent + 1 judge) = 4 LLM calls per evaluation, 80 LLM calls total.
 Compare TAA against COMPOSITE/RICH baseline from #13.
 
 ### What We Learn
