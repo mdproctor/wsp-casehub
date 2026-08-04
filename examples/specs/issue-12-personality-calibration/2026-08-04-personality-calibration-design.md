@@ -17,7 +17,11 @@ This is a calibration problem, not an architecture problem. Three issues address
 - **#13** — Isolate the framework's independent contribution by varying briefing richness
 - **#14** — Strengthen the disposition signal so rich briefings can't overwhelm it
 
-Implementation order: #12 → #13 → #14.
+Recommended implementation order: #12 → #13 → #14. This is a value-driven sequence, not a dependency chain — #13 can run immediately with the existing experiment harness. The rationale: #12 provides the diagnostic tool (coherence judge) that aids interpretation of #13 and #14 results; #13 provides the baseline data that determines which #14 mechanisms to prioritize.
+
+### Scope
+
+This spec covers only the three casehub-examples issues in epic #11. Three companion issues in eidos (casehubio/eidos#125 Belbin axis implementation, casehubio/eidos#126 FunctionActivationJudge calibration, casehubio/eidos#127 Full Big Five vocabulary) are out of scope — they address the eidos disposition encoding layer, not the experiment/calibration layer addressed here.
 
 ---
 
@@ -29,13 +33,19 @@ Pre-flight validation that detects contradictions between a character's briefing
 
 ### Location
 
-`BriefingCoherenceJudge` in `casehub-eidos-eval`, following the `MbtiAlignmentJudge` / `FunctionActivationJudge` pattern.
+`BriefingCoherenceJudge` in `casehub-eidos-eval`, following the same CDI/LLM judge architecture as `MbtiAlignmentJudge` / `FunctionActivationJudge` (`@ApplicationScoped`, `evaluate()` method, structured JSON result).
+
+**Key distinction from existing judges:** the existing judges evaluate a _rendered_ system prompt (post-render). The coherence judge evaluates _pre-render inputs_ (raw briefing text vs. structured disposition data) to detect contradictions before they reach the prompt. In `PromptQualityTest`, it is invoked from the descriptor directly — it does not consume the `renderer.render()` output.
 
 ### Interface
 
 ```java
 @ApplicationScoped
 public class BriefingCoherenceJudge {
+
+    @Inject
+    public BriefingCoherenceJudge(@Any Instance<ChatModel> models,
+                                   ObjectMapper mapper) { ... }
 
     public CoherenceResult evaluate(String briefingText,
                                      AgentDisposition disposition,
@@ -80,23 +90,36 @@ record CoherenceResult(String agentId,
 
 - `FunctionCoherence` — per-function score (0.0–1.0) with what the briefing signals vs what the disposition expects
 - `Tension` — specific textual contradiction with severity
-- `overallCoherence` — mean of per-function coherence scores
+- `overallCoherence` — weighted mean of stack-function coherence scores (dominant×4, auxiliary×3, tertiary×2, inferior×1)
 
 ### LLM Judge Prompt
 
 Single LLM call. System prompt instructs the judge to:
 
-1. Read the disposition profile and infer what each of the 8 Jungian functions (Ti, Te, Fi, Fe, Si, Se, Ni, Ne) should express for this character
-2. Read the briefing text and identify which functions the briefing language activates
-3. Score coherence per function (0.0–1.0): does the briefing reinforce or contradict what the disposition expects?
+1. Read the disposition profile and identify the character's function stack — dominant, auxiliary, tertiary, and inferior functions (derived from the MBTI type or `dispositionProfile()` weights)
+2. Read the briefing text and identify which of the stack functions the briefing language activates or contradicts
+3. Score coherence per stack function (0.0–1.0): does the briefing reinforce or contradict what the disposition expects for that function?
 4. List specific tensions where briefing language works against the disposition, with severity (LOW = minor stylistic mismatch, MEDIUM = mixed signals, HIGH = direct contradiction)
+
+Scoring is scoped to the 4-function stack only — the remaining 4 shadow functions have no defined role in the disposition profile and would produce low-confidence, inconsistent scores. This mirrors `FunctionActivationJudge`, which tests only 2 targeted scenarios per character rather than all 8 functions.
 
 Return as structured JSON matching the `CoherenceResult` shape.
 
+### Error Handling
+
+Follows the existing judge pattern: uses `PromptJudge.extractJson()` for JSON extraction from the LLM response. Throws `MalformedJudgeResponseException` on parse failure. `PromptQualityTest.callWithRetry()` catches these and retries up to 3 times with backoff. The `CoherenceResult` structure (nested `FunctionCoherence` and `Tension` lists) is more complex than the flat JSON of other judges, so the LLM prompt must be explicit about the expected shape — include a concrete JSON example in the system prompt.
+
 ### Integration in wacky-manor
 
-- Add `BriefingCoherenceJudge` to `EvalJudgeProducer`
-- Add coherence evaluation pass to `PromptQualityTest` for JUNGIAN and COMPOSITE layers (layers with Jungian disposition data)
+- Add `BriefingCoherenceJudge` to `EvalJudgeProducer`:
+  ```java
+  @Produces @ApplicationScoped
+  BriefingCoherenceJudge briefingCoherenceJudge(
+          @Any Instance<ChatModel> models, ObjectMapper mapper) {
+      return new BriefingCoherenceJudge(models, mapper);
+  }
+  ```
+- Add coherence evaluation pass to `PromptQualityTest` for JUNGIAN and COMPOSITE layers (layers with Jungian disposition data). Invoked from the descriptor directly — independent of `renderer.render()`.
 - Results go into `prompt-quality.json` under a `"coherence"` key per character
 
 ### Applicability
@@ -106,7 +129,7 @@ The judge requires Jungian disposition data (MBTI type or function stack) to sco
 ### Success Criteria
 
 - Peter Perfect's ENFJ descriptor (if briefing still has P-reading language) produces a HIGH tension on the J/P dimension
-- Characters with well-aligned briefings score > 0.7 overall coherence
+- Characters with well-aligned briefings score > 0.7 weighted coherence AND have no HIGH-severity tensions
 - Running coherence check adds < 30s per character (single LLM call)
 
 ---
@@ -121,7 +144,7 @@ Isolate the disposition framework's independent contribution by systematically v
 
 | BriefingMode | Content | Example (Hooded Claw) |
 |---|---|---|
-| `EMPTY` | No briefing | *(briefing field blank)* |
+| `EMPTY` | No briefing (null) | *(briefing field omitted — `validateOptional` skips null)* |
 | `NAME_ONLY` | Just the character name | "You are an agent named The Hooded Claw." |
 | `NAME_ROLE` | Name + functional role | "You are The Hooded Claw, a villain and secret nemesis." |
 | `RICH` | Full existing briefing | *(current descriptors, already baselined)* |
@@ -136,9 +159,9 @@ Isolate the disposition framework's independent contribution by systematically v
 class BriefingTransform {
     static AgentDescriptor withBriefing(AgentDescriptor desc, BriefingMode mode) {
         String briefing = switch (mode) {
-            case EMPTY -> "";
+            case EMPTY -> null;
             case NAME_ONLY -> "You are an agent named " + desc.name() + ".";
-            case NAME_ROLE -> "You are " + desc.name() + ", " + inferRole(desc) + ".";
+            case NAME_ROLE -> "You are " + desc.name() + ", " + rolePhrase(desc.agentId()) + ".";
             case RICH -> desc.briefing();
         };
         return desc.toBuilder().briefing(briefing).build();
@@ -146,7 +169,7 @@ class BriefingTransform {
 }
 ```
 
-**Role inference for NAME_ROLE:** Derived from the descriptor's goals and constraints. A simple map per character:
+**Role phrase for NAME_ROLE:** Hardcoded per experiment character — these are hand-crafted character summaries, not programmatically derived:
 
 | Character | Role phrase |
 |---|---|
@@ -156,7 +179,7 @@ class BriefingTransform {
 | dick-dastardly | "a scheming cheat" |
 | peter-perfect | "a gallant hero" |
 
-Hardcoded for the 5 experiment characters — this is an experiment utility, not a general-purpose tool.
+Hardcoded for the 5 experiment characters — this is an experiment utility, not a general-purpose tool. `inferRole` throws `IllegalArgumentException` for unmapped characters to fail fast. When using `NAME_ROLE` mode, `eval.characters` should be set to limit to mapped characters.
 
 ### Experiment Matrix
 
@@ -174,9 +197,11 @@ RICH × all layers = existing baseline (already has data).
 
 ### Output
 
-Results keyed as `{layer}-{briefingMode}` in `prompt-quality.json`:
+Results always use qualified keys `{layer}-{briefingMode}` in `prompt-quality.json`:
 - `"jungian-empty"`, `"jungian-name_only"`, `"jungian-name_role"`, `"jungian-rich"`
 - Same per-character structure: MBTI alignment + function activation TAA
+
+**Key migration:** Existing unqualified keys (`"jungian"`, `"composite"`, etc.) represent the RICH briefing condition. On first run with the new key scheme, `PromptQualityTest` renames existing unqualified keys to `{layer}-rich` before writing new results. This is a one-time migration — subsequent runs use qualified keys exclusively.
 
 ### Interpretation Guide
 
@@ -195,9 +220,29 @@ Results keyed as `{layer}-{briefingMode}` in `prompt-quality.json`:
 
 Three independent mechanisms that make the disposition signal harder for rich briefing text to overwhelm. Each is measured independently via function activation TAA. Blocked by #13 — results from the minimal briefing experiment guide which mechanisms to prioritize.
 
+### Dominant Function Derivation
+
+All three mechanisms and the coherence judge depend on knowing a character's dominant Jungian cognitive function. The dominant function is determined from `AgentDisposition.dispositionProfile()`:
+
+**Rule:** the first entry in `dispositionProfile()` (highest weight) is the dominant function.
+
+For descriptors that specify `mbtiType` in YAML (e.g., `mbtiType: ENTJ`), the vocabulary registrar resolves the MBTI type into a function stack via the Jungian vocabulary (`urn:casehub:vocab:jungian`), populating `dispositionProfile` with ordered function weights. For descriptors with explicit `dispositionProfile` entries (e.g., Muttley with `se=0.45, fi=0.20, ...`), the weights are used directly.
+
+**Function stack for experiment characters:**
+
+| Character | MBTI | Dominant | Auxiliary | Tertiary | Inferior |
+|---|---|---|---|---|---|
+| Hooded Claw | ENTJ | Te | Ni | Se | Fi |
+| Penelope Pitstop | ESFJ | Fe | Si | Ne | Ti |
+| Ant Hill Mob | ISFP | Fi | Se | Ni | Te |
+| Dick Dastardly | ESTP | Se | Ti | Fe | Ni |
+| Peter Perfect | ENFJ | Fe | Ni | Se | Ti |
+
+Utility: `DominantFunction.of(AgentDisposition) → String` extracts `dispositionProfile().get(0).term()`.
+
 ### Mechanism 1 — Response Format Constraints
 
-Dominant function dictates expected response structure. Added as a `## Response Format` section in the rendered system prompt.
+Dominant function (see §Dominant Function Derivation) dictates expected response structure. Added as a `## Response Format` section in the rendered system prompt.
 
 | Dominant Function | Format Constraint |
 |---|---|
@@ -260,42 +305,49 @@ new CharacterAgentLoop().run(
 
 ### Mechanism 3 — Schema Reinforcement
 
-Add a function-aligned `reasoning` field to the `AgentResponse` JSON schema. The field description varies by dominant function, steering the LLM's reasoning process.
+Parameterize the `thinking` field description in the response JSON schema to be function-aligned when the mechanism is active. The description varies by dominant function, steering the LLM's reasoning process through the existing introspection field — no new field needed.
 
-Example for Te-dominant:
+Example for Te-dominant (Schema Reinforcement ON):
 ```json
 {
-  "reasoning": "(describe your systematic analysis — what options exist, which is optimal, why)",
-  "thinking": "...",
+  "thinking": "(describe your systematic analysis — what options exist, which is optimal, why; not shown to others)",
   "dialogue": "...",
   "action": {...}
 }
 ```
 
+When Schema Reinforcement is OFF, the `thinking` description remains the default: `"your internal reasoning (not shown to others)"`.
+
 **Implementation:**
 
-1. **Add `reasoning` to `AgentResponse`:** The record becomes `AgentResponse(String reasoning, String thinking, String dialogue, String aside, Action action)`. `@JsonIgnoreProperties(ignoreUnknown = true)` ensures backward compatibility — when `reasoning` is absent from the LLM's JSON output, it deserializes as null. The field is captured (not discarded) so experiment analysis can verify whether the LLM's reasoning reflects the target cognitive function.
-
-2. **Parameterize `RESPONSE_FORMAT_INSTRUCTION`:** Currently a `static final String` in `CharacterAgentLoop`. Becomes a static method that accepts an optional `AgentDisposition`:
+**Parameterize `RESPONSE_FORMAT_INSTRUCTION`:** Currently a `static final String` in `CharacterAgentLoop`. Becomes a static method that accepts an optional `AgentDisposition`:
 
 ```java
 public static String responseFormatInstruction(AgentDisposition disposition) {
-    String reasoningField = "";
+    String thinkingDesc = "your internal reasoning (not shown to others)";
     if (disposition != null) {
-        String desc = FunctionFormatConstraint.reasoningDescription(disposition);
-        if (desc != null) {
-            reasoningField = "  \"reasoning\": \"" + desc + "\",\n";
+        String aligned = FunctionFormatConstraint.thinkingDescription(disposition);
+        if (aligned != null) {
+            thinkingDesc = aligned;
         }
     }
-    return /* ... schema with conditional reasoning field ... */;
+    return /* ... schema with parameterized thinking description ... */;
 }
 ```
 
-Characters without disposition profiles see no `reasoning` field in their schema instruction → LLM doesn't produce it → null in the record. No conditional schema generation needed on the record side.
+No new fields on `AgentResponse` — the existing `thinking` field serves both gameplay introspection and disposition reinforcement. Adding a separate `reasoning` field alongside `thinking` would present two overlapping introspection prompts to the LLM, diluting rather than reinforcing the disposition signal. For experiment analysis, the `thinking` content is compared against the target function regardless of which description was used.
 
 ### Experiment Design
 
-Each mechanism gets a configuration flag. The experiment tests each independently and all combined:
+Each mechanism is controlled by a system property, following the existing `eval.*` pattern:
+
+| Property | Values | Default |
+|---|---|---|
+| `eval.mechanisms` | `format_constraint`, `observation_directive`, `schema_reinforcement`, `all` | *(none — mechanisms off)* |
+
+Mechanisms are **off by default** — they only activate when the property is set. This ensures no effect on production game runs or existing experiments. The system property is read in `PromptQualityTest` (experiment harness), not in production code paths (`ScenarioOrchestrator`, `CharacterAgentLoop`). Production integration is a separate future decision, gated by experiment results.
+
+The experiment tests each independently and all combined:
 
 ```
 for each variant (FORMAT_CONSTRAINT, OBSERVATION_DIRECTIVE, SCHEMA_REINFORCEMENT, ALL_THREE):
@@ -305,7 +357,7 @@ for each variant (FORMAT_CONSTRAINT, OBSERVATION_DIRECTIVE, SCHEMA_REINFORCEMENT
         evaluate function activation TAA
 ```
 
-4 variants × 5 characters = 20 evaluation runs. Each run internally evaluates 2 function scenarios (2 LLM calls per run via `FunctionActivationJudge`), for 40 LLM calls total.
+4 variants × 5 characters = 20 evaluation runs. Each run invokes `FunctionActivationJudge.evaluate()` with 2 scenarios; each scenario makes 2 LLM calls (1 agent + 1 judge) = 4 LLM calls per evaluation, 80 LLM calls total.
 Compare TAA against COMPOSITE/RICH baseline from #13.
 
 ### What We Learn
@@ -347,11 +399,14 @@ public Builder toBuilder() {
 
 ### Cost Estimate
 
-| Issue | LLM Calls | Estimated Time |
-|---|---|---|
-| #12 coherence (5 chars × 2 layers) | 10 | ~2 min |
-| #13 full matrix (60 new runs × 3 calls each) | 180 | ~30 min |
-| #14 mechanism evaluation (20 runs × 2 scenario calls each) | 40 | ~8 min |
-| **Total** | **230** | **~40 min** |
+Counting methodology: each individual LLM API request is one call. `FunctionActivationJudge.evaluate()` makes 2 calls per scenario (1 agent + 1 judge). Each character has 2 scenarios = 4 LLM calls per function evaluation. `MbtiAlignmentJudge.evaluate()` makes 1 call.
+
+| Issue | Evaluations | Calls per Eval | Total LLM Calls | Est. Time |
+|---|---|---|---|---|
+| #12 coherence | 10 (5 chars × 2 layers) | 1 | 10 | ~2 min |
+| #13 JUNGIAN/COMPOSITE | 30 (3 modes × 2 layers × 5 chars) | 5 (1 MBTI + 2×2 function) | 150 | ~25 min |
+| #13 BASELINE/BELBIN | 30 (3 modes × 2 layers × 5 chars) | 4 (2×2 function, no MBTI) | 120 | ~20 min |
+| #14 mechanisms | 20 (4 variants × 5 chars) | 4 (2×2 function) | 80 | ~13 min |
+| **Total** | | | **360** | **~60 min** |
 
 All runs are via the `llm-eval` Maven profile — excluded from CI, developer-triggered only.
