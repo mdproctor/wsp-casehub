@@ -1,0 +1,10 @@
+branch: issue-29-dev-mode-game-loop
+state: scaffolded
+project-sha: f74cccfcb1ff463764cac26d591d02cc6c53a1f9
+date: 2026-08-04
+issue: 29
+issue-repo: casehubio/examples
+covers: 29
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
