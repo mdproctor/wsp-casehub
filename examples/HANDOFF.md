@@ -1,29 +1,30 @@
-# HANDOFF — 2026-08-03
+# HANDOFF — 2026-08-04
 
 ## Last Session
 
-Phase 2.8 complete — added all 17 characters as autonomous LLM + Eidos agents across 6 rooms. No NPC tier system — every character runs the same CharacterAgentLoop. Engine hardened for 17 concurrent agents (thread-safe inventory, max-turns 300, configurable think delays, startup validation). Muttley and Lazy Luke/Blubber Bear promoted from room objects to full characters. Enneagram motivation layer added. Frontend updated to 2-row 6-room grid. 3 garden entries submitted (Eidos YAML descriptor gotchas).
+Implemented #27 (pause/play/speed controls) and #28 (character profile panel) on branch `issue-27-pause-play-profiles`. 10 commits: WorldState pause/speed, CharacterAgentLoop pause gate, WebSocket control events, REST endpoints (pause/resume/speed/profile), CharacterProfileDTO, 12 new SVG sprites (all 17 characters), character-profile Lit component, configurable active-characters filter (%dev runs core 5). Also wired eidos BriefingCoherenceValidator and deleted legacy CharacterProfile/CharacterProfileLoader. 232 tests green. LLM smoke test proves full pipeline works. UI verified via Playwright.
 
 ## Immediate Next Step
 
-Run `mvn test -pl wacky-manor -Pllm-eval` to validate all 17 character personalities with live LLM. Fix any voices that don't pass, then add pause/play controls (#27) before the next game mechanics phase.
+Debug why Quarkus dev mode character threads die on first LLM call despite `LlmSmokeTest` proving the pipeline works in test mode. Start with `LlmSmokeTest.java` (committed) as baseline — it renders a real descriptor and gets a valid LLM response. The dev mode issue is environmental, not code.
 
 ## What's Left
 
-- Run llm-eval personality validation — voices not yet tested with live LLM · S · Low
-- Pause/play and speed controls (#27) — 17 characters flood text too fast · S · Low
-- Eidos rebuild needed if BigFiveTerm or SdiTerm axes wanted for characters · XS · Low
+- Dev mode LLM integration not working — characters don't produce events despite test proving pipeline works · M · Med
+- Branch `issue-27-pause-play-profiles` not closed — needs work-end after dev mode fix · XS · Low
+- Garden entry GE-20260804-c21841 push failed — committed locally, needs rebase+push · XS · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
-|---|---|---|---|---|
-| #27 | Pause/play and speed controls | S | Low | Server-side pause flag, think delay multiplier |
-| — | Phase 2.9: scale testing and game mechanics | M | Med | Validate 17 characters interacting, add puzzle chains |
-| #8 | Phase 3: migrate to full blocks pipeline | L | Med | ChannelEventAdapter + KeyedAccumulator |
+|---|-------------|-------|------------|-------|
+| — | Scenario design — character groups with distinct plot devices | M | Med | User idea: 4-5 chars per scenario, episodic acts |
+| #16 | Scale testing beyond 5 agents | M | Med | Blocked on dev mode LLM fix |
+| #11 | Epic: personality calibration gap | L | Med | 6 child issues (3 local, 3 eidos) |
 
 ## References
 
-- Spec: `specs/issue-15-phase-2.8-npc-system/2026-08-03-phase-2.8-all-characters-design.md`
-- Plan: `plans/2026-08-03-phase-2.8-all-characters.md`
-- Garden: GE-20260803-c02ab3, GE-20260803-0a3c7d, GE-20260803-63cb93
+- Spec: `specs/issue-27-pause-play-profiles/2026-08-04-pause-play-profiles-design.md`
+- Plan: `plans/2026-08-04-pause-play-profiles.md`
+- LLM smoke test: `wacky-manor/src/test/java/io/casehub/examples/manor/agent/LlmSmokeTest.java`
+- Garden: GE-20260804-c21841 — ide_edit_member record body wipe gotcha
