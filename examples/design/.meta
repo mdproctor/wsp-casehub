@@ -1,0 +1,10 @@
+branch: issue-12-personality-calibration
+state: scaffolded
+project-sha: 463a3a57f3d35723ea1f749f38a494b489188e80
+date: 2026-08-04
+issue: 12
+issue-repo: casehubio/examples
+covers: 12,13,14
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
