@@ -1,6 +1,6 @@
 # HANDOFF — casehub
 
-**Date:** 2026-08-03
+**Date:** 2026-08-04
 **Project:** `/Users/mdproctor/claude/casehub/parent`
 **Workspace:** `/Users/mdproctor/claude/public/casehub`
 
@@ -8,30 +8,30 @@
 
 ## Last Session
 
-Decentralised repo deep-dives across all 28 CaseHub repos (#377) and rewrote the platform documentation index for consumer/contributor split (#401).
+Delivered the API catalogue infrastructure (#402) — machine-generated markdown API docs using jmarkdoc (Java) and TypeDoc (TypeScript), aggregated via existing subtree sync, with a cross-repo SPI overlay showing implementation matrix across repos.
 
-**#377 — Decentralise deep-dives:**
-- Each repo now owns `docs/guides/consumer-guide.md` (app builders) + `docs/guides/contributor-guide.md` (platform builders)
-- Parent aggregates via git subtree (same pattern as casehub-examples) — SHA provenance per repo
-- All 28 repos source-audited by Opus agents against actual code, git history, GitHub issues — every repo had significant staleness (retired reactive tiers, phantom features, wrong counts, missing modules/SPIs, wrong class names)
-- Sync infrastructure: `scripts/sync-guides.sh` (subtree split on `docs/guides/`), `scripts/guide-sync-config.json`, `.github/workflows/sync-guides.yml`
-- Each repo's CLAUDE.md updated with `## Repo Guide` section pointing to local guides with maintenance instruction
+Key design evolution: started from #359's per-SPI hand-curated chunks, pivoted to doclet-generated full public API reference. The "use existing tools, don't build custom" principle held — jmarkdoc for Java (requires JDK 25+ to run, analyzes any JDK source), TypeDoc for TS. Cross-repo correlation is the one custom script.
 
-**#401 — INDEX.md consumer/contributor split:**
-- `docs/INDEX.md` is now the universal LLM entry point — routes to audience-specific indexes
-- `docs/consumer-index.md` — capability map linking to all 28 repos' consumer guides with key types inline
-- `docs/contributor-index.md` — architecture map with module counts and dependency chains
-- 33 stale links fixed across 7 active docs, 29 old flat `docs/repos/casehub-*.md` files removed
+## Immediate Next Step
+
+Roll out jmarkdoc to remaining Java repos — add doc generation to each repo's CI. Start with work, eidos, qhorus (high-value API surfaces). Same pattern as engine: `java -jar jmarkdoc.jar api/src/main/java docs/guides/api/`.
 
 ## What's Left
 
-- **Neocortex audit commit on wrong branch** — landed on `issue-198-expansion-drift-metrics` instead of main. Needs cherry-pick when that branch lands.
-- **Ledger audit commit on feature branch** — landed on `feat/aml-115-content-sanitiser-rename` (cherry-picked to main already, but feature branch has a copy too)
-- **#359 partially resolved** — automated audit tooling and API catalogue generation still open. Comment posted on the issue.
-- **Prompt snippet update** — the corrected section 4 for the standard work prompt was provided in conversation but not persisted to a file. User should save it.
+- **TypeDoc pilot for pages** — blocked on `GH_PACKAGES_TOKEN` for yarn install. Run in a session with the token, or in CI. · S · Low
+- **Roll out jmarkdoc to remaining Java repos** (work, eidos, qhorus, ledger, worker, platform, blocks, neocortex, ras, desiredstate, connectors, ops, iot) — mechanical, same pattern. · M · Low
+- **Roll out TypeDoc to blocks-ui** — after pages pilot proves the config. · S · Low
+- **Per-repo CI workflows** — add generation step to each repo's existing CI. Template from parent's generate-api-catalogue.yml. · M · Low
+
+## What's Next
+
+| # | Description | Scale | Complexity | Notes |
+|---|-------------|-------|------------|-------|
+| #359 | Remaining: audit tooling + implementation pattern catalogue | L | Med | API catalogue done; audit tooling and pattern catalogue still open |
 
 ## References
 
-- #377 closed — `097ad104` on main
-- #401 closed — `274fc6e4` on main
-- #359 updated with partial resolution comment
+- #402 closed — `df406f91` on main
+- Spec: `docs/specs/issue-402-spi-api-catalogue/2026-08-03-api-catalogue-design.md`
+- Blog: `blog/2026-08-04-mdp01-the-mechanical-layer.md`
+- Garden: GE-20260804-7469da, GE-20260804-c1cf5c, GE-20260804-09c7dc (jmarkdoc entries)
