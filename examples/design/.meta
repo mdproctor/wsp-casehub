@@ -1,0 +1,10 @@
+branch: issue-27-pause-play-profiles
+state: scaffolded
+project-sha: 43c4f73ed387f473a39a0e51e1c36c93301fbc2d
+date: 2026-08-04
+issue: 27
+issue-repo: casehubio/examples
+covers: 27,28
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
