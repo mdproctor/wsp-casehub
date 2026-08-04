@@ -38,7 +38,8 @@ Pre-flight validation that detects contradictions between a character's briefing
 public class BriefingCoherenceJudge {
 
     public CoherenceResult evaluate(String briefingText,
-                                     String dispositionDescription,
+                                     AgentDisposition disposition,
+                                     String dispositionVocabulary,
                                      String agentId) { ... }
 }
 ```
@@ -47,9 +48,14 @@ public class BriefingCoherenceJudge {
 
 | Parameter | Source |
 |---|---|
-| `briefingText` | Raw briefing from the descriptor YAML |
-| `dispositionDescription` | Rendered disposition section — MBTI type, function stack, or profile weights depending on the layer |
+| `briefingText` | Raw briefing from the descriptor YAML (`desc.briefing()`) |
+| `disposition` | `AgentDisposition` from the descriptor (`desc.disposition()`) |
+| `dispositionVocabulary` | Vocabulary URI from the descriptor (`desc.dispositionVocabulary()`) — identifies the framework (e.g., `urn:casehub:vocab:jungian`) |
 | `agentId` | For labeling in results |
+
+The judge constructs the LLM-readable disposition description internally from the structured `AgentDisposition` data. For Jungian vocabularies, `disposition.dispositionProfile()` contains the function stack as `DispositionValue` entries (term + weight). The judge formats these for its own prompt — the caller passes what it has, not a pre-formatted string.
+
+**Data flow in `PromptQualityTest`:** The test already has `AgentDescriptor desc` in scope for each character. It passes `desc.briefing()`, `desc.disposition()`, `desc.dispositionVocabulary()`, and `desc.agentId()` directly — no rendering or extraction needed.
 
 ### Output
 
@@ -135,12 +141,10 @@ class BriefingTransform {
             case NAME_ROLE -> "You are " + desc.name() + ", " + inferRole(desc) + ".";
             case RICH -> desc.briefing();
         };
-        return desc.withBriefing(briefing); // copy constructor or builder
+        return desc.toBuilder().briefing(briefing).build();
     }
 }
 ```
-
-If `AgentDescriptor` lacks a `withBriefing` method, construct a new record instance passing all existing fields with the briefing replaced.
 
 **Role inference for NAME_ROLE:** Derived from the descriptor's goals and constraints. A simple map per character:
 
@@ -206,7 +210,25 @@ Dominant function dictates expected response structure. Added as a `## Response 
 | Ni | "Converge to a single strategic insight — one prediction, one pattern, one conclusion" |
 | Ne | "Explore multiple possibilities before converging — what-ifs, alternatives, connections" |
 
-**Implementation:** `FunctionFormatConstraint` utility that takes a disposition profile and returns the format instruction for the dominant function. Injected into the system prompt rendering pipeline — either as an eidos template or a post-render transform in wacky-manor.
+**Implementation:** Post-render transform in wacky-manor — this is an experiment mechanism, not a platform feature, so it does not belong in the eidos rendering pipeline.
+
+`FunctionFormatConstraint` is a utility in wacky-manor that takes an `AgentDisposition` and returns the format instruction string for the dominant function. `ScenarioOrchestrator.renderPrompt()` already has `AgentDescriptor` in scope (it looks up the descriptor from `agentRegistry`). After calling `renderer.render(desc, ctx)`, it appends the format constraint section to the rendered content before returning:
+
+```java
+private String renderPrompt(String agentId) {
+    var desc     = agentRegistry.findById(agentId, ManorConstants.TENANCY_ID).orElseThrow(...);
+    var ctx      = AgentPromptContext.forFormat(RenderFormat.MARKDOWN);
+    var rendered = renderer.render(desc, ctx);
+    String prompt = rendered.content();
+    if (desc.disposition() != null) {
+        String formatConstraint = FunctionFormatConstraint.forDisposition(desc.disposition());
+        if (formatConstraint != null) {
+            prompt += "\n\n## Response Format\n" + formatConstraint;
+        }
+    }
+    return prompt;
+}
+```
 
 ### Mechanism 2 — Function-Specific Observation Directives
 
@@ -220,7 +242,21 @@ creative exploration. Evaluate each option against your objectives.
 Organise your approach into clear steps.
 ```
 
-**Implementation:** `ObservationBuilder` reads the character's disposition profile (from the descriptor, available via `CharacterState`) and appends a cognitive approach directive. This is wacky-manor local — the observation builder is project code, not eidos.
+**Implementation:** `ObservationBuilder.buildObservation()` gains a new `AgentDisposition disposition` parameter (nullable). When non-null, it appends the cognitive approach section to the observation. This is wacky-manor local — the observation builder is project code, not eidos.
+
+**Data threading:** Follows the same pattern as `goals` threading. `ScenarioOrchestrator.runScenario()` already looks up `AgentDescriptor` for each character (via `agentRegistry`). It extracts `desc.disposition()` and passes it through `CharacterAgentLoop.run()` → `ObservationBuilder.buildObservation()`:
+
+```java
+// In ScenarioOrchestrator.runScenario(), within the character thread lambda:
+var goals       = resolveGoals(c.agentId());
+var disposition = resolveDisposition(c.agentId());  // desc.disposition()
+String systemPrompt = renderPrompt(c.agentId());
+new CharacterAgentLoop().run(
+        c, world, agentProvider, systemPrompt, actionQueue,
+        dispatcher, goals, disposition);
+```
+
+`CharacterState` remains unchanged — it is game state, not agent identity. The disposition is a rendering concern, not a mutable state concern.
 
 ### Mechanism 3 — Schema Reinforcement
 
@@ -236,7 +272,26 @@ Example for Te-dominant:
 }
 ```
 
-**Implementation:** The structured output prompt describes the JSON schema in the system prompt. Parameterise the `reasoning` field description based on the character's disposition profile.
+**Implementation:**
+
+1. **Add `reasoning` to `AgentResponse`:** The record becomes `AgentResponse(String reasoning, String thinking, String dialogue, String aside, Action action)`. `@JsonIgnoreProperties(ignoreUnknown = true)` ensures backward compatibility — when `reasoning` is absent from the LLM's JSON output, it deserializes as null. The field is captured (not discarded) so experiment analysis can verify whether the LLM's reasoning reflects the target cognitive function.
+
+2. **Parameterize `RESPONSE_FORMAT_INSTRUCTION`:** Currently a `static final String` in `CharacterAgentLoop`. Becomes a static method that accepts an optional `AgentDisposition`:
+
+```java
+public static String responseFormatInstruction(AgentDisposition disposition) {
+    String reasoningField = "";
+    if (disposition != null) {
+        String desc = FunctionFormatConstraint.reasoningDescription(disposition);
+        if (desc != null) {
+            reasoningField = "  \"reasoning\": \"" + desc + "\",\n";
+        }
+    }
+    return /* ... schema with conditional reasoning field ... */;
+}
+```
+
+Characters without disposition profiles see no `reasoning` field in their schema instruction → LLM doesn't produce it → null in the record. No conditional schema generation needed on the record side.
 
 ### Experiment Design
 
@@ -250,7 +305,7 @@ for each variant (FORMAT_CONSTRAINT, OBSERVATION_DIRECTIVE, SCHEMA_REINFORCEMENT
         evaluate function activation TAA
 ```
 
-4 variants × 5 characters × 2 scenarios = 40 evaluation runs.
+4 variants × 5 characters = 20 evaluation runs. Each run internally evaluates 2 function scenarios (2 LLM calls per run via `FunctionActivationJudge`), for 40 LLM calls total.
 Compare TAA against COMPOSITE/RICH baseline from #13.
 
 ### What We Learn
@@ -277,11 +332,18 @@ mvn test -pl wacky-manor -Pllm-eval -Deval.layers=composite -Deval.briefings=emp
 
 ### AgentDescriptor Copy
 
-`AgentDescriptor` is a record in `casehub-eidos-api`. Creating a copy with a modified briefing requires either:
-1. A `withBriefing(String)` method added to eidos-api (cleanest)
-2. Constructing a new record with all fields copied (verbose but no cross-repo change)
+`AgentDescriptor` is a 21-field record in `casehub-eidos-api` that already has a `Builder` class. Add a `toBuilder()` instance method that copies all fields into a new `Builder`:
 
-Prefer option 1 if we're already committing to eidos-eval for the CoherenceJudge.
+```java
+public Builder toBuilder() {
+    return new Builder()
+        .agentId(this.agentId).name(this.name)
+        // ... all 21 fields ...
+        .constraints(this.constraints);
+}
+```
+
+`BriefingTransform` then uses `desc.toBuilder().briefing(newBriefing).build()`. This is a one-time investment — future experiments that vary other fields (disposition, templates) get the same affordance for free.
 
 ### Cost Estimate
 
@@ -289,7 +351,7 @@ Prefer option 1 if we're already committing to eidos-eval for the CoherenceJudge
 |---|---|---|
 | #12 coherence (5 chars × 2 layers) | 10 | ~2 min |
 | #13 full matrix (60 new runs × 3 calls each) | 180 | ~30 min |
-| #14 mechanism evaluation (40 runs × 2 calls each) | 80 | ~15 min |
-| **Total** | **270** | **~47 min** |
+| #14 mechanism evaluation (20 runs × 2 scenario calls each) | 40 | ~8 min |
+| **Total** | **230** | **~40 min** |
 
 All runs are via the `llm-eval` Maven profile — excluded from CI, developer-triggered only.
