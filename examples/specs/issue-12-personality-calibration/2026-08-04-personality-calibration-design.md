@@ -124,7 +124,9 @@ Follows the existing judge pattern: uses `PromptJudge.extractJson()` for JSON ex
 
 ### Applicability
 
-The judge requires Jungian disposition data (MBTI type or function stack) to score against. It is meaningful for JUNGIAN and COMPOSITE layers only. For BASELINE and BELBIN layers (which use simple axes like socialOrient/conflictMode without Jungian mapping), the judge should not be invoked — the `dispositionDescription` wouldn't contain function-level information to score against.
+The judge requires Jungian disposition data (MBTI type or function stack) to score against. It is meaningful for JUNGIAN and COMPOSITE layers only. For BASELINE and BELBIN layers (which use simple axes like socialOrient/conflictMode without Jungian mapping), the judge should not be invoked.
+
+**Self-guard:** The judge checks `dispositionVocabulary` before proceeding. If the vocabulary is not `urn:casehub:vocab:jungian`, the judge returns a sentinel `CoherenceResult` with an empty `functions` list, an empty `tensions` list, and `overallCoherence = -1.0`. This makes the judge self-guarding — callers do not need to know the applicability rule. The sentinel value `-1.0` is outside the valid `[0.0, 1.0]` range and unambiguously signals "not evaluated" to downstream consumers.
 
 ### Success Criteria
 
@@ -384,6 +386,18 @@ For Mechanism 3, the experiment uses a standalone reasoning instruction extracte
 
 This keeps all experiment logic in wacky-manor and requires no changes to `FunctionActivationJudge` in eidos-eval.
 
+### Validity Considerations
+
+The experiment surfaces differ from production surfaces for Mechanisms 2 and 3. These differences are inherent to the `FunctionActivationJudge` interface (which uses scenario prompts, not full game observations) and represent known limitations:
+
+**Mechanism 2 (Observation Directive):** In production, the cognitive approach directive sits within a game-state-rich observation (room descriptions, character actions, inventory). In the experiment, it is prepended to a short scenario prompt. The directive is more prominent in the experiment context than it would be buried in a long observation block. Experiment results may overstate Mechanism 2's production effectiveness.
+
+**Mechanism 3 (Schema Reinforcement):** In production, the disposition-aligned description appears as a field description in a JSON response schema — a structural constraint. In the experiment, it becomes a standalone text instruction appended to the scenario prompt. These activate different LLM compliance mechanisms. The experiment tests instruction-following effectiveness, not schema-level steering effectiveness.
+
+**Mechanism 1 (Format Constraint):** No surface mismatch — appended to the system prompt in both experiment and production.
+
+**Interpretation:** The experiment measures _relative_ TAA improvement between mechanism variants, not absolute fidelity to production behavior. A mechanism that shows no TAA improvement in the experiment is unlikely to help in production. A mechanism that shows improvement is a candidate for production integration, but the magnitude of improvement may differ. Production integration (a separate future decision) should include its own validation pass using the full game loop.
+
 The experiment tests each independently and all combined:
 
 ```
@@ -402,11 +416,27 @@ for each variant (FORMAT_CONSTRAINT, OBSERVATION_DIRECTIVE, SCHEMA_REINFORCEMENT
 4 variants × 5 characters = 20 evaluation runs. Each run invokes `FunctionActivationJudge.evaluate()` with 2 (possibly enriched) scenarios; each scenario makes 2 LLM calls (1 agent + 1 judge) = 4 LLM calls per evaluation, 80 LLM calls total.
 Compare TAA against COMPOSITE/RICH baseline from #13.
 
+### Output
+
+Results use qualified keys `{layer}-{briefingMode}-{mechanism}` in `prompt-quality.json`:
+- `"composite-rich-format_constraint"`, `"composite-rich-observation_directive"`, `"composite-rich-schema_reinforcement"`, `"composite-rich-all"`
+
+This extends the #13 key scheme (`{layer}-{briefingMode}`) with a third segment. The baseline comparison key is `composite-rich` from #13 (no mechanism suffix = no mechanism active). Same per-character structure as #13: function activation TAA.
+
 ### What We Learn
 
 - Which mechanism moves TAA the most
 - Whether they're additive (ALL_THREE > any individual)
 - Whether different functions respond to different mechanisms (e.g., format constraints help Te/Ti but observation directives help Fe/Fi)
+
+### Interpreting #12 × #14 Results
+
+The coherence judge (#12) and the mechanisms (#14) operate on different prompt surfaces — #12 evaluates pre-render inputs (briefing vs. disposition), while #14 modifies post-render prompts. This means results don't directly compose:
+
+- A character can pass the coherence check (briefing aligns with disposition) but still have low TAA — the mechanisms aren't effective enough in the full prompt context.
+- A character can fail the coherence check (briefing contradicts disposition) and the mechanisms may still partially compensate at the post-render level.
+
+If both #12 and #14 flag a character (high tension AND low TAA despite active mechanisms), the fix is outside this spec's scope: rewrite the briefing text to remove the contradiction. This spec provides the diagnostic tools (#12 coherence judge, #13/#14 TAA measurements) but does not automate briefing remediation.
 
 ---
 
