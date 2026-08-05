@@ -1,26 +1,28 @@
-# HANDOFF — 2026-08-04
+# HANDOFF — 2026-08-05
 
 ## Last Session
 
-Closed #29 — dev mode game loop fix. Root cause: ScenarioOrchestrator validated all 17 world characters for Eidos descriptors before the active-characters filter, silently killing the scenario-loop thread. Also compacted the UI: removed title, smaller rooms, chat panels for all 6 rooms. Two garden entries submitted (GE-20260804-b4cb6a validation ordering gotcha, GE-20260804-d378f3 dual-process port gotcha).
+Closed #12, #13, #14 (epic #11 personality calibration gap). Built BriefingCoherenceJudge in eidos-eval (LLM judge for briefing/disposition coherence), added toBuilder() to AgentDescriptor in eidos-api, and extended wacky-manor's PromptQualityTest with a 4×4 briefing richness matrix and a 3-mechanism experiment loop. Design spec underwent standard adversarial review (4 dimensions, $29.65, 51 issues, 0 unresolved). One garden entry revised (GE-20260529-182916: ctx.py CWD vs git root fast-path false negative).
 
 ## Immediate Next Step
 
-Pick up #16 (scale testing) or scenario design work. Dev mode now works — start with `mvn quarkus:dev -Dquarkus.http.port=8180` + `npm run dev` in webui.
+Run the experiments. Execute `mvn test -pl wacky-manor -Pllm-eval` to collect the full TAA matrix. Start with a targeted run: `-Deval.layers=composite -Deval.briefings=empty,name_only -Deval.characters=hooded-claw` to validate the harness before the full matrix.
 
 ## What's Left
 
-- Garden entry GE-20260804-c21841 push failed from last session — committed locally, needs rebase+push · XS · Low
+- Garden entry push failed — committed locally, needs rebase+push · XS · Low
+- Eidos cross-repo commits (toBuilder, BriefingCoherenceJudge) on eidos main — need push · S · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| — | Scenario design — character groups with distinct plot devices | M | Med | User idea: 4-5 chars per scenario, episodic acts |
-| #16 | Scale testing beyond 5 agents | M | Med | No longer blocked — dev mode works |
-| #11 | Epic: personality calibration gap | L | Med | 6 child issues (3 local, 3 eidos) |
+| — | Run full experiment matrix and analyse results | M | Low | Harness built, just needs execution |
+| — | Scenario design — character groups with distinct plot devices | M | Med | 4-5 chars per scenario, episodic acts |
+| #16 | Scale testing beyond 5 agents | M | Med | Dev mode works, no longer blocked |
 
 ## References
 
-- LLM smoke test: `wacky-manor/src/test/java/io/casehub/examples/manor/agent/LlmSmokeTest.java`
-- Garden: GE-20260804-b4cb6a — Eidos validation ordering gotcha; GE-20260804-d378f3 — dual-process port gotcha
+- Spec: `wacky-manor/docs/specs/` (promoted by design review)
+- Plan: workspace `plans/2026-08-04-personality-calibration.md`
+- Garden: GE-20260529-182916 — ctx.py CWD fast-path false negatives (failure mode 4 added)
