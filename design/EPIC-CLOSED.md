@@ -1,5 +1,5 @@
-# Branch Closed: issue-374-platform-docs-audit
+# Branch Closed: issue-404-jmarkdoc-maven-goal
 
-**Date:** 2026-07-17
-**Issues:** 374
+**Date:** 2026-08-05
+**Issues:** 404
 **Status:** merged to main
