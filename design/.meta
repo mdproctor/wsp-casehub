@@ -1,0 +1,10 @@
+branch: issue-403-resolve-overlap-risks-4
+state: scaffolded
+project-sha: ff1c7ed8598853d4f05ee485dd8f25e2464c3b8b
+date: 2026-08-06
+issue: 403
+issue-repo: casehubio/parent
+covers: 403
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
