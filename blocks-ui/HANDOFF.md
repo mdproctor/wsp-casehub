@@ -1,27 +1,24 @@
-*Updated: parent#393 closed — removed from backlog. Uncommitted changes resolved (working tree clean).*
-
 # HANDOFF — casehub-blocks-ui
 
 **Branch:** main (no active branch)
-**Date:** 2026-07-30
-**Issues:** #102 (still open per GitHub)
+**Date:** 2026-08-05
 
 ## What landed
 
-Fixed CI flakiness and session-list row selection (#102). Four production fixes: entity-tree Array.isArray guard, channel-feed scrollIntoView optional chaining, channel-topic-bar active class misplaced in size attribute, session-list selection="single" + selectedKeys tracking. Removed three stale test files (themes.test.ts, trend-source-mixin DataSource tests, fetch-source extraction test). CI green.
+Generic `<status-badge>` component with a 10-domain status registry (#109). Replaces 4 ad-hoc status badge implementations (work-item-inbox, session-list, commitment-state-pill, badge-mappings) with one component and one source of truth. Registry uses cross-domain defaults so new domains get sensible rendering for shared state names (COMPLETED, PENDING, RUNNING, etc.) without explicit registration. `toDecoration()` in graph-stencil-case converts the same descriptors to graph node decorations via a separate `BADGE_COLORS` hex palette. Case-level status badge added to diagram toolbar. Consumer and contributor guides updated.
 
-Fixed session-workbench example page — mock fetch now returns per-session terminal, git, and health data so row selection visibly changes the detail pane.
-
-Closed three completed epics: #56 (app delivery), #35 (cross-repo migration), #36 (openclaw). All five consuming apps fully migrated. Zero open issues.
+Filed 6 new epics (#106–#111) for the remaining blocks-ui modelling gaps: SWF diagram, HTN/DAG visualiser, worker function drill-down, runtime state expansion (done), conversation protocol viewer, orchestration monitor. Slot 85 created for #106 (SWF diagram).
 
 ## What's left
 
 - pages-table pagination buttons still use light backgrounds (upstream pages fix) · S · Low
 
-## Known issues
-
-*Unchanged — retrieve with: `git show HEAD~2:HANDOFF.md`*
-
 ## What's next
 
-Zero open issues on blocks-ui. New work requires filing issues first.
+| # | Description | Scale | Complexity | Notes |
+|---|-------------|-------|------------|-------|
+| #106 | SWF diagram — complete graph-stencil-swf | L | Med | Slot 85 ready, `@openworkflowspec/sdk` available |
+| #107 | HTN decomposition tree and DAG plan visualiser | L | High | Needs design |
+| #108 | Worker function drill-down — agent/flow/a2a/mcp config | M | Med | Partially independent of #106 |
+| #110 | Conversation protocol viewer — convergence, epistemic status | L | High | Needs design |
+| #111 | Orchestration monitor — execution lifecycle, audit chain | L | High | Needs design |
