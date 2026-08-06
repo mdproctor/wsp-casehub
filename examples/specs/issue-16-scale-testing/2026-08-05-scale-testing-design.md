@@ -2,11 +2,13 @@
 
 **Issue:** casehubio/examples#16
 **Date:** 2026-08-05
-**Status:** Draft
+**Status:** Reviewed (light — 4 dimensions, 34 findings, all resolved)
 
 ## Goal
 
-Demonstrate wacky-manor running 10 agents for 200 turns with <30s average turn latency, maintained personality coherence, and at least one emergent social dynamic not seen in 5-agent runs. Validate across both the deterministic test runner (personality benchmarks) and the concurrent production orchestrator (latency/throughput stress testing).
+Demonstrate wacky-manor running 10 agents for 200 logical turns with <30s average turn latency, maintained personality coherence, and at least one emergent social dynamic not seen in 5-agent runs. Validate across both the deterministic test runner (personality benchmarks) and the concurrent production orchestrator (latency/throughput stress testing).
+
+**Scope note:** Issue #16 defines four scale dimensions. This spec addresses agent count (10), turn count (200+), and concurrent LLM calls. Room/location scaling (6→10 rooms) is deferred to a follow-up issue — the existing 6 rooms provide sufficient spatial diversity for the 10-agent test.
 
 ## Prerequisites (both shipped)
 
@@ -17,111 +19,168 @@ Demonstrate wacky-manor running 10 agents for 200 turns with <30s average turn l
 
 Build and validate everything in wacky-manor first. Extract the rate limiter to the platform as a follow-up (#30).
 
-Three components, built in order:
+Four components, built in order:
 
-1. Rate-limited AgentProvider wrapper
-2. Experience stream integration (ingest + recall)
+0. WorldState thread safety (prerequisite)
+1. Agent invocation service (rate limiting, retry, metrics)
+2. Agent experience service (ingest + recall)
 3. Scale testing harness (both runners)
 
 ---
 
-## 1. Rate-Limited AgentProvider Wrapper
+## 0. WorldState Thread Safety (Prerequisite)
 
 ### Problem
 
-All character agents call `AgentProvider.invoke()` concurrently via virtual threads. With 10+ agents, this means 10+ simultaneous LLM API calls per turn cycle — no concurrency control, no throughput management.
+`WorldState` uses unsynchronized `HashMap`, `HashSet`, and `ArrayList` for shared mutable state (`rooms`, `characters`, `firedTriggers`, `takenObjects`, `eventLog`, etc.). With 5 agents and narrow timing windows, races are improbable. With 10 concurrent virtual threads, they become likely: double-take races on portable objects, `ArrayList` corruption on `eventLog`, and `ConcurrentModificationException` during observation iteration.
 
-### Algorithm: Token Bucket + Concurrency Cap
+### Fix
 
-Two orthogonal controls, each solving a different problem:
+- Replace `HashMap` fields with `ConcurrentHashMap`
+- Replace `ArrayList eventLog` with a synchronized list or `CopyOnWriteArrayList`
+- Synchronize `takenObjects` checks + mutations (check-then-act atomicity for TAKE actions)
+- `characters()` returns an unmodifiable snapshot, not the raw mutable map
 
-- **Concurrency cap** (`java.util.concurrent.Semaphore`) — max simultaneous in-flight LLM calls. Agents block on the semaphore (virtual threads make blocking cheap) rather than getting rejected. Prevents overwhelming the API provider.
-- **Token bucket** — refills at a fixed rate. Each call consumes one token. If bucket is empty, thread blocks until a token is available. Controls sustained throughput over time, allows controlled bursts.
+This is a prerequisite step — scale testing without it produces unreliable results.
 
-### Why Token Bucket Over Sliding Window
+---
 
-Agents are inherently bursty — all N fire simultaneously at the start of each turn cycle, then idle during action resolution. Token bucket handles this naturally: burst up to bucket capacity, then meter the overflow. Sliding window would reject agents that could safely be queued. Trellis's sliding window pattern is correct for its use case (human-interactive action approval) but wrong for LLM call batching.
+## 1. AgentInvocationService
+
+### Problem
+
+Agent invocation logic is duplicated across `CharacterAgentLoop.callAgentWithRetry()` and `AutonomousScenarioRunner.callAgentWithRetry()` — same retry count, same timeout, same invoke→filter→collect→parse pipeline. The spec adds rate limiting, experience ingestion, and metrics, which would compound the duplication into two divergent copies with five concerns each.
 
 ### Component
 
-`RateLimitedAgentProvider` — CDI decorator wrapping `AgentProvider`.
+`AgentInvocationService` — a single class owning the full agent call lifecycle:
 
-ScenarioOrchestrator and CharacterAgentLoop inject `AgentProvider` unchanged — they get the rate-limited version transparently.
+1. Acquire concurrency semaphore (rate limiting)
+2. Call `AgentProvider.invoke()` with timeout
+3. Retry with exponential backoff + jitter on transient failure
+4. Parse response
+5. Ingest experience event (fire-and-forget)
+6. Collect per-call metrics (latency, token count, success/failure)
+
+Both `CharacterAgentLoop` and `AutonomousScenarioRunner` delegate to this service instead of calling `AgentProvider` directly. This resolves:
+- Retry duplication
+- CDI decorator gap (rate limiting composes inside the service, not via CDI decoration)
+- Thundering herd (jitter added once, applied everywhere)
+- Test runner rate limiting (service is manually constructable, not CDI-only)
+
+### Rate Limiting: Concurrency Semaphore
+
+Single control: `java.util.concurrent.Semaphore` capping max in-flight LLM calls.
+
+**Why semaphore only (no token bucket):** At 10 agents with `max-concurrent=5` and ~8s average LLM call time, back-of-envelope:
+- Agents 1-5: 0s wait + 8s call = 8s
+- Agents 6-10: ~8s wait + 8s call = 16s
+- Average turn latency: ~12s — well within the 30s target
+
+Adding a token bucket on top creates multiplicative interaction with the semaphore and risks pushing worst-case latency past 30s. Token bucket is deferred to platform extraction (#31) where it makes sense for sustained multi-tenant throughput.
+
+### Retry Strategy
+
+Exponential backoff with jitter: `base_delay * 2^attempt + random(0, base_delay)`. Prevents thundering herd when multiple agents fail simultaneously. Max 2 retries, then fall back to idle response.
 
 ### Configuration
 
 ```properties
-manor.agent.rate-limit.max-concurrent=4
-manor.agent.rate-limit.bucket-capacity=8
-manor.agent.rate-limit.refill-rate=10
-manor.agent.rate-limit.refill-period-seconds=60
+manor.agent.rate-limit.max-concurrent=5
+manor.agent.invocation.timeout-seconds=60
+manor.agent.invocation.max-retries=2
+manor.agent.invocation.base-retry-delay-ms=2000
 ```
 
 ### Not in Scope (follow-up issues on #30)
 
-- Token-aware (TPM) rate limiting (#31)
+- Token bucket / sustained throughput control (#31)
 - Circuit breakers and fallback chains (#32)
 - Multi-model and multi-tenant awareness (#33)
 
 ---
 
-## 2. Experience Stream Integration
+## 2. AgentExperienceService
 
 ### Problem
 
-Without persistent memory, agents only see events since their last observation drain. At turn 150, an agent has no recall of turns 1-100. This makes 200+ turn runs meaningless — agents repeat themselves and lose narrative coherence.
+Without persistent memory, agents only see events since their last observation drain. At turn 150, an agent has no recall of turns 1-100. This makes 200+ turn runs meaningless.
 
-### Ingestion — After Each Turn
+### Component
 
-In `CharacterAgentLoop.run()`, after action resolution, write an experience event to the neocortex stream:
+`AgentExperienceService` — owns both ingestion and recall, injectable and testable in isolation.
 
+### Ingestion — Fire-and-Forget
+
+Called by `AgentInvocationService` after each successful LLM call (step 5 in the invocation pipeline). Writes are wrapped in try-catch — failures are logged, never propagated. An experience stream outage degrades memory but does not kill agents.
+
+Experience event fields:
 - **Who:** character agent ID
-- **What:** action taken + result, dialogue spoken, observations received
+- **What:** action taken + result, dialogue spoken
 - **Where:** current room
 - **When:** timestamp
 - **Why:** the `thinking` field from the LLM response
 
-One experience record per agent per turn. At 10 agents x 200 turns = 2,000 records per run.
+One record per agent per turn. At 10 agents x 200 turns = 2,000 records per run.
 
-### Recall — Into Observation Context
+### Recall — Pre-Queried, Not Inline
 
-In `ObservationBuilder.buildObservation()`, add a "Memory" section between "Remembered" and "Last Action Result":
+`ObservationBuilder` stays pure (static, no service dependencies). The caller (`AgentInvocationService` or the agent loop) queries `AgentExperienceService.recall(agentId, currentRoom, limit)` before building the observation, then passes the result as an additional parameter to `ObservationBuilder.buildObservation()`.
 
-- Query the experience stream for this agent's relevant past experiences
-- Filter by recency + relevance (same room, same characters, same objects)
-- Render as summarised past experiences
-- Budget: cap at ~500 tokens to avoid context bloat
+Recall query:
+- Uses neocortex's query API: filter by agent ID, ordered by recency
+- Relevance boost for same room, same characters, same objects
+- Timeout: 2s — degrades to empty recall on timeout (no stall)
+- Budget: cap returned text at ~500 tokens (character-count heuristic: ~2000 chars)
 
-### Test Harness Impact
+### Observation Section
 
-`AutonomousScenarioRunner` currently passes an empty `PartitionedDrain`. With experience stream integration, the runner must wire the same ingestion/recall pipeline so benchmarks reflect real memory behaviour.
+New section named **"Past Experience"** (not "Memory" — avoids collision with existing "Remembered" section which shows compacted observation-drain data). Placed between "Remembered" and "Last Action Result".
+
+### Interaction with Observation Accumulator
+
+The observation accumulator (blocks#68) and experience stream serve overlapping but distinct purposes:
+- **Accumulator ("Remembered"):** compacted recent events from rooms previously visited — short-term, event-level
+- **Experience stream ("Past Experience"):** episodic memories from the agent's own history — long-term, action-level
+
+No deduplication needed — they operate at different granularities. The accumulator shows "what happened while you were away" (other agents' actions); the experience stream shows "what you did before" (your own past actions and reasoning).
 
 ---
 
 ## 3. Scale Testing Harness
 
+### Turn Semantics Fix
+
+`ScenarioOrchestrator.turnCount` currently increments per action polled — with 10 agents, "200 turns" terminates after ~20 logical turns per agent. Fix: count a logical turn as one full cycle where all active agents have acted (track via a set of agents-who-acted-this-cycle, increment turn counter when set is full, reset).
+
+Both runners use the same definition: one turn = all active agents act once.
+
 ### AutonomousScenarioRunner (Deterministic Benchmarks)
 
-Currently hardcodes 5 characters in `CHARACTER_ORDER`. Changes:
-
-- **Configurable character list** — accept a `List<String>` instead of the hardcoded constant. Default to all characters with Eidos descriptors (discover from `AgentRegistry`).
-- **Wire observation pipeline** — currently passes empty `PartitionedDrain`. Needs real `ObservationService` for memory to work.
-- **Wire experience stream** — same ingestion/recall as production path.
-- **Per-turn metrics** — LLM call latency, prompt token count, response parse success rate.
-- **ScaleReport output** — total duration, avg/p95/p99 turn latency, personality coherence scores, agent interaction count, memory recall hits.
+- **Configurable character list** — accept a `List<String>` parameter. Default: discover from `AgentRegistry`.
+- **Descriptor profile:** composite (`descriptors-composite.yaml`) — the only profile with all 17 characters.
+- **Wire observation pipeline** — real `ObservationService` instead of empty `PartitionedDrain`.
+- **Delegate to AgentInvocationService** — replaces inline `callAgentWithRetry`. Gets rate limiting, experience ingestion, and metrics for free.
+- **ScaleReport** — extends `TranscriptRecorder.RunResult` with: avg/p95/p99 turn latency, per-agent interaction count, memory recall hit rate. Output: JSON to file + console summary log.
 
 ### ScenarioOrchestrator (Concurrency Stress Test)
 
-Already supports configurable `active-characters` and concurrent virtual threads. Changes:
+- **Delegate to AgentInvocationService** — `CharacterAgentLoop` calls the service instead of its own `callAgentWithRetry`.
+- **PendingAction timeout** — `awaitResult()` gets a 60s timeout. On timeout, agent logs warning and continues with a "your action timed out" result. Orphaned actions from crashed agents are cleaned up by the orchestrator (skip actions for inactive characters).
+- **Metrics collection** — per-agent turn latency, rate limiter wait time, action queue depth. Logged at scenario end.
 
-- **Wire experience stream** — same integration as above.
-- **Metrics collection** — per-agent turn latency, rate limiter wait time, action queue depth.
-- **ScaleTestProfile** — Quarkus test profile that activates 10 agents, 200 turn limit, and injects a test `AgentProvider` wired with the rate limiter.
-- **Metrics endpoint** — expose via REST or log summary at scenario end.
+### Personality Coherence Baseline
+
+Wiring the real observation pipeline changes what agents see (from bare prompts to rich observations + memory). Existing 5-agent coherence baselines are invalidated. Before measuring 10-agent coherence:
+
+1. Re-baseline at 5 agents with the wired pipeline (new baseline)
+2. Then scale to 10 agents and compare against the new baseline
+
+Personality coherence is measured in **both runners** — concurrent execution may degrade coherence in ways the sequential runner wouldn't catch.
 
 ### Character Selection for 10-Agent Benchmark
 
-17 characters exist across 6 rooms. For the 10-agent target — core 5 + 5 with diverse room starts and think delays:
+17 characters across 6 rooms, all with composite descriptors. Core 5 + 5 with diverse starts and think delays:
 
 | Character | Start Room | thinkDelayMs | Rationale |
 |-----------|-----------|-------------|-----------|
@@ -136,7 +195,7 @@ Already supports configurable `active-characters` and concurrent virtual threads
 | rock-slag | library | 2000 | Different starting room |
 | rufus-ruffcut | laboratory | 3000 | Different starting room |
 
-3 starting rooms, spread of think delays (2s-8s), character pairs with natural interaction dynamics.
+4 starting rooms (entrance-hall, ballroom, library, laboratory), spread of think delays (2s-8s).
 
 ---
 
@@ -144,18 +203,32 @@ Already supports configurable `active-characters` and concurrent virtual threads
 
 | Criterion | Measurement | Runner |
 |-----------|------------|--------|
-| 10 agents, 200 turns, no crashes | Run completes without exceptions | Both |
+| 10 agents, 200 logical turns, no crashes | Run completes without exceptions | Both |
 | Turn latency < 30s average | Per-turn wall clock in ScaleReport | ScenarioOrchestrator |
-| Personality coherence maintained | MBTI alignment judges (existing PromptQualityTest) | AutonomousScenarioRunner |
+| Personality coherence maintained | MBTI judges against 5-agent wired-pipeline baseline | Both |
 | Emergent social dynamic | Manual transcript review | ScenarioOrchestrator |
 
 ## Issue Tree
 
-- **#16** — this issue (scale testing, manor-local rate limiter, experience stream integration)
+- **#16** — this issue (scale testing, agent invocation service, experience service)
 - **#30** — epic: Extract rate limiter to platform AgentProvider (after #16 validates it)
   - **#31** — Token-aware (TPM) rate limiting
   - **#32** — Circuit breakers and fallback chains
   - **#33** — Multi-model and multi-tenant awareness
+- **#34** — Room/location scaling (6→10 rooms, deferred from #16)
+
+## Review Log
+
+Light review, 4 dimensions, $5.12 total. 34 findings → 8 themes, all accepted:
+
+1. **Shared agent invocation** → extracted `AgentInvocationService`
+2. **Experience stream architecture** → extracted `AgentExperienceService`, ObservationBuilder stays pure
+3. **WorldState thread safety** → added as prerequisite step (§0)
+4. **Turn semantics** → fixed to logical turns, consistent across runners
+5. **Rate limiter simplification** → dropped token bucket, semaphore-only
+6. **Scope gaps** → room scaling deferred, room count corrected
+7. **Personality coherence baseline** → re-baseline at 5 agents, measure in both runners
+8. **PendingAction safety** → added timeout, orphan cleanup
 
 ## References
 
