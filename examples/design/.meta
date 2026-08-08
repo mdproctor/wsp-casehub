@@ -1,10 +1,10 @@
-branch: issue-16-scale-testing
+branch: issue-34-room-scaling
 state: scaffolded
-project-sha: bbf8c26ca485633463de66b189aa0db2bbd3fd6e
-date: 2026-08-05
-issue: 16
+project-sha: cb2c870
+date: 2026-08-08
+issue: 34
 issue-repo: casehubio/examples
-covers: 16
+covers: 34
 flyway-next-v: none
 design-repo: project
 design-section-hashes: 
