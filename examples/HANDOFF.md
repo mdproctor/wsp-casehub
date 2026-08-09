@@ -1,17 +1,27 @@
-# HANDOFF — 2026-08-06
+# HANDOFF — 2026-08-09
 
 ## Last Session
 
-Scale testing #16: built tick-based game loop (snapshot turns, cadence pacing, batched LLM calls), thread-safe WorldState, AgentInvocationService (retry with jitter, metrics), AgentExperienceService, ObservationBuilder Past Experience section, 18th character (Red Max). 4-dimension adversarial design review ($5.12, 34 findings, all resolved). Tick-based orchestrator validated with 5 agents (perfectly fair — 9 events each). Scaling beyond 5 blocked by Claude API concurrent call limits, not app code.
+Two branches closed, one opened. #16 (scale testing) closed: GatedAgentProvider replaces batch-of-3 workaround with a blocking semaphore decorator that gates all LLM callers through one concurrency point — 272 tests, squashed to 4 commits, merged to main. #34 (room scaling) closed without implementation: rooms serve plot, not the other way — add rooms when interaction chains need them.
+
+#38 (autonomous interactions) opened with a validated hypothesis: removed `visibleTo` gating from poison, all 5 characters react differently to the same scenario based on personality alone (AutonomousDiscoveryTest). Penelope's obliviousness — completely ignoring the poison — is the correct autonomous response, better than concern.
+
+Extensive brainstorming using Wacky Races/Perils of Penelope Pitstop source material. Core design principle: capabilities gate what you observe, personality drives what you do about it. Full design captured in spec.
+
+Also: Slot 95 created for #30 (platform rate limiter extraction, platform + examples). #35 filed for trellis migration (deferred). #39 filed for platform capability-driven observation filtering (aspirational, blocked by #38).
 
 ## Immediate Next Step
 
-Run `/work` to resume branch `issue-16-scale-testing` for #16. Investigate Claude CLI concurrent call limit — 5 agents works, 6+ produces 0 events. Check `casehub.platform.agent.claude.max-concurrent-sessions` interaction with Anthropic API tier rate limits. Try sequential batching (batch size 1) to isolate whether it's concurrency or total call volume.
+Run `/work` on branch `issue-38-autonomous-interactions`. Read the spec at `specs/issue-38-autonomous-interactions/2026-08-09-autonomous-interactions-design.md` — it captures all design decisions, interaction chain ideas, capability/concealment mechanics, and game frame. Next implementation slice: capability-gated observation filtering in ObservationBuilder.
 
-## Forage — deferred to next session
+## Cross-Module
 
-4 garden entries identified but not captured (session too long for full pipeline):
-1. [gotcha] Double semaphore starvation — app + platform semaphores caused convoy
-2. [technique] Tick-based game loop for LLM agents — snapshot turns, cadence pacing
-3. [gotcha] ide_edit_member HTML entity corruption — angle brackets become `& lt;`
-4. [undocumented] Claude CLI concurrent call limit — silently fails at 6+ concurrent
+**Enabled** (delivered, downstream unblocked):
+- `GatedAgentProvider` pattern — ready for extraction to platform AgentProvider (casehubio/examples#30, Slot 95)
+
+## References
+
+- Spec: `specs/issue-38-autonomous-interactions/2026-08-09-autonomous-interactions-design.md`
+- Blog: published to mdproctor.github.io and casehubio.github.io — "Fail-Fast Is Not Your Problem — Queuing Is"
+- Issues filed: #35 (trellis migration), #38 (autonomous interactions), #39 (platform observation filtering)
+- Slot 95: `slots/95/` — platform + examples for #30 rate limiter epic
