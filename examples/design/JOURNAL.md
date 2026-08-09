@@ -1,1 +1,1 @@
-# Design Journal — issue-16-scale-testing
+# Design Journal — issue-38-autonomous-interactions
