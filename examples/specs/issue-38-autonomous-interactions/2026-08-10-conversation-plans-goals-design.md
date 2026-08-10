@@ -82,6 +82,16 @@ Valid directed dialogue events carry the target. The event is routed to
 everyone in the room (speech, not telepathy) but rendered differently based
 on observer capabilities.
 
+**Validation timing:** validation occurs during dialogue processing (step 3
+of the tick pipeline), after PULL_ASIDE resolution but before action
+processing. At this point no MOVE actions have executed — all characters
+remain in their pre-tick rooms, making room-presence checks deterministic.
+
+If the talkTo target is in a PULL_ASIDE exchange (suppressed), the directed
+dialogue still publishes to the room event stream. The target is physically
+present, just privately engaged. They see the directed dialogue in their
+next normal-tick observation after the exchange ends.
+
 ### ManorEvent Changes
 
 `ManorEvent` gets `String dialogueTarget` field (null for broadcast dialogue).
@@ -180,6 +190,38 @@ arrive and before the next tick starts:
 6. **Publication:** Full exchange published to observation system as directed
    dialogue events — capability-gated for room observers.
 
+### Tick Pipeline Integration
+
+Within `runAutonomousTicks`, PULL_ASIDE adds a resolution phase between
+response gathering and normal processing:
+
+```
+Tick pipeline (PULL_ASIDE-aware):
+1. Gather all LLM responses concurrently (latch.await)
+2. PULL_ASIDE resolution phase:
+   a. Scan responses for action.type == PULL_ASIDE
+   b. Validate each: target exists, active, same room as initiator
+   c. Conflict resolution: process in iteration order; if target is
+      already claimed by a prior PULL_ASIDE, fail with ActionResult.Failed
+   d. For each successful PULL_ASIDE: mark both initiator and target
+      as suppressed for this tick
+   e. Execute each exchange sequentially (blocking)
+3. Process dialogues for non-suppressed characters
+4. Process actions for non-suppressed characters
+5. Evaluate behavioral assertions
+6. Check completion (DAWN)
+```
+
+Response suppression is implemented by skipping suppressed agent IDs in
+the dialogue and action processing loops — the same pattern as checking
+`isActive()`. The initiator's dialogue was consumed as the exchange
+opening line. The target's response was explicitly discarded (the target
+gets fresh context inside the exchange).
+
+If multiple independent PULL_ASIDE exchanges succeed in the same tick
+(A pulls B, C pulls D), they execute sequentially. The world is frozen
+for all of them — no ordering dependency between independent exchanges.
+
 ### Observer Visibility
 
 | Observer | Observation |
@@ -263,11 +305,16 @@ LLM chooses to abandon it.
 
 ### Memory Integration
 
-The tick loop ingests the current plan into neocortex memory when it changes
-— determined by **string inequality** against the previous tick's plan text. Simple,
+The tick loop owns plan-change detection. After
+`character.setCurrentPlan(response.thinking())`, the loop compares against
+the prior value (captured in a local variable before the set). If different
+(**string inequality**), the loop ingests into neocortex memory. Simple,
 deterministic, cheap. Identical plans across ticks (character repeated its
-thinking verbatim) don't re-ingest. Provides strategic context for
-reflection when it arrives on the platform.
+thinking verbatim) don't re-ingest. The check is a tick-loop responsibility
+— not a CharacterState callback, not a separate service — keeping memory
+ingestion coupled to the tick lifecycle where the plan text is naturally
+available. Provides strategic context for reflection when it arrives on
+the platform.
 
 ### Platform Extraction
 
@@ -307,11 +354,24 @@ observation section), large behavioral impact (reactive → strategic).
   `dropGoals: ["*"]` drops all situational goals as a reset valve — useful
   when the LLM wants to start fresh.
 - **Tier guard:** `dropGoals` only operates on dynamic (situational) goals.
-  Names matching identity-tier goals are silently ignored. The rendering
-  distinguishes `[PRIMARY]`/`[SECONDARY]` from `[SITUATIONAL]`, making it
-  clear to the LLM which goals are droppable.
-- `ObservationBuilder` renders both tiers in Goals, visually distinguished:
-  `[PRIMARY] Find the Doily Diamond` vs `[SITUATIONAL] Protect the tea`
+  Names matching identity-tier goals are silently ignored. `newGoals` entries
+  whose normalized name matches any identity-tier goal on the same character
+  are also silently rejected — identity goals own the namespace, situational
+  goals cannot shadow them. The rendering distinguishes `[PRIMARY]`/
+  `[SECONDARY]` from `[SITUATIONAL]`, making it clear to the LLM which
+  goals are droppable.
+- **Rendering contract:** `ObservationBuilder.goalsSection()` accepts both
+  `List<AgentGoal>` (from Eidos) and `List<DynamicGoal>` (from
+  `CharacterState`). Identity goals render first, sorted by priority then
+  name. Situational goals follow, sorted by creation tick (newest first —
+  most recently formed goals are most salient). No common type or interface
+  — the method takes two separate collections and merges rendering into one
+  "Your Goals" section. The type separation is intentional: `AgentGoal`
+  carries Eidos validation, visibility, and capabilities that situational
+  goals don't need. `[SITUATIONAL]` is a rendering prefix, not a
+  `GoalPriority` value.
+  Example: `[PRIMARY] Eliminate Penelope before dawn` / `[SECONDARY] Find
+  the Doily Diamond` / `[SITUATIONAL] Protect the tea`
 - Dynamic goals ingested into neocortex memory when created. **Goal drops
   are also memory events** — "Abandoned goal: [name]" is ingested, recording
   the strategic decision to abandon a goal.
@@ -363,11 +423,63 @@ Observable, not controlling. Used for LLM evaluation and tuning, not game
 logic. The assertion framework is a platform extraction target — definition
 format and query API are designed for reuse.
 
+### TickSnapshot
+
+`TickSnapshot(int tick, Map<String, AgentResponse> responses, List<ManorEvent> events, WorldState worldView)`
+
+`worldView` is a read-only view of the world state at tick end — after all
+actions have resolved. Assertions evaluate against the completed tick, not
+mid-processing state. `responses` keyed by agent ID includes all response
+fields (`thinking`, `dialogue`, `action`, `newGoals`, `dropGoals`) so
+assertions can reason about intent and behavior, not just observable effects.
+
+### AssertionRegistry Structure
+
+`ApplicationScoped` CDI bean, injected into `ScenarioOrchestrator`. The
+orchestrator registers scenario-specific assertions at scenario start via
+`registry.register(assertionId, Predicate<TickSnapshot>)`. After each tick,
+the orchestrator calls `registry.evaluate(snapshot)` which evaluates all
+registered predicates and logs results via structured logging (marker:
+`ASSERTION`, fields: `assertionId`, `tick`, `satisfied`).
+
+Lifecycle:
+1. Scenario start: register assertions from scenario configuration
+2. Each tick end (after action processing, before completion check):
+   evaluate all assertions against the tick snapshot
+3. Scenario end: eval tests query via `wasSatisfied`, `firstSatisfiedTick`,
+   `history`
+
+Assertion definitions live in scenario configuration alongside character
+setup, not in game logic. Different scenarios register different assertions.
+
 ### Platform Extraction
 
 Behavioral assertion framework — define expected autonomous behaviors,
 measure whether agents exhibit them, without constraining the outcome.
 Reusable for any autonomous agent evaluation.
+
+## ObservationBuilder Changes
+
+The spec requires five changes to `ObservationBuilder`:
+
+1. **"Your Current Plan" section** — new section before Goals, containing
+   `CharacterState.currentPlan`. Omitted entirely when null (first tick),
+   consistent with `keenObservationsSection` empty-state handling.
+2. **Modified `goalsSection()`** — accepts both `List<AgentGoal>` and
+   `List<DynamicGoal>`, renders merged section with tier prefixes
+   (see §Dynamic Goals → Rendering contract).
+3. **`buildExchangeObservation()`** — new method for PULL_ASIDE exchange
+   context. Includes: room name, names of other characters present, the
+   other participant's dialogue, the character's current plan. Omits:
+   exits, objects, inventory, affordances, full room description.
+4. **Directed dialogue in Recent Activity** — directed speech renders as
+   `"Sneekly spoke quietly with Peter."` for non-perceptive observers
+   (uses `ManorEvent.description`). Full dialogue for perceptive observers
+   in Keen Observations (uses `ManorEvent.detailedDescription`).
+5. **Method signature** — `buildObservation()` already receives
+   `CharacterState` which provides access to `currentPlan` and dynamic
+   goals once those fields are added. No new parameters needed for
+   normal-tick observations. The exchange observation is a separate method.
 
 ## Implementation Layers
 
