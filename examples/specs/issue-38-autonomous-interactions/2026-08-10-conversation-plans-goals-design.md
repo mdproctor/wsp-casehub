@@ -146,11 +146,16 @@ format and omits `talkTo`.
 PULL_ASIDE runs as a **blocking inter-tick sub-procedure**. After responses
 arrive and before the next tick starts:
 
-1. **Conflict resolution:** If multiple PULL_ASIDE actions target the same
-   character, or mutual PULL_ASIDE (A targets B, B targets A), only the
-   first in processing order succeeds. Others get `ActionResult.Failed`
-   ("Target is already in a focused exchange"). This mirrors `tryTakeObject`
-   — first-to-process wins, losers get clear feedback.
+1. **Conflict resolution:** PULL_ASIDE resolution runs before any dialogue or
+   action processing — at this point no character has moved or acted this tick.
+   Each PULL_ASIDE validates: target exists, target is active, target is in
+   the same room as initiator. Failed validation returns `ActionResult.Failed`
+   (consistent with STEAL and GIVE room-presence checks in `ActionResolver`).
+   If multiple PULL_ASIDE actions target the same character, or mutual
+   PULL_ASIDE (A targets B, B targets A), only the first in processing order
+   succeeds. Others get `ActionResult.Failed` ("Target is already in a focused
+   exchange"). This mirrors `tryTakeObject` — first-to-process wins, losers
+   get clear feedback.
 2. **Response suppression:** Both the initiator's AND the target's tick
    responses are withheld from normal processing. The initiator's dialogue
    becomes the opening line of the exchange. The target's dialogue and
