@@ -43,9 +43,10 @@ The LLM response expands from 4 fields to 7:
   character. Observation rendering differentiates directed vs broadcast speech.
 - **aside** — private audience commentary (existing behavior, unchanged).
 - **action** — mechanical action (existing behavior + PULL_ASIDE).
-- **newGoals** — LLM-generated situational goals. Conform to `AgentGoal` type
-  (visibility=PRIVATE, capabilities=empty). Stored on CharacterState with
-  creation tick metadata. Appear in Goals section alongside Eidos-defined goals.
+- **newGoals** — LLM-generated situational goals. Stored on CharacterState as
+  `DynamicGoal` records with creation tick for eviction ordering. Goal names
+  normalized to lowercase and trimmed. Appear in Goals section alongside
+  Eidos-defined goals with `[SITUATIONAL]` prefix.
 - **dropGoals** — removes previously generated dynamic goals by normalized name
   (lowercase, trimmed). `["*"]` drops all situational goals as a reset valve.
 
@@ -116,6 +117,20 @@ characters should catch, add mechanical hints: when a character with
 `deception` capability tag speaks directed dialogue, perceptive observers
 get a keen observation hint ("You sense Sneekly is not being entirely
 truthful"). This is a fallback, not the default design.
+
+### Composition with PULL_ASIDE
+
+`talkTo` and `PULL_ASIDE` serve different purposes:
+
+| Mechanism | Scope | Visibility | Tick flow |
+|---|---|---|---|
+| `talkTo` | Single-turn directed remark | Room (capability-gated) | Normal tick |
+| `PULL_ASIDE` | Multi-turn private exchange | Room (capability-gated summary) | Suspends tick |
+
+During a PULL_ASIDE exchange, all dialogue is implicitly directed at the
+other participant — `talkTo` is not used within exchanges. The exchange
+format instruction (§Participant Experience) replaces the normal response
+format and omits `talkTo`.
 
 ## Focused Exchanges (PULL_ASIDE)
 
@@ -239,8 +254,8 @@ LLM chooses to abandon it.
 
 ### Memory Integration
 
-Current plan ingested into neocortex memory when it changes — determined by
-**string inequality** against the previous tick's plan text. Simple,
+The tick loop ingests the current plan into neocortex memory when it changes
+— determined by **string inequality** against the previous tick's plan text. Simple,
 deterministic, cheap. Identical plans across ticks (character repeated its
 thinking verbatim) don't re-ingest. Provides strategic context for
 reflection when it arrives on the platform.
@@ -269,15 +284,19 @@ observation section), large behavioral impact (reactive → strategic).
   `AgentGoal`. ObservationBuilder renders both types in the Goals section
   but from separate collections — `List<AgentGoal>` for identity goals,
   `List<DynamicGoal>` from CharacterState for situational goals.
-- **Name uniqueness:** per-character. If the LLM creates a goal with a name
-  that already exists on that character, the existing goal is replaced
-  (update semantics). This handles the LLM naturally refining a goal.
+- **Name uniqueness:** per-character. Goal names are normalized to lowercase
+  and trimmed on creation and matching. If the LLM creates a goal with a
+  normalized name that already exists on that character, the existing goal
+  is replaced (update semantics). This handles the LLM naturally refining
+  a goal and prevents case-variation duplicates.
 - **Visibility:** dynamic goals are always private to the owning character.
   Other characters cannot see them. Consistent with the spec's intent —
   they are internal situational assessments.
 - **Processing order:** `dropGoals` is processed before `newGoals` within the
   same response. This allows replacing a goal in one response (drop old name,
   create new). Dropping a name that matches no dynamic goal is silently ignored.
+  `dropGoals: ["*"]` drops all situational goals as a reset valve — useful
+  when the LLM wants to start fresh.
 - **Tier guard:** `dropGoals` only operates on dynamic (situational) goals.
   Names matching identity-tier goals are silently ignored. The rendering
   distinguishes `[PRIMARY]`/`[SECONDARY]` from `[SITUATIONAL]`, making it
