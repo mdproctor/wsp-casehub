@@ -151,9 +151,13 @@ arrive and before the next tick starts:
    first in processing order succeeds. Others get `ActionResult.Failed`
    ("Target is already in a focused exchange"). This mirrors `tryTakeObject`
    — first-to-process wins, losers get clear feedback.
-2. **Dialogue suppression:** The initiator's `dialogue` field is NOT broadcast
-   as normal speech. It becomes the opening line of the exchange. During
-   dialogue processing, skip any character whose action is PULL_ASIDE.
+2. **Response suppression:** Both the initiator's AND the target's tick
+   responses are withheld from normal processing. The initiator's dialogue
+   becomes the opening line of the exchange. The target's dialogue and
+   action from this tick are discarded — the target re-enters decision-making
+   inside the exchange with fresh context (see §Participant Experience).
+   During dialogue and action processing, skip both participants of any
+   successful PULL_ASIDE.
 3. **Exchange execution:** Alternating LLM calls, each participant seeing the
    other's dialogue plus their own current plan. Capped at N round-trips
    (configurable, default 3). Either character ends the exchange by producing
