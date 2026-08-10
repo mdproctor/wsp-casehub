@@ -22,7 +22,7 @@ The LLM response expands from 4 fields to 7:
   "aside": "private thoughts for the audience (or null)",
   "action": { "type": "MOVE", "target": "kitchen", "withItem": null },
   "newGoals": [
-    { "name": "protect-tea", "description": "Stop Sneekly from poisoning the tea", "priority": "PRIMARY" }
+    { "name": "protect-tea", "description": "Stop Sneekly from poisoning the tea" }
   ],
   "dropGoals": ["find-diamond"]
 }
@@ -43,6 +43,19 @@ The LLM response expands from 4 fields to 7:
   appear in Goals section alongside Eidos-defined goals.
 - **dropGoals** — removes previously generated dynamic goals by name.
 
+### Parse Error Handling
+
+`AgentResponse.parse()` logs all parse failures at WARN level, including the
+raw LLM response text, before falling back to `idle()`. This makes parse
+failures visible during LLM evaluation testing.
+
+No partial parsing — the LLM response is a coherent unit. If the LLM produces
+valid dialogue but malformed `newGoals`, discarding the entire response is
+correct. Partially applying the response would create state inconsistencies
+(the LLM intended the dialogue AND the goal update together). Jackson's
+`@JsonIgnoreProperties(ignoreUnknown = true)` already handles missing fields
+gracefully — only malformed values cause parse failure.
+
 ### Platform Extraction
 
 The response schema pattern (static identity + dynamic goals + persistent
@@ -53,9 +66,14 @@ standard autonomous agent response schema.
 
 ### Flow
 
-When `talkTo` is set on the response, the dialogue event carries the target.
-The event is routed to everyone in the room (speech, not telepathy) but
-rendered differently based on observer capabilities.
+When `talkTo` is set on the response, the orchestrator validates the target
+is present in the speaker's room. If the target is not present, `talkTo` is
+nulled — the dialogue becomes broadcast speech. No special feedback; the LLM
+sees the "Characters Present" section next tick and self-corrects.
+
+Valid directed dialogue events carry the target. The event is routed to
+everyone in the room (speech, not telepathy) but rendered differently based
+on observer capabilities.
 
 ### ManorEvent Changes
 
@@ -104,13 +122,33 @@ truthful"). This is a fallback, not the default design.
 
 ### Engine Behavior
 
-1. Orchestrator pauses initiator and target from normal tick cycle
-2. Runs focused mini-conversation: alternating LLM calls, each seeing the
-   other's response. Capped at N round-trips (configurable, default 3)
-3. Either character ends the exchange by producing a non-PULL_ASIDE action
-   or WAIT
-4. Full exchange published to observation system as directed dialogue events —
-   capability-gated for room observers
+PULL_ASIDE runs as a **blocking inter-tick sub-procedure**. After responses
+arrive and before the next tick starts:
+
+1. **Conflict resolution:** If multiple PULL_ASIDE actions target the same
+   character, or mutual PULL_ASIDE (A targets B, B targets A), only the
+   first in processing order succeeds. Others get `ActionResult.Failed`
+   ("Target is already in a focused exchange"). This mirrors `tryTakeObject`
+   — first-to-process wins, losers get clear feedback.
+2. **Dialogue suppression:** The initiator's `dialogue` field is NOT broadcast
+   as normal speech. It becomes the opening line of the exchange. During
+   dialogue processing, skip any character whose action is PULL_ASIDE.
+3. **Exchange execution:** Alternating LLM calls, each participant seeing the
+   other's dialogue plus their own current plan. Capped at N round-trips
+   (configurable, default 3). Either character ends the exchange by producing
+   WAIT or any action. Non-dialogue responses are **termination signals only**
+   — they do not execute. The character can take the intended action on their
+   next normal tick. This keeps the exchange as pure conversation.
+   Nested PULL_ASIDE (participant targets a third character during exchange)
+   is treated as a termination signal like any other action.
+4. **No concurrent ticks:** Other agents do not tick during the exchange.
+   The world is frozen — no character moves, no objects change hands. This
+   eliminates stale-state problems entirely.
+5. **Exchange timeout:** Total exchange duration capped at `exchangeTimeoutSeconds`
+   (configurable, default 120). If exceeded, the exchange terminates and both
+   participants resume with their last thinking as their plan.
+6. **Publication:** Full exchange published to observation system as directed
+   dialogue events — capability-gated for room observers.
 
 ### Observer Visibility
 
@@ -122,9 +160,16 @@ truthful"). This is a fallback, not the default design.
 
 ### Participant Experience
 
-Each turn of the exchange, the participant sees the other's dialogue plus
-condensed room context (not a full observation rebuild). The `thinking` field
-from each turn accumulates into their persistent plan.
+Each turn of the exchange, the participant sees:
+- The other's dialogue from the previous turn
+- Their own current plan (so the LLM can build on its strategy)
+- Condensed room context (not a full observation rebuild)
+
+The `thinking` field from each turn overwrites `currentPlan`. This IS
+accumulation — through LLM synthesis, not mechanical concatenation. Because
+the LLM sees its current plan each turn, each new thinking incorporates and
+updates the prior plan. The overwrite is correct because the new thinking
+subsumes whatever the LLM retained from the prior plan.
 
 ### Resolution
 
@@ -146,7 +191,9 @@ commitment resolution.
 2. After each tick, `AgentResponse.thinking()` stored as
    `character.setCurrentPlan(thinking)`
 3. `ObservationBuilder` adds "Your Current Plan" section (before Goals),
-   containing the previous tick's thinking
+   containing the previous tick's thinking. When `currentPlan` is null
+   (first tick), the section is omitted entirely — consistent with how
+   `keenObservationsSection` handles empty state.
 4. The LLM sees its own prior reasoning and builds on it
 
 ### What This Enables
@@ -160,8 +207,11 @@ commitment resolution.
 
 ### PULL_ASIDE Integration
 
-Both participants' thinking accumulates during focused exchanges — the plan
-updates with what they learned from conversation.
+Both participants see their current plan each exchange turn (see §Participant
+Experience). Each turn's thinking overwrites `currentPlan`. Because the LLM
+sees its prior plan, it incorporates and revises it — accumulation through
+synthesis, not concatenation. The pre-exchange plan is not lost unless the
+LLM chooses to abandon it.
 
 ### Memory Integration
 
@@ -188,37 +238,62 @@ observation section), large behavioral impact (reactive → strategic).
 ### Mechanical Lifecycle
 
 - `newGoals` creates `DynamicGoal` records on `CharacterState` with creation
-  tick for staleness tracking
-- `dropGoals` removes by name
-- `ObservationBuilder` renders both tiers in Goals, distinguished:
-  `[PRIMARY] Find the Doily Diamond` vs `[SITUATIONAL] Protect the tea`
+  tick for eviction ordering
+- `dropGoals` removes by name. **Tier guard:** `dropGoals` only operates on
+  dynamic (situational) goals. Names matching identity-tier goals are silently
+  ignored. This prevents the LLM from accidentally dropping immutable identity
+  goals.
+- `ObservationBuilder` renders both tiers in Goals, visually distinguished:
+  `[PRIMARY] Find the Doily Diamond` vs `[SITUATIONAL] Protect the tea` —
+  the tier labels make it clear to the LLM which goals are droppable
 - Dynamic goals ingested into neocortex memory when created
+- Dynamic goal storage on `CharacterState` uses `CopyOnWriteArrayList`,
+  consistent with the inventory collection's concurrency discipline
 
-### No Goal Limit
+### Goal Cap
 
-The LLM sees all goals every tick and decides what matters. If it generates
-too many, its own reasoning deprioritizes or drops stale ones.
+Dynamic goals are capped at `maxDynamicGoals` (configurable, default 5).
+When `newGoals` would exceed the cap, the oldest dynamic goals (by creation
+tick) are auto-evicted to make room. The LLM controls what stays by actively
+dropping stale goals before the cap forces eviction.
+
+The creation tick stored on each `DynamicGoal` serves eviction ordering —
+oldest-first when the cap is reached.
 
 ## Behavioral Assertions (Replacing Hardcoded Completion)
 
 ### Completion
 
 - Remove `hasEffect("tea-service", "rat-poison")` as a game-ending trigger
-- Game completion becomes time-based: configurable `maxTurns` representing dawn
-- New `CompletionReason.DAWN` alongside existing `TURN_LIMIT`
-- `POISONED` remains as a completion reason if tea IS poisoned AND consumed,
-  but the engine doesn't check for a specific effect — characters drive the
-  outcome
+- Remove `CompletionReason.POISONED` — without a CONSUME action type, there
+  is no mechanical definition of "tea consumed" and the completion reason is
+  unreachable
+- Game completion is purely time-based: configurable `maxTurns` representing
+  dawn
+- Rename `CompletionReason.TURN_LIMIT` to `CompletionReason.DAWN`
+- Whether poisoning behavior occurred is tracked by behavioral assertions,
+  not by game completion — the engine observes, it doesn't decide outcomes
 
 ### Assertions
 
-Behavioral assertions checked each tick and logged as metrics:
+Behavioral assertions are `Predicate<TickSnapshot>` instances registered at
+scenario start. The orchestrator evaluates all registered assertions after
+each tick and logs results via structured logging (marker: `ASSERTION`).
+
+Example assertions:
 - "HC generated a poison-related goal"
 - "HC attempted STEAL or USE with poison"
-- "Mob intervened before tea was consumed"
+- "Mob intervened when a danger was observed"
 - "Peter reacted protectively to a danger observation"
 
-Observable, not controlling. Used for LLM evaluation and tuning, not game logic.
+`AssertionRegistry` provides a query API for eval tests:
+- `boolean wasSatisfied(String assertionId)` — ever true during the scenario
+- `int firstSatisfiedTick(String assertionId)` — tick when first satisfied
+- `List<AssertionResult> history(String assertionId)` — per-tick results
+
+Observable, not controlling. Used for LLM evaluation and tuning, not game
+logic. The assertion framework is a platform extraction target — definition
+format and query API are designed for reuse.
 
 ### Platform Extraction
 
