@@ -33,15 +33,21 @@ The LLM response expands from 4 fields to 7:
 - **thinking** — persisted on CharacterState as `currentPlan`. Fed back as
   "Your Current Plan" section in the next observation. The LLM's reasoning
   becomes a multi-turn strategy that it can build on, revise, or abandon.
+  The format instruction must tell the LLM: "Your thinking field is your
+  persistent strategic plan. It will be shown back to you next turn as
+  'Your Current Plan.' Write it as a strategy you can act on, not as
+  stream-of-consciousness reasoning."
 - **dialogue** — what the character says aloud. Broadcast to room when
   `talkTo` is null. Directed at a specific character when `talkTo` is set.
 - **talkTo** — optional character-id. When set, dialogue is directed at that
   character. Observation rendering differentiates directed vs broadcast speech.
 - **aside** — private audience commentary (existing behavior, unchanged).
 - **action** — mechanical action (existing behavior + PULL_ASIDE).
-- **newGoals** — LLM-generated situational goals. Registered on CharacterState,
-  appear in Goals section alongside Eidos-defined goals.
-- **dropGoals** — removes previously generated dynamic goals by name.
+- **newGoals** — LLM-generated situational goals. Conform to `AgentGoal` type
+  (visibility=PRIVATE, capabilities=empty). Stored on CharacterState with
+  creation tick metadata. Appear in Goals section alongside Eidos-defined goals.
+- **dropGoals** — removes previously generated dynamic goals by normalized name
+  (lowercase, trimmed). `["*"]` drops all situational goals as a reset valve.
 
 ### Parse Error Handling
 
@@ -160,10 +166,28 @@ arrive and before the next tick starts:
 
 ### Participant Experience
 
-Each turn of the exchange, the participant sees:
+**Target's initial observation:** When character B is pulled aside by A,
+B's first exchange prompt includes:
+- `"[A's name] has pulled you aside and says: '[A's initiating dialogue]'"`
+- B's current plan (if any)
+- Condensed room context
+- Exchange-specific format instruction (see below)
+
+**Subsequent turns:** each participant sees:
 - The other's dialogue from the previous turn
 - Their own current plan (so the LLM can build on its strategy)
-- Condensed room context (not a full observation rebuild)
+- Condensed room context
+
+**Condensed room context** = room name + names of other characters present.
+Enough to stay grounded in the physical space without the full observation
+rebuild (no objects, exits, inventory, affordances).
+
+**Exchange format instruction:** the exchange prompt replaces the normal
+response format instruction with a simplified version: respond with JSON
+containing `thinking`, `dialogue`, and optionally `action`. The instruction
+explicitly states: "Respond with WAIT to end this private conversation and
+return to normal activity." This disambiguates WAIT (end exchange) from its
+normal-tick meaning (do nothing this turn).
 
 The `thinking` field from each turn overwrites `currentPlan`. This IS
 accumulation — through LLM synthesis, not mechanical concatenation. Because
@@ -215,9 +239,11 @@ LLM chooses to abandon it.
 
 ### Memory Integration
 
-Current plan ingested into neocortex memory when it substantively changes
-(not every tick). Provides strategic context for reflection when it arrives
-on the platform.
+Current plan ingested into neocortex memory when it changes — determined by
+**string inequality** against the previous tick's plan text. Simple,
+deterministic, cheap. Identical plans across ticks (character repeated its
+thinking verbatim) don't re-ingest. Provides strategic context for
+reflection when it arrives on the platform.
 
 ### Platform Extraction
 
@@ -238,15 +264,29 @@ observation section), large behavioral impact (reactive → strategic).
 ### Mechanical Lifecycle
 
 - `newGoals` creates `DynamicGoal` records on `CharacterState` with creation
-  tick for eviction ordering
-- `dropGoals` removes by name. **Tier guard:** `dropGoals` only operates on
-  dynamic (situational) goals. Names matching identity-tier goals are silently
-  ignored. This prevents the LLM from accidentally dropping immutable identity
-  goals.
+  tick for eviction ordering. `DynamicGoal` is a wacky-manor model record
+  (`String name, String description, int creationTick`), not an Eidos
+  `AgentGoal`. ObservationBuilder renders both types in the Goals section
+  but from separate collections — `List<AgentGoal>` for identity goals,
+  `List<DynamicGoal>` from CharacterState for situational goals.
+- **Name uniqueness:** per-character. If the LLM creates a goal with a name
+  that already exists on that character, the existing goal is replaced
+  (update semantics). This handles the LLM naturally refining a goal.
+- **Visibility:** dynamic goals are always private to the owning character.
+  Other characters cannot see them. Consistent with the spec's intent —
+  they are internal situational assessments.
+- **Processing order:** `dropGoals` is processed before `newGoals` within the
+  same response. This allows replacing a goal in one response (drop old name,
+  create new). Dropping a name that matches no dynamic goal is silently ignored.
+- **Tier guard:** `dropGoals` only operates on dynamic (situational) goals.
+  Names matching identity-tier goals are silently ignored. The rendering
+  distinguishes `[PRIMARY]`/`[SECONDARY]` from `[SITUATIONAL]`, making it
+  clear to the LLM which goals are droppable.
 - `ObservationBuilder` renders both tiers in Goals, visually distinguished:
-  `[PRIMARY] Find the Doily Diamond` vs `[SITUATIONAL] Protect the tea` —
-  the tier labels make it clear to the LLM which goals are droppable
-- Dynamic goals ingested into neocortex memory when created
+  `[PRIMARY] Find the Doily Diamond` vs `[SITUATIONAL] Protect the tea`
+- Dynamic goals ingested into neocortex memory when created. **Goal drops
+  are also memory events** — "Abandoned goal: [name]" is ingested, recording
+  the strategic decision to abandon a goal.
 - Dynamic goal storage on `CharacterState` uses `CopyOnWriteArrayList`,
   consistent with the inventory collection's concurrency discipline
 
