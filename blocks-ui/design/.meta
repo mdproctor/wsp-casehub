@@ -1,0 +1,10 @@
+branch: issue-108-worker-function-drill-down
+state: scaffolded
+project-sha: slot-creation
+date: 2026-08-11
+issue: 108
+issue-repo: casehubio/blocks-ui
+covers: 108
+flyway-next-v: unknown
+design-repo: project
+design-section-hashes: 
