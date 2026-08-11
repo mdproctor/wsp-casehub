@@ -719,7 +719,7 @@ Refs #24"
 
 **Interfaces:**
 - Consumes: `SocLedgerEntry` (Task 2), `SocStepType` (Task 1), `LedgerEntryRepository.save()`, `LedgerEntryRepository.findLatestBySubjectId()`, `CaseOutcomeObserver`, `SocCaseOutcomeFilter`
-- Produces: `SocLedgerEntryWriter.write(UUID incidentId, SocStepType, String actorId, String actorRole, String metadataJson, String tenancyId, Clock)`, `SocResolutionLedgerObserver` implementing `CaseOutcomeObserver`
+- Produces: `SocLedgerEntryWriter.write(UUID incidentId, SocStepType, String actorId, String actorRole, ActorType actorType, String metadataJson, String tenancyId, UUID causedByEntryId)`, `SocResolutionLedgerObserver` implementing `CaseOutcomeObserver`
 
 - [ ] **Step 1: Write failing test for SocLedgerEntryWriter**
 
@@ -756,10 +756,11 @@ class SocLedgerEntryWriterTest {
     @Test
     void write_setsAllRequiredFields() {
         UUID incidentId = UUID.randomUUID();
+        UUID causedBy = UUID.randomUUID();
         writer.write(incidentId, SocStepType.ALERT_TRIAGE,
-                "agent-1", "triage-agent",
+                "agent-1", "triage-agent", ActorType.AGENT,
                 "{\"alertSeverity\":\"CRITICAL\",\"assignedSeverity\":\"HIGH\",\"triageAgentId\":\"agent-1\"}",
-                "tenant-1");
+                "tenant-1", causedBy);
 
         assertThat(repo.lastSaved).isNotNull();
         SocLedgerEntry entry = (SocLedgerEntry) repo.lastSaved;
@@ -768,8 +769,10 @@ class SocLedgerEntryWriterTest {
         assertThat(entry.stepType).isEqualTo(SocStepType.ALERT_TRIAGE);
         assertThat(entry.actorId).isEqualTo("agent-1");
         assertThat(entry.actorRole).isEqualTo("triage-agent");
+        assertThat(entry.actorType).isEqualTo(ActorType.AGENT);
         assertThat(entry.entryType).isEqualTo(LedgerEntryType.EVENT);
         assertThat(entry.occurredAt).isEqualTo(FIXED_CLOCK.instant());
+        assertThat(entry.causedByEntryId).isEqualTo(causedBy);
         assertThat(entry.metadata).contains("alertSeverity");
         assertThat(repo.lastTenancyId).isEqualTo("tenant-1");
     }
@@ -779,8 +782,9 @@ class SocLedgerEntryWriterTest {
         UUID incidentId = UUID.randomUUID();
         repo.latestSequence = 3;
         writer.write(incidentId, SocStepType.INVESTIGATION_STEP,
-                "worker-1", "investigator", "{\"capabilityTag\":\"ioc\",\"investigationType\":\"ioc-enrichment\"}",
-                "tenant-1");
+                "worker-1", "investigator", ActorType.AGENT,
+                "{\"capabilityTag\":\"ioc\",\"investigationType\":\"ioc-enrichment\"}",
+                "tenant-1", null);
 
         assertThat(((SocLedgerEntry) repo.lastSaved).sequenceNumber).isEqualTo(4);
     }
@@ -790,9 +794,9 @@ class SocLedgerEntryWriterTest {
         UUID incidentId = UUID.randomUUID();
         assertThatThrownBy(() -> writer.write(incidentId,
                 SocStepType.CONTAINMENT_DECISION,
-                "agent-1", "containment",
+                "agent-1", "containment", ActorType.AGENT,
                 "{\"riskClassification\":\"HIGH\",\"containmentAction\":\"ISOLATE\"}",
-                "tenant-1"))
+                "tenant-1", null))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("approverId");
     }
@@ -801,9 +805,9 @@ class SocLedgerEntryWriterTest {
     void write_containmentDecision_allFieldsPresent_succeeds() {
         UUID incidentId = UUID.randomUUID();
         writer.write(incidentId, SocStepType.CONTAINMENT_DECISION,
-                "agent-1", "containment",
+                "agent-1", "containment", ActorType.AGENT,
                 "{\"approverId\":\"analyst-1\",\"riskClassification\":\"HIGH\",\"containmentAction\":\"ISOLATE\"}",
-                "tenant-1");
+                "tenant-1", null);
         assertThat(repo.lastSaved).isNotNull();
     }
 
@@ -843,6 +847,7 @@ package io.casehub.soc.engine.compliance;
 import io.casehub.ledger.api.model.LedgerEntry;
 import io.casehub.ledger.api.model.LedgerEntryType;
 import io.casehub.ledger.api.spi.LedgerEntryRepository;
+import io.casehub.platform.api.identity.ActorType;
 import io.casehub.soc.domain.SocStepType;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -876,7 +881,8 @@ public class SocLedgerEntryWriter {
     }
 
     public void write(UUID incidentId, SocStepType stepType, String actorId,
-                      String actorRole, String metadataJson, String tenancyId) {
+                      String actorRole, ActorType actorType, String metadataJson,
+                      String tenancyId, UUID causedByEntryId) {
         validateMetadata(stepType, metadataJson);
 
         SocLedgerEntry entry = new SocLedgerEntry();
@@ -886,20 +892,17 @@ public class SocLedgerEntryWriter {
         entry.entryType = LedgerEntryType.EVENT;
         entry.actorId = actorId;
         entry.actorRole = actorRole;
+        entry.actorType = actorType;
         entry.occurredAt = clock.instant();
         entry.metadata = metadataJson;
+        entry.causedByEntryId = causedByEntryId;
 
         int nextSeq = ledgerRepo.findLatestBySubjectId(incidentId, tenancyId)
                 .map(e -> e.sequenceNumber + 1)
                 .orElse(1);
         entry.sequenceNumber = nextSeq;
 
-        try {
-            ledgerRepo.save(entry, tenancyId);
-        } catch (Exception e) {
-            LOG.errorf(e, "Failed to save SocLedgerEntry stepType=%s incidentId=%s — entry lost",
-                    stepType, incidentId);
-        }
+        ledgerRepo.save(entry, tenancyId);
     }
 
     private void validateMetadata(SocStepType stepType, String metadataJson) {
@@ -1013,10 +1016,17 @@ public class SocResolutionLedgerObserver implements CaseOutcomeObserver {
         String outcome = snapshot.getOrDefault("analystOutcome", event.outcomeLabel()).toString();
         String analystId = snapshot.getOrDefault("analystId", "system:soc-compliance").toString();
 
-        String metadataJson = "{\"resolutionOutcome\":\"" + outcome + "\"}";
+        String metadataJson = "{\"resolutionOutcome\":\"" + sanitiseJsonValue(outcome) + "\"}";
 
         writer.write(event.caseId(), SocStepType.INCIDENT_RESOLVED,
-                analystId, "incident-resolution", metadataJson, event.tenancyId());
+                analystId, "incident-resolution",
+                "system:soc-compliance".equals(analystId) ? ActorType.SYSTEM : ActorType.HUMAN,
+                metadataJson, event.tenancyId(), null);
+    }
+
+    private static String sanitiseJsonValue(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
 ```
@@ -1221,8 +1231,21 @@ public class SocComplianceService {
         List<SocLedgerEntry> entries = socRepo.findByIncidentId(incidentId, tenancyId);
         List<SocLedgerEntry> sanitised = new ArrayList<>(entries.size());
         for (SocLedgerEntry entry : entries) {
-            entry.metadata = sanitiser.sanitise(entry.metadata);
-            sanitised.add(entry);
+            SocLedgerEntry copy = new SocLedgerEntry();
+            copy.id = entry.id;
+            copy.incidentId = entry.incidentId;
+            copy.subjectId = entry.subjectId;
+            copy.stepType = entry.stepType;
+            copy.sequenceNumber = entry.sequenceNumber;
+            copy.entryType = entry.entryType;
+            copy.actorId = entry.actorId;
+            copy.actorRole = entry.actorRole;
+            copy.actorType = entry.actorType;
+            copy.occurredAt = entry.occurredAt;
+            copy.causedByEntryId = entry.causedByEntryId;
+            copy.tenancyId = entry.tenancyId;
+            copy.metadata = sanitiser.sanitise(entry.metadata);
+            sanitised.add(copy);
         }
         return sanitised;
     }
@@ -1367,7 +1390,160 @@ Refs #24"
 
 ---
 
-### Task 7: Full build verification and spec sync
+### Task 7: SocIncidentLedgerObserver — CDI observer for intermediate steps
+
+**Files:**
+- Create: `app/src/main/java/io/casehub/soc/engine/compliance/SocIncidentLedgerObserver.java`
+- Test: `app/src/test/java/io/casehub/soc/engine/compliance/SocIncidentLedgerObserverTest.java`
+
+**Interfaces:**
+- Consumes: `SocLedgerEntryWriter` (Task 5), `SocIncidentStatusChangedEvent` (from #23), `SocIncidentStatus`
+- Produces: `SocLedgerEntry` records for ALERT_TRIAGE and INCIDENT_PROMOTED step types
+
+- [ ] **Step 1: Read SocIncidentStatusChangedEvent to understand the CDI event payload**
+
+Use `ide_find_class` for `SocIncidentStatusChangedEvent` and `ide_file_structure` to see its fields. Verify what data it carries (incidentId/caseId, new status, old status, actorId, tenancyId).
+
+- [ ] **Step 2: Write failing test**
+
+```java
+package io.casehub.soc.engine.compliance;
+
+import io.casehub.ledger.api.model.LedgerEntry;
+import io.casehub.platform.api.identity.ActorType;
+import io.casehub.soc.domain.SocIncidentStatus;
+import io.casehub.soc.domain.SocIncidentStatusChangedEvent;
+import io.casehub.soc.domain.SocStepType;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.UUID;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class SocIncidentLedgerObserverTest {
+
+    private SocLedgerEntryWriterTest.CapturingLedgerRepo repo;
+    private SocIncidentLedgerObserver observer;
+
+    @BeforeEach
+    void setUp() {
+        repo = new SocLedgerEntryWriterTest.CapturingLedgerRepo();
+        var writer = new SocLedgerEntryWriter(repo,
+                Clock.fixed(Instant.parse("2026-08-11T10:00:00Z"), ZoneOffset.UTC));
+        observer = new SocIncidentLedgerObserver(writer);
+    }
+
+    @Test
+    void triagingStatus_writesAlertTriageEntry() {
+        UUID caseId = UUID.randomUUID();
+        // Adapt constructor based on actual SocIncidentStatusChangedEvent fields
+        var event = new SocIncidentStatusChangedEvent(caseId, "tenant-1",
+                SocIncidentStatus.DETECTED, SocIncidentStatus.TRIAGING,
+                "system:soc-triage", "{\"alertSeverity\":\"CRITICAL\",\"assignedSeverity\":\"HIGH\",\"triageAgentId\":\"agent-1\"}");
+
+        observer.onStatusChanged(event);
+
+        assertThat(repo.lastSaved).isNotNull();
+        SocLedgerEntry entry = (SocLedgerEntry) repo.lastSaved;
+        assertThat(entry.stepType).isEqualTo(SocStepType.ALERT_TRIAGE);
+        assertThat(entry.incidentId).isEqualTo(caseId);
+    }
+
+    @Test
+    void investigatingStatus_writesIncidentPromotedEntry() {
+        UUID caseId = UUID.randomUUID();
+        var event = new SocIncidentStatusChangedEvent(caseId, "tenant-1",
+                SocIncidentStatus.TRIAGING, SocIncidentStatus.INVESTIGATING,
+                "system:soc-triage", "{\"promotionReason\":\"confirmed-threat\"}");
+
+        observer.onStatusChanged(event);
+
+        assertThat(repo.lastSaved).isNotNull();
+        SocLedgerEntry entry = (SocLedgerEntry) repo.lastSaved;
+        assertThat(entry.stepType).isEqualTo(SocStepType.INCIDENT_PROMOTED);
+    }
+
+    @Test
+    void irrelevantTransition_skips() {
+        UUID caseId = UUID.randomUUID();
+        var event = new SocIncidentStatusChangedEvent(caseId, "tenant-1",
+                SocIncidentStatus.CONTAINING, SocIncidentStatus.ERADICATED,
+                "system:soc", "{}");
+
+        observer.onStatusChanged(event);
+        assertThat(repo.lastSaved).isNull();
+    }
+}
+```
+
+**Note:** Adapt the `SocIncidentStatusChangedEvent` constructor and field access based on the actual record definition discovered in Step 1. The test structure above is illustrative — the implementer must verify the event shape.
+
+- [ ] **Step 3: Implement SocIncidentLedgerObserver**
+
+```java
+package io.casehub.soc.engine.compliance;
+
+import io.casehub.platform.api.identity.ActorType;
+import io.casehub.soc.domain.SocIncidentStatus;
+import io.casehub.soc.domain.SocIncidentStatusChangedEvent;
+import io.casehub.soc.domain.SocStepType;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.ObservesAsync;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class SocIncidentLedgerObserver {
+
+    private final SocLedgerEntryWriter writer;
+
+    @Inject
+    SocIncidentLedgerObserver(SocLedgerEntryWriter writer) {
+        this.writer = writer;
+    }
+
+    void onStatusChanged(@ObservesAsync SocIncidentStatusChangedEvent event) {
+        SocStepType stepType = mapStatusToStepType(event);
+        if (stepType == null) return;
+
+        writer.write(event.caseId(), stepType,
+                event.actorId(), "incident-status-change", ActorType.SYSTEM,
+                event.metadata(), event.tenancyId(), null);
+    }
+
+    private SocStepType mapStatusToStepType(SocIncidentStatusChangedEvent event) {
+        // Adapt field access based on actual SocIncidentStatusChangedEvent shape
+        if (event.newStatus() == SocIncidentStatus.TRIAGING) return SocStepType.ALERT_TRIAGE;
+        if (event.newStatus() == SocIncidentStatus.INVESTIGATING) return SocStepType.INCIDENT_PROMOTED;
+        return null;
+    }
+}
+```
+
+**Note:** The exact `SocIncidentStatusChangedEvent` API (field names, accessor methods) must be verified against the actual record from #23. Adapt accordingly.
+
+- [ ] **Step 4: Run test**
+
+Run: `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn --batch-mode test -pl app -am -Dtest=SocIncidentLedgerObserverTest -Dsurefire.failIfNoSpecifiedTests=false`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/src/main/java/io/casehub/soc/engine/compliance/SocIncidentLedgerObserver.java app/src/test/java/io/casehub/soc/engine/compliance/SocIncidentLedgerObserverTest.java
+git commit -m "feat(#24): add SocIncidentLedgerObserver — CDI observer for intermediate steps
+
+Observes SocIncidentStatusChangedEvent for ALERT_TRIAGE and
+INCIDENT_PROMOTED ledger entries. Required for DORA report time
+delta computation.
+
+Refs #24"
+```
+
+---
+
+### Task 8: Full build verification and spec sync
 
 **Files:**
 - No new files
