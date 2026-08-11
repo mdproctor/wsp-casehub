@@ -1,1 +1,1 @@
-# Design Journal — issue-38-autonomous-interactions
+# Design Journal — issue-41-autonomous-agent-template
