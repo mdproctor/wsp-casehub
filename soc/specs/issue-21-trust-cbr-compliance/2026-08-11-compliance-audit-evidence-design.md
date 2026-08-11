@@ -62,7 +62,7 @@ public class SocLedgerEntry extends JpaLedgerEntry {
 }
 ```
 
-- `incidentId` equals `subjectId` — domain-explicit FK for readability, set once at creation
+- `incidentId` equals `subjectId` — domain-explicit FK for readability, set once at creation. Enforced by `@PrePersist` that throws `IllegalStateException` if `incidentId != subjectId`.
 - `stepType` — which investigation phase this entry records
 - `metadata` (inherited) — step-specific JSON payload, already included in `canonicalBytes()`
 
@@ -91,15 +91,24 @@ CREATE INDEX idx_sle_step_type ON soc_ledger_entry (step_type);
 - `application.properties`: add `classpath:db/soc/migration` to `quarkus.flyway.qhorus.locations`
 - Test `application.properties` (to be created): add `casehub.ledger.hash-chain.enabled=false`, add SOC ledger package to `quarkus.hibernate-orm.qhorus.packages`
 
-### 4. SocLedgerEntryObserver (app/)
+### 4a. SocIncidentLedgerObserver (app/)
 
-`@ApplicationScoped` service in `io.casehub.soc.engine.compliance`.
+`@ApplicationScoped` CDI observer in `io.casehub.soc.engine.compliance`. Handles intermediate investigation steps via `@ObservesAsync`.
 
-**Event mechanism:** This is a new pattern in SOC. Existing SOC observers (`SocAttestationService`, `SocCbrRetainService`) implement `CaseOutcomeObserver` SPI — which fires only at case completion. The ledger entry observer needs to record entries at intermediate investigation steps, not just at completion.
+**Event sources for intermediate steps:**
+- `SocIncidentStatusChangedEvent` (from #23) → `ALERT_TRIAGE`, `INCIDENT_PROMOTED`
+- `WorkerDecisionEntry` CDI events → `INVESTIGATION_STEP`
+- WorkItem completion events → `CONTAINMENT_DECISION`, `CONTAINMENT_EXECUTED`
 
-Two event sources:
-- **`CaseOutcomeObserver.onOutcome()`** — for `INCIDENT_RESOLVED` entries (case completion)
-- **CDI `@ObservesAsync` on platform events** — for intermediate steps. The specific event types depend on what the engine fires during binding execution. `WorkerDecisionEntry` creation already fires CDI events that can be observed for `INVESTIGATION_STEP` entries. `SocIncidentStatusChangedEvent` (from #23) can trigger `INCIDENT_PROMOTED`. Containment steps fire when the containment WorkItem completes.
+The specific event types depend on what the engine fires during binding execution — verified during implementation.
+
+### 4b. SocResolutionLedgerObserver (app/)
+
+`@ApplicationScoped` service in `io.casehub.soc.engine.compliance` implementing `CaseOutcomeObserver`. Handles `INCIDENT_RESOLVED` entries at case completion. Follows the existing SPI pattern (`SocAttestationService`, `SocCbrRetainService`).
+
+### 4c. SocLedgerEntryWriter (app/)
+
+Shared write helper in `io.casehub.soc.engine.compliance`. Called by both observers. Owns sequence number assignment, metadata validation, and `LedgerEntryRepository.save()` invocation.
 
 **Write protocol (per GE-20260511-b6f903, GE-20260612-17c161):**
 1. Create `SocLedgerEntry` instance
@@ -137,7 +146,38 @@ Strips PII from JSON string values using regex:
 
 Preserves: ATT&CK IDs (T####), severity values, action types, timestamps, agent IDs, UUIDs.
 
-### 6. SocComplianceService (app/)
+### 6. SocLedgerEntryRepository (app/)
+
+`@ApplicationScoped` in `io.casehub.soc.engine.compliance`. Typed queries for `SocLedgerEntry`. Follows the `CaseLedgerEntryRepository` / `MessageLedgerEntryRepository` platform pattern.
+
+**Named queries:**
+- `SocLedgerEntry.findByIncidentId` — `SELECT e FROM LedgerEntry e WHERE TYPE(e) = SocLedgerEntry AND e.subjectId = :incidentId AND e.tenancyId = :tenancyId ORDER BY e.sequenceNumber ASC`
+- `SocLedgerEntry.findByTimeRange` — `SELECT e FROM LedgerEntry e WHERE TYPE(e) = SocLedgerEntry AND e.occurredAt >= :from AND e.occurredAt <= :to AND e.tenancyId = :tenancyId ORDER BY e.occurredAt ASC`
+- `SocLedgerEntry.findByStepType` — `SELECT e FROM LedgerEntry e WHERE TYPE(e) = SocLedgerEntry AND TREAT(e AS SocLedgerEntry).stepType = :stepType AND e.tenancyId = :tenancyId ORDER BY e.occurredAt ASC`
+
+### 7. SocPreferences (api/)
+
+`PreferenceKey` constants class in `io.casehub.soc.domain`. Defines SLA response windows per priority level. Created as part of this issue — does not exist yet.
+
+```java
+public final class SocPreferences {
+    public static final PreferenceKey<DurationPreference> P1_RESPONSE_WINDOW =
+        new PreferenceKey<>("soc", "p1ResponseWindow",
+            DurationPreference.of(Duration.ofMinutes(15)), DurationPreference::parse);
+    public static final PreferenceKey<DurationPreference> P2_RESPONSE_WINDOW =
+        new PreferenceKey<>("soc", "p2ResponseWindow",
+            DurationPreference.of(Duration.ofHours(1)), DurationPreference::parse);
+    public static final PreferenceKey<DurationPreference> P3_RESPONSE_WINDOW =
+        new PreferenceKey<>("soc", "p3ResponseWindow",
+            DurationPreference.of(Duration.ofHours(4)), DurationPreference::parse);
+    public static final PreferenceKey<DurationPreference> P4_RESPONSE_WINDOW =
+        new PreferenceKey<>("soc", "p4ResponseWindow",
+            DurationPreference.of(Duration.ofHours(24)), DurationPreference::parse);
+    private SocPreferences() {}
+}
+```
+
+### 8. SocComplianceService (app/)
 
 `@ApplicationScoped` in `io.casehub.soc.engine.compliance`. Owns query logic and report building.
 
@@ -150,10 +190,10 @@ DoraResponseTimeReport doraReport(Instant from, Instant to, String tenancyId)
 ```
 
 - `inclusionProof` — delegates to `LedgerVerificationService.inclusionProof()`
-- `incidentTimeline` — queries `LedgerEntryRepository.findBySubjectId()`, filters to `SocLedgerEntry` instances, applies `SocPiiSanitiser` before returning
-- `doraReport` — queries `SocLedgerEntry` records in the time window, groups by incident, computes durations between step types (`ALERT_TRIAGE.occurredAt` to `INCIDENT_RESOLVED.occurredAt` for end-to-end), aggregates by priority (read from triage entry metadata `assignedSeverity`)
+- `incidentTimeline` — queries `SocLedgerEntryRepository.findByIncidentId()`, applies `SocPiiSanitiser` before returning
+- `doraReport` — queries `SocLedgerEntryRepository.findByTimeRange()` for SOC entries in the window, groups by incident, computes durations between step types (`ALERT_TRIAGE.occurredAt` to `INCIDENT_RESOLVED.occurredAt` for end-to-end), aggregates by priority (read from triage entry metadata `assignedSeverity`)
 
-### 7. DoraResponseTimeReport (api/)
+### 9. DoraResponseTimeReport (api/)
 
 Record in `io.casehub.soc.domain`:
 
@@ -172,11 +212,11 @@ public record PriorityStats(
     double slaCompliancePercent) {}
 ```
 
-**SLA compliance calculation:** Percentage of incidents where `INCIDENT_RESOLVED.occurredAt - ALERT_TRIAGE.occurredAt` is within the SLA window for that priority level. SLA windows come from `SocPreferences` (P1: 15min, P2: 1hr, P3: 4hr — already defined).
+**SLA compliance calculation:** Percentage of incidents where `INCIDENT_RESOLVED.occurredAt - ALERT_TRIAGE.occurredAt` is within the SLA window for that priority level. SLA windows come from `SocPreferences` — a new `PreferenceKey` constants class created as part of this issue. Defaults: P1 (CRITICAL): 15min, P2 (HIGH): 1hr, P3 (MEDIUM): 4hr, P4 (LOW): 24hr.
 
 **Tenancy:** All queries scoped by `tenancyId`. Reports are per-tenant. Cross-tenant aggregation is not supported in v1.
 
-### 8. SocComplianceResource (app/)
+### 10. SocComplianceResource (app/)
 
 JAX-RS resource in `io.casehub.soc.rest`. Thin shell delegating to `SocComplianceService`.
 
@@ -210,28 +250,31 @@ RBAC: `@RolesAllowed("soc-compliance-viewer")` at class level. Consider splittin
 ```
 Investigation step completes (binding fires, WorkItem resolves, etc.)
     │
-    ▼
-SocLedgerEntryObserver receives event
-    │  determines SocStepType from event signal
-    │  builds metadata JSON from event payload
-    │  validates compliance-critical fields per step type
-    │
-    ├─ LedgerEntryRepository.findLatestBySubjectId(incidentId, tenancyId)
-    │     → sequenceNumber = latest + 1
-    │
-    ├─ LedgerEntryRepository.save(socLedgerEntry, tenancyId)
-    │     → Merkle hash computed, entry persisted
-    │
-    ▼
+    ├─ Intermediate step → SocIncidentLedgerObserver (@ObservesAsync CDI)
+    │                           │
+    └─ Case completion  → SocResolutionLedgerObserver (CaseOutcomeObserver SPI)
+                                │
+                                ▼
+                    SocLedgerEntryWriter (shared)
+                        │  determines SocStepType from event signal
+                        │  builds metadata JSON from event payload
+                        │  validates compliance-critical fields per step type
+                        │
+                        ├─ LedgerEntryRepository.findLatestBySubjectId()
+                        │     → sequenceNumber = latest + 1
+                        │
+                        └─ LedgerEntryRepository.save(socLedgerEntry, tenancyId)
+                              → Merkle hash computed, entry persisted
+
 SocComplianceResource (read path)
     │
     ├─ /proof/{entryId} → LedgerVerificationService.inclusionProof()
     │     → InclusionProof with Merkle path + root
     │
-    ├─ /timeline/{incidentId} → findBySubjectId() + PII sanitisation
-    │     → ordered SocLedgerEntry list
+    ├─ /timeline/{incidentId} → SocLedgerEntryRepository.findByIncidentId()
+    │     → PII sanitised, ordered SocLedgerEntry list
     │
-    └─ /dora?from=...&to=... → aggregate across incidents
+    └─ /dora?from=...&to=... → SocLedgerEntryRepository.findByTimeRange()
           → DoraResponseTimeReport with per-priority stats
 ```
 
@@ -247,7 +290,7 @@ SocComplianceResource (read path)
 | Entry not found for proof request | `LedgerVerificationService` throws `IllegalArgumentException` → 404 response |
 | No entries for incident timeline | Return empty list |
 | DORA report with no data in range | Return report with `totalIncidents = 0`, empty `byPriority` map |
-| PII sanitiser regex failure | Should not happen (compiled patterns). If it does, log and return unsanitised — fail-open for availability, not fail-closed |
+| PII sanitiser failure | Replace the entry's metadata with `[SANITISATION_FAILED]` and log at ERROR. Fail-closed — an incorrect compliance report is worse than an unavailable one |
 
 ---
 
@@ -279,8 +322,12 @@ SocComplianceResource (read path)
 | `api/.../domain/SocStepType.java` | New — step type enum |
 | `api/.../domain/DoraResponseTimeReport.java` | New — DORA report record |
 | `api/.../domain/PriorityStats.java` | New — per-priority stats record |
+| `api/.../domain/SocPreferences.java` | New — SLA window PreferenceKey constants |
 | `app/.../compliance/SocLedgerEntry.java` | New — JpaLedgerEntry subclass |
-| `app/.../compliance/SocLedgerEntryObserver.java` | New — CDI/SPI observer |
+| `app/.../compliance/SocIncidentLedgerObserver.java` | New — CDI observer for intermediate steps |
+| `app/.../compliance/SocResolutionLedgerObserver.java` | New — CaseOutcomeObserver for resolution |
+| `app/.../compliance/SocLedgerEntryWriter.java` | New — shared write helper |
+| `app/.../compliance/SocLedgerEntryRepository.java` | New — typed queries |
 | `app/.../compliance/SocComplianceService.java` | New — query/aggregation |
 | `app/.../compliance/SocPiiSanitiser.java` | New — regex PII redaction |
 | `app/.../rest/SocComplianceResource.java` | New — JAX-RS endpoints |
