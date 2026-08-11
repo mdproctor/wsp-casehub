@@ -19,10 +19,11 @@ diagram. No other function type has any visual presence or editing UI.
 
 ## Engine Worker Function Types
 
-The engine's `WorkerFunctionProviderRegistry` treats function types as an open
-set via the `WorkerFunctionProvider` SPI. Each provider detects its YAML key and
-constructs the function. The UI handles the 5 known types with dedicated
-renderers and falls back to raw JSON display for unrecognised keys.
+The engine treats function types as an open set via the `WorkerFunctionProvider`
+SPI (CDI-managed — providers are discovered, not registered in an explicit
+registry class). Each provider's `handles(JsonNode)` method detects its YAML key
+and `create()` constructs the function. The UI handles the 5 known types with
+dedicated renderers and falls back to raw JSON display for unrecognised keys.
 
 | Type | YAML key | Detection | Configuration |
 |------|----------|-----------|---------------|
@@ -92,7 +93,7 @@ generate them.
 
 ```typescript
 export type WorkerFunctionType =
-  | 'agent' | 'flow' | 'a2a' | 'mcp' | 'sequence' | 'external';
+  | 'agent' | 'flow' | 'a2a' | 'mcp' | 'sequence' | 'external' | 'unknown';
 
 export interface AgentConfig {
   systemPrompt: string;
@@ -151,6 +152,16 @@ export interface AuthConfig {
 
 export const FUNCTION_TYPE_KEYS = ['agent', 'do', 'a2a', 'mcp', 'sequence'] as const;
 
+export const FUNCTION_TYPE_TO_YAML_KEY: Record<WorkerFunctionType, string | null> = {
+  agent: 'agent',
+  flow: 'do',
+  a2a: 'a2a',
+  mcp: 'mcp',
+  sequence: 'sequence',
+  external: null,
+  unknown: null,
+};
+
 export const CORE_WORKER_KEYS = new Set([
   'name', 'description', 'capabilities', 'executionPolicy',
   'contextType', 'outputType',
@@ -168,21 +179,19 @@ export function detectFunctionType(
   if (data['a2a'] != null) return 'a2a';
   if (data['mcp'] != null) return 'mcp';
   if (data['sequence'] != null) return 'sequence';
-  return 'external';
-}
-
-export function hasUnknownFunctionKey(
-  data: Record<string, unknown>,
-): boolean {
-  return Object.keys(data).some(
-    k => !CORE_WORKER_KEYS.has(k) && !FUNCTION_TYPE_KEYS.includes(k),
+  // No known function key — check for unrecognised keys
+  const hasUnknown = Object.keys(data).some(
+    k => !CORE_WORKER_KEYS.has(k) && !(FUNCTION_TYPE_KEYS as readonly string[]).includes(k),
   );
+  return hasUnknown ? 'unknown' : 'external';
 }
 
 export function detectMcpTransport(
   mcp: Record<string, unknown>,
-): McpTransportType {
-  return mcp['command'] != null ? 'stdio' : 'http';
+): McpTransportType | null {
+  if (mcp['command'] != null) return 'stdio';
+  if (mcp['url'] != null) return 'http';
+  return null; // malformed — neither transport key present
 }
 
 export function detectModelProvider(
@@ -223,11 +232,24 @@ Badge colours (CSS custom properties with fallbacks):
 | mcp | mcp | orange |
 | sequence | seq | grey |
 | external | ext | light grey |
+| unknown | ? | yellow |
 
 ### 3. Property Panel — Function Type Section
 
-The `casehub-diagram-properties` component gains a function type section below
-the existing `renderPropertyForm()` output:
+The `casehub-diagram-properties` component gains two new properties:
+
+- `nodeType: string` — the graph node type ('worker', 'binding', etc.), passed
+  from `casehub-diagram` which knows the type from the adapter result. The
+  function section renders only when `nodeType === 'worker'`.
+- `workerNames: string[]` — all worker names in the current case definition,
+  passed from `casehub-diagram` for the sequence editor's add dropdown.
+
+When `nodeType === 'worker'`, the component filters function-type keys
+(`agent`, `do`, `a2a`, `mcp`, `sequence`) from `schema.properties` before
+passing to `renderPropertyForm`, so those fields are rendered only by the
+dedicated function section — never duplicated by the schema-driven form.
+
+Layout with function type section:
 
 ```
 ┌─ Properties ─────────────────────┐
@@ -300,6 +322,11 @@ Each function type gets a dedicated render function in
 - `workerNames` parameter: list of all worker names in the current case
   definition, passed from the diagram component
 
+**Flow type** — no sub-form. The function section shows the type dropdown set
+to "Flow" with a note: "Edit via SWF diagram drill-down (⤢ on stencil)." The
+existing thumbnail and drill-down button on the worker stencil are the editing
+path for flow configuration.
+
 **`render-unknown-form.ts`** — `renderUnknownForm(data)`
 - Read-only JSON display of all non-core keys
 - Warning text: "Unrecognised function configuration"
@@ -309,15 +336,44 @@ Each function type gets a dedicated render function in
 - tokenConfigKey: text input (shown when type is not 'none')
 - Used by both MCP-HTTP and A2A forms
 
-#### onChange Contract
+#### Data and onChange Contract
 
-All sub-form onChange callbacks emit `(field: (string | number)[], value)` where
-`field` is the path relative to the function key. For example, editing the
-agent's systemPrompt emits `onChange(['agent', 'systemPrompt'], 'new value')`.
-The properties component prepends the worker's YAML path and calls
-`applyPropertyEdit()`.
+Each sub-form receives the **function config object** as `data`, not the full
+worker properties. For example, `renderAgentForm` receives
+`{ systemPrompt, inputProjection, outputProjection, model, ... }` — the value
+of `data['agent']`.
+
+onChange callbacks emit `(field: (string | number)[], value)` where `field` is
+the path **within** the function config. For example, editing the agent's
+systemPrompt emits `onChange(['systemPrompt'], 'new value')`. The properties
+component prepends the function key and the worker's YAML path:
+`applyPropertyEdit(yaml, workerPath, ['agent', 'systemPrompt'], value)`.
 
 ### 4. YAML Editor Extension
+
+**`src/worker-function/defaults.ts`** — single source of truth for default
+values when creating or switching function types, transports, and providers.
+Consumed by `switchFunctionType`, `switchMcpTransport`, `switchModelProvider`
+in the YAML editor, and by forms that need initial values.
+
+```typescript
+export const FUNCTION_TYPE_DEFAULTS: Record<WorkerFunctionType, unknown> = {
+  agent: { systemPrompt: '', inputProjection: '.', outputProjection: '.', model: { openai: { modelName: '' } } },
+  a2a: { endpoint: '' },
+  mcp: { command: [] },
+  sequence: [],
+  flow: [],
+  external: null,
+  unknown: null,
+};
+
+export const MCP_TRANSPORT_DEFAULTS: Record<McpTransportType, Record<string, unknown>> = {
+  stdio: { command: [] },
+  http: { url: '' },
+};
+
+export const PROVIDER_DEFAULT: ProviderModelConfig = { modelName: '' };
+```
 
 In `src/adapter/yaml-editor.ts`, add:
 
@@ -330,16 +386,10 @@ export function switchFunctionType(
 ```
 
 Removes any existing function key (`agent`, `do`, `a2a`, `mcp`, `sequence`)
-from the worker node and inserts the new key with type-appropriate defaults:
-
-| Type | Default value |
-|------|---------------|
-| agent | `{ systemPrompt: '', inputProjection: '.', outputProjection: '.', model: { openai: { modelName: '' } } }` |
-| a2a | `{ endpoint: '' }` |
-| mcp | `{ command: [] }` (stdio default) |
-| sequence | `[]` |
-| flow | `[]` (empty do block) |
-| external | (remove all function keys, no new key) |
+from the worker node using `FUNCTION_TYPE_TO_YAML_KEY` to map type names to
+YAML keys (notably `flow` → `do`). Inserts the new key with defaults from
+`FUNCTION_TYPE_DEFAULTS`. When `newType` is `'external'` or `'unknown'`,
+removes all function keys without inserting a new one.
 
 Also add:
 
@@ -366,15 +416,20 @@ Removes the existing provider key and inserts the new one with
 
 ### 5. Pop-Out Prompt Editor
 
-A modal overlay for editing the agent's systemPrompt. Not a new component —
-rendered inline in the properties panel when the pop-out button is clicked.
+A modal overlay for editing the agent's systemPrompt. Uses a native `<dialog>`
+element (via `showModal()`) to escape shadow DOM stacking contexts — the dialog
+renders in the browser's top layer, covering the entire diagram.
 
-- Full-width overlay anchored to the diagram container (covers canvas + properties panel)
+The properties component emits a `prompt-editor-open` event with the current
+value. The parent `casehub-diagram` component renders the `<dialog>` at its
+level and listens for close with the edited value.
+
+- Native `<dialog>` with `::backdrop` for dimming
 - Larger textarea (monospace, ~20 rows)
 - Save and Cancel buttons
-- Save writes the value via onChange and closes the overlay
-- Cancel discards changes and closes
-- Escape key cancels
+- Save emits `prompt-editor-save` with the new value, parent calls onChange
+- Cancel closes with no change
+- Escape key cancels (native `<dialog>` behaviour)
 
 ### 6. Exports
 
