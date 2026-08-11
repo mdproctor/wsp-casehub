@@ -1,8 +1,8 @@
 branch: issue-21-trust-cbr-compliance
-state: scaffolded
+state: active
 project-sha: slot-creation
 date: 2026-08-10
-issue: 21
+issue: 24
 issue-repo: casehubio/soc
 covers: 21,22,23,24
 flyway-next-v: unknown
