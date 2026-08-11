@@ -1,13 +1,13 @@
 # HANDOFF — casehub-blocks-ui
 
 **Branch:** main (no active branch)
-**Date:** 2026-08-05
+**Date:** 2026-08-11
 
 ## What landed
 
-Generic `<status-badge>` component with a 10-domain status registry (#109). Replaces 4 ad-hoc status badge implementations (work-item-inbox, session-list, commitment-state-pill, badge-mappings) with one component and one source of truth. Registry uses cross-domain defaults so new domains get sensible rendering for shared state names (COMPLETED, PENDING, RUNNING, etc.) without explicit registration. `toDecoration()` in graph-stencil-case converts the same descriptors to graph node decorations via a separate `BADGE_COLORS` hex palette. Case-level status badge added to diagram toolbar. Consumer and contributor guides updated.
+Worker function drill-down (#108). Workers in the case diagram now show a coloured function type badge (agent/flow/a2a/mcp/seq/ext) and the property panel has a function type selector with type-specific configuration forms. New `worker-function/` module in `graph-stencil-case` provides types, detection, defaults, and 6 form renderers (agent with nested provider selection, A2A with auth, MCP with stdio/HTTP transport switching, sequence with drag-reorder, unknown with raw JSON fallback, shared auth config). YAML editor gained `switchFunctionType`, `switchMcpTransport`, `switchModelProvider`. Pop-out prompt editor for agent systemPrompt uses native `<dialog>` to escape shadow DOM. 114 tests passing, build clean.
 
-Filed 6 new epics (#106–#111) for the remaining blocks-ui modelling gaps: SWF diagram, HTN/DAG visualiser, worker function drill-down, runtime state expansion (done), conversation protocol viewer, orchestration monitor. Slot 85 created for #106 (SWF diagram).
+Design spec and decisions at `docs/specs/issue-108-worker-function-drill-down/`. Garden entry GE-20260811-f9c6f1 (nodeType DOM collision gotcha).
 
 ## What's left
 
@@ -17,8 +17,5 @@ Filed 6 new epics (#106–#111) for the remaining blocks-ui modelling gaps: SWF 
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #106 | SWF diagram — complete graph-stencil-swf | L | Med | Slot 85 ready, `@openworkflowspec/sdk` available |
-| #107 | HTN decomposition tree and DAG plan visualiser | L | High | Needs design |
-| #108 | Worker function drill-down — agent/flow/a2a/mcp config | M | Med | Partially independent of #106 |
 | #110 | Conversation protocol viewer — convergence, epistemic status | L | High | Needs design |
 | #111 | Orchestration monitor — execution lifecycle, audit chain | L | High | Needs design |
