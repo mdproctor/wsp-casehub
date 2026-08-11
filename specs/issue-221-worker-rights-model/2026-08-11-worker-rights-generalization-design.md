@@ -55,8 +55,28 @@ public enum WorkerAction {
 
 **After:**
 ```java
-public record WorkerAction(String name, AclAction aclAction) {}
+public record WorkerAction(String name, AclAction aclAction) {
+
+    public WorkerAction {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name must not be blank");
+        }
+        if (aclAction == null) {
+            throw new IllegalArgumentException("aclAction must not be null");
+        }
+    }
+}
 ```
+
+Equality is by both fields (record default). The constants pattern ensures
+each domain defines consistent name-to-AclAction pairings. A `Set<WorkerAction>`
+on a credential naturally deduplicates by value — two entries with the same
+name but different AclAction are distinct and would indicate a domain bug.
+
+Jackson serialization: records serialize naturally as
+`{"name":"READ_CONTEXT","aclAction":"READ"}`. Deserialization reconstructs
+the full record — no registry needed because the AclAction is stored alongside
+the name.
 
 Domains define their own constants:
 
@@ -96,6 +116,9 @@ public record ResourceId(String type, String id) {
     public ResourceId {
         if (type == null || type.isBlank()) {
             throw new IllegalArgumentException("type must not be blank");
+        }
+        if (type.contains(":")) {
+            throw new IllegalArgumentException("type must not contain ':'");
         }
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("id must not be blank");
@@ -271,21 +294,30 @@ resource reference (scope validation skipped for that request).
 Returns `Optional.of(resourceId)` when a resource is identified —
 the filter compares it to the credential's `resourceId`.
 
-### 4.3 NoOpWorkerScopeExtractor
+### 4.3 FailClosedWorkerScopeExtractor (default)
 
 ```java
 @DefaultBean
 @ApplicationScoped
-public class NoOpWorkerScopeExtractor implements WorkerScopeExtractor {
+public class FailClosedWorkerScopeExtractor implements WorkerScopeExtractor {
+    private static final ResourceId NEVER_MATCH =
+        new ResourceId("__deny__", "__no_scope_extractor_configured__");
+
     @Override
     public Optional<ResourceId> extractResourceId(ContainerRequestContext ctx) {
-        return Optional.empty();
+        return Optional.of(NEVER_MATCH);
     }
 }
 ```
 
-Default: no scope enforcement. Services that need scope validation
-provide their own `WorkerScopeExtractor` implementation.
+Default: fail-closed. Any request with a worker credential is rejected (403)
+unless a real `WorkerScopeExtractor` is provided. This prevents accidental
+cross-resource access when a service adds `acl-worker` without configuring
+scope extraction.
+
+Services that genuinely want scope-free worker auth provide an explicit
+`PassthroughWorkerScopeExtractor` that returns `Optional.empty()` — making
+the insecure choice deliberate, not accidental.
 
 ### 4.4 WorkerCredentialFilter
 
@@ -297,10 +329,13 @@ public class WorkerCredentialFilter implements ContainerRequestFilter {
     private final WorkerCredentialStore credentialStore;
     private final WorkerScopeExtractor scopeExtractor;
 
+    private final CurrentPrincipal currentPrincipal;
+
     @Inject
     public WorkerCredentialFilter(
         WorkerCredentialStore credentialStore,
-        WorkerScopeExtractor scopeExtractor) { ... }
+        WorkerScopeExtractor scopeExtractor,
+        CurrentPrincipal currentPrincipal) { ... }
 
     @Override
     public void filter(ContainerRequestContext ctx) {
@@ -319,6 +354,13 @@ public class WorkerCredentialFilter implements ContainerRequestFilter {
             return;
         }
 
+        String requestTenancy = currentPrincipal.tenancyId();
+        if (!cred.tenancyId().equals(requestTenancy)) {
+            ctx.abortWith(Response.status(403)
+                .entity("Credential not scoped for this tenant").build());
+            return;
+        }
+
         var requestResource = scopeExtractor.extractResourceId(ctx);
         if (requestResource.isPresent()
             && !cred.resourceId().equals(requestResource.get())) {
@@ -327,8 +369,7 @@ public class WorkerCredentialFilter implements ContainerRequestFilter {
             return;
         }
 
-        ctx.setProperty("workerCredential.actorId", cred.actorId());
-        ctx.setProperty("workerCredential.resourceId", cred.resourceId().toString());
+        ctx.setProperty("workerCredential", cred);
     }
 }
 ```
@@ -337,9 +378,10 @@ Behavior:
 - No `X-Worker-Credential` header → pass through (normal auth)
 - Token not found → 401
 - Token expired → 401
+- Tenancy mismatch → 403
 - Scope extractor returns a resource ID that doesn't match credential → 403
 - Scope extractor returns empty → scope validation skipped (token-only mode)
-- Valid → sets request properties for downstream use
+- Valid → sets full `WorkerCredential` as a single typed request property
 
 ## 5. Implementation Changes in platform modules
 
@@ -441,10 +483,13 @@ lifecycle (mint → validate → revoke) and scope (resource-bound) are unique.
 - CLAUDE.md updates (package structure, module list)
 - capability-ownership.md correction (worker rights → platform, not engine)
 
-### Not in scope (follow-up issues)
+### Not in scope (follow-up issues — GitHub issues created during implementation)
 
 - Engine migration to new types (casehubio/engine issue)
 - `ResourceId` retrofit into `AccessControlProvider` (casehubio/platform issue)
+- `AclResourceType` engine-specific constants extraction (same problem as `WorkerAction`
+  — constants like `CASE`, `PLAN_ITEM`, `EVENT_LOG` should move to engine-api, with
+  platform-api retaining only the type or an empty class; casehubio/platform issue)
 - Persistent `WorkerCredentialStore` implementations (consumer-provided)
 
 ## 9. Testing Strategy
@@ -456,6 +501,6 @@ lifecycle (mint → validate → revoke) and scope (resource-bound) are unique.
 | `WorkerCredential` | Unit — isExpired, construction with ResourceId |
 | `WorkerCredentialStore` | Unit — method signature compatibility |
 | `InMemoryWorkerCredentialStore` | Unit — store/lookup/revoke/revokeByResource lifecycle |
-| `WorkerCredentialFilter` | Unit — token lookup, scope enforcement via mock ScopeExtractor, expiry, passthrough |
-| `NoOpWorkerScopeExtractor` | Unit — always returns empty |
+| `WorkerCredentialFilter` | Unit — token lookup, expiry, tenancy validation, scope enforcement via mock ScopeExtractor, fail-closed default, passthrough |
+| `FailClosedWorkerScopeExtractor` | Unit — always returns sentinel ResourceId (never matches) |
 | `WorkerPermissionRequest` | Unit — construction with WorkerAuthorizationContext |
