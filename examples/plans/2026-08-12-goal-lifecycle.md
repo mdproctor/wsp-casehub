@@ -1026,3 +1026,43 @@ ScenarioOrchestrator.
 
 Refs #43"
 ```
+
+---
+
+## Amendments (from plan review)
+
+**A1: Tick-count cooldown instead of wall-clock (Task 3)**
+
+Replace `ConcurrentHashMap<String, Instant> lastFormationTime` with
+`ConcurrentHashMap<String, Integer> lastFormationTick`. The `evaluate()`
+method gains a `int currentTick` parameter. Cooldown check becomes
+`currentTick - lastTick < cooldownTicks`. The tick counter is passed
+from `runAutonomousTicks()` through `AgentExperienceService.ingest()`.
+Config property changes from `manor.goal.cooldown-minutes` to
+`manor.goal.cooldown-ticks` (default 10).
+
+**A2: Don't expand ManorReflectionSynthesizer (Task 4)**
+
+The plan's Task 4 proposed adding `synthesizeWithGoalAssessment()` to
+the synthesizer. This breaks the `ReflectionSynthesizer` SPI boundary
+(forces the field type from interface to concrete class).
+
+Instead: keep the synthesizer unchanged. The wiring in
+`AgentExperienceService.runReflection()` simply extracts insight texts
+from the existing `List<ReflectionEvent>` and passes them to
+`goalEvaluator.evaluate()` with empty `GoalOutcomeCounts`. The
+synthesizer field stays as `ReflectionSynthesizer` (interface).
+
+When revision lands (Task 5), the revision strategy's LLM can assess
+goal progress from its own prompt — it receives goals via
+`GoalRevisionContext`. No separate outcome assessment LLM call needed.
+
+This simplifies Task 4 to pure wiring — no synthesizer code changes.
+
+**A3: maxGoals cap alignment (Task 3)**
+
+`AgentDescriptor` throws `AgentValidationException` if `goals.size() > 10`.
+The evaluator's `maxGoals` must be ≤ this hard limit. Source the constant
+from the descriptor validation if possible, or hardcode to 10 with a
+comment referencing the descriptor's limit. Do not make it independently
+configurable.
