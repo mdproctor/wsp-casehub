@@ -27,11 +27,16 @@ platform capabilities are covered, the scenario tool is also fully exercised.
    routing, embedding, and generation calls must sit behind an SPI with
    CDI alternative selection. The demo alternative returns pre-defined
    responses from scenario data. The SPI boundary is mandatory; the
-   scripted impl is optional (you can run with a real LLM).
+   scripted impl is optional (you can run with a real LLM). Where the
+   platform already provides an SPI (e.g. `AgentProvider`), use it —
+   add a demo-profile implementation, don't create parallel boundaries.
 
 3. **Two modes, one file.** Each scenario file drives both demo mode
    (all external dependencies scripted) and live mode (real connectors
    and LLM, scenario expectations become verification assertions).
+   Live-mode verification asserts **outcomes, not outputs** — verify
+   downstream state changes (ticket categorized, work item assigned),
+   not LLM text (which is non-deterministic).
 
 4. **Thin slices, not reference apps.** Each example stays small enough
    to understand in isolation. Capabilities may be composed within a
