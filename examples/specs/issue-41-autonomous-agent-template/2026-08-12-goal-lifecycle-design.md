@@ -4,6 +4,7 @@
 **Date:** 2026-08-12
 **Depends on:** #42 (memory stack — reflection must produce insights before goal formation can consume them)
 **Engine prerequisites:** casehubio/engine#897 (remove CaseDefinition from contexts), casehubio/engine#903 (GoalRevisionAction enum)
+**Implementation sequencing:** Goal formation can be implemented immediately. Goal revision is blocked on engine#903 — implement as a second commit after #903 ships.
 
 ## Design Principle
 
@@ -35,6 +36,11 @@ is 6-30 seconds depending on model speed. During this time the tick loop
 continues — characters act on their current plan. Goals update asynchronously
 and appear in the next tick's observation after the chain completes.
 
+**CDI wiring path:** `ScenarioOrchestrator` (`@ApplicationScoped`) injects
+`ManorGoalFormationStrategy` and `ManorGoalRevisionStrategy` via `@Inject`.
+It constructs `ManorGoalEvaluator` with these strategies + `AgentRegistry`
++ config, then passes the evaluator to `AgentExperienceService`.
+
 ## Removals
 
 | Component | What | Why |
@@ -44,7 +50,7 @@ and appear in the next tick's observation after the chain completes.
 | `AgentResponse.newGoals()` | Delete field | Goals come from reflection, not LLM response |
 | `AgentResponse.dropGoals()` | Delete field | Goal lifecycle handled by revision strategy |
 | `AgentResponse.GoalEntry` | Delete inner record | No longer needed |
-| `ScenarioOrchestrator` lines 324-334 | Delete goal processing block | newGoals/dropGoals no longer in response |
+| `ScenarioOrchestrator` goal processing block | Delete newGoals/dropGoals processing in `runAutonomousTicks()` | No longer in response |
 | `RESPONSE_FORMAT_INSTRUCTION` | Remove newGoals/dropGoals | Not in response format |
 | `CharacterAgentLoop.RESPONSE_FORMAT_INSTRUCTION` | Remove newGoals/dropGoals | Same |
 
@@ -86,7 +92,8 @@ where each `ProposedGoal` has `name`, `description`, `suggestedPriority`,
 ### ManorGoalRevisionStrategy
 
 Implements `GoalRevisionStrategy` from `casehub-engine-api`. Uses
-`AgentProvider` for LLM calls.
+`AgentProvider` for LLM calls. Blocked on engine#903 — implement after
+the `GoalRevisionAction` enum ships.
 
 ```java
 @ApplicationScoped
@@ -120,7 +127,8 @@ where each `RevisedGoal` has `goalName`, `action` (REVISE/ABANDON/COMPLETE),
 ### ManorGoalEvaluator
 
 Orchestrator — called after reflection completes, on the same virtual thread.
-Not a CDI bean — constructed by `AgentExperienceService` with its dependencies.
+Not a CDI bean — constructed by `ScenarioOrchestrator` with injected
+strategies and passed to `AgentExperienceService`.
 
 ```java
 public class ManorGoalEvaluator {
@@ -133,16 +141,24 @@ public class ManorGoalEvaluator {
     private final String tenancyId;
     private final long cooldownMinutes;
     private final ConcurrentHashMap<String, Instant> lastFormationTime;
+    private final ConcurrentHashMap<String, ReentrantLock> agentLocks;
 
     public void evaluate(String agentId, List<String> insights,
                          Map<String, GoalOutcomeCounts> goalOutcomes) {
+        // 0. Per-agent lock — prevents concurrent descriptor updates
+        //    from parallel reflection chains
         // 1. Cooldown check — skip if last formation was within N minutes
         // 2. Read current descriptor from AgentRegistry
         // 3. Retrieve recent memories from CaseMemoryStore
+        //    Convert Memory → RetrievedMemory (memoryId, text, domain,
+        //    createdAt, attributes)
         // 4. FORMATION: build GoalFormationContext, call strategy.propose()
         //    - Validate: no duplicate names, within capacity, name/desc length
         //    - Default priority: SECONDARY
-        // 5. REVISION: build GoalRevisionContext, call strategy.revise()
+        //    - Default visibility: PRIVATE (formed goals are internal)
+        //    - Default capabilities: empty list
+        // 5. REVISION (when available — blocked on engine#903):
+        //    build GoalRevisionContext, call strategy.revise()
         //    - REVISE: update description
         //    - ABANDON: remove goal, ingest "Abandoned goal: [name]" to memory
         //    - COMPLETE: remove goal, ingest "Completed goal: [name]" to memory
@@ -152,9 +168,35 @@ public class ManorGoalEvaluator {
 }
 ```
 
-**Cooldown:** Configurable via `manor.goal.cooldown-minutes` (default 5).
-Prevents concurrent-write clobbering when reflection triggers fire in
-quick succession.
+**Concurrency protection:** Per-agent `ReentrantLock` in the evaluator
+prevents the read-modify-write race on `AgentDescriptor`. The existing
+reflection trigger can spawn parallel chains for the same agent (the
+`shouldReflect()` check and `Thread.start()` are not atomic). Previously
+this was low-impact (duplicate insight writes are idempotent). With the
+expanded chain writing to the descriptor, last-write-wins would clobber
+goals. The lock ensures only one chain modifies the descriptor at a time.
+The cooldown provides the first line of defense (skip re-formation within
+N minutes); the lock handles the edge case where two chains slip through.
+
+**AgentGoal construction defaults:** `ProposedGoal` has `name`,
+`description`, `suggestedPriority`, `formationReason` — but `AgentGoal`
+also requires `visibility` and `capabilities`. Defaults:
+- `visibility: Visibility.PRIVATE` — formed goals are the agent's internal
+  objectives, not visible to other agents or the system prompt renderer's
+  public goal summary
+- `capabilities: List.of()` — formed goals don't require specific
+  capabilities
+- `priority: suggestedPriority != null ? suggestedPriority : GoalPriority.SECONDARY`
+
+**Memory type conversion:** `CaseMemoryStore.query()` returns
+`List<Memory>` (neocortex type). `GoalFormationContext.recentMemories`
+requires `List<RetrievedMemory>` (engine-api type). The evaluator converts:
+```java
+var retrieved = memories.stream()
+    .map(m -> new RetrievedMemory(m.memoryId(), m.text(),
+         m.domain().name(), m.createdAt(), m.attributes()))
+    .toList();
+```
 
 **Memory ingestion on lifecycle transitions:** When a goal is abandoned or
 completed, the evaluator ingests a memory event recording the transition.
@@ -187,36 +229,46 @@ public ReflectionWithGoalAssessment synthesizeWithGoalAssessment(
 }
 ```
 
-The existing `synthesize()` method remains unchanged for backward
-compatibility. The evaluator calls `synthesizeWithGoalAssessment()`.
+The existing `synthesize()` method remains for use when goal evaluation
+is disabled. When enabled, `runReflection()` calls
+`synthesizeWithGoalAssessment()` instead.
 
 ### AgentExperienceService
 
-Chains `ManorGoalEvaluator` after reflection. The `runReflection()` method
-expands:
+Chains `ManorGoalEvaluator` after reflection. The synthesizer field type
+changes from `ReflectionSynthesizer` (interface) to
+`ManorReflectionSynthesizer` (concrete) to access the new
+`synthesizeWithGoalAssessment()` method. This is acceptable: the manor
+constructs everything manually — no SPI discovery is involved.
+
+The `runReflection()` method expands:
 
 ```java
 private void runReflection(String agentId, Instant since) {
     var sources = store.query(...);
     if (sources.isEmpty()) return;
 
-    // Existing: synthesize insights
-    // New: use synthesizeWithGoalAssessment() instead of synthesize()
-    var currentGoals = agentRegistry.findById(agentId, tenantId)
-            .map(AgentDescriptor::goals).orElse(List.of());
-    var result = synthesizer.synthesizeWithGoalAssessment(
-            agentId, tenantId, sources, currentGoals, 1);
-
-    // Store reflection events (existing)
-    for (var event : result.insights()) {
-        store.store(ReflectionEvents.toMemoryInput(event));
-    }
-
-    // New: chain goal evaluation
     if (goalEvaluator != null) {
+        // New path: combined insights + goal assessment
+        var currentGoals = /* read from AgentRegistry */;
+        var result = synthesizer.synthesizeWithGoalAssessment(
+                agentId, tenantId, sources, currentGoals, 1);
+
+        // Store reflection events
+        for (var event : result.insights()) {
+            store.store(ReflectionEvents.toMemoryInput(event));
+        }
+
+        // Chain goal evaluation
         var insightTexts = result.insights().stream()
                 .map(ReflectionEvent::insight).toList();
         goalEvaluator.evaluate(agentId, insightTexts, result.goalOutcomes());
+    } else {
+        // Original path: insights only
+        var events = synthesizer.synthesize(agentId, tenantId, sources, 1);
+        for (var event : events) {
+            store.store(ReflectionEvents.toMemoryInput(event));
+        }
     }
 
     // Existing: memory decay
@@ -251,12 +303,17 @@ needs access to `CharacterState.dynamicGoals()`. Call sites in
 
 ### ScenarioOrchestrator
 
-- `runAutonomousTicks()`: remove the newGoals/dropGoals processing block
-  (currently lines 324-334). Goal lifecycle is now handled by the evaluator
-  post-reflection.
-- `runScenario()`: pass `AgentRegistry` and goal configuration to the
-  `ManorGoalEvaluator` constructor. Pass the evaluator to
-  `AgentExperienceService`.
+- `runAutonomousTicks()`: remove the newGoals/dropGoals processing block.
+  Goal lifecycle is now handled by the evaluator post-reflection.
+- `runScenario()`: inject `ManorGoalFormationStrategy` and
+  `ManorGoalRevisionStrategy` via CDI `@Inject`. Construct
+  `ManorGoalEvaluator` with strategies + `agentRegistry` + config.
+  Pass evaluator to `AgentExperienceService`.
+
+**Scripted mode:** `runScripted()` does not get goal evaluation. Scripted
+mode is legacy/test-only — characters keep their initial Eidos goals.
+This is intentional: scripted mode uses `CharacterAgentLoop` with trigger-
+driven scenes, not autonomous reflection.
 
 ### pom.xml
 
@@ -299,8 +356,11 @@ manor.goal.revision.enabled=true
   - Revision with ABANDON → goal removed, memory ingested
   - Revision with COMPLETE → goal removed, memory ingested
   - Cooldown prevents double-formation
+  - Per-agent lock prevents concurrent descriptor clobbering
   - Capacity cap respected
   - Duplicate goal names rejected
+  - Memory → RetrievedMemory conversion correct
+  - Default visibility PRIVATE, capabilities empty
 - **ManorReflectionSynthesizerTest** — verify `synthesizeWithGoalAssessment()`
   parses both insights and goal outcome counts from LLM response
 - **ObservationBuilderTest** — verify goals section renders only AgentGoal
