@@ -9,97 +9,117 @@
 
 ## Last Session
 
-Closed #410 (Platform protocol — demo SPI convention). The previous session had already committed both protocol documents; this session verified completeness, advanced the plan, and closed the GitHub issue.
+Major design pivot: replaced standalone demo SPI implementations (#93) with progressive example applications in casehub-examples. Built the first example (IT help desk) end-to-end, then refined the approach based on platform design principles.
 
-**Completed issues (committed to parent repo, branch `issue-408-scenario-engine`):**
+### Key decisions made in conversation
 
-1. **#409 — Scenario format specification** (`f9580ce0`)
-   - `parent/docs/platform/scenario-format.md` — 775 lines covering YAML schema, delivery modes (rest/ui-form/simulated), trigger types (time/after/data), data shapes (single/bulk/stepped/stream), UI action primitives, speed control with fast-fallback, await/verification model, error policy, and TypeScript vocabulary mapping to existing `ScenarioController` in pages-data.
-   - Complete examples: REST bulk seed, UI form fill, simulated event injection, continuous stream, mixed multi-delivery scenario.
+1. **Demo SPI impls are demand-driven, not supply-driven.** The demo-spi-convention.md describes a pattern — you apply it when an app needs a demo alternative, not as a build list. #93 was wrong; closed it.
 
-2. **#410 — Platform protocol — demo SPI convention** (`999beec6`)
-   - `parent/docs/platform/demo-spi-convention.md` — 347 lines covering profile convention (demo/dev/prod), CDI annotation pattern (`@Alternative @Priority(300) @IfBuildProfile("demo")`), module placement, pull mode (bootstrap endpoint + pre-loaded data), push mode (injection endpoints firing CDI events), shared `DemoCurrentPrincipal` in platform-api, priority allocation table, and new-connector checklist.
-   - `parent/docs/platform/protocols.md` updated — line 43 references demo SPI convention.
-   - `parent/docs/platform/capability-ownership.md` updated — line 71 has scenario engine entry.
+2. **Use real platform capabilities, only mock what you must.** Refactored the helpdesk to use `RefChatPlatform` + `InMemoryChatBackend` from `chat-ref` instead of a mock `DemoChatPlatform`. The only mock remaining is `DemoTicketClassifier` — the genuine case where no real in-memory alternative exists (LLM classification).
+
+3. **Every LLM integration point must sit behind an SPI.** Use existing SPIs (e.g., `AgentProvider`) where they exist — add demo-profile implementations, don't create parallel boundaries.
+
+4. **Scenario verification asserts outcomes, not outputs.** Live-mode verification checks downstream state changes (ticket categorized, work item assigned), not non-deterministic LLM text.
+
+5. **Progressive example applications form a capability coverage matrix.** Each slice introduces new platform capabilities. When all capabilities are covered, the scenario tool is also fully exercised.
+
+### What was built
+
+**casehub-examples/helpdesk/** — standalone Quarkus app on branch `issue-408-scenario-engine`:
+
+| Component | What it does |
+|-----------|-------------|
+| `TicketService` | In-memory CRUD with status lifecycle (OPEN → TRIAGED → ASSIGNED → RESOLVED) |
+| `TicketClassifier` SPI | App-local interface for classification |
+| `DemoTicketClassifier` | `@Alternative @Priority(300) @IfBuildProfile("demo")` — lookup from scenario data |
+| `ChatInjectionResource` | `POST /scenario/inject/chat` — fires `InboundMessage` CDI events via `chat-ref` pipeline |
+| `TicketCreationHandler` | `@ObservesAsync ReceivedMessage` → creates + classifies + assigns ticket |
+| `NotificationService` | Sends resolution notifications via `ChatPlatform.messaging()` |
+| `ScenarioBootstrapResource` | `POST /scenario/bootstrap/helpdesk` — loads classification lookup |
+| `VerificationResource` | `GET /scenario/verify/{tickets,notifications}` |
+| `help-desk-basic.yaml` | Scenario file for the full pipeline |
+
+5 commits, 12 tests (unit + integration), all green. Uses `chat-ref` (real impl), no unnecessary mocks.
+
+**Workspace specs and plans:**
+- `specs/issue-408-scenario-engine/2026-08-12-example-applications-design.md` — design spec
+- `specs/issue-408-scenario-engine/decisions.md` — 7 decisions captured
+- `plans/2026-08-12-helpdesk-example.md` — implementation plan (completed)
+
+### Issue changes
+
+- **#93 closed** (Demo SPI alternatives — premise wrong)
+- **#95 created** (Slice 1: IT help desk example application) — replaces #93 in the queue
+- **#311 completed** (Scenario executor backend) — advanced at session start
 
 ## Queue State
 
 ```
 [x] #409 — Scenario format specification (M / Med) [parent]
 [x] #410 — Platform protocol — demo SPI convention (S / Low) [parent]
-[ ] #311 — Scenario executor backend (XL / High) [pages] ← active
-[ ] #93  — Demo SPI alternatives — ChatPlatform + CalendarPlatform (M / Med) [connectors]
+[x] #311 — Scenario executor backend (XL / High) [pages]
+[ ] #95  — Slice 1: IT help desk example app (M / Med) [connectors] ← active
 [ ] #94  — New SPIs — BankFeedPlatform + EmailPlatform (L / High) [connectors]
-[ ] #109 — Life household scenario files + conversational intake (L / High) [life]
+[ ] #109 — Life household scenario files (L / High) [life]
 [ ] #149 — Migrate DemoDataSeeder to scenario format (M / Med) [clinical]
 ```
 
-Position: 2/7 (2 done, 5 remaining). Next: #311.
+Position: 4/7 (3 done, 4 remaining). Active: #95.
 
-## Immediate Next Step — #311: Scenario Executor Backend
+## Immediate Next Step — #95 continuation: Example Showcase UI
 
-**Repo:** casehub-pages (Java backend at `backend/`)
-**Scale:** XL / **Complexity:** High
-**GitHub:** casehubio/casehub-pages#311
+The helpdesk backend is complete. What's missing is the **frontend showcase** — a UI built on blocks-ui + pages that:
 
-Build the `ScenarioExecutor` — the Quarkus backend in casehub-pages that:
-1. Parses scenario YAML files into a `TriggerGraph` (DAG of steps)
-2. Schedules step execution based on trigger dependencies (time, after, data-poll)
-3. Delivers steps via three modes:
-   - `rest` — HTTP calls to target service APIs
-   - `simulated` — POST to `/scenario/inject/{connector}` on target services
-   - `ui-form` — dispatches UIAction sequences to frontend via ControlChannel
-4. Manages speed control (0.5x demo to 100x verification)
-5. Implements the bootstrap sequence (health check → POST /scenario/bootstrap → playback)
-6. Produces JUnit XML in verify mode
+1. **Gallery framework** — parent app in casehub-examples that lists all examples, each tagged with capability labels. Auto-generates a capability coverage matrix. Filter by capability. Each example's README renders as the lesson content — some examples may also have multi-page guides depending on depth. The gallery aggregates all READMEs/guides into a navigable curriculum.
 
-### Key design inputs (all committed files — read these first)
+2. **Per-example UI** — each example is its own web app composing blocks-ui components (execution-monitor, case-explorer, work-item-inbox, channel-activity, etc.) + pages components (charts, tables, metrics). Shows runtime state as the scenario runs — educational, not just functional.
 
-| File | What it covers |
-|------|---------------|
-| `parent/docs/platform/scenario-format.md` | YAML schema, delivery modes, triggers, data shapes, UI actions, error model, verification mode, TypeScript type mapping |
-| `parent/docs/platform/demo-spi-convention.md` | Profile convention, CDI annotations, bootstrap/injection endpoints, DemoCurrentPrincipal, priority allocation |
-| `parent/docs/platform/capability-ownership.md` (line 71) | Executor placement, repo responsibilities, cross-cutting concerns |
+3. **Scenario integration** — the scenario runner drives both UI (`delivery: ui-form`) and REST (`delivery: rest`) paths. The showcase shows scenario progress alongside the runtime state.
 
-### Existing code to integrate with
+### Key components available in blocks-ui
 
-- `pages-data/src/datasource/controller.ts` — `ScenarioController` (client-side virtual-time queue, speed/pause control) from pages#140
-- `backend/push/` — `casehub-pages-push` module (typed wire protocol SDK, TopicRegistry, EventStore)
-- `backend/push-runtime/` — CDI producers for EventBroadcaster, TopicRegistry
+`execution-monitor`, `case-explorer`, `work-item-inbox`, `channel-activity`, `audit-trail-viewer`, `trust-score-panel`, `blocks-timeline`, `blocks-dag-viewer`, `blocks-plan-item-tree`, `routing-rationale`, `sla-indicator`, `commitment-viz`, `kpi-metric-row`
 
-### Architecture decisions already made
+### Architecture questions for next session
 
-- Executor lives in pages backend, not a separate repo
-- Build profile `demo` is a compile-time gate (`@IfBuildProfile`), not a runtime flag
-- Trigger evaluation is server-side — no client-side DataSet involvement for triggers
-- `DemoCurrentPrincipal` is shared in `casehub-platform-api`, not per-app
-- Speed control: `fast` mode uses `fast-fallback` for ui-form steps; steps without fallback are skipped
-- Error model: three policies (continue/stop/pause) with dependent-step skipping
+- Gallery framework: how do examples register? YAML metadata per example? Auto-discovery?
+- Per-example UI: served as `src/main/webui/` inside each example's Quarkus app? Or standalone?
+- Content format: README-only for simple examples, multi-page guide for complex ones. Gallery aggregates both into a readable curriculum.
+- blocks-ui + pages composition: how do they wire together in a single app?
 
-### Design spec
+### Repos needed
 
-The epic (#408) references a design spec at:
-`specs/2026-08-11-cross-platform-scenario-engine-design.md` in the life workspace.
-Check `/Users/mdproctor/claude/casehub/slots/112/life/docs/specs/` or the life workspace for it.
+- casehub-examples (helpdesk backend — done)
+- blocks-ui (UI components — needs adding to slot or working from main checkout)
+- pages (pages components — already in slot)
 
 ## Slot Repos
 
 | Repo | Role in this epic |
 |------|-------------------|
-| pages (primary) | Scenario executor backend, YAML parser, ControlChannel integration |
-| parent | Protocol docs (done), capability-ownership updates |
-| connectors | Demo SPI implementations (#93, #94) |
+| pages (primary) | Scenario executor backend, pages components |
+| parent | Protocol docs (done), capability-ownership |
+| connectors | chat-ref (used by helpdesk), issue tracking for #95 |
 | life | Household scenario files (#109) |
 | clinical | DemoDataSeeder migration (#149) |
+| **casehub-examples** | Helpdesk app (new — not in slot, working from main checkout) |
+| **blocks-ui** | UI components (new — needs adding for showcase work) |
 
-## Blog
+## Design Principles Established
 
-Written: `docs/blog/2026-08-12-mdp01-the-demo-that-tests-itself.md` — covers the dual-purpose nature of scenario files (demo + verification), three delivery modes, trigger graphs, and the build-profile convention.
+These emerged from conversation and should carry forward:
+
+1. **Only mock what has no real in-memory alternative.** If the platform has a ref/in-memory implementation, use it.
+2. **Demo SPI impls are demand-driven.** Build them inside the apps that need them, extract to shared modules when a second consumer appears.
+3. **Every external dependency (connectors AND LLM) swappable via SPI + CDI profile.** Use existing SPIs where they exist.
+4. **Verify outcomes, not outputs.** Scenario assertions check state changes, not LLM text.
+5. **When you hit a gap, fix the platform.** Example apps are a forcing function for clean SPI design and automatable infrastructure.
 
 ## References
 
-- Parent commits: `999beec6` (#410), `f9580ce0` (#409)
-- #410 closed on GitHub (2026-08-12)
-- #409 closed on GitHub (previous session)
-- Epic #408 open — 5 issues remaining
+- Examples commits: `7e31864..69aa99a` on `issue-408-scenario-engine` branch
+- Workspace commits: `616e457`, `045eb77` on `issue-408-scenario-engine` branch
+- #93 closed on GitHub (2026-08-12)
+- #95 created on GitHub (2026-08-12)
+- Decision review: `/Users/mdproctor/reviews/casehub-slots/issue-408-decision-20260812-112939/`
 - `.plan` at `/Users/mdproctor/claude/casehub/slots/112/.plan`
