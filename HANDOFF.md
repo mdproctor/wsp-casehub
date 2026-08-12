@@ -1,51 +1,21 @@
-# HANDOFF — casehub
+# HANDOFF — casehub-platform (slot 117)
 
-**Date:** 2026-08-04
-**Project:** `/Users/mdproctor/claude/casehub/parent`
-**Workspace:** `/Users/mdproctor/claude/public/casehub`
+**Date:** 2026-08-12
+**Slot:** 117 — issue-902-worker-rights-followup
+**Branch:** `issue-902-worker-rights-followup`
+**Repos:** platform (primary), engine
 
 ---
 
 ## Last Session
 
-Delivered API catalogue infrastructure (#402) and ran full platform generation.
-
-**Post-close additions (after #402 work-end):**
-- Full platform jmarkdoc run: 1,405 types across 15 `-api` modules + blocks + platform
-- Cross-repo SPI overlay: 303 interfaces → 83 cross-repo SPIs across 17 repos
-- Engine API docs seeded into parent `docs/repos/casehub-engine/api/` (247 types)
-- README updated with Platform Documentation entry point for LLMs
-- Verified all links work via Playwright
-
-**Filed #404:** Wire jmarkdoc into parent POM `<pluginManagement>` so all repos inherit API doc generation as a Maven goal. Includes Maven toolchains for JDK 26 (javadoc runs on 26 while compiler stays on 22).
+Migrated the engine to the generalized worker rights SPI types from platform commit `cafb326`. Created `EngineWorkerActions` constants class and `EngineAuthorizationContext` record, updated `WorkerGrantOrchestrator` to use `ResourceId` and `WorkerAuthorizationContext`, replaced the engine's local `WorkerCredentialFilter` with platform's `acl-worker` module + `CaseScopeExtractor`. Fixed a pre-existing gap where `CaseDefinitionYamlMapper` never parsed `permissionIntent` from YAML — every worker dispatch silently defaulted to read-only. Also fixed platform's `AutoApproveWorkerAuthorizationPolicyTest` missed in `cafb326`.
 
 ## Immediate Next Step
 
-Start #404 — add jmarkdoc to parent POM's pluginManagement. Key decisions already made:
-- Maven toolchains for JDK 26 (`<jdkToolchain><version>26</version>`)
-- Plugin config in parent, activated per-repo with one line
-- jmarkdoc.jar needs publishing to GitHub Packages (not in Maven Central)
-- Don't bind to lifecycle — CI calls `mvn javadoc:javadoc` explicitly
-- Diff-gated commits, `[skip ci]` to prevent loops
+Run `/work` to continue on this branch. #902 is complete — advance to #237 (long-lived workers with lifecycle scopes) or #238 (JavaBeanCaseFile typed POJO-backed CaseContext).
 
-## What's Left
+## Cross-Module
 
-- **#404** — jmarkdoc Maven integration (parent POM + toolchains) · M · Med
-- **TypeDoc pilot for pages** — blocked on `GH_PACKAGES_TOKEN` · S · Low
-- **Per-repo CI workflows** — template from parent's generate-api-catalogue.yml · M · Low
-- **Blocks** — no `-api` module, needs custom package filtering or restructuring · S · Med
-
-## What's Next
-
-| # | Description | Scale | Complexity | Notes |
-|---|-------------|-------|------------|-------|
-| #359 | Remaining: audit tooling + implementation pattern catalogue | L | Med | API catalogue done |
-
-## References
-
-- #402 closed — `df406f91` on main (squashed work-end commit)
-- #404 open — jmarkdoc Maven integration
-- Post-close commits: `651e47cc` (overlay + engine + README), `90386d55` (hygiene)
-- Spec: `docs/specs/issue-402-spi-api-catalogue/2026-08-03-api-catalogue-design.md`
-- Blog: `blog/2026-08-04-mdp01-the-mechanical-layer.md`
-- Garden: GE-20260804-7469da, GE-20260804-c1cf5c, GE-20260804-09c7dc
+**Enabled** (we delivered, downstream unblocked):
+- engine now consumes `casehub-platform-acl-worker` — engine#902 changes need to land on engine main before other engine work that touches worker rights
