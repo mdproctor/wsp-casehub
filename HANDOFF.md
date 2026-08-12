@@ -1,21 +1,23 @@
-# HANDOFF — casehub-platform (slot 117)
+# HANDOFF — casehub-platform
 
 **Date:** 2026-08-12
-**Slot:** 117 — issue-902-worker-rights-followup
-**Branch:** `issue-902-worker-rights-followup`
-**Repos:** platform (primary), engine
+**Project:** `/Users/mdproctor/claude/casehub/platform`
+**Workspace:** `/Users/mdproctor/claude/public/casehub/platform`
 
 ---
 
 ## Last Session
 
-Migrated the engine to the generalized worker rights SPI types from platform commit `cafb326`. Created `EngineWorkerActions` constants class and `EngineAuthorizationContext` record, updated `WorkerGrantOrchestrator` to use `ResourceId` and `WorkerAuthorizationContext`, replaced the engine's local `WorkerCredentialFilter` with platform's `acl-worker` module + `CaseScopeExtractor`. Fixed a pre-existing gap where `CaseDefinitionYamlMapper` never parsed `permissionIntent` from YAML — every worker dispatch silently defaulted to read-only. Also fixed platform's `AutoApproveWorkerAuthorizationPolicyTest` missed in `cafb326`.
-
-## Immediate Next Step
-
-Run `/work` to continue on this branch. #902 is complete — advance to #237 (long-lived workers with lifecycle scopes) or #238 (JavaBeanCaseFile typed POJO-backed CaseContext).
+Closed slot 117 (`issue-902-worker-rights-followup`). Platform: fixed `AutoApproveWorkerAuthorizationPolicyTest` for record-based `WorkerAction` (1 commit). Engine: migrated to generalized worker rights types, replaced local `WorkerCredentialFilter` with platform `acl-worker` + `CaseScopeExtractor`, fixed `CaseDefinitionYamlMapper` `permissionIntent` parsing gap (4 commits). Both repos pushed to `casehubio/*` main.
 
 ## Cross-Module
 
 **Enabled** (we delivered, downstream unblocked):
-- engine now consumes `casehub-platform-acl-worker` — engine#902 changes need to land on engine main before other engine work that touches worker rights
+- engine consumes `casehub-platform-acl-worker` for worker credential filtering
+- engine uses record-based `WorkerAction` + `WorkerAuthorizationContext` from platform-api
+
+## What's Left
+
+- #237: long-lived workers with lifecycle scopes (CASE / STAGE / BINDING)
+- #238: JavaBeanCaseFile<T> — typed POJO-backed CaseContext
+- MongoDB backend for subject view toolkit — not yet filed
