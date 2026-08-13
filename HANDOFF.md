@@ -1,6 +1,6 @@
 # HANDOFF — Slot 112: Cross-Platform Scenario Engine
 
-**Date:** 2026-08-12
+**Date:** 2026-08-13
 **Branch:** `issue-408-scenario-engine`
 **Slot:** `/Users/mdproctor/claude/casehub/slots/112`
 **Epic:** casehubio/parent#408
@@ -9,86 +9,61 @@
 
 ## Last Session
 
-Major design pivot + full implementation of the first example application.
+Designed and partially implemented #412 (Helpdesk UI — blocks-ui components, push, scenario controller). Full brainstorming → spec → reviewed spec → plan → reviewed plan → execution cycle.
 
-### Design pivot
-Replaced standalone demo SPI implementations (#93, closed) with progressive example applications in casehub-examples. Demo SPI impls are demand-driven — built inside the apps that need them. Only mock what has no real in-memory alternative (used `chat-ref` RefChatPlatform instead of a mock).
+**Design decisions** (7 decisions, light decision review, standard spec review — 3 rounds, 22 issues resolved):
+- Pages-push WebSocket protocol (not SSE) for real-time push
+- CDI event bridge (synchronous `@Observes`) → `EventBroadcaster.broadcast()` per structured topic
+- Per-topic `EventStreamController` instances (typed, pool-shared WebSocket)
+- `blocks-kpi-metric-row`, `pages-table`, `blocks-timeline` with custom `HelpdeskPipelineStrategy`
+- Collapsible scenario controller panel via pages split, step-by-step pacing with push observation
+- Production code quality by default — example apps are skeleton starters
 
-### What was built
+**Backend implementation complete** (Tasks 1-3 of 8):
+- Task 1: `TicketEvent`/`NotificationEvent` CDI records, `TicketService`/`NotificationService` fire synchronously
+- Task 2: `HelpdeskPushEndpoint` (`@WebSocket /push`), `HelpdeskSessionSender`, `ConnectionRegistry`
+- Task 3: `TicketPushObserver` bridges CDI events → `EventBroadcaster`, custom `HelpdeskJsonWriter` with JSR310
 
-**casehub-examples/helpdesk/** on branch `issue-408-scenario-engine` (6 commits):
+All 18 backend tests green. 3 commits on examples repo: `697b6ba`, `60cace8`, `b45a29f`.
 
-**Backend (Quarkus, 12 tests, all green):**
-- `TicketService` — in-memory CRUD with status lifecycle
-- `TicketClassifier` SPI + `DemoTicketClassifier` — lookup from scenario data (the only mock)
-- `ChatInjectionResource` — fires `InboundMessage` CDI events via `chat-ref` pipeline
-- `TicketCreationHandler` — `@ObservesAsync ReceivedMessage` → create + classify + assign
-- `NotificationService` — sends via `ChatPlatform.messaging()`
-- `ScenarioBootstrapResource`, `VerificationResource` — scenario infrastructure
-- `help-desk-basic.yaml` — scenario file
+**Frontend not started** (Tasks 4-8 remain).
 
-**Frontend (Vite + Lit, first version):**
-- Live ops dashboard: metrics, ticket table, submit form, event log, notifications
-- Auto-polls REST endpoints every 2s via Vite proxy
-- Demonstrated end-to-end in Playwright: bootstrap → submit → classify → assign → resolve → notify
+## Immediate Next Step
 
-### Issue changes
-- **#93 closed** — premise wrong (demo SPI convention is a pattern, not a build list)
-- **#95 created and completed** — helpdesk example app
-- **#94 removed from queue** — independent of scenario engine epic
-- **#411 created** — example showcase gallery (capability matrix, README rendering)
-- **#412 created** — helpdesk UI enhancement (blocks-ui components, SSE push)
-- **#413 created** — future example slices (umbrella)
+Run `/work` to continue on #412. Start Task 4 (frontend push connection + KPI metrics). Prerequisites:
+1. Examples repo is already on `issue-408-scenario-engine` (stashed main changes — `git stash list` to see)
+2. The pages slot copy (`/Users/mdproctor/claude/casehub/slots/112/pages`) is behind main — `EventStreamController` was moved to `pages-component` on main but isn't in the slot. Either sync the slot or use the main pages checkout at `/Users/mdproctor/claude/casehub/pages/`
+3. Verify blocks-ui package names against each `package.json` `name` field before adding Vite aliases (GE-20260803-17fc03)
+4. blocks-ui is at `/Users/mdproctor/claude/casehub/blocks-ui/` (not in slot — session should `add-dir` it)
+5. Backend runs on port 8090 (`mvn quarkus:dev`), frontend Vite dev server needs WebSocket proxy for `/push`
 
-## Queue State
+## Key Context for Frontend Tasks
 
-```
-[x] #409 — Scenario format specification (M / Med) [parent]
-[x] #410 — Platform protocol — demo SPI convention (S / Low) [parent]
-[x] #311 — Scenario executor backend (XL / High) [pages]
-[x] #95  — Slice 1: IT help desk example app (M / Med) [connectors]
-[ ] #109 — Life household scenario files (L / High) [life]
-[ ] #149 — Migrate DemoDataSeeder to scenario format (M / Med) [clinical]
-[ ] #411 — Example showcase gallery (M / Med) [parent] ← active
-[ ] #412 — Helpdesk UI — blocks-ui + SSE push (M / Med) [parent]
-[ ] #413 — Slice 2+ — additional example apps (L / High) [parent]
-```
+**Push connection:** Three `EventStreamController<T>` instances — one per topic (`helpdesk:tickets`, `helpdesk:notifications`, `helpdesk:metrics`). `EventStreamPool` reuses one WebSocket. Import from `@casehubio/pages-component`. API: `latest` (most recent payload), `all` (full history), `status` (connection state). Auto-calls `requestUpdate()`.
 
-Position: 4/9 (4 done, 5 remaining). Next: #411.
+**Ticket state derivation:** Computed getter rebuilding from `_ticketPush.all` — no `@state()` field needed. Idempotent, handles reconnection replay. See spec §Ticket Table.
 
-## Immediate Next Step — #411: Example Showcase Gallery
+**Timeline strategy:** 4 stages (created/classified/assigned/resolved) mapping 1:1 to `TicketEvent.Type`. `STATUS_TO_STAGE` maps `TicketStatus` enum values to indices. See spec §Pipeline Timeline.
 
-Build a parent gallery app in casehub-examples using blocks-ui + pages:
-- Lists all examples with capability labels and descriptions
-- Auto-generates capability coverage matrix from per-example YAML metadata
-- Renders each example's README as lesson content
-- Filter/search by capability
-- Navigate into each example's own web app
+**Scenario controller:** Embedded TS module for steps, temporal correlation for ticket-to-event matching (record `_ticketPush.all.length` before submit, watch for next CREATED). `?standalone` query param for standalone mode.
 
-### Key context
-- blocks-ui at `/Users/mdproctor/claude/casehub/blocks-ui/` (not in slot — add it)
-- blocks-ui-examples pattern: Vite aliases resolve `@casehubio/*` from source trees
-- blocks-ui has 40+ pre-built components: execution-monitor, case-explorer, work-item-inbox, channel-activity, blocks-timeline, kpi-metric-row, etc.
-- pages packages already built in slot at `/Users/mdproctor/claude/casehub/slots/112/pages/`
-
-### Repos needed
-- casehub-examples (`/Users/mdproctor/claude/casehub/examples/` — branch `issue-408-scenario-engine`)
-- blocks-ui (`/Users/mdproctor/claude/casehub/blocks-ui/` — needs adding to slot or using main checkout)
-- pages (in slot at `/Users/mdproctor/claude/casehub/slots/112/pages/`)
-
-## Design Principles (established this session)
-
-1. **Only mock what has no real in-memory alternative.** RefChatPlatform, not DemoChatPlatform.
-2. **Demo SPI impls are demand-driven.** Build inside the app, extract when a second consumer appears.
-3. **Every external dependency swappable via SPI + CDI profile.** Use existing SPIs where they exist.
-4. **Verify outcomes, not outputs.** Scenario assertions check state changes, not LLM text.
-5. **When you hit a gap, fix the platform.** Example apps are a forcing function.
-6. **Use real capabilities, don't reinvent.** blocks-ui components, pages components, chat-ref — use what exists.
+**UX requirements (user-specified):** Click feedback on all buttons/tabs. Scenario text visible before submission. Explicit Next/Submit pacing. Must work in separate browser window.
 
 ## References
 
-- Examples commits: `7e31864..0c0bd18` on branch `issue-408-scenario-engine`
-- Workspace commits: `616e457`, `045eb77`, `82566e5` on branch `issue-408-scenario-engine`
-- Design spec: `specs/issue-408-scenario-engine/2026-08-12-example-applications-design.md`
-- Plan: `plans/2026-08-12-helpdesk-example.md`
+- Design spec: `specs/issue-408-scenario-engine/2026-08-13-helpdesk-ui-upgrade-design.md` (in workspace)
+- Decisions: `specs/issue-408-scenario-engine/decisions.md` (in workspace)
+- Implementation plan: `plans/2026-08-13-helpdesk-ui-upgrade.md` (in workspace)
+- Spec review: `/Users/mdproctor/reviews/casehub-slots/issue-412-helpdesk-ui-spec-20260813-153238/`
+- Plan review: `/Users/mdproctor/reviews/casehub-slots/issue-412-helpdesk-plan-20260813-162413/`
 - `.plan` at `/Users/mdproctor/claude/casehub/slots/112/.plan`
+
+## Design Principles (established prior session, still valid)
+
+1. Only mock what has no real in-memory alternative
+2. Demo SPI impls are demand-driven
+3. Every external dependency swappable via SPI + CDI profile
+4. Verify outcomes, not outputs
+5. When you hit a gap, fix the platform
+6. Use real capabilities, don't reinvent
+7. **Production code quality by default** — example apps are skeleton starters (new this session)
