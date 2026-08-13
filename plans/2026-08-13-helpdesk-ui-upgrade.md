@@ -220,7 +220,7 @@ Refs casehubio/parent#412"
 - Test: `src/test/java/io/casehub/examples/helpdesk/push/PushEndpointTest.java`
 
 **Interfaces:**
-- Consumes: `PushRequest.parse(String)` (from pages-push), `TopicRegistry` (from pages-push-runtime CDI), `EventBroadcaster` (from pages-push-runtime CDI)
+- Consumes: `PushRequest.parse(String)` (from pages-push), `TopicRegistry.listen(connId, topics)` / `unlisten(connId, topics)` / `removeConnection(connId)` (from pages-push-runtime CDI), `EventStore.replay(topic, sinceSeq, limit)` (from pages-push-runtime CDI), `PushMessage.event(topic, payloadJson, seq)` / `PushMessage.ack(id, topics, gaps)` / `PushMessage.error(id, message)` (from pages-push)
 - Produces: `ConnectionRegistry` (shared connection map), `HelpdeskSessionSender` implements `SessionSender`, WebSocket endpoint at `/push`
 
 - [ ] **Step 1: Add dependencies to pom.xml**
@@ -367,6 +367,7 @@ package io.casehub.examples.helpdesk.push;
 import io.casehub.pages.push.EventStore;
 import io.casehub.pages.push.PushMessage;
 import io.casehub.pages.push.PushRequest;
+import io.casehub.pages.push.StoredEvent;
 import io.casehub.pages.push.TopicRegistry;
 import io.quarkus.websocket.next.OnClose;
 import io.quarkus.websocket.next.OnOpen;
@@ -375,10 +376,9 @@ import io.quarkus.websocket.next.WebSocket;
 import io.quarkus.websocket.next.WebSocketConnection;
 import jakarta.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @WebSocket(path = "/push")
 public class HelpdeskPushEndpoint {
@@ -386,8 +386,6 @@ public class HelpdeskPushEndpoint {
     @Inject ConnectionRegistry connectionRegistry;
     @Inject TopicRegistry topicRegistry;
     @Inject EventStore eventStore;
-
-    private final Map<String, List<String>> connectionTopics = new ConcurrentHashMap<>();
 
     @OnOpen
     void onOpen(WebSocketConnection connection) {
@@ -403,23 +401,17 @@ public class HelpdeskPushEndpoint {
 
         switch (request) {
             case PushRequest.Listen listen -> {
-                for (String topic : listen.topics()) {
-                    topicRegistry.register(topic, connId);
-                }
-                connectionTopics.merge(connId, listen.topics(),
-                        (old, added) -> { old.addAll(added); return old; });
+                topicRegistry.listen(connId, listen.topics());
 
-                // Replay events if since cursors provided
-                List<String> gaps = new java.util.ArrayList<>();
+                List<String> gaps = new ArrayList<>();
                 for (var entry : listen.since().entrySet()) {
-                    var events = eventStore.since(entry.getKey(), entry.getValue());
-                    if (events == null) {
+                    List<StoredEvent> events = eventStore.replay(entry.getKey(), entry.getValue(), 1000);
+                    if (events.isEmpty() && entry.getValue() > 0) {
                         gaps.add(entry.getKey());
-                    } else {
-                        for (var stored : events) {
-                            connection.sendTextAndAwait(
-                                    PushMessage.event(entry.getKey(), stored.payload(), stored.seq()));
-                        }
+                    }
+                    for (var stored : events) {
+                        connection.sendTextAndAwait(
+                                PushMessage.event(stored.topic(), stored.payloadJson(), stored.seq()));
                     }
                 }
 
@@ -427,9 +419,7 @@ public class HelpdeskPushEndpoint {
                         PushMessage.ack(listen.id(), listen.topics(), gaps));
             }
             case PushRequest.Unlisten unlisten -> {
-                for (String topic : unlisten.topics()) {
-                    topicRegistry.unregister(topic, connId);
-                }
+                topicRegistry.unlisten(connId, unlisten.topics());
                 connection.sendTextAndAwait(
                         PushMessage.ack(unlisten.id(), unlisten.topics(), List.of()));
             }
@@ -442,12 +432,7 @@ public class HelpdeskPushEndpoint {
     void onClose(WebSocketConnection connection) {
         String connId = (String) connection.userData().get("connId");
         if (connId != null) {
-            List<String> topics = connectionTopics.remove(connId);
-            if (topics != null) {
-                for (String topic : topics) {
-                    topicRegistry.unregister(topic, connId);
-                }
-            }
+            topicRegistry.removeConnection(connId);
             connectionRegistry.unregister(connId);
         }
     }
@@ -569,21 +554,28 @@ Expected: FAIL — no observer bridges events to push yet.
 ```java
 package io.casehub.examples.helpdesk.push;
 
+import io.casehub.examples.helpdesk.NotificationService;
 import io.casehub.examples.helpdesk.TicketService;
 import io.casehub.examples.helpdesk.event.NotificationEvent;
 import io.casehub.examples.helpdesk.event.TicketEvent;
+import io.casehub.examples.helpdesk.model.TicketStatus;
 import io.casehub.pages.push.EventBroadcaster;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 
 import java.util.Map;
+import java.util.Set;
 
 @ApplicationScoped
 public class TicketPushObserver {
 
+    private static final Set<TicketStatus> OPEN_STATUSES =
+            Set.of(TicketStatus.OPEN, TicketStatus.TRIAGED, TicketStatus.ASSIGNED);
+
     @Inject EventBroadcaster broadcaster;
     @Inject TicketService ticketService;
+    @Inject NotificationService notificationService;
 
     void onTicketEvent(@Observes TicketEvent event) {
         broadcaster.broadcast("helpdesk:tickets", event);
@@ -592,20 +584,20 @@ public class TicketPushObserver {
 
     void onNotification(@Observes NotificationEvent event) {
         broadcaster.broadcast("helpdesk:notifications", event);
+        broadcastMetrics();
     }
 
     private void broadcastMetrics() {
         var all = ticketService.findAll();
-        long open = all.stream().filter(t -> t.status().name().equals("OPEN")
-                || t.status().name().equals("TRIAGED")
-                || t.status().name().equals("ASSIGNED")).count();
-        long resolved = all.stream().filter(t -> t.status().name().equals("RESOLVED")
-                || t.status().name().equals("CLOSED")).count();
+        long open = all.stream().filter(t -> OPEN_STATUSES.contains(t.status())).count();
+        long resolved = all.stream().filter(t -> t.status() == TicketStatus.RESOLVED
+                || t.status() == TicketStatus.CLOSED).count();
+        long notified = notificationService.getSentNotifications().size();
         broadcaster.broadcast("helpdesk:metrics", Map.of(
                 "total", all.size(),
                 "open", open,
                 "resolved", resolved,
-                "notified", 0L // updated by notification count
+                "notified", notified
         ));
     }
 }
@@ -749,7 +741,7 @@ get _tickets(): Ticket[] {
 }
 ```
 
-Replace the `<table>` block with `<pages-data-table>` (exact tag name to be verified from the package source):
+Replace the `<table>` block with `<pages-data-table>` (tag name from `@casehubio/pages-table` — the component was renamed from `pages-data-table`; verify the tag name from the package source):
 
 ```html
 <pages-data-table
