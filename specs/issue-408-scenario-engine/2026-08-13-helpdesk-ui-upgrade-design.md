@@ -151,6 +151,8 @@ private _metricsPush = new EventStreamController<MetricsSnapshot>(this, '/push',
 
 Auto-connects on `hostConnected`, disconnects on `hostDisconnected`, triggers `requestUpdate()` on new events. The `all` property provides the full event history; `latest` provides the most recent event. Each controller filters to its own topic — `all` contains only payloads for that topic.
 
+**Live-events-only model:** On first connect, `EventConnection.listen()` sends no `since` cursors — clients receive only events broadcast after they connect. There is no initial state hydration from the push layer. On reconnect (after a temporary disconnect), `EventConnection` tracks per-topic sequence numbers and sends `since` cursors for incremental replay, avoiding duplicates. The demo's sequential flow (start backend → open dashboard → run scenario) means the dashboard is open before any events are created, so the first-connect limitation does not affect the normal demo path. If late-connect support is needed (e.g., opening a second browser tab mid-demo), the existing `GET /tickets` REST endpoint provides a snapshot for initial hydration.
+
 State updates read from each controller:
 
 ```typescript
@@ -159,8 +161,7 @@ get _metrics(): MetricsSnapshot {
 }
 ```
 
-Ticket state accumulation watches `_ticketPush.all` for the full event history and maintains a derived `_tickets` map.
-```
+Ticket state is derived from `_ticketPush.all` via a computed getter (see §Ticket Table). No incremental accumulation — the getter rebuilds on each render, which is naturally idempotent and handles reconnection replay correctly.
 
 ### Component Layout
 
@@ -208,20 +209,19 @@ Rendered as:
 
 ### Ticket Table — pages-table
 
-Bound to the accumulated ticket state from `helpdesk:tickets` events:
+Ticket state is derived from the accumulated event history in `_ticketPush.all`. A computed getter rebuilds the ticket map on each render — simple, idempotent, and naturally handles reconnection replay (replayed events overwrite stale state):
 
 ```typescript
-@state() private _tickets: Ticket[] = [];
-
-private _handleTicketEvent(payload: TicketEvent) {
-  const idx = this._tickets.findIndex(t => t.id === payload.ticket.id);
-  if (idx >= 0) {
-    this._tickets = [...this._tickets.slice(0, idx), payload.ticket, ...this._tickets.slice(idx + 1)];
-  } else {
-    this._tickets = [...this._tickets, payload.ticket];
+get _tickets(): Ticket[] {
+  const map = new Map<string, Ticket>();
+  for (const event of this._ticketPush.all) {
+    map.set(event.ticket.id, event.ticket);
   }
+  return [...map.values()];
 }
 ```
+
+No `@state()` field or imperative event handler is needed — `EventStreamController` triggers `requestUpdate()` when new events arrive, and the getter re-derives from the full `.all` history on each render cycle. For the helpdesk's event volume (tens of events per demo run), the O(n) scan is negligible.
 
 Column config: Subject, Status (badge), Category, Priority (badge), Customer, Assignee, Actions (resolve button).
 
@@ -398,7 +398,7 @@ User clicks "Resolve" on ticket (dashboard or controller)
 | GE-20260806-10d369 | EventStreamController is WebSocket, not SSE | Using it correctly — pages-push IS WebSocket |
 | GE-20260812-5cd146 | EventConnection drops non-event wire messages | Backend wraps all messages in PushMessage.event() |
 | GE-20260806-1f881e | SSEManager eventNames filters on protocol-level event field | Not using SSEManager — using EventStreamController/WebSocket |
-| GE-20260704-73bebb | Event op skips lastSeq tracking | Full catch-up on reconnect — acceptable for helpdesk event volumes |
+| GE-20260704-73bebb | ~~Event op skips lastSeq tracking~~ | **Stale — `EventConnection` now tracks per-topic seq numbers and uses incremental replay on reconnect.** Garden entry should be revised or retired. |
 | GE-20260705-ab2230 | SseEventSink has no onClose | Not using SSE — WebSocket has proper lifecycle |
 | GE-20260613-6527d0 | CDI events fire before transaction commits | In-memory store, no transactions — not applicable here |
 | GE-20260803-17fc03 | Package directory names don't match npm names | Verify package.json name field before adding dependencies |
@@ -413,7 +413,7 @@ See [decisions.md](decisions.md) for the full decision log with rationale and al
 |---|----------|--------|
 | D1 | Backend push | WebSocket + CDI events + EventBroadcaster |
 | D2 | Frontend arch | Single Lit shell component, inline composition |
-| D3 | Topics | Structured hierarchy (helpdesk:tickets/notifications/metrics) with helpdesk:** wildcard |
+| D3 | Topics | Structured hierarchy (helpdesk:tickets/notifications/metrics) with per-topic controllers — no wildcard |
 | D4 | Timeline | Per-ticket pipeline nodes via custom TimelineStrategy |
 | D5 | Scenario controller | Resizable side panel via pages split, REST + push observation |
 | D5a | Scenario UX | Step-by-step pacing, visible text, explicit Next, push observation |
