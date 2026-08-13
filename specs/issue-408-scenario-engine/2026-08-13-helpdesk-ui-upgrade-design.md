@@ -186,11 +186,9 @@ The dashboard and scenario controller are separated by a pages split container (
 
 ### Metrics — blocks-kpi-metric-row
 
-Bound to the `helpdesk:metrics` push topic:
+Bound to the `helpdesk:metrics` push topic via the `_metrics` getter defined in §Push Connection (`_metricsPush.latest` with zero-state fallback):
 
 ```typescript
-private _metrics = { total: 0, open: 0, resolved: 0, notified: 0 };
-
 get _metricDefs(): MetricDefinition[] {
   return [
     { key: 'total', value: this._metrics.total, label: 'Total' },
@@ -300,7 +298,7 @@ When automated stages complete:
 - Ticket CLASSIFIED → classification stage complete
 - Ticket ASSIGNED → assignment stage complete
 
-The controller watches for these events matching the current ticket (by ID) and advances its internal state accordingly.
+**Correlation mechanism:** The `POST /scenario/inject/chat` endpoint is fire-and-forget — it fires a CDI event and returns before the ticket is created. The controller uses temporal correlation: after submit, it records the length of `_ticketPush.all` and watches for the next CREATED event beyond that index. The CREATED event's `ticket.id` becomes the correlation key for subsequent CLASSIFIED and ASSIGNED events. For a single-user demo, this is reliable — no concurrent ticket creation can interleave.
 
 #### UX Requirements
 
