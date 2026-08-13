@@ -11,9 +11,9 @@ Replace the vanilla Lit ops dashboard in `casehub-examples/helpdesk` with platfo
 ## Goals
 
 1. Metrics use `blocks-kpi-metric-row`
-2. Ticket table uses `pages-data-table`
+2. Ticket table uses `pages-table`
 3. Pipeline flow uses `blocks-timeline` for per-ticket stage visualization
-4. Backend broadcasts events via pages-push WebSocket protocol
+4. Backend broadcasts events via pages-push protocol (WebSocket — see §Push Infrastructure for transport rationale)
 5. Frontend receives push updates — no polling
 6. Scenario controller provides step-by-step demo UX with explicit user pacing
 
@@ -48,6 +48,8 @@ Replace the vanilla Lit ops dashboard in `casehub-examples/helpdesk` with platfo
 
 The pages-push runtime provides CDI beans for `TopicRegistry`, `EventStore` (in-memory, bounded), and `EventBroadcaster`. The consumer must provide a `SessionSender` bean that bridges the WebSocket transport.
 
+**Transport rationale — WebSocket, not SSE:** Issue #412 references "SSE push" but the pages-push protocol is WebSocket-based. The issue's parenthetical "(pages-push protocol)" reveals the intent — use the existing pages-push infrastructure. The transport label was simply wrong. Pages-push uses WebSocket for bidirectional `listen`/`unlisten` subscription management with wildcard topic routing and sequence-numbered replay — capabilities SSE's unidirectional model cannot provide. The platform's existing SSE broadcasters (work's `WorkItemEventBroadcaster`, platform's `NotificationSseResource`) are a different pattern: server-driven, fixed-filter, no client subscription control. Issue #412's acceptance criteria should be updated to say "pages-push protocol (WebSocket)" to match the actual infrastructure.
+
 #### HelpdeskPushEndpoint
 
 A `@WebSocket` endpoint at `/push` that manages connections:
@@ -80,10 +82,12 @@ public record NotificationEvent(String to, String message) {}
 
 #### TicketPushObserver
 
-An `@ApplicationScoped` bean that observes CDI events and bridges to `EventBroadcaster`:
+An `@ApplicationScoped` bean that observes CDI events synchronously and bridges to `EventBroadcaster`:
 
-- `@ObservesAsync TicketEvent` → `broadcaster.broadcast("helpdesk:tickets", payload)`
-- `@ObservesAsync NotificationEvent` → `broadcaster.broadcast("helpdesk:notifications", payload)`
+- `@Observes TicketEvent` → `broadcaster.broadcast("helpdesk:tickets", payload)`
+- `@Observes NotificationEvent` → `broadcaster.broadcast("helpdesk:notifications", payload)`
+
+**Synchronous events guarantee ordering.** `TicketCreationHandler.onMessage()` calls `create()` → `classify()` → `assign()` sequentially. With `@Observes` + `Event.fire()`, each broadcast completes before the next `TicketService` method fires its event. This ensures the frontend receives CREATED before CLASSIFIED before ASSIGNED — critical for the pipeline timeline visualization. `@ObservesAsync` would process events on separate managed executor threads with no ordering guarantee.
 
 After each ticket event, also broadcasts updated metrics to `helpdesk:metrics`:
 
@@ -91,16 +95,20 @@ After each ticket event, also broadcasts updated metrics to `helpdesk:metrics`:
 {"total": 3, "open": 1, "resolved": 2, "notified": 2}
 ```
 
+The metrics topic is intentionally redundant — the frontend could derive these counts from ticket events. This is a deliberate design choice for demonstration purposes: it shows per-topic specialization where different consumers subscribe to different topics based on their needs.
+
 ### TicketService Changes
 
-Add CDI event firing to existing state-changing methods:
+Add `@Inject Event<TicketEvent>` and fire synchronously (`Event.fire()`) from existing state-changing methods:
 
 - `create()` → fires `TicketEvent(CREATED, ticket)`
 - `classify()` → fires `TicketEvent(CLASSIFIED, ticket)`
 - `assign()` → fires `TicketEvent(ASSIGNED, ticket)`
 - `resolve()` → fires `TicketEvent(RESOLVED, ticket)`
 
-The `NotificationService` fires `NotificationEvent` after sending.
+Synchronous firing is deliberate — see §CDI Event Bridge for ordering rationale.
+
+The `NotificationService` fires `NotificationEvent` synchronously after sending.
 
 ### Topic Structure
 
@@ -112,7 +120,7 @@ Three topics in a `helpdesk:` namespace, consumed via `helpdesk:**` wildcard:
 | `helpdesk:notifications` | `{to, message}` | Notification sent |
 | `helpdesk:metrics` | `{total, open, resolved, notified}` | After each ticket event |
 
-The structured hierarchy demonstrates the platform's trie-based wildcard topic matching (`TopicRegistry`). The frontend subscribes to `helpdesk:**` to receive all events through a single subscription, while the topic structure enables selective subscription for consumers that need it (e.g., the scenario controller observing only `helpdesk:tickets`).
+The structured hierarchy demonstrates the platform's trie-based topic matching (`TopicRegistry`). The frontend uses per-topic `EventStreamController` instances — one per topic — providing type safety (`EventStreamController<TicketEvent>` vs `EventStreamController<unknown>`) and topic-scoped event histories. The `EventStreamPool` reuses the same underlying WebSocket connection across all controllers, so per-topic controllers add no wire overhead. The platform's wildcard subscription capability (`helpdesk:**`) is available but not used here — per-topic controllers are the cleaner pattern for typed consumption.
 
 ---
 
@@ -163,7 +171,7 @@ Ticket state accumulation watches `_ticketPush.all` for the full event history a
 │  <blocks-kpi-metric-row>                     │                 │
 │  Total | Open | Resolved | Notified          │  Step 2/5       │
 ├──────────────────────────────────────────────┤  ┌───────────┐  │
-│  <pages-data-table>                          │  │ Preview   │  │
+│  <pages-table>                               │  │ Preview   │  │
 │  Subject | Status | Category | Priority | …  │  │ text...   │  │
 ├──────────────────────────────────────────────┤  └───────────┘  │
 │  <blocks-timeline>                           │  [Submit]       │
@@ -173,7 +181,7 @@ Ticket state accumulation watches `_ticketPush.all` for the full event history a
 └──────────────────────────────────────────────┴─────────────────┘
 ```
 
-The dashboard and scenario controller are separated by a pages split container (`wireInteractivity("split", ...)`), making the controller panel collapsible.
+The dashboard and scenario controller are separated by a pages split container (`wireInteractivity("split", ...)`), making the controller panel resizable via drag handle.
 
 ### Metrics — blocks-kpi-metric-row
 
@@ -222,19 +230,31 @@ Column config: Subject, Status (badge), Category, Priority (badge), Customer, As
 A custom `HelpdeskPipelineStrategy` implements `TimelineStrategy`:
 
 ```typescript
-const STAGES = ['received', 'created', 'classified', 'assigned', 'resolved', 'notified'];
+const STAGES = ['created', 'classified', 'assigned', 'resolved'];
 
-class HelpdeskPipelineStrategy implements TimelineStrategy {
+const STATUS_TO_STAGE: Record<string, number> = {
+  OPEN: 0,      // created
+  TRIAGED: 1,   // classified
+  ASSIGNED: 2,  // assigned
+  RESOLVED: 3,  // resolved
+  CLOSED: 3,    // same as resolved for pipeline purposes
+};
+
+class HelpdeskPipelineStrategy implements TimelineStrategy<Ticket[]> {
+  defaultLayout: Layout = 'vertical';
+
   toNodes(tickets: Ticket[]): TimelineNode[] {
     return tickets.flatMap(ticket => {
-      const completedIdx = this._stageIndex(ticket);
+      const completedIdx = STATUS_TO_STAGE[ticket.status] ?? 0;
       return STAGES.map((stage, i) => ({
         key: `${ticket.id}:${stage}`,
         label: `${ticket.subject} — ${stage}`,
         status: i < completedIdx ? 'completed'
               : i === completedIdx ? 'active'
               : 'pending',
-        timestamp: this._stageTimestamp(ticket, stage),
+        timestamp: stage === 'created' ? ticket.createdAt
+                 : stage === 'resolved' ? ticket.resolvedAt
+                 : undefined,
         actor: stage === 'assigned' ? ticket.assigneeId : undefined,
         category: ticket.id,
       }));
@@ -243,7 +263,19 @@ class HelpdeskPipelineStrategy implements TimelineStrategy {
 }
 ```
 
+Four stages map 1:1 to `TicketEvent.Type` values. The earlier draft included `received` (pre-ticket message intake) and `notified` (from `NotificationEvent`), but these cross domain boundaries — `received` precedes ticket creation and `notified` belongs to the notification domain, not the ticket lifecycle. Keeping the pipeline to ticket-lifecycle stages ensures the strategy can derive all state from `Ticket` data alone.
+
+`STATUS_TO_STAGE` maps `TicketStatus` enum values to stage indices. The `Ticket` model has `createdAt` and `resolvedAt` timestamps; intermediate stages (`classified`, `assigned`) have no per-stage timestamps in the model, so `timestamp` is `undefined` for those nodes — the timeline displays progression without exact times.
+
 Layout: `vertical`. Nodes grouped by ticket (via `category`), showing each ticket's progression through the pipeline stages. As push events arrive, node statuses update from `pending` → `active` → `completed`.
+
+Data binding — the timeline receives push-driven ticket state via the `.data` property:
+
+```html
+<blocks-timeline .data=${this._tickets} .strategy=${this._pipelineStrategy}></blocks-timeline>
+```
+
+The `.data` binding triggers `willUpdate` → `strategy.toNodes(data)` on every state change, re-rendering the pipeline nodes. The `.endpoint` property (REST-based data loading via `DataSourceMixin`) is not used — all data arrives through push.
 
 ### Scenario Controller Panel
 
@@ -251,7 +283,7 @@ The scenario controller is a collapsible side panel that drives the demo step-by
 
 #### Data Flow
 
-1. Controller loads scenario steps from `help-desk-basic.yaml` (fetched from backend or embedded)
+1. Controller loads scenario steps from an embedded TypeScript module (`src/scenarios/help-desk-basic.ts`), imported at build time — no runtime fetch or YAML parsing
 2. Each step has: description, action type (bootstrap/submit/resolve), and parameters
 3. User reads the step description and preview text
 4. User clicks "Submit" or "Next" to execute the action
@@ -260,13 +292,15 @@ The scenario controller is a collapsible side panel that drives the demo step-by
 
 #### Push Observation
 
-The controller subscribes to `helpdesk:**` (shares the same EventStreamController or creates its own). When automated stages complete:
+The controller creates its own `EventStreamController<TicketEvent>('/push', 'helpdesk:tickets')`. The `EventStreamPool` reuses the same underlying WebSocket connection as the dashboard's controllers — no additional connection overhead. In standalone mode, the controller's controller is the only one, establishing its own pool connection.
+
+When automated stages complete:
 
 - Ticket CREATED → controller knows the submission was processed
 - Ticket CLASSIFIED → classification stage complete
 - Ticket ASSIGNED → assignment stage complete
 
-The controller watches for these events matching the current ticket and advances its internal state accordingly.
+The controller watches for these events matching the current ticket (by ID) and advances its internal state accordingly.
 
 #### UX Requirements
 
@@ -277,6 +311,11 @@ The controller watches for these events matching the current ticket and advances
 - **Standalone capability**: Communicates via REST API only — works in the same browser window as the dashboard, in a separate tab, or on a different device entirely
 
 #### Standalone Mode
+
+Standalone mode is activated via the `?standalone` query parameter. The app shell checks `new URLSearchParams(location.search).has('standalone')` on startup:
+
+- **Default (no parameter):** Full dashboard with scenario controller in a split layout
+- **`?standalone`:** Scenario controller only, no dashboard panel, no split container
 
 When opened standalone (separate window/device), the scenario controller renders without the dashboard panel. It still drives the backend via REST and observes events via its own WebSocket push subscription. The dashboard (if open elsewhere) updates in real time from the same push events.
 
@@ -291,7 +330,7 @@ User clicks "Submit" in Scenario Controller
     → TicketService.create() → fires TicketEvent(CREATED)
     → TicketService.classify() → fires TicketEvent(CLASSIFIED)
     → TicketService.assign() → fires TicketEvent(ASSIGNED)
-  → TicketPushObserver @ObservesAsync TicketEvent
+  → TicketPushObserver @Observes TicketEvent (synchronous — ordered)
     → EventBroadcaster.broadcast("helpdesk:tickets", {type, ticket})
     → EventBroadcaster.broadcast("helpdesk:metrics", {total, open, ...})
   → WebSocket → all connected clients
@@ -332,11 +371,11 @@ User clicks "Resolve" on ticket (dashboard or controller)
 | File | Change |
 |------|--------|
 | `pom.xml` | Add quarkus-websockets-next, casehub-pages-push, casehub-pages-push-runtime |
-| `TicketEvent.java` | New — CDI event record |
-| `NotificationEvent.java` | New — CDI event record |
-| `HelpdeskPushEndpoint.java` | New — WebSocket endpoint |
-| `HelpdeskSessionSender.java` | New — SessionSender CDI bean |
-| `TicketPushObserver.java` | New — CDI event → EventBroadcaster bridge |
+| `event/TicketEvent.java` | New — CDI event record (`io.casehub.examples.helpdesk.event`) |
+| `event/NotificationEvent.java` | New — CDI event record (`io.casehub.examples.helpdesk.event`) |
+| `push/HelpdeskPushEndpoint.java` | New — WebSocket endpoint (`io.casehub.examples.helpdesk.push`) |
+| `push/HelpdeskSessionSender.java` | New — SessionSender CDI bean (`io.casehub.examples.helpdesk.push`) |
+| `push/TicketPushObserver.java` | New — CDI event → EventBroadcaster bridge (`io.casehub.examples.helpdesk.push`) |
 | `TicketService.java` | Modified — inject Event<TicketEvent>, fire on state changes |
 | `NotificationService.java` | Modified — inject Event<NotificationEvent>, fire after send |
 | `TicketResource.java` | Modified — resolve endpoint fires through TicketService (which fires CDI event) |
@@ -376,6 +415,6 @@ See [decisions.md](decisions.md) for the full decision log with rationale and al
 | D2 | Frontend arch | Single Lit shell component, inline composition |
 | D3 | Topics | Structured hierarchy (helpdesk:tickets/notifications/metrics) with helpdesk:** wildcard |
 | D4 | Timeline | Per-ticket pipeline nodes via custom TimelineStrategy |
-| D5 | Scenario controller | Collapsible side panel via pages split, REST + push observation |
+| D5 | Scenario controller | Resizable side panel via pages split, REST + push observation |
 | D5a | Scenario UX | Step-by-step pacing, visible text, explicit Next, push observation |
 | D6 | Push connection | EventStreamController from @casehubio/pages-component |
