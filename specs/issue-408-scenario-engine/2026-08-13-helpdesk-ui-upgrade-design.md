@@ -112,7 +112,7 @@ The `NotificationService` fires `NotificationEvent` synchronously after sending.
 
 ### Topic Structure
 
-Three topics in a `helpdesk:` namespace, consumed via `helpdesk:**` wildcard:
+Three topics in a `helpdesk:` namespace:
 
 | Topic | Payload | When |
 |-------|---------|------|
@@ -206,7 +206,7 @@ Rendered as:
 </blocks-kpi-metric-row>
 ```
 
-### Ticket Table — pages-data-table
+### Ticket Table — pages-table
 
 Bound to the accumulated ticket state from `helpdesk:tickets` events:
 
@@ -279,7 +279,7 @@ The `.data` binding triggers `willUpdate` → `strategy.toNodes(data)` on every 
 
 ### Scenario Controller Panel
 
-The scenario controller is a collapsible side panel that drives the demo step-by-step. It communicates with the backend via REST API and observes push events to track automated stage completions.
+The scenario controller is a resizable side panel that drives the demo step-by-step. It communicates with the backend via REST API and observes push events to track automated stage completions.
 
 #### Data Flow
 
