@@ -2,13 +2,15 @@
 
 ## Last Session
 
-Status-check session. Confirmed #43 (goal lifecycle) is complete — all scope items addressed, 25 unit tests pass, LLM eval tests exist. Discovered pre-existing build blocker: `casehub-eidos-eval` SNAPSHOT can't be resolved by the Quarkus bootstrap resolver, blocking all `@QuarkusTest` tests (garden GE-20260814-8f18b9). Unit tests run fine when targeted directly with `-Dtest=`.
+Completed #44 (plan structure) — 5 commits replacing `String currentPlan` with per-goal structured plans. Three-layer cognitive model: goals (strategic, AgentDescriptor) → plans (tactical, CharacterState) → thinking (reactive, per-tick scratchpad). ManorPlanFormationStrategy decomposes goals into steps via LLM. ManorPlanRevisionStrategy implements engine PlanRevisionStrategy SPI — discovered AdaptationCause is sealed (repurposed StepFailed/StepCompleted) and AdaptationContext rejects null for case fields (use placeholders). ManorPlanEvaluator orchestrates formation/revision/removal, wired into goal evaluator, experience service, and orchestrator.
+
+Also advanced queue from #43 → #44. Queue is now at position 3/5.
 
 ## Immediate Next Step
 
-Run `work next` to advance from #43 to #44 (Plan structure — replace currentPlan string with structured plans). Pull main first — 3 commits behind origin/main.
+Run `/work` to continue. Next issue is #45 (Trust and personality — wire AgentTrustProvider, personality evolution). Brainstorming needed before implementation.
 
 ## Cross-Module
 
 **Enabled:**
-- `casehub-engine-api` — GoalRevisionAction enum (#903) and CaseDefinition removal (#897) shipped. Slot `.m2` needs `mvn install -Dmaven.repo.local=<slot>/.m2` if further engine changes land upstream.
+- `casehub-engine-api` — GoalRevisionAction enum (#903) and CaseDefinition removal (#897) shipped. AdaptationCause sealed interface limits app-module extensibility (no issue filed — acceptable for pre-release).
