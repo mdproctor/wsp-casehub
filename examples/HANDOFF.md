@@ -2,11 +2,11 @@
 
 ## Last Session
 
-Issue #43 goal lifecycle: replaced DynamicGoal with engine-backed AgentGoal via GoalFormationStrategy and GoalRevisionStrategy SPIs. Seven design decisions, three engine API fixes upstream (#897 CaseDefinition removal, #903 GoalRevisionAction enum, plus Uni cleanup). Full pipeline wired: reflection → formation → revision → AgentRegistry. System 1/System 2 cognitive split — plans handle reactive per-tick intent, goals handle strategic post-reflection direction.
+Status-check session. Confirmed #43 (goal lifecycle) is complete — all scope items addressed, 25 unit tests pass, LLM eval tests exist. Discovered pre-existing build blocker: `casehub-eidos-eval` SNAPSHOT can't be resolved by the Quarkus bootstrap resolver, blocking all `@QuarkusTest` tests (garden GE-20260814-8f18b9). Unit tests run fine when targeted directly with `-Dtest=`.
 
 ## Immediate Next Step
 
-Run `/work` to continue on `issue-41-autonomous-agent-template`. `.plan` has 5 child issues (#42-#46); #42 (memory stack) and #43 (goal lifecycle) are done, #44 (plan structure) is next. Start with brainstorming on structured plans — replacing `currentPlan` string with multi-step plan objects.
+Run `work next` to advance from #43 to #44 (Plan structure — replace currentPlan string with structured plans). Pull main first — 3 commits behind origin/main.
 
 ## Cross-Module
 
