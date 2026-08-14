@@ -211,7 +211,7 @@ private static java.util.List<io.casehub.blocks.summarisation.observation.afford
 }
 ```
 
-Update all `buildObservation` overloads: replace `currentPlanSection(character)` references with `currentThinkingSection(character)`. Add `planSections(character)` rendering after goals section.
+The 4-arg `buildObservation` delegates to the 6-arg, which delegates to the 8-arg. Only the 6-arg and 8-arg call `currentPlanSection(character)`. Replace those two calls with `currentThinkingSection(character)`. Add `planSections(character)` rendering after `goalsSection(goals)` in the same two overloads — iterate the returned list and add each non-null section to the sections list.
 
 - [ ] **Step 10: Update RESPONSE_FORMAT_INSTRUCTION**
 
@@ -816,7 +816,7 @@ Refs #44"
 
 **Interfaces:**
 - Consumes: `ManorPlanFormationStrategy.formPlan()` from Task 2, `ManorPlanRevisionStrategy.revise()` from Task 3, `AgentPlan`/`PlanStep`/`PlanStepStatus` from Task 1, `CharacterState.plans()`/`setPlan()`/`removePlan()` from Task 1, `ManorGoalEvaluator.evaluate()`, `ActionResult.Failed`
-- Produces: `ManorPlanEvaluator.formPlanForGoal(String, AgentGoal, List<AgentGoal>, int)`, `ManorPlanEvaluator.removePlanForGoal(String, String)`, `ManorPlanEvaluator.reviseOnFailure(String, ActionResult.Failed, int)`, `ManorPlanEvaluator.reviseOnReflection(String, List<String>, int)`
+- Produces: `ManorPlanEvaluator.formPlanForGoal(String, AgentGoal, List<AgentGoal>, int)`, `ManorPlanEvaluator.removePlanForGoal(String, String)`, `ManorPlanEvaluator.reviseOnFailure(String, String, String, ActionResult.Failed, int)`, `ManorPlanEvaluator.reviseOnReflection(String, List<String>, int)`
 
 - [ ] **Step 1: Write failing tests**
 
@@ -866,8 +866,13 @@ class ManorPlanEvaluatorTest {
                 List.of(new PlanStepDescriptor("s2", "Revised step", null)),
                 "revised because failure");
 
-        ManorPlanFormationStrategy formationStrategy = (agentId, tenancyId, goal, allGoals, memories, tick) ->
-                nextFormationResult;
+        ManorPlanFormationStrategy formationStrategy = new ManorPlanFormationStrategy(null) {
+            @Override
+            public AgentPlan formPlan(String agentId, String tenancyId, AgentGoal goal,
+                    java.util.List<AgentGoal> allGoals, java.util.List<RetrievedMemory> memories, int tick) {
+                return nextFormationResult;
+            }
+        };
 
         ManorPlanRevisionStrategy revisionStrategy = new ManorPlanRevisionStrategy(null) {
             @Override
@@ -909,7 +914,7 @@ class ManorPlanEvaluatorTest {
     void reviseOnFailure_updates_plan() {
         character.setPlan("goal-a", nextFormationResult);
         var failure = new ActionResult.Failed("The door is locked");
-        evaluator.reviseOnFailure("hc", failure, 5);
+        evaluator.reviseOnFailure("hc", "MOVE", "kitchen", failure, 5);
         var plan = character.plans().get("goal-a");
         assertThat(plan.steps().get(0).id()).isEqualTo("s2");
         assertThat(plan.revisionGeneration()).isEqualTo(1);
@@ -918,7 +923,7 @@ class ManorPlanEvaluatorTest {
     @Test
     void reviseOnFailure_skips_when_no_plans() {
         var failure = new ActionResult.Failed("Something failed");
-        evaluator.reviseOnFailure("hc", failure, 5);
+        evaluator.reviseOnFailure("hc", "TAKE", "poison", failure, 5);
         assertThat(character.plans()).isEmpty();
     }
 
@@ -929,7 +934,7 @@ class ManorPlanEvaluatorTest {
                 "r", 1, 4, 5);
         character.setPlan("goal-a", maxedPlan);
         var failure = new ActionResult.Failed("fail");
-        evaluator.reviseOnFailure("hc", failure, 6);
+        evaluator.reviseOnFailure("hc", "MOVE", "library", failure, 6);
         assertThat(character.plans().get("goal-a").revisionGeneration()).isEqualTo(5);
     }
 }
@@ -1012,12 +1017,13 @@ public class ManorPlanEvaluator {
         characterLookup.apply(agentId).removePlan(goalName);
     }
 
-    public void reviseOnFailure(String agentId, ActionResult.Failed failure, int currentTick) {
+    public void reviseOnFailure(String agentId, String actionType, String actionTarget,
+                                ActionResult.Failed failure, int currentTick) {
         var character = characterLookup.apply(agentId);
         if (character.plans().isEmpty()) return;
 
         var cause = new ActionFailureCause(
-                "ACTION", failure.reason(), failure.reason());
+                actionType, actionTarget, failure.reason());
         List<RetrievedMemory> memories = retrieveMemories(agentId);
 
         for (Map.Entry<String, AgentPlan> entry : character.plans().entrySet()) {
@@ -1144,7 +1150,9 @@ Use `ide_edit_member` on `ScenarioOrchestrator`:
 - In `runAutonomousTicks()`, after the action resolution block, add:
   ```java
   if (result instanceof ActionResult.Failed failure && planEvaluator != null) {
-      planEvaluator.reviseOnFailure(c.agentId(), failure, currentTick);
+      String aType = response.action() != null ? response.action().type().name() : "WAIT";
+      String aTarget = response.action() != null ? response.action().target() : null;
+      planEvaluator.reviseOnFailure(c.agentId(), aType, aTarget, failure, currentTick);
   }
   ```
 
@@ -1243,7 +1251,29 @@ Refs #44"
 
 ## Amendments
 
-**A1: Tick-count cooldown for plan revision (Task 4)**
+**A1: Step status assessment in reviseOnReflection (Task 4)**
+
+The plan's `reviseOnReflection()` calls `PlanRevisionStrategy.revise()`
+but never updates step statuses (PENDING → COMPLETED/FAILED). Without
+this, `completedSteps` in `AdaptationContext` is always empty.
+
+Add a step status assessment LLM call at the start of
+`reviseOnReflection()`. The prompt receives current plans + recent
+memories and returns status updates per step. Steps whose status
+changes are updated on `CharacterState` before revision proceeds.
+This ensures `AdaptationContext.completedSteps()` reflects actual
+progress. The assessment and revision can share the same LLM call
+by combining prompts — assess status and propose revisions in one
+response.
+
+**A2: Goal revision triggers plan revision (Task 4)**
+
+When `ManorGoalRevisionStrategy` revises a goal (changes description),
+the goal's plan may be stale. Add a `reviseOnGoalChange` method to
+`ManorPlanEvaluator` called from `ManorGoalEvaluator` after goal
+revision. Uses `ReflectionCause` with the revision reason as context.
+
+**A3: Tick-count cooldown for plan revision (Task 4)**
 
 Following the pattern from #43 amendment A1 (tick-count cooldown for
 goal formation), plan revision should use tick-based cooldown rather
