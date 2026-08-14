@@ -87,6 +87,10 @@ the evaluator chains plan formation/revision/removal.
 
 ## New Components
 
+Four new components: data model (`AgentPlan`, `PlanStep`, `PlanStepStatus`),
+formation strategy, revision strategy (implements engine SPI), and
+plan evaluator (orchestrator).
+
 ### ManorPlanFormationStrategy
 
 Manor-local strategy (no engine SPI for plan formation). Uses
@@ -171,6 +175,52 @@ public class ManorPlanRevisionStrategy implements PlanRevisionStrategy {
 back to `List<PlanStep>` with all statuses reset to PENDING.
 `PlanStepDescriptor.capabilityName()` is ignored.
 
+### ManorPlanEvaluator
+
+Orchestrator for plan lifecycle — parallel to `ManorGoalEvaluator` but
+for plans. Not a CDI bean — constructed by `ScenarioOrchestrator` with
+injected strategies and passed to `AgentExperienceService`.
+
+```java
+public class ManorPlanEvaluator {
+
+    private final ManorPlanFormationStrategy formationStrategy;
+    private final ManorPlanRevisionStrategy revisionStrategy;
+    private final CaseMemoryStore memoryStore;
+    private final String tenancyId;
+    private final Function<String, CharacterState> characterLookup;
+
+    public void formPlanForGoal(String agentId, AgentGoal goal,
+            List<AgentGoal> allGoals, int currentTick) {
+        // Retrieve memories, call formationStrategy.formPlan(),
+        // store result on CharacterState via characterLookup
+    }
+
+    public void removePlanForGoal(String agentId, String goalName) {
+        // Remove plan from CharacterState
+    }
+
+    public void reviseOnFailure(String agentId,
+            ActionResult.Failed failure, int currentTick) {
+        // For each goal's plan, build RevisionContext with
+        // ActionFailureCause, call revisionStrategy.revise(),
+        // update plan on CharacterState
+    }
+
+    public void reviseOnReflection(String agentId,
+            List<String> insights, int currentTick) {
+        // Assess step statuses via a separate LLM call,
+        // then for goals with failed/stale steps, call
+        // revisionStrategy.revise() with ReflectionCause
+    }
+}
+```
+
+**Step status assessment** is handled inside `reviseOnReflection()` via
+a separate LLM call — not by expanding the reflection synthesizer.
+This follows the #43 amendment A2 pattern: keep the synthesizer
+unchanged, handle plan-specific assessment in the plan evaluator.
+
 ## Plan Revision Triggers (D5)
 
 ### Reactive: Action Failure
@@ -178,19 +228,17 @@ back to `List<PlanStep>` with all statuses reset to PENDING.
 In `ScenarioOrchestrator.runAutonomousTicks()`, after action resolution:
 
 ```java
-if (result.isFailure()) {
-    // Find which goal's plan the action likely relates to
-    // (or revise all plans — the LLM in the strategy can assess relevance)
-    planRevisionService.reviseOnFailure(c.agentId(), result, currentTick);
+if (result instanceof ActionResult.Failed failure) {
+    planEvaluator.reviseOnFailure(c.agentId(), failure, currentTick);
 }
 ```
 
-`ActionResult` needs a failure detection mechanism. Currently the
-orchestrator assigns `result.text()` to `lastActionResult` without
-inspecting success/failure. The action resolution returns text like
-"You can't reach that" or "The door is locked." A simple approach:
-`ActionResolver.resolve()` returns an `ActionOutcome` with a `success`
-boolean alongside the text. Failed outcomes trigger plan revision.
+`ActionResult` is already a sealed interface with `Success`, `Failed`,
+`MovedToRoom`, and `ItemReceived` variants. Failure detection is
+`result instanceof ActionResult.Failed`. Currently the orchestrator
+doesn't branch on this — it assigns `result.text()` to `lastActionResult`
+unconditionally. The change: add a failure check after action resolution
+and trigger plan revision when a `Failed` result is detected.
 
 **AdaptationCause for reactive revision:**
 
@@ -227,30 +275,30 @@ public record ReflectionCause(
 
 ## Step Status Assessment (D7)
 
-Step status is assessed during reflection by expanding the reflection
-synthesis prompt. Same pattern as `GoalOutcomeCounts` from #43.
+Step status is assessed during reflection via a **separate LLM call**
+inside `ManorPlanEvaluator.reviseOnReflection()` — not by expanding
+the reflection synthesizer. This follows the #43 amendment A2 pattern:
+the synthesizer stays unchanged, plan-specific assessment lives in the
+plan evaluator.
 
-The synthesizer prompt gains:
+The assessment prompt receives:
+- The character's current plans (all goals)
+- Recent reflection insights (from the synthesizer's output)
+- Recent memories (actions and outcomes)
 
 ```
-For each plan step below, assess its current status based on recent
-actions and outcomes:
+Given this agent's recent actions and outcomes, assess the current
+status of each plan step:
 - COMPLETED: the agent performed actions that achieved this step
 - IN_PROGRESS: the agent is actively working on this step
 - FAILED: the agent attempted this step and it failed
 - PENDING: not yet attempted
-
-Plan for goal "protect-penelope":
-  1. find-poison: "Locate the poison bottle" [PENDING]
-  2. dispose-poison: "Remove the poison from play" [PENDING]
 ```
 
-The response includes a `planAssessments` object:
+The response is a JSON object:
 
 ```json
 {
-  "insights": [...],
-  "goalAssessments": {...},
   "planAssessments": {
     "protect-penelope": {
       "find-poison": "COMPLETED",
@@ -260,7 +308,8 @@ The response includes a `planAssessments` object:
 }
 ```
 
-Step statuses are updated on `CharacterState` after parsing.
+Step statuses are updated on `CharacterState` after parsing. Goals
+with FAILED steps trigger plan revision (the deliberative path).
 
 **Status lag:** Step status may lag by up to `maxUnreflected` ticks
 (default: 5). This is acceptable — the character's per-tick behavior
@@ -375,42 +424,39 @@ Same replacement — `setCurrentPlan()` → `setCurrentThinking()`.
 
 ### ManorGoalEvaluator
 
-Expanded to chain plan formation after goal formation and plan removal
-after goal abandonment/completion. Gains a `ManorPlanFormationStrategy`
-dependency and access to `CharacterState` (via a lookup function or
-direct reference).
+Expanded to delegate plan lifecycle events to `ManorPlanEvaluator`.
+Gains a `ManorPlanEvaluator` dependency (nullable — plan evaluation
+is optional).
 
 After goal formation:
 ```java
-for (AgentGoal newGoal : newlyFormedGoals) {
-    AgentPlan plan = planFormationStrategy.formPlan(
-        agentId, tenancyId, newGoal, finalGoals, memories, currentTick);
-    if (plan != null && !plan.steps().isEmpty()) {
-        characterStateLookup.apply(agentId).setPlan(newGoal.name(), plan);
+if (planEvaluator != null) {
+    for (AgentGoal newGoal : newlyFormedGoals) {
+        planEvaluator.formPlanForGoal(agentId, newGoal, finalGoals, currentTick);
     }
 }
 ```
 
 After goal abandonment/completion:
 ```java
-characterStateLookup.apply(agentId).removePlan(abandonedGoal.name());
+if (planEvaluator != null) {
+    planEvaluator.removePlanForGoal(agentId, abandonedGoal.name());
+}
 ```
 
 ### AgentExperienceService
 
-Expanded to chain plan step assessment and plan revision after reflection.
-Gains `ManorPlanRevisionStrategy` and plan-related dependencies.
+Expanded to chain plan evaluation after goal evaluation in reflection.
+Gains `ManorPlanEvaluator` dependency (nullable — plan evaluation is
+optional, like goal evaluation).
 
 In `runReflection()`, after goal evaluation:
 ```java
-// Assess plan step statuses from reflection insights
-var planAssessments = reflectionResult.planAssessments();
-if (planAssessments != null) {
-    updatePlanStepStatuses(agentId, planAssessments);
+if (planEvaluator != null) {
+    var insightTexts = reflectionEvents.stream()
+        .map(ReflectionEvent::insight).toList();
+    planEvaluator.reviseOnReflection(agentId, insightTexts, currentTick);
 }
-
-// Trigger deliberative plan revision for goals with failed/stale steps
-planRevisionService.reviseOnReflection(agentId, insights, currentTick);
 ```
 
 ## LLM Call Budget
@@ -423,10 +469,11 @@ Full reflection chain with plan lifecycle:
 | Goal formation | When new goals proposed | Existing |
 | Goal revision | Every reflection | Existing |
 | **Plan formation** | Per new goal (0-2 per reflection) | **New** |
+| **Step assessment** | Once per reflection (all goals' steps) | **New** |
 | **Plan revision** | Per goal with failed/stale steps | **New** |
 
-**Worst case per reflection:** 3 existing + 2 plan formations + 3 plan
-revisions = 8 LLM calls. Reflection fires every 5+ ticks. Each call is
+**Worst case per reflection:** 3 existing + 2 plan formations + 1 step
+assessment + 3 plan revisions = 9 LLM calls. Reflection fires every 5+ ticks. Each call is
 a short prompt (plan context, not full scenario context). All run on the
 same virtual thread, serialized. Total latency: 20-60 seconds for the
 full chain, during which the tick loop continues.
