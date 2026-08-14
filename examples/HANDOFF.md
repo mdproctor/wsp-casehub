@@ -1,16 +1,14 @@
-# HANDOFF — 2026-08-11
+# HANDOFF — 2026-08-14
 
 ## Last Session
 
-Issue #41 autonomous agent template: wired the neocortex memory stack into wacky-manor as the first phase of the epic. Core architectural decision: three-layer model — neocortex for memory (direct API), engine SPIs for cognitive contracts (deferred to Phase 2), manor orchestration for the glue. Decision review caught that `ReflectionTriggerConfig` and `CaseDefinition` are coupled to the engine's Worker model — dropped `casehub-engine-api` from this phase, used application.properties instead. Six commits: salience-scored retrieval with importance mapping, relationship tracking via TARGET_AGENT metadata, ManorReflectionTrigger + ManorReflectionSynthesizer (implements ReflectionSynthesizer SPI), async reflection loop with memory decay, enhanced observations (Insights + Relationship Notes sections). 162 unit tests green. Design spec, decisions, and plan in workspace. Diary entry written.
+Issue #43 goal lifecycle: replaced DynamicGoal with engine-backed AgentGoal via GoalFormationStrategy and GoalRevisionStrategy SPIs. Seven design decisions, three engine API fixes upstream (#897 CaseDefinition removal, #903 GoalRevisionAction enum, plus Uni cleanup). Full pipeline wired: reflection → formation → revision → AgentRegistry. System 1/System 2 cognitive split — plans handle reactive per-tick intent, goals handle strategic post-reflection direction.
 
 ## Immediate Next Step
 
-Run `/work` to continue on `issue-41-autonomous-agent-template`. `.plan` has 5 child issues (#42-#46); #42 (memory stack) is done, #43 (goal lifecycle) is active. Phase 2 requires resolving the `CaseDefinition` mapping — how the manor provides one to `GoalFormationContext` without adopting the full case model. Start with brainstorming on that design question.
+Run `/work` to continue on `issue-41-autonomous-agent-template`. `.plan` has 5 child issues (#42-#46); #42 (memory stack) and #43 (goal lifecycle) are done, #44 (plan structure) is next. Start with brainstorming on structured plans — replacing `currentPlan` string with multi-step plan objects.
 
-## Forage — deferred from prior session
+## Cross-Module
 
-3 garden entries identified in prior session (not yet captured):
-1. [gotcha] Quarkus dev mode stale frontend build
-2. [technique] Dual-fidelity narrative events
-3. [convention] Autonomous agent response schema pattern
+**Enabled:**
+- `casehub-engine-api` — GoalRevisionAction enum (#903) and CaseDefinition removal (#897) shipped. Slot `.m2` needs `mvn install -Dmaven.repo.local=<slot>/.m2` if further engine changes land upstream.
