@@ -1,80 +1,83 @@
-# Decisions — #43 Goal Lifecycle
+# Decisions — #44 Plan Structure
 
-## D1: Goal formation timing
+## D1: PlanRevisionStrategy SPI usage
 
-**Choice:** Post-reflection async — goal formation chains after reflection on the same virtual thread. Goals appear on the character's next tick.
+**Choice:** Use the engine's PlanRevisionStrategy SPI directly — fill case-specific fields (caseId, compoundId, CaseDefinition, latestBindingName) with nulls. Set capabilityName on PlanStepDescriptor/CompletedStep to null or a generic placeholder. No wrapper or abstraction layer.
 **Alternatives:**
-- End-of-tick sync — adds tick latency, awkward with async reflection (race between reflection completion and tick end)
-- Separate cadence — independent timer/interval, adds complexity for no clear benefit
-**Rationale:** Reflection already runs on a virtual thread when importance thresholds trigger. Goal formation is the natural next step in that chain: ingest → reflection trigger → synthesize insights → form goals. No tick loop latency, no race conditions. One-tick delay before goals appear models cognitive latency.
-**Trade-offs:** The full chain (reflection + formation + revision) is 3 LLM calls (6-30 seconds). Multiple ticks may elapse before goals appear — but `currentPlan` handles reactive intent per-tick while goals handle strategic direction post-reflection. This maps to System 1 (plan, reactive, per-tick) vs System 2 (goals, deliberative, post-reflection).
-**Exploration:** quick
-**Status:** captured
-**Review notes:** R1-04 identified that latency was understated (3 LLM calls, not 1). R1-01 identified that removing per-tick newGoals/dropGoals eliminates reactive goal agency — addressed by the plan/goal cognitive split: currentPlan is the reactive mechanism, goals are the strategic layer.
-
-## D2: CaseDefinition on engine SPIs
-
-**Choice:** Challenge the SPI — remove CaseDefinition from GoalFormationContext and GoalRevisionContext entirely.
-**Alternatives:**
-- Pass null — works but null parameters are a code smell, and nullable fields that no implementation reads are dead weight
-- Thin manor wrapper — construct a minimal CaseDefinition, but it would be pretending the manor has cases
-**Rationale:** Neither LlmGoalFormationStrategy nor LlmGoalRevisionStrategy reads context.definition(). The evaluators extract all relevant data (agentId, goals, insights, memories) into the context's own fields before constructing it. CaseDefinition on an SPI interface couples every implementor to a ~30-field engine-internal model. If a strategy needs case context in the future, it can inject CaseDefinitionRegistry via CDI.
-**Trade-offs:** A future strategy that genuinely needs case context must inject it rather than receiving it as a parameter. CDI injection is the standard pattern for this.
-**Exploration:** quick
-**Status:** captured (implemented as casehubio/engine#897)
-
-## D3: Goal storage model
-
-**Choice:** AgentRegistry (engine pattern) — new goals registered on the AgentDescriptor via AgentRegistry.register(). Single source of truth for all goals.
-**Alternatives:**
-- CharacterState (local) — keep goals on CharacterState using AgentGoal type instead of DynamicGoal. Simpler but diverges from engine pattern.
-- Both (layered) — identity goals from AgentRegistry, situational goals on CharacterState. Preserves two-tier model but adds complexity.
-**Rationale:** The engine's GoalFormationEvaluator already uses this pattern. ObservationBuilder already calls resolveGoals() which reads from AgentRegistry. Single storage eliminates the identity/situational split and removes DynamicGoal, dynamicGoals collection, newGoals/dropGoals from AgentResponse, and goal processing from the tick loop. The currentPlan mechanism handles reactive per-tick intent that DynamicGoal previously served.
-**Trade-offs:** AgentRegistry writes during the game — minor overhead per goal formation. Descriptor immutability means building a new descriptor with updated goals (toBuilder().goals(merged).build()) on each formation. Concurrent writes need cooldown protection (R1-08).
+- Challenge the SPI upstream (engine issue to decouple from cases) — too many fields to remove, disproportionate risk to load-bearing case execution model
+- Manor-local plan model (skip SPI entirely) — loses the SPI contract and diverges from engine pattern
+**Rationale:** Pre-release — the leaky case fields cost nothing. The SPI's core concept (given completed/pending steps and a cause, propose revised steps) is exactly what the manor needs. Wrapping to hide case details is a cheap add later if needed. Follows the same pattern as goal SPIs: implement directly, don't over-abstract.
+**Trade-offs:** Manor code sees case-coupled types (AdaptationContext, CompletedStep.capabilityName). Acceptable at pre-release — wrapper deferred.
 **Exploration:** quick
 **Status:** captured
 
-## D4: Goal outcome tracking
+## D2: Plan relationship to thinking field
 
-**Choice:** LLM-assessed via reflection — when reflection runs, the synthesizer also assesses goal progress (advancing, stalled, failed), producing structured GoalOutcomeCounts alongside insights.
+**Choice:** Separate concerns — keep "thinking" as a free-text per-tick scratchpad (reactive layer). Add a separate structured plan model (tactical layer) that decomposes goals into named steps with status tracking. Plans form when goals change (event-driven, not per-tick). Three-layer cognitive model: goals (strategic) → plans (tactical) → thinking (reactive).
 **Alternatives:**
-- Mechanical action mapping — map actions to goals mechanically. Precise but brittle, requires hand-coded mappings per goal.
-- Defer revision entirely — implement only GoalFormationStrategy, skip revision. Gets core value faster but goals accumulate without cleanup.
-**Rationale:** The manor's design principle is "LLM-driven autonomy by default, mechanical support only where the LLM consistently fails." Goal outcome assessment is a judgment call (is this goal progressing?) that the LLM handles naturally from the agent's memory context. Consistent with how reflection already works. The synthesizer produces GoalOutcomeCounts per goal to populate GoalRevisionContext.counts — not left empty.
-**Trade-offs:** Non-deterministic — the LLM might assess outcomes inconsistently across reflections. Acceptable because goal revision is advisory (the evaluator validates before applying).
-**Depends on:** D1 (goal formation timing — revision runs in the same async chain)
-**Exploration:** quick
-**Status:** captured
-**Review notes:** R1-03 identified that the existing GoalOutcomeCounts infrastructure was unaddressed. Resolved: the reflection synthesizer produces structured counts, not just free-text insights.
-
-## D5: Goal lifecycle transitions
-
-**Choice:** GoalRevisionStrategy handles all lifecycle transitions — revision, abandonment, and completion — via a GoalRevisionAction enum (REVISE, ABANDON, COMPLETE) on RevisedGoal.
-**Alternatives:**
-- Threshold-based auto-drop — after N failures, automatically remove. Deterministic but doesn't account for context.
-- Formation handles it — expand GoalFormationProposal to include goals to drop. Mixes formation and cleanup responsibilities.
-- Separate mechanisms for each transition — more components, harder to reason about.
-**Rationale:** Single mechanism for all post-formation lifecycle transitions. The LLM assesses whether a goal should be revised, abandoned, or marked complete. The action enum is type-safe and explicit — no string conventions or semantic overloading.
-**Trade-offs:** Requires engine API change to GoalRevisionProposal.RevisedGoal (casehubio/engine#903).
-**Depends on:** D4 (outcome tracking provides the data for lifecycle decisions)
-**Exploration:** quick
-**Status:** revised (originally D5 + D7, merged after decision review)
-**Review notes:** R1-02 identified D7's string convention as a workaround. R1-05 identified that goal completion was unmodeled. R1-07 identified ambiguous RevisedGoal semantics. All three resolved by the GoalRevisionAction enum upstream (engine#903).
-
-## D6: Overall architecture
-
-**Choice:** Full engine SPI implementation — add casehub-engine-api dependency, implement GoalFormationStrategy and GoalRevisionStrategy as manor CDI beans, create ManorGoalEvaluator to orchestrate the flow.
-**Alternatives:**
-- Local strategy pattern — define equivalent interfaces in the manor, no engine dependency. Duplicates the SPI contract and can't swap in engine strategies.
-- Formation only — implement GoalFormationStrategy, defer revision. Smaller scope but no goal cleanup, splits the issue.
-**Rationale:** The #41 epic goal is "wire full neocortex + engine cognitive stack." The engine-api dependency is lightweight (SPI interfaces and context records, no runtime). Both formation and revision give the full lifecycle: goals emerge from reflection, evolve from outcomes, get abandoned or completed when appropriate.
-**Trade-offs:** New dependency on casehub-engine-api. More components than the current simple model (strategy + evaluator vs. inline processing).
+- Replace thinking with structured output — loses the free-text scratchpad valuable for reactive reasoning. Forces all cognition into structured steps.
+- Structured thinking (hybrid) — embeds structure inside free text, creates impedance mismatch with PlanRevisionStrategy SPI which operates on clean PlanStepDescriptor lists. Couples reactive and tactical layers in one field.
+**Rationale:** The SPI (D1) expects structured plan data — mixing it into a free-text blob requires extraction/injection parsing. Clean separation means plan formation/revision operates on a first-class model while thinking stays independent. Plan formation triggers on goal changes (not every tick), consistent with the goal lifecycle pattern from #43.
+**Trade-offs:** Adds a plan formation LLM call when goals change. Acceptable — it's event-driven, not per-tick.
+**Depends on:** D1 (SPI usage — the SPI's structured input/output model drives the separation)
 **Exploration:** quick
 **Status:** captured
 
-## D7: Priority evolution — deferred
+## D3: Plan storage location
 
-**Choice:** Goal priority is fixed at formation for #43. Priority evolution deferred to a future issue.
-**Rationale:** GoalRevisionProposal.RevisedGoal does not currently have a revisedPriority field. Adding one is a valid extension but out of scope for #43 — the GoalRevisionAction enum (engine#903) is the priority change. Priority evolution can be added to RevisedGoal in a follow-up.
-**Review notes:** R1-06 identified that priority cannot evolve after formation. Acknowledged as a limitation, deferred.
+**Choice:** CharacterState — replace `String currentPlan` with a structured plan model. Plans are transient execution state (per-scenario, in-memory), same as lastActionResult and currentRoom.
+**Alternatives:**
+- AgentDescriptor (alongside goals) — plans aren't identity, they're execution state. Heavyweight updates (full descriptor rebuild + re-register on every step completion).
+- Separate store (ConcurrentHashMap) — adds complexity for no benefit over CharacterState, which is already per-agent mutable state.
+**Rationale:** Plans decompose goals into steps for the current scenario run. They don't persist across scenarios. CharacterState is exactly this: ephemeral per-agent state. ObservationBuilder already reads from CharacterState. Replacing currentPlan in-place is the minimal change.
+**Trade-offs:** Goals (AgentDescriptor) and plans (CharacterState) live in different stores. The evaluator already cross-references both — not a new pattern.
+**Depends on:** D2 (separate concerns — plans are a distinct model, not embedded in thinking)
+**Exploration:** quick
+**Status:** captured
+
+## D4: Plan granularity
+
+**Choice:** Per-goal plans — each goal gets its own plan (list of steps). One plan per goal, formed when the goal forms, revised when steps fail, removed when the goal completes or is abandoned.
+**Alternatives:**
+- Unified plan (one per character spanning all goals) — more holistic but harder lifecycle (which steps belong to which goal?). Doesn't map to AdaptationContext.goalName.
+- Active-goal plan only — too restrictive; characters have multiple concurrent goals. Secondary goals would be planless.
+**Rationale:** Natural extension of the goal model (goals are independent, plans mirror this). Direct SPI mapping (AdaptationContext.goalName). Clean lifecycle tied to goal lifecycle. Cross-goal reasoning happens in the thinking field (reactive layer), not the plan structure.
+**Trade-offs:** No cross-goal optimization in plans. Acceptable — the LLM handles opportunistic cross-goal reasoning in the thinking field.
+**Depends on:** D2 (plans separate from thinking), D3 (plans on CharacterState)
+**Exploration:** quick
+**Status:** captured
+
+## D5: Plan revision triggers
+
+**Choice:** Both — immediate revision on action failure (reactive) plus reflection-driven revision for strategic re-assessment (deliberative). Two triggers, different granularity.
+**Alternatives:**
+- Action-outcome mismatch only — misses strategic re-assessment (step succeeded but plan is no longer viable due to changed circumstances)
+- Reflection-driven only — too slow for obvious failures (took poison, but someone saw you — plan should revise immediately, not wait for reflection)
+**Rationale:** Mirrors the System 1 / System 2 split. Reactive revision catches immediate failures (action failed, step blocked). Deliberative revision during reflection catches strategic obsolescence (world changed, goal context shifted). Both call PlanRevisionStrategy but with different AdaptationCause values.
+**Trade-offs:** More PlanRevisionStrategy calls (one per failure + one per reflection). Acceptable — plan revision is a single LLM call, and failures are infrequent.
+**Depends on:** D1 (SPI usage), D4 (per-goal plans)
+**Exploration:** quick
+**Status:** captured
+
+## D6: Plan formation mechanism
+
+**Choice:** LLM-driven via a manor-local ManorPlanFormationStrategy. Separate LLM call triggered after goal formation. Given a goal + character context + memories, the LLM decomposes the goal into named steps. Consistent with ManorGoalFormationStrategy pattern.
+**Alternatives:**
+- Inline with goal formation (expand GoalFormationProposal to include plan steps) — fewer LLM calls but couples goal and plan formation. Plan revision would still need a separate mechanism, so the asymmetry isn't worth the savings.
+**Rationale:** Goals and plans are separate cognitive processes (D2). Goal formation asks "what should I pursue?" Plan formation asks "how do I pursue this goal?" Different questions, different prompts, different LLM calls. Consistent with the pattern established by ManorGoalFormationStrategy and ManorGoalRevisionStrategy.
+**Trade-offs:** Additional LLM call per new goal. Acceptable — goal formation is infrequent (cooldown-gated, reflection-triggered).
+**Depends on:** D2 (separate concerns), D4 (per-goal plans)
+**Exploration:** quick
+**Status:** captured
+
+## D7: Step status tracking
+
+**Choice:** Reflection-assessed — step completion/failure status is assessed during reflection by the LLM, piggybacking on synthesis (same pattern as GoalOutcomeCounts from #43). No per-tick mechanical matching or response format changes.
+**Alternatives:**
+- Per-tick LLM assessment (structured output addition to every response) — adds parsing to the hot path, most ticks won't complete any step, changes response format
+- Mechanical heuristic (match action type+target to step) — brittle, plan steps are natural language, actions are structured; multi-step actions can't be matched
+**Rationale:** Step status serves the system (AdaptationContext), not the character's per-tick reasoning. The character reasons about plan progress in the thinking field using observations. Reflection already has accumulated context (memories, actions) and is already making LLM calls. Reactive revision (D5) is triggered by action failure — the failure is the signal, the LLM in PlanRevisionStrategy interprets which steps to revise.
+**Trade-offs:** Step status updates lag behind real actions (delayed until reflection). Acceptable — the character's behavior is driven by the thinking field, not structured step status.
+**Depends on:** D5 (revision triggers — reactive uses failure context, not step status)
+**Exploration:** quick
 **Status:** captured
