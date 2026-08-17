@@ -16,7 +16,9 @@
 
 - engine#817: YAML schema for QuorumConfig — needs design brainstorm (Med complexity) · S · Med
 - engine#764: update architecture spec §5 Connectors · S · Low
+- scaffold#35: replace scaffold inline REST with engine-rest dependency · M · Med
 - Work repo DataRef support — follow-on from #740 (not yet filed) · M · Med
+- Real `WorkloadDataProvider` implementation (actor-state or work adapter) — not filed · M · Med
 
 ## What's Next
 
