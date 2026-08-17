@@ -1,0 +1,9 @@
+branch: issue-276-cloudevents-core-bom
+project-sha: 3b3d1827ff6f11739fad5f840bd65a7c9049a685
+date: 2026-06-21
+issue: 276
+issue-repo: casehubio/parent
+covers: 276
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
