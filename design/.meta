@@ -1,0 +1,9 @@
+branch: issue-293-channel-taxonomy
+project-sha: 04a9e0fc0b11dad46dfc466cb5986fe42d572fd8
+date: 2026-06-25
+issue: 293
+issue-repo: casehubio/parent
+covers: 293
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
