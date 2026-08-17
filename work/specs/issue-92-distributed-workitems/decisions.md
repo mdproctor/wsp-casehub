@@ -54,3 +54,83 @@
 **Depends on:** D1, D2
 **Exploration:** deep-analysis
 **Status:** captured
+
+## D4: Projection model — shadow WorkItems as full WorkItemEntity rows with origin marker
+
+**Choice:** Add `originServiceId` (nullable String) and `originWorkItemId` (nullable UUID) to `WorkItemEntity`. Shadows are real rows in the same table. All existing inbox queries, filter engine, queue membership, and reports work transparently.
+**Alternatives:**
+- Separate `FederatedWorkItemView` entity — clean separation, but requires duplicating inbox query logic, filter engine integration, queue membership, and reports (4x integration work). 35 chapters of query/filter refinement would need parallel maintenance.
+**Rationale:** A shadow IS a WorkItem from the domain perspective. The operator doesn't care about provenance — they claim, work, complete. Using the same entity maximizes code reuse and minimizes new surface. Mutation risk is mitigated by service-layer guards (`if (originServiceId != null) route to proxy`), timer/scheduler skip guards, and assignment strategy skip guards.
+**Trade-offs:** Risk of accidental local mutation (mitigated by guards). Shadow WorkItems have many irrelevant nullable fields (spawn group config, SLA policy config). But WorkItem already has 15+ nullable fields — two more is consistent with the existing pattern.
+**Sources:**
+- WorkItemService (runtime/) — 40+ methods, each needs a federation guard
+- FilterRegistryEngine (runtime/filter/) — complex filter chain, reused for shadows
+- WorkItemTimerService — skip shadows for local timer scheduling
+- WorkItemAssignmentService — skip shadows for local assignment strategies
+- docs/MODULES.md — 35+ chapters of query/filter refinement
+**Depends on:** D1, D2, D3
+**Exploration:** deep-analysis (first-principles, traced from codebase complexity)
+**Status:** captured
+
+## D5: Subscription model — filter-on-creation with full lifecycle tracking
+
+**Choice:** Service B registers a subscription with Service A providing peer ID, callback URL, and filter predicate (candidateGroups, candidateUsers, tenancyId). Filter is evaluated only on WorkItem CREATION. Once matched, the subscription "locks on" and delivers ALL subsequent lifecycle events for that WorkItem until terminal state. Subscriptions are persistent resources stored in the federation module.
+**Alternatives:**
+- Topic-based subscription (by group/type) — efficient but rigid; groups change, requires topic management
+- Full stream + local filter — simplest but wastes bandwidth; O(all events) per subscriber
+- Push creation + pull on demand (lazy projection) — interesting but adds first-access latency
+**Rationale:** candidateGroups/Users are the natural partition keys. Filter-on-creation is O(creations × subscribers × filter) rather than O(all events × all subscribers × filter). Once locked, full lifecycle delivery ensures shadow stays current without re-evaluation. Same model as SSE filtering (WorkItemEventBroadcaster) but cross-service.
+**Trade-offs:** Subscriptions need persistence and restart recovery. Filter predicate language needs definition (simple equality / set-contains is enough initially). Late-joining subscribers miss already-created WorkItems (solvable with catch-up query on registration).
+**Sources:**
+- WorkItemEventBroadcaster SPI — existing filtered SSE model (by workItemId, type, tenancyId)
+- WorkItemEntity.candidateGroups / candidateUsers — natural partition keys
+**Depends on:** D2, D3
+**Exploration:** deep-analysis
+**Status:** captured
+
+## D6: Error handling — fail-fast with configurable timeout
+
+**Choice:** FederationProxy calls owner REST API synchronously with configurable timeout (default 5s). On success: shadow updated from CloudEvent response. On failure: error returned to operator. On 409: shadow updated from next CloudEvent, operator notified. No new lifecycle states, no background retry, no reconciliation.
+**Alternatives:**
+- Tentative claim (CLAIM_PENDING state + background retry) — better UX for transient failures but adds lifecycle complexity and reconciliation logic
+- Local-first with reconciliation — most available but risks conflicting state; violates single-writer axiom
+- Queue and retry (accept locally, retry async) — risk of optimistic conflict if someone else claims on owner
+**Rationale:** Owner is single source of truth. A claim is only valid when the owner confirms it. Transient failures at human scale (seconds) are tolerable — operator retries manually. Transport-layer reliability (Qhorus delivery guarantees, Kafka acknowledgment) handles event delivery; command reliability is solved by timeout + retry. No new states means no lifecycle change for federation.
+**Trade-offs:** Operator sees errors during owner downtime. But: errors are honest — better than tentative states that might revert. Future enhancement: Qhorus channel transport provides retry/dead-letter without custom logic.
+**Sources:**
+- WorkItemService.claim() — OCC with @Version; can't work cross-service without single writer
+- [A2A protocol](https://a2a-protocol.org/latest/specification/) — async task submission model (submitted → working)
+**Depends on:** D1, D3, D4
+**Exploration:** deep-analysis
+**Status:** captured
+
+## D7: Audit trail spanning — dual audit with cross-references
+
+**Choice:** Both services maintain audit entries. Owner has authoritative trail (all mutations go through owner's WorkItemService). Shadow has local trail recording proxied operations with federation metadata (originServiceId, originWorkItemId, remoteAuditEntryId). CloudEvents carry audit entry IDs in extension attributes for cross-referencing. ProvenanceLink (#39) connects them into a unified PROV-O causal graph when it lands.
+**Alternatives:**
+- Owner-only audit — simple but Service B can't answer "what did our operators do?" without querying every remote owner
+- Federated audit events (replicate owner's full audit trail to shadows) — complete but duplicates data and requires audit-specific sync
+**Rationale:** Neither trail is redundant: owner has the canonical record of what happened, shadow has the local operator activity log. ProvenanceLink is the planned cross-service traceability layer — dual audit with cross-references lays the foundation. Local audit enables independent compliance review per service.
+**Trade-offs:** Two audit trails for one logical WorkItem. Cross-reference integrity depends on CloudEvent delivery. ProvenanceLink (#39) dependency for full unified view.
+**Sources:**
+- AuditEntryStore (runtime/) — existing per-WorkItem audit trail
+- casehub-work-ledger — hash chain integrity for audit entries
+- Issue #39 (ProvenanceLink) — PROV-O causal graph for cross-service chains
+**Depends on:** D3, D4
+**Exploration:** deep-analysis
+**Status:** captured
+
+## D8: Protocol versioning — semantic versioning with additive-only minor changes
+
+**Choice:** protocolVersion (e.g., `1.0.0`) included in subscription registration. Within major version: new event types and new fields are additive-only (non-breaking). Major version change: peers must re-register; old subscriptions rejected with descriptive error. Receivers tolerate unknown fields (`@JsonIgnoreProperties(ignoreUnknown = true)`) and unknown event types (log + skip). Feature discovery via Agent Cards when A2A adapter is present.
+**Alternatives:**
+- CloudEvents type versioning (e.g., `io.casehub.work.created.v1`) — version per event type adds granularity but complicates routing
+- Feature flags (peers advertise capabilities) — flexible but adds negotiation complexity
+**Rationale:** CloudEvents + JSON already provide forward compatibility via unknown-field tolerance. Semantic versioning is well-understood. Protocol evolution follows HTTP API evolution patterns: additive within major, breaking across major. protocolVersion in registration enables clean rejection of incompatible peers.
+**Trade-offs:** Major version bumps are disruptive (all peers must re-register). But: pre-release platform — breaking changes cost nothing. Additive-only within major version is a design discipline, not a technology constraint.
+**Sources:**
+- [CloudEvents spec](https://cloudevents.io/) — specversion field, extensibility model
+- WorkCloudEventAdapter — existing event type naming (`io.casehub.work.lifecycle`)
+**Depends on:** D3
+**Exploration:** quick
+**Status:** captured
