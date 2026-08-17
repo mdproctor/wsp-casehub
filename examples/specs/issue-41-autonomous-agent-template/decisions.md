@@ -1,4 +1,4 @@
-# Decisions — #44 Plan Structure
+# Decisions — #41 Autonomous Agent Template
 
 ## D1: PlanRevisionStrategy SPI usage
 
@@ -79,5 +79,31 @@
 **Rationale:** Step status serves the system (AdaptationContext), not the character's per-tick reasoning. The character reasons about plan progress in the thinking field using observations. Reflection already has accumulated context (memories, actions) and is already making LLM calls. Reactive revision (D5) is triggered by action failure — the failure is the signal, the LLM in PlanRevisionStrategy interprets which steps to revise.
 **Trade-offs:** Step status updates lag behind real actions (delayed until reflection). Acceptable — the character's behavior is driven by the thinking field, not structured step status.
 **Depends on:** D5 (revision triggers — reactive uses failure context, not step status)
+**Exploration:** quick
+**Status:** captured
+
+# Decisions — #45 Trust and Personality
+
+## D8: Trust computation method
+
+**Choice:** Interaction-history based — count positive vs negative interactions from relationship memories. Classify memory content by keywords (help/protect/warn → positive; lie/steal/betray/trick/trap → negative). Score normalized to 0.0–1.0, default 0.5 for unknown agents.
+**Alternatives:**
+- LLM-judged — ask LLM to score trustworthiness after each interaction. Richer but adds LLM calls per tick per character pair.
+- Signal-derived — derive trust from BehavioralSignal SUCCESS/DECLINE counts. Mechanical, no LLM cost, but less nuanced — doesn't distinguish who the action was directed at.
+**Rationale:** Uses relationship memory already wired in #42. No extra LLM calls. Trust degrades naturally as characters remember lies and betrayals. Keyword matching is sufficient for Wacky Races characters where deception is theatrical and explicit.
+**Trade-offs:** Keyword-based classification is brittle for subtle deception. Acceptable for cartoon characters who narrate their schemes aloud.
+**Sources:** AgentTrustProvider SPI, #42 relationship memory wiring
+**Exploration:** quick
+**Status:** captured
+
+## D9: Disposition signal mapping
+
+**Choice:** Outcome-based mapping — map action type + result to BehavioralSignal and DispositionAxis. Only meaningful actions (STEAL, GIVE, PULL_ASIDE, USE, INTERACT) generate signals. MOVE, LOOK, WAIT are skipped to avoid noise.
+**Alternatives:**
+- Action-type only — static map regardless of outcome. Can't distinguish between attempting a steal and succeeding at one. Generates noise from failed mundane actions.
+**Rationale:** Follows the same pattern as `importanceForAction()` already in the orchestrator. Avoids polluting disposition signals with noise from trivial actions. Deterministic, no LLM cost.
+**Trade-offs:** Can't capture contextual nuance (stealing from ally vs enemy generates the same signal). Acceptable — disposition axes measure behavioral tendencies, not moral judgment.
+**Depends on:** D8 (trust computation — disposition signals are a separate concern from trust scoring)
+**Sources:** BehavioralSignalStore, DispositionSignalStore, importanceForAction() pattern
 **Exploration:** quick
 **Status:** captured
