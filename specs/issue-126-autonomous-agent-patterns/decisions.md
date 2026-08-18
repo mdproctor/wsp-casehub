@@ -12,17 +12,20 @@
 
 ## D2: Signal-to-activation mapping strategy
 
-**Choice:** Layered mapping (axis-level + vocabulary-level)
+**Choice:** Layered mapping (profile-term-aware + vocabulary-structural)
 **Alternatives:**
 - Vocabulary-aware mapping only — maps via VocabularyTerm.opposite() for function-level activation. Only meaningful for JungianFunctionTerm; other 12 vocabulary frameworks return Optional.empty(), excluding their agents from personality evolution entirely.
-- Axis-level mapping only — maps to 5 disposition axes (socialOrient, ruleFollowing, etc.) rather than individual functions. Universal but loses Jungian vocabulary detail.
+- Axis-level mapping — maps to 5 DispositionAxis values. Architecturally incoherent: DefaultDispositionHealth.probe() iterates over dispositionProfile terms, not per-axis fields. Axis names recorded as activation terms would silently produce zero matches via counts.getOrDefault(dv.term(), 0).
 - Raw event passthrough — passes raw domain events as activation terms, bypasses eidos JPAF infrastructure entirely.
-**Rationale:** Every agent with a disposition profile has 5 DispositionAxis values (SOCIAL_ORIENTATION, RULE_FOLLOWING, RISK_APPETITE, AUTONOMY, CONFLICT_MODE) regardless of vocabulary framework. Axis-level mapping provides universal personality evolution for all agents. Vocabulary-level mapping via VocabularyTerm.opposite() enriches agents whose vocabulary supports oppositional semantics (currently Jungian only) with shadow-function-aware activation. The SPI declares both layers; implementors provide at minimum the axis-level mapping.
-**Trade-offs:** Two-layer mapping is more complex than either layer alone. Axis-level mapping is coarser than vocabulary-level — agents with vocabulary enrichment get richer evolution trajectories. Some domain events may not have a natural axis-level mapping (the translation SPI returns Optional to handle this).
-**Sources:** DispositionSignalStore.java (eidos), VocabularyTerm.opposite() (eidos API), DispositionAxis.java (eidos API), GE-20260728-a53632 (vocabulary-generic structural navigation technique)
+**Rationale:** Two layers, both operating on dispositionProfile terms (the field consumed by DefaultDispositionHealth.probe()):
+- Layer 1 (universal): Profile-term-aware mapping — the signal translator receives the AgentDescriptor, reads dispositionProfile terms, and maps domain events directly to those terms. Works for ANY vocabulary: Big Five agents activate "Openness"/"Conscientiousness", DISC agents activate "Dominance"/"Influence", Jungian agents activate "Ti"/"Ne". Every agent with a populated dispositionProfile participates in personality evolution.
+- Layer 2 (enrichment): Vocabulary-structural mapping — for agents whose vocabulary supports structural navigation (e.g., JungianFunctionTerm.opposite()), the translator additionally infers indirect activations from vocabulary structure (e.g., negative event on Ti also activates shadow Fe). This enrichment requires vocabulary-specific structural knowledge not derivable from profile terms alone.
+The translator already has access to AgentDescriptor (required for agentId/tenancyId in recordActivation), so reading dispositionProfile terms adds no dependencies.
+**Trade-offs:** Two-layer mapping is more complex than either layer alone. Profile-term-aware mapping is direct but vocabulary-agnostic — agents with vocabulary structural enrichment get richer evolution trajectories (shadow function awareness). The mapping from domain event to specific profile term is SPI-defined, requiring per-domain-event-type implementations.
+**Sources:** DispositionSignalStore.java (eidos), VocabularyTerm.opposite() (eidos API), AgentDisposition.dispositionProfile (eidos API), DefaultDispositionHealth.probe() (eidos runtime), GE-20260728-a53632 (vocabulary-generic structural navigation technique)
 **Exploration:** quick
 **Depends on:** D1 (signal-driven orchestrator scope)
-**Status:** revised (R1-06, R1-07: layered mapping replaces vocabulary-only mapping to avoid excluding agents without Jungian vocabulary)
+**Status:** revised (R1-06, R1-07, R2-02: profile-term-aware mapping replaces axis-level mapping — aligns with probe pipeline's use of dispositionProfile terms)
 
 ## D3: Probe timing model
 
@@ -48,7 +51,7 @@
 **Trade-offs:** Requires eidos SPI enhancement (valence parameter on recordActivation or separate positive/negative counts). More complex than recording-time dampening. Justified because preserving raw signal data with metadata is architecturally superior to permanently distorting it. Signal severity gradations are handled by the signal translation SPI (magnitude = how many activations to record) rather than the dampening mechanism (asymmetry = how to weight negative vs positive). Spec must document cascaded attenuation with default parameters: reinforcementDelta=0.06, overReinforcementThreshold=0.50, dampeningFactor=0.5.
 **Sources:** LLMPTBench (NeurIPS 2025, OpenReview kVXePuKReA), BFI-Adapt (arXiv:2608.06485)
 **Exploration:** quick
-**Depends on:** D1 (signal-driven orchestrator scope), D2 (layered mapping)
+**Depends on:** D1 (signal-driven orchestrator scope), D2 (profile-term-aware + vocabulary-structural mapping)
 **Status:** revised (R1-13: moved dampening from recording-time to probe-time to enable retroactive calibration)
 
 ## D5: Bounded displacement enforcement
@@ -58,13 +61,21 @@
 - Per-function activation cap — caps max activation count per function. Doesn't account for different base weights.
 - Weight-range clamping — clamps effective weights to JPAF differentiation ranges. Constrains output, not input.
 - Weighted norm — assigns smaller penalty to dominant/auxiliary displacement (expected to be strong) and larger penalty to inferior displacement. More psychologically coherent but embeds Jungian theory into the safety rail.
-**Rationale:** The L2 displacement metric is already exposed through the DispositionHealth SPI: DispositionStatus.Drifted(effectiveWeights, mostActivated, driftMagnitude) includes driftMagnitude which is the L2 distance. The orchestrator checks the ceiling via probe results — when probe returns Drifted with driftMagnitude >= L2Ceiling, a halt flag is set. When probe returns Aligned, the flag clears. Between ticks, recording is gated by the halt flag (AtomicBoolean). No direct access to the private computeL2 method is needed.
+**Rationale:** The L2 displacement metric is already exposed through the DispositionHealth SPI: DispositionStatus.Drifted(effectiveWeights, mostActivated, driftMagnitude) includes driftMagnitude which is the L2 distance. The orchestrator checks the ceiling via probe results. Between ticks, recording is gated by the halt flag (AtomicBoolean). No direct access to the private computeL2 method is needed.
+**Halt flag state machine:** Complete coverage of the sealed DispositionStatus:
+- Aligned → clear halt flag (no drift, recording continues)
+- Drifted with driftMagnitude >= L2Ceiling → set halt flag (displacement too high)
+- Drifted with driftMagnitude < L2Ceiling → clear halt flag (drift within bounds)
+- EvolutionPending → trigger DispositionEvolution.evaluate(), then:
+  - Evolved → apply new profile, call DispositionSignalStore.clear(), clear halt flag (new baseline = zero displacement)
+  - Dampened → call DispositionSignalStore.decay() with factor, leave halt flag unchanged (next tick re-evaluates with reduced activations)
+Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds overReinforcementThreshold, so EvolutionPending fires only when displacement has crossed an evolution threshold but NOT the over-reinforcement ceiling. EvolutionPending is an evolution trigger, not a halt condition.
 **Complementary relationship with overReinforcementThreshold:** eidos's overReinforcementThreshold (default 0.50) is a per-function ceiling on the dominant's effective weight — fires when ONE function is disproportionately strong. The L2 ceiling is a global displacement bound — fires when the OVERALL profile drifts too far, catching distributed drift across multiple dimensions that no single per-function ceiling would detect. These are distinct geometric properties (per-dimension max vs global euclidean distance). Both mechanisms fire independently and serve complementary safety roles.
 **Trade-offs:** L2 norm treats all axes equally — a shift in dominant function contributes the same as a shift in undifferentiated. This is intentional: the L2 ceiling is a safety rail, not a personality model. The JPAF pipeline handles psychological correctness (evolution detection); the L2 ceiling handles the "displacement accumulated without triggering evolution" case, which is pathological by definition. Bounded overshoot between probe ticks is an accepted trade-off of D3's periodic model.
 **Sources:** DispositionStatus.Drifted.driftMagnitude (eidos API), JPAF Equations 1-3 (arXiv:2601.10025), DispositionPreferenceKeys.OVER_REINFORCEMENT_THRESHOLD (eidos, default 0.50)
 **Exploration:** quick
 **Depends on:** D1 (signal-driven orchestrator scope), D3 (batched periodic timing)
-**Status:** revised (R1-16, R1-17: clarified L2 check mechanism via Drifted.driftMagnitude rather than computeL2 reimplementation; documented complementary relationship with overReinforcementThreshold)
+**Status:** revised (R1-16, R1-17: clarified L2 check mechanism via Drifted.driftMagnitude; R2-03: complete halt flag state machine covering all three DispositionStatus variants and post-evolution behavior)
 
 ## D6: Integration point
 
