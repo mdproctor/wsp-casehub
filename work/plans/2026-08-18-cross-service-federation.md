@@ -160,7 +160,7 @@ Follow the same pattern. InMemory: stream filter. MongoDB: document query.
 ALTER TABLE work_item ADD COLUMN origin_service_id VARCHAR(255);
 ALTER TABLE work_item ADD COLUMN origin_work_item_id UUID;
 ALTER TABLE work_item ADD COLUMN origin_version BIGINT;
-CREATE INDEX idx_work_item_origin ON work_item (origin_service_id, origin_work_item_id);
+CREATE UNIQUE INDEX idx_work_item_origin ON work_item (origin_service_id, origin_work_item_id);
 ```
 
 - [ ] **Step 11: Write mapper test**
@@ -269,12 +269,9 @@ class FederationGuardStoreTest {
             .originWorkItemId(UUID.randomUUID())
             .build();
         when(delegate.put(shadow)).thenReturn(shadow);
-        FederationSyncContext.activate();
-        try {
+        try (var ctx = FederationSyncContext.activate()) {
             guardedStore.put(shadow);
             verify(delegate).put(shadow);
-        } finally {
-            FederationSyncContext.deactivate();
         }
     }
 
@@ -300,13 +297,18 @@ JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn test -Dtest=FederationGuardStoreTe
 - [ ] **Step 4: Implement FederationSyncContext**
 
 ```java
-public final class FederationSyncContext {
+public final class FederationSyncContext implements AutoCloseable {
     private static final ThreadLocal<Boolean> ACTIVE = ThreadLocal.withInitial(() -> false);
-    public static void activate() { ACTIVE.set(true); }
-    public static void deactivate() { ACTIVE.remove(); }
+    public static FederationSyncContext activate() {
+        ACTIVE.set(true);
+        return new FederationSyncContext();
+    }
+    @Override
+    public void close() { ACTIVE.remove(); }
     public static boolean isActive() { return ACTIVE.get(); }
     private FederationSyncContext() {}
 }
+// Usage: try (var ctx = FederationSyncContext.activate()) { store.put(shadow); }
 ```
 
 - [ ] **Step 5: Implement FederationGuardStore**
@@ -531,7 +533,7 @@ CREATE TABLE federation_subscription (
     tenancy_id VARCHAR(255) NOT NULL,
     filter_json TEXT NOT NULL,
     capabilities_json TEXT,
-    hmac_secret_hash VARCHAR(255) NOT NULL,
+    hmac_secret_encrypted BYTEA NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
     consecutive_failures INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL
@@ -608,7 +610,7 @@ Test that subsequent events for a locked WorkItem are delivered to all locked su
 
 - [ ] **Step 4: Implement FederationEventRouter**
 
-`@ObservesAsync WorkItemLifecycleEvent`. Check `originServiceId != null` → skip. For CREATED events: evaluate subscriptions, lock on matches. For all events: find locked subscriptions, build CloudEvents, send via transport.
+`@Observes(during = TransactionPhase.AFTER_SUCCESS) WorkItemLifecycleEvent`. Check `originServiceId != null` → skip. Uses `AFTER_SUCCESS` (not `@ObservesAsync`) to prevent phantom shadow creation from rolled-back transactions — same pattern as `PostgresWorkItemEventBroadcaster` and `IssueLinkService`. For CREATED events: evaluate subscriptions, lock on matches. For all events: find locked subscriptions, build CloudEvents, send via transport.
 
 - [ ] **Step 5: Run tests, commit**
 
@@ -669,7 +671,7 @@ void claimOnLocalDelegatesToService() {
 
 - [ ] **Step 2: Implement FederationProxyService decorator**
 
-CDI `@Decorator` on `WorkItemOperations`. Pattern: `findById()` → check `originServiceId` → proxy or delegate. Audit proxied operations locally with federation metadata in `detail` JSON.
+CDI `@Decorator` on `WorkItemOperations`. Pattern: `findById()` → check `originServiceId` → proxy or delegate. On successful proxy response: synchronously update the shadow WorkItem (via `FederationSyncContext` + `store.put()`) to reflect the new status, then return the updated shadow (not the owner's WorkItem, which has the owner's UUID). This avoids the staleness window for the calling operator. Audit proxied operations locally with federation metadata in `detail` JSON.
 
 - [ ] **Step 3: Run tests, commit**
 
