@@ -1,13 +1,25 @@
-# HANDOFF — 2026-08-14
+# HANDOFF — 2026-08-18
 
 ## Last Session
 
-Verified #44 (plan structure) — all five commits from prior sessions confirmed working. Tests were blocked by a Quarkus bootstrap resolver issue: `eidos-eval` SNAPSHOT reported as "present, but unavailable" despite existing in `~/.m2`. Root cause: the Quarkus resolver requires artifacts from a named repository source, and the default settings included a `github` remote that didn't have it. Fix: `-s slot-settings.xml` replaces default settings with `host-m2`. Updated CLAUDE.md build commands. Marked #44 complete, advanced queue to #45.
+Implemented #45 (trust and personality — ManorTrustProvider, ManorDispositionRecorder, ManorPersonalityEvolution) and #46 (ARCHITECTURE.md + AUTONOMOUS-AGENT-GUIDE.md). Ran the app in autonomous mode and found/fixed a bug where salience-scored memory recall was hardcoded to `List.of()`. Completed gap audit, coherence review, and code review — all clean. Squashed 30 commits to 1 semantic commit. Filed #48 (Observation SPI extraction, M/Med, cross-repo). All 5 queue items (#42-#46) complete. 391 tests pass.
 
 ## Immediate Next Step
 
-Run `/work` to continue. Active issue is #45 — trust and personality: wire AgentTrustProvider, personality evolution (M / High). Brainstorming and design spec needed before implementation.
+Resolve rebase conflicts against 4 new commits on original repo main, then re-run `merge-slot`:
+
+```bash
+# In the slot clone, fetch and rebase:
+git fetch local main
+git rebase local/main
+# Resolve conflicts (likely ScenarioOrchestrator.java from agent-gate migration #30)
+# Then:
+python3 ~/.claude/skills/work-slot/slot_manager.py merge-slot /Users/mdproctor/claude/casehub slot=107
+```
+
+Lifecycle state is `closing:promoted`. After merge-slot: fire `push_pass`, `merge_pass`, `stamp_pass`, `cleanup_pass` transitions, close issues #42-#46, archive slot.
 
 ## Cross-Module
 
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
+**Enabled:**
+- `examples` — #48 Observation SPI extraction ready to implement (gates eidos-api SPI definition) - M / Med
