@@ -377,15 +377,18 @@ Between a failed proxy call and the arrival of the corrective CloudEvent, the sh
 
 1. Verify HMAC signature against the shared secret from the subscription
 2. Extract `WorkItem` state projection from event data
-3. **Shadow lookup:** call `WorkItemStore.findByOrigin(originServiceId, originWorkItemId)` (§5) to find an existing shadow
-4. **Version check:** if a shadow exists, compare incoming `workitemversion` against `shadow.originVersion()`. Discard if `incomingVersion <= shadow.originVersion()` (stale/duplicate). See §7 Event Ordering for why `originVersion` is used instead of the shadow's JPA `version`.
-5. **callerRef namespacing:** prefix the owner's `callerRef` with `federation:<originServiceId>:` to prevent collisions with `WorkCloudEventInboundAdapter` (which uses `findByCallerRef(ce.getId())` for idempotency) and `QhorusWorkItemLifecycleAdapter` (which checks `QhorusCallerRef.isQhorus()` on terminal events)
-6. Build shadow WorkItem with `originVersion` set from the incoming `workitemversion`
-7. Set `FederationSyncContext.activate()` (enables `FederationGuardStore` pass-through)
-8. Upsert shadow WorkItem via `WorkItemStore.put()`
-9. Clear `FederationSyncContext.deactivate()`
-10. Record local audit entry with federation metadata
-11. Fire `WorkItemLifecycleEvent` via `WorkItemLifecycleEmitter.emit()` for SSE broadcast
+3. **Establish tenant context.** Extract `tenancyid` from the CloudEvent extension. Use `TenantContextRunner.runInTenantContext(tenancyId, ...)` to activate a CDI request scope for all subsequent steps (4–11). This is the same mechanism used by `WorkCloudEventInboundAdapter` for inbound CloudEvent processing. All JPA store methods are tenant-scoped via `CurrentPrincipal.tenancyId()` — without tenant context, `findByOrigin()` would include a null tenant filter and fail to find existing shadows, causing unbounded shadow duplication.
+4. **Shadow lookup:** call `WorkItemStore.findByOrigin(originServiceId, originWorkItemId)` (§5) to find an existing shadow
+5. **Version check:** if a shadow exists, compare incoming `workitemversion` against `shadow.originVersion()`. Discard if `incomingVersion <= shadow.originVersion()` (stale/duplicate). See §7 Event Ordering for why `originVersion` is used instead of the shadow's JPA `version`.
+6. **callerRef namespacing:** prefix the owner's `callerRef` with `federation:<originServiceId>:` to prevent collisions with `WorkCloudEventInboundAdapter` (which uses `findByCallerRef(ce.getId())` for idempotency) and `QhorusWorkItemLifecycleAdapter` (which checks `QhorusCallerRef.isQhorus()` on terminal events)
+7. Build shadow WorkItem with `originVersion` set from the incoming `workitemversion`
+8. Set `FederationSyncContext.activate()` (enables `FederationGuardStore` pass-through)
+9. Upsert shadow WorkItem via `WorkItemStore.put()`
+10. Clear `FederationSyncContext.deactivate()`
+11. Record local audit entry with federation metadata
+12. Fire `WorkItemLifecycleEvent` via `WorkItemLifecycleEmitter.emit()` for SSE broadcast
+
+Steps 4–12 execute within the `TenantContextRunner` scope established in step 3.
 
 For `created` events: insert a new shadow WorkItem with `originServiceId`, `originWorkItemId`, and `originVersion` set.
 For lifecycle events: update the existing shadow's status and fields from the projection.
