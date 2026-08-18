@@ -79,8 +79,8 @@ Lives in eidos-api (shared between blocks and eidos). POSITIVE signals reinforce
 | Implementation | Event type | Mapping logic |
 |---|---|---|
 | `BehavioralSignalPressureSource` | `BehavioralSignal` | SUCCESS/COMPLIANT → POSITIVE activation of dominant function. DECLINE/VIOLATED → NEGATIVE activation of compensating function (vocabulary-structural if available). |
-| `RelationshipPressureSource` | `RelationshipEvent` | POSITIVE quality → POSITIVE activation of social-oriented function. NEGATIVE quality → NEGATIVE activation. Function selection from profile terms by semantic match. |
-| `GoalOutcomePressureSource` | `GoalOutcomeCounts` | High success rate → POSITIVE activation of dominant. Low success rate → NEGATIVE activation of compensating function. |
+| `RelationshipPressureSource` | `RelationshipEvent` | POSITIVE quality → POSITIVE activation of the profile's highest-weighted function (dominant). NEGATIVE quality → NEGATIVE activation of the second-highest function (auxiliary). When vocabulary structural navigation is available, NEGATIVE also activates the dominant's opposite (shadow). |
+| `GoalOutcomePressureSource` | `GoalOutcomeCounts` | Success rate above configurable threshold (default 0.7) → POSITIVE activation of dominant. Success rate below configurable floor (default 0.3) → NEGATIVE activation of auxiliary. Between floor and threshold → no activation. |
 
 Consumer repos provide domain-specific implementations for events not covered by the defaults (e.g., conversation deadlock → activate conflict-mode function).
 
