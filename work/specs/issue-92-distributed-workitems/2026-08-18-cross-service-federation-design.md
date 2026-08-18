@@ -72,16 +72,34 @@ Both modules are activated by classpath presence, consistent with `engine-adapte
 
 ## 5. WorkItem Record Changes (D12)
 
-Two nullable fields added to the `WorkItem` record in `api/`:
+Three nullable fields added to the `WorkItem` record in `api/`:
 
 | Field | Type | Null means | Non-null means |
 |-------|------|------------|----------------|
 | `originServiceId` | `String` | Locally owned | Shadow — owned by this service |
 | `originWorkItemId` | `UUID` | Locally owned | ID on the owning service |
+| `originVersion` | `Long` | Locally owned (or first event not yet received) | Owner's `@Version` value at the time of the last applied federation event |
 
-All three `WorkItemStore` backends (JPA, MongoDB, InMemory) persist these fields. The `WorkItem.Builder` gains two setter methods. Flyway migration adds two nullable columns to the `work_item` table.
+All three `WorkItemStore` backends (JPA, MongoDB, InMemory) persist these fields. The `WorkItem.Builder` gains three setter methods. Flyway migration adds three nullable columns to the `work_item` table.
+
+`originVersion` is distinct from the shadow's own JPA `@Version` (which JPA manages independently and increments on every local `persistAndFlush()`). `WorkItemEntityMapper.copyFieldsToEntity()` deliberately excludes `version` from its field copy — JPA must control the OCC counter. `originVersion` is included in `copyFieldsToEntity()` and tracks the owner's mutation sequence for stale event detection (see §7 Event Ordering).
 
 Consumer code can detect shadows: `if (workItem.originServiceId() != null) { /* shadow */ }`.
+
+### Shadow Lookup
+
+`WorkItemStore` gains a new method for shadow resolution by origin coordinates:
+
+```
+default Optional<WorkItem> findByOrigin(String originServiceId, UUID originWorkItemId) {
+    return scanAll().stream()
+        .filter(w -> originServiceId.equals(w.originServiceId())
+                  && originWorkItemId.equals(w.originWorkItemId()))
+        .findFirst();
+}
+```
+
+The JPA backend overrides with an indexed query (`WHERE origin_service_id = ? AND origin_work_item_id = ?`). This follows the same pattern as `findByCallerRef()` — a default brute-force implementation with an efficient JPA override. A composite index on `(origin_service_id, origin_work_item_id)` is added in the Flyway migration (§16).
 
 ## 6. Federation Guard (D4)
 
@@ -136,8 +154,8 @@ Every REST operation on a shadow WorkItem falls into one of three categories:
 | Category | Operations | Rationale |
 |----------|-----------|-----------|
 | **Proxied** | claim, start, complete, reject, delegate, acceptDelegation, declineDelegation, release, suspend, resume, cancel, fault, obsolete, escalate, extend, updateDeadline, addLabel, removeLabel | Lifecycle mutations — must execute on the owner. Shadow updated when the resulting CloudEvent arrives. |
-| **Shadow-local** | addNote, editNote, deleteNote, addLink, deleteLink, streamEvents (SSE), getById, listAll, inbox | Read operations and consumer-local annotations stored as separate entities (WorkItemNote, WorkItemLink), not overwritten by federation snapshot updates. |
-| **Blocked** | create (shadows are created by federation events only), clone (creates a new local WorkItem — not a shadow operation) | These operations are not meaningful on shadows. `FederationGuardStore` blocks create-via-put; clone is blocked by the proxy decorator. |
+| **Shadow-local** | addNote, editNote, deleteNote, addLink, deleteLink, streamEvents (SSE), getById, listAll, inbox, clone | Read operations, consumer-local annotations stored as separate entities (WorkItemNote, WorkItemLink), and clone (creates a new local WorkItem with `originServiceId = null`, disconnected from federation — a valid use case for creating a local copy of a federated task). |
+| **Blocked** | create (shadows are created by federation events only) | `FederationGuardStore` blocks create-via-put for items with `originServiceId != null`. |
 
 ### Event Types
 
@@ -199,9 +217,18 @@ Receivers overwrite the shadow's state from the projection. This is simpler than
 
 ### Event Ordering
 
-Each federation CloudEvent includes the WorkItem's `version` field (JPA `@Version`, monotonically incrementing on every mutation). The receiver compares `incomingVersion > existingVersion` and discards stale events. This prevents transient state oscillation when events arrive out of order due to network reordering.
+Each federation CloudEvent includes the owner's `@Version` value in the `workitemversion` extension attribute. The receiver stores this value in the shadow's `originVersion` field (§5) and uses it for stale event detection:
 
-The `version` field is already part of the `WorkItem` record and is incremented by JPA on every `store.put()`. No additional counter is needed.
+```
+if (existingShadow.originVersion() != null
+        && incomingVersion <= existingShadow.originVersion()) {
+    // stale or duplicate — discard
+    return;
+}
+shadow = shadow.toBuilder().originVersion(incomingVersion).build();
+```
+
+**Why `originVersion` is separate from `version`:** the shadow's JPA `@Version` field is managed by JPA independently — it increments on every local `persistAndFlush()`, counting shadow-side puts (1, 2, 3, ...). The owner's version counts owner-side mutations (which may be at 8 when the shadow is at 2). Comparing incoming owner versions against the shadow's JPA version produces incorrect ordering decisions. `originVersion` tracks the owner's sequence, `version` tracks the shadow's OCC sequence — they serve different purposes and must not be conflated.
 
 ### FederationEventRouter Hook Mechanism
 
@@ -296,7 +323,15 @@ The subscription filter matches against `WorkItem.candidateGroups` (a comma-sepa
 
 ## 9. Federation Proxy (D6)
 
-`FederationProxyService` is a CDI `@Decorator` on `WorkItemService`, consistent with the `FederationGuardStore` pattern on `WorkItemStore`:
+### Prerequisite: Extract WorkItemService Interface
+
+`WorkItemService` is currently a concrete class. CDI `@Decorator` requires an interface — `implements ConcreteClass` is a compile error in Java. The existing `WorkItemStore` SPI is already an interface with three backends (JPA, MongoDB, InMemory); `WorkItemService` should follow the same pattern.
+
+**Refactoring:** extract public lifecycle and query methods from `WorkItemService` into a `WorkItemService` interface in `api/`. The current class becomes `WorkItemServiceImpl implements WorkItemService` in `runtime/service/`. Injection sites update from the class to the interface. This is a mechanical refactoring with no behavioral change — it corrects an existing design asymmetry where `WorkItemStore` is a proper SPI but `WorkItemService` is not.
+
+### FederationProxyService Decorator
+
+`FederationProxyService` is a CDI `@Decorator` on the `WorkItemService` interface:
 
 ```
 @Decorator @Priority(Interceptor.Priority.APPLICATION + 10)
@@ -313,12 +348,12 @@ class FederationProxyService implements WorkItemService {
         }
         return delegate.claim(id, claimantId);
     }
-    // same pattern for all proxied lifecycle methods
+    // same pattern for all proxied lifecycle methods (§7 Command Categorisation)
     // query methods (findById, scan, etc.) delegate transparently
 }
 ```
 
-This approach provides a single interception point for all lifecycle operations. New operations added to `WorkItemService` are automatically covered (they delegate by default). REST resources require no modification. The extra `findById` in the decorator is a JPA L1 cache hit within the same persistence context — zero overhead.
+This provides a single interception point for all lifecycle operations. New operations added to `WorkItemService` are automatically covered (they delegate by default). REST resources require no modification. The extra `findById` in the decorator is a JPA L1 cache hit within the same persistence context — zero overhead.
 
 `FederationProxy` uses the `client/` module to call the owner's REST API:
 
@@ -342,15 +377,17 @@ Between a failed proxy call and the arrival of the corrective CloudEvent, the sh
 
 1. Verify HMAC signature against the shared secret from the subscription
 2. Extract `WorkItem` state projection from event data
-3. **Version check:** if a shadow already exists, compare incoming `version` against existing. Discard if `incomingVersion <= existingVersion` (stale/duplicate).
-4. **callerRef namespacing:** prefix the owner's `callerRef` with `federation:<originServiceId>:` to prevent collisions with `WorkCloudEventInboundAdapter` (which uses `findByCallerRef(ce.getId())` for idempotency) and `QhorusWorkItemLifecycleAdapter` (which checks `QhorusCallerRef.isQhorus()` on terminal events)
-5. Set `FederationSyncContext.activate()` (enables `FederationGuardStore` pass-through)
-6. Upsert shadow WorkItem via `WorkItemStore.put()`
-7. Clear `FederationSyncContext.deactivate()`
-8. Record local audit entry with federation metadata
-9. Fire `WorkItemLifecycleEvent` via `WorkItemLifecycleEmitter.emit()` for SSE broadcast
+3. **Shadow lookup:** call `WorkItemStore.findByOrigin(originServiceId, originWorkItemId)` (§5) to find an existing shadow
+4. **Version check:** if a shadow exists, compare incoming `workitemversion` against `shadow.originVersion()`. Discard if `incomingVersion <= shadow.originVersion()` (stale/duplicate). See §7 Event Ordering for why `originVersion` is used instead of the shadow's JPA `version`.
+5. **callerRef namespacing:** prefix the owner's `callerRef` with `federation:<originServiceId>:` to prevent collisions with `WorkCloudEventInboundAdapter` (which uses `findByCallerRef(ce.getId())` for idempotency) and `QhorusWorkItemLifecycleAdapter` (which checks `QhorusCallerRef.isQhorus()` on terminal events)
+6. Build shadow WorkItem with `originVersion` set from the incoming `workitemversion`
+7. Set `FederationSyncContext.activate()` (enables `FederationGuardStore` pass-through)
+8. Upsert shadow WorkItem via `WorkItemStore.put()`
+9. Clear `FederationSyncContext.deactivate()`
+10. Record local audit entry with federation metadata
+11. Fire `WorkItemLifecycleEvent` via `WorkItemLifecycleEmitter.emit()` for SSE broadcast
 
-For `created` events: insert a new shadow WorkItem with `originServiceId` and `originWorkItemId` set.
+For `created` events: insert a new shadow WorkItem with `originServiceId`, `originWorkItemId`, and `originVersion` set.
 For lifecycle events: update the existing shadow's status and fields from the projection.
 For terminal events: update the shadow to terminal status. Remove lock-on tracking entry.
 
@@ -391,6 +428,8 @@ The shadow service records proxied operations locally:
 | `detail` | JSON: `{ "originServiceId": "...", "originWorkItemId": "...", "remoteAuditEntryId": "..." }` |
 
 The `remoteAuditEntryId` comes from the CloudEvent's `auditentryid` extension attribute, enabling cross-reference.
+
+Federation audit entries use the existing `AuditEntry` entity and `audit_entry` table — no separate `federation_audit_entry` table. The federation metadata (`originServiceId`, `originWorkItemId`, `remoteAuditEntryId`) is stored in the `detail` JSON field, consistent with how other audit entry types store context-specific data. Cross-service audit correlation uses ProvenanceLink (#39), not dedicated columns.
 
 ### Integrity
 
@@ -444,10 +483,9 @@ Shadow WorkItems inherit the owner's `tenancyId` and are subject to the same RLS
 
 | Table | Change |
 |-------|--------|
-| `work_item` | Add `origin_service_id VARCHAR(255)`, `origin_work_item_id UUID` (both nullable) |
+| `work_item` | Add `origin_service_id VARCHAR(255)`, `origin_work_item_id UUID`, `origin_version BIGINT` (all nullable). Add composite index on `(origin_service_id, origin_work_item_id)` for `findByOrigin()` lookups. |
 | `federation_subscription` | New: `id UUID PK`, `peer_id VARCHAR`, `callback_url VARCHAR`, `tenancy_id VARCHAR NOT NULL`, `filter_json TEXT`, `capabilities_json TEXT`, `hmac_secret_encrypted BYTEA`, `created_at TIMESTAMP`, `status VARCHAR`, `consecutive_failures INT DEFAULT 0`, `last_failure_at TIMESTAMP` |
 | `federation_subscription_tracking` | New: `subscription_id UUID FK`, `work_item_id UUID`, composite PK |
-| `federation_audit_entry` | New: extends existing audit entry schema with `origin_service_id`, `origin_work_item_id`, `remote_audit_entry_id` |
 
 Version range: per `docs/FLYWAY.md`, reserve a V-number block for the federation module.
 
