@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-41-autonomous-agent-template
-state: closing:review
+state: closing:promoted
 project-sha: slot-creation
 date: 2026-08-10
 issue-repo: casehubio/examples
