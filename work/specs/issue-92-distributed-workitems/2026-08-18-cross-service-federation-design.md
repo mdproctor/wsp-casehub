@@ -55,6 +55,12 @@ CE = CloudEvent via FederationTransport (webhook, Qhorus, Kafka)
 REST = synchronous HTTP to owner's REST API
 ```
 
+### Feedback Loop Prevention
+
+When `FederationReceiver` upserts a shadow and fires a `WorkItemLifecycleEvent` for SSE broadcast, the same CDI event chain that produces outbound CloudEvents is triggered. Without a guard, the shadow's lifecycle event would be routed back to the owner, creating an infinite cycle.
+
+**Guard:** `FederationEventRouter` checks `event.workItem().originServiceId() != null` on every lifecycle event. Shadow-originated events (non-null `originServiceId`) are skipped — only locally-owned WorkItems are routed to subscribers. This single check in the router breaks all feedback loops regardless of transport or observer chain.
+
 ## 4. New Modules
 
 | Module | Type | Purpose |
@@ -103,18 +109,74 @@ class FederationGuardStore implements WorkItemStore {
 
 The `@Decorator` activates only when the `federation/` module is on the classpath.
 
+### Timer and Scheduler Interaction
+
+`ExpiryLifecycleService`, `WorkItemAssignmentService`, `WorkItemTimerService`, and `WorkItemScheduleService` all call `WorkItemStore.put()`. For shadows, these calls hit `FederationGuardStore` and throw `FederatedWorkItemMutationException`.
+
+**Prevention over exception handling:** rather than catching the exception in each service, shadow WorkItems are excluded at the query level:
+- `WorkItemQuery.expired()` and `WorkItemQuery.claimExpired()` add `originServiceId IS NULL` to their predicates
+- `FederationReceiver` does not schedule Quartz timers for shadows (it bypasses `WorkItemService`, which is where timers are scheduled)
+- `WorkItemAssignmentService.assign()` is never called for shadows (assignment is managed by the owner)
+
+The `FederationGuardStore` remains as a safety net — if a shadow mutation is attempted through any path not covered above, it throws rather than silently corrupting state.
+
 ## 7. Coordination Protocol (D3, D8)
 
 ### Dual Transport
 
 | Channel | Carries | Transport | Why |
 |---------|---------|-----------|-----|
-| **Commands** | claim, complete, reject, delegate, escalate, release, suspend, resume, cancel | REST (synchronous) | Operator needs confirmation that the command succeeded |
-| **Events** | created, assigned, claimed, started, completed, rejected, expired, escalated, delegated, suspended, resumed, cancelled, faulted, obsoleted | CloudEvents (asynchronous) | Fire-and-observe — projection updates, no confirmation needed |
+| **Commands** | See command categorisation table below | REST (synchronous) | Operator needs confirmation that the command succeeded |
+| **Events** | All `WorkEventType` values (26 types) — see event type table below | CloudEvents (asynchronous) | Fire-and-observe — projection updates, no confirmation needed |
+
+### Command Categorisation
+
+Every REST operation on a shadow WorkItem falls into one of three categories:
+
+| Category | Operations | Rationale |
+|----------|-----------|-----------|
+| **Proxied** | claim, start, complete, reject, delegate, acceptDelegation, declineDelegation, release, suspend, resume, cancel, fault, obsolete, escalate, extend, updateDeadline, addLabel, removeLabel | Lifecycle mutations — must execute on the owner. Shadow updated when the resulting CloudEvent arrives. |
+| **Shadow-local** | addNote, editNote, deleteNote, addLink, deleteLink, streamEvents (SSE), getById, listAll, inbox | Read operations and consumer-local annotations stored as separate entities (WorkItemNote, WorkItemLink), not overwritten by federation snapshot updates. |
+| **Blocked** | create (shadows are created by federation events only), clone (creates a new local WorkItem — not a shadow operation) | These operations are not meaningful on shadows. `FederationGuardStore` blocks create-via-put; clone is blocked by the proxy decorator. |
+
+### Event Types
+
+All `WorkEventType` enum values are federation event types. The complete set:
+
+| Event type | Status after | Notes |
+|-----------|-------------|-------|
+| `created` | PENDING | Initial creation |
+| `assigned` | ASSIGNED | Auto-assignment or claim |
+| `started` | IN_PROGRESS | Operator begins work |
+| `completed` | COMPLETED | Terminal |
+| `rejected` | REJECTED | Terminal |
+| `faulted` | FAULTED | Terminal — system failure |
+| `delegated` | DELEGATED | Forwarded to named actor |
+| `delegation_accepted` | ASSIGNED | Delegatee accepted |
+| `delegation_declined` | (previous) | Delegatee declined — reverts |
+| `released` | PENDING | Claim released back to pool |
+| `suspended` | SUSPENDED | Temporarily paused |
+| `resumed` | IN_PROGRESS | Resumed from suspension |
+| `cancelled` | CANCELLED | Terminal |
+| `obsolete` | OBSOLETE | Terminal — context change |
+| `expired` | EXPIRED | Terminal — deadline passed |
+| `claim_expired` | (unchanged) | Claim deadline breached |
+| `spawned` | (unchanged) | Child WorkItems created |
+| `escalated` | ESCALATED | Terminal — policy exhausted |
+| `deadline_extended` | (unchanged) | expiresAt moved forward |
+| `sla_reassigned` | PENDING | Re-routed by breach policy |
+| `sla_extended` | (unchanged) | Breach policy extended deadline |
+| `signal_received` | (unchanged) | External signal routed |
+| `manually_escalated` | PENDING | Actor escalated to new group |
+| `progress_update` | (unchanged) | Progress reported |
+| `label_added` | (unchanged) | Label attached |
+| `label_removed` | (unchanged) | Label detached |
+
+Since events carry full-state snapshots, every event brings the shadow fully current regardless of type. Completeness ensures shadows never remain stale due to unlisted event types.
 
 ### Event Envelope
 
-All federation events are CloudEvents (CNCF graduated standard). Event types follow existing naming:
+All federation events are CloudEvents (CNCF graduated standard). Federation events use a distinct type prefix from local lifecycle events:
 
 ```
 type:       io.casehub.work.federation.<event-type>
@@ -124,9 +186,36 @@ datacontenttype: application/json
 Extensions:
   tenancyid:      <tenant-id>
   auditentryid:   <audit-entry-id on owner>
+  workitemversion: <WorkItem @Version value>
 ```
 
-Event data is the full `WorkItem` state snapshot (not a delta). Receivers overwrite the shadow's state from the snapshot. This is simpler than delta-based sync and tolerant of missed events — any single event brings the shadow fully current.
+**Why a separate prefix:** federation events carry a `WorkItem` state projection (subset of record fields), not a `WorkItemLifecycleEvent` (scalar event fields). The `io.casehub.work.federation.*` prefix distinguishes these structurally different payloads. It also prevents consumer-side CloudEvent observers (e.g., `WorkCloudEventInboundAdapter`) from accidentally processing federation events as local lifecycle events.
+
+Event data is a **federation projection** of the `WorkItem` state (not a delta). The projection includes all operationally relevant fields and excludes owner-internal fields that are meaningless or sensitive across service boundaries:
+
+**Excluded from federation projection:** `candidateScores`, `routingExperiences`, `excludedUsers`, `delegationChain`, `delegationDeclineTarget`, `accumulatedUnclaimedSeconds`, `lastReturnedToPoolAt`, `confidenceScore`.
+
+Receivers overwrite the shadow's state from the projection. This is simpler than delta-based sync and tolerant of missed events — any single event brings the shadow fully current.
+
+### Event Ordering
+
+Each federation CloudEvent includes the WorkItem's `version` field (JPA `@Version`, monotonically incrementing on every mutation). The receiver compares `incomingVersion > existingVersion` and discards stale events. This prevents transient state oscillation when events arrive out of order due to network reordering.
+
+The `version` field is already part of the `WorkItem` record and is incremented by JPA on every `store.put()`. No additional counter is needed.
+
+### FederationEventRouter Hook Mechanism
+
+`FederationEventRouter` uses `@ObservesAsync WorkItemLifecycleEvent` — the same async CDI channel that `WorkCloudEventAdapter` observes. This is the correct hook point because:
+
+1. **Not `WorkItemObserver` SPI** — SPI observers run synchronously inside the emitter's transaction. HTTP calls to the transport would block the transaction.
+2. **Not `@ObservesAsync CloudEvent`** — would require deserialising the CloudEvent payload to access WorkItem fields, and introduces a dependency on `WorkCloudEventAdapter` being active.
+3. **`@ObservesAsync WorkItemLifecycleEvent`** — runs asynchronously, has direct access to the full `WorkItem` object via `event.workItem()`, and operates independently of the CloudEvent adapter.
+
+**Originating-node constraint:** on distributed deployments using PostgreSQL LISTEN/NOTIFY broadcaster, wire-reconstructed events have `event.workItem() == null`. The router skips these — federation routing occurs only on the node where the mutation originated. This is correct: one routing per mutation is sufficient.
+
+**Feedback loop guard:** the router checks `event.workItem().originServiceId() != null` and skips shadow-originated events (see §3 Feedback Loop Prevention).
+
+**Audit entry cross-reference:** `WorkItemLifecycleEvent` will be extended with an optional `auditEntryId` field, populated by `WorkItemService.audit()` returning the persisted entry's ID. The router includes this in the CloudEvent's `auditentryid` extension attribute for cross-service audit trail linkage.
 
 ### Capability-Based Negotiation (D8)
 
@@ -167,28 +256,69 @@ Returns a persistent `FederationSubscription` resource with an ID.
 1. WorkItem is created on Service A
 2. `FederationEventRouter` evaluates the creation event against all active subscriptions
 3. If the WorkItem's `candidateGroups` intersects the subscription's filter: the subscription **locks on** to this WorkItem
-4. ALL subsequent lifecycle events for this WorkItem are delivered to Service B until terminal state (COMPLETED, REJECTED, CANCELLED, EXPIRED, OBSOLETE, FAULTED)
+4. ALL subsequent lifecycle events for this WorkItem are delivered to Service B until terminal state (COMPLETED, REJECTED, CANCELLED, EXPIRED, OBSOLETE, FAULTED, ESCALATED)
 5. No re-evaluation of the filter on subsequent events
 
 Lock-on tracking is stored in a `federation_subscription_tracking` table: `(subscription_id, work_item_id)`.
 
 ### Catch-Up on Registration
 
-When a new subscription is registered, Service A queries for existing non-terminal WorkItems matching the filter and sends a synthetic `created` event for each. This prevents late-joining subscribers from missing already-created WorkItems.
+1. **Activate the subscription first** — start lock-on tracking and event routing for the new subscription
+2. **Then run the catch-up query** — find existing non-terminal WorkItems matching the filter and send a synthetic `created` event for each
+
+This ordering prevents a TOCTOU race: a WorkItem created between the catch-up query and subscription activation would be missed. By activating first, the window is closed. Duplicates (WorkItem caught by both live routing and catch-up) are harmless — the receiver's upsert by `originWorkItemId` is idempotent, and version-based ordering (§7) discards stale events.
+
+### Subscription Lifecycle Management
+
+| Status | Meaning | Transition from |
+|--------|---------|-----------------|
+| `ACTIVE` | Events are delivered normally | Registration, manual reactivation |
+| `SUSPENDED` | Delivery paused after repeated failures | `ACTIVE` (automatic after N consecutive failures) |
+| `DEREGISTERED` | Peer unsubscribed; tracking entries retained for audit, cleaned up after 30 days | `ACTIVE`, `SUSPENDED` (via REST DELETE) |
+
+**Deregistration:** `DELETE /federation/subscriptions/{id}`. In-flight events are best-effort (may or may not be delivered). Lock-on tracking entries are soft-deleted (status change) and cleaned up asynchronously.
+
+**Health monitoring:** the `FederationTransport` increments `consecutive_failures` on delivery failure and resets to 0 on success. After 5 consecutive failures, the subscription is set to `SUSPENDED`. A suspended subscription emits no events. Manual reactivation via `PUT /federation/subscriptions/{id}/reactivate`.
+
+**Subscription update:** peers update filter or capabilities via `PUT /federation/subscriptions/{id}`. Filter changes trigger a new catch-up for any WorkItems matching the new filter but not the old one.
+
+### Filter Evaluation Algorithm
+
+The subscription filter matches against `WorkItem.candidateGroups` (a comma-separated `String`) and `WorkItem.candidateUsers` (also comma-separated):
+
+1. Split `WorkItem.candidateGroups` on `,` and strip whitespace from each element
+2. Split `WorkItem.candidateUsers` on `,` and strip whitespace from each element
+3. If the filter's `candidateGroups` array is non-empty: check whether **any** filter group matches **any** WorkItem group (set intersection, exact string match per group name)
+4. If the filter's `candidateUsers` array is non-empty: check whether **any** filter user matches **any** WorkItem user (set intersection, exact string match)
+5. candidateGroups and candidateUsers filters combine with **OR** — a match on either is sufficient
+6. Empty filter arrays are ignored (an empty `candidateGroups` filter does not filter on groups)
+7. If both filter arrays are empty, the subscription matches ALL WorkItems for the tenant
 
 ## 9. Federation Proxy (D6)
 
-When a write operation targets a shadow WorkItem (`originServiceId != null`), the REST resource layer intercepts and routes to `FederationProxy`:
+`FederationProxyService` is a CDI `@Decorator` on `WorkItemService`, consistent with the `FederationGuardStore` pattern on `WorkItemStore`:
 
 ```
-WorkItemResource.claim(id, actor) {
-    WorkItem item = service.findById(id);
-    if (item.originServiceId() != null) {
-        return federationProxy.claim(item, actor);
+@Decorator @Priority(Interceptor.Priority.APPLICATION + 10)
+class FederationProxyService implements WorkItemService {
+
+    @Delegate WorkItemService delegate;
+    @Inject FederationProxy proxy;
+
+    WorkItem claim(UUID id, String claimantId) {
+        WorkItem item = delegate.findById(id)
+            .orElseThrow(() -> new WorkItemNotFoundException(id));
+        if (item.originServiceId() != null) {
+            return proxy.claim(item, claimantId);
+        }
+        return delegate.claim(id, claimantId);
     }
-    return service.claim(id, actor);
+    // same pattern for all proxied lifecycle methods
+    // query methods (findById, scan, etc.) delegate transparently
 }
 ```
+
+This approach provides a single interception point for all lifecycle operations. New operations added to `WorkItemService` are automatically covered (they delegate by default). REST resources require no modification. The extra `findById` in the decorator is a JPA L1 cache hit within the same persistence context — zero overhead.
 
 `FederationProxy` uses the `client/` module to call the owner's REST API:
 
@@ -211,16 +341,37 @@ Between a failed proxy call and the arrival of the corrective CloudEvent, the sh
 `FederationReceiver` handles inbound CloudEvents from peer services:
 
 1. Verify HMAC signature against the shared secret from the subscription
-2. Extract `WorkItem` state snapshot from event data
-3. Set `FederationSyncContext.activate()` (enables `FederationGuardStore` pass-through)
-4. Upsert shadow WorkItem via `WorkItemStore.put()`
-5. Clear `FederationSyncContext.deactivate()`
-6. Record local audit entry with federation metadata
-7. Trigger local SSE broadcast for connected clients
+2. Extract `WorkItem` state projection from event data
+3. **Version check:** if a shadow already exists, compare incoming `version` against existing. Discard if `incomingVersion <= existingVersion` (stale/duplicate).
+4. **callerRef namespacing:** prefix the owner's `callerRef` with `federation:<originServiceId>:` to prevent collisions with `WorkCloudEventInboundAdapter` (which uses `findByCallerRef(ce.getId())` for idempotency) and `QhorusWorkItemLifecycleAdapter` (which checks `QhorusCallerRef.isQhorus()` on terminal events)
+5. Set `FederationSyncContext.activate()` (enables `FederationGuardStore` pass-through)
+6. Upsert shadow WorkItem via `WorkItemStore.put()`
+7. Clear `FederationSyncContext.deactivate()`
+8. Record local audit entry with federation metadata
+9. Fire `WorkItemLifecycleEvent` via `WorkItemLifecycleEmitter.emit()` for SSE broadcast
 
 For `created` events: insert a new shadow WorkItem with `originServiceId` and `originWorkItemId` set.
-For lifecycle events: update the existing shadow's status and fields from the snapshot.
+For lifecycle events: update the existing shadow's status and fields from the projection.
 For terminal events: update the shadow to terminal status. Remove lock-on tracking entry.
+
+### Design: Bypassing WorkItemService
+
+The receiver calls `WorkItemStore.put()` directly rather than going through `WorkItemService`. This is intentional — `WorkItemService` provides lifecycle validation, auto-assignment, timer management, label rule evaluation, spawn group enforcement, and other policies that must NOT execute on shadows:
+
+| Concern | Why skipped for shadows |
+|---------|----------------------|
+| Lifecycle validation (status transition legality) | The owner already validated; the shadow accepts the owner's authoritative state |
+| Auto-assignment (`WorkItemAssignmentService`) | Assignment is managed by the owner |
+| Timer management (expiry, claim deadline) | Shadows don't have local timers — lifecycle timing is the owner's responsibility |
+| Label rule engine | Owner-side rules; consumer may have different rules for its own WorkItems |
+| Spawn group policy | Spawn groups are owner-local; shadows are independent projections |
+| Exclusion policy | Owner enforces its own exclusion policy |
+
+**What the receiver DOES replicate:**
+- Audit entry creation (step 8) — local activity log with federation metadata
+- SSE broadcast (step 9) — fires `WorkItemLifecycleEvent` via CDI, observed by `LocalWorkItemEventBroadcaster` for SSE and by `WorkCloudEventAdapter` for CloudEvent emission (the FederationEventRouter's originServiceId check prevents re-routing — see §3)
+
+**Sync protocol:** when new concerns are added to `WorkItemService`, the federation integration test (§15) verifies that shadows reflect the correct state. The receiver's bypass list (above) is the explicit contract for what is and isn't replicated.
 
 ## 11. Audit Trail (D7)
 
@@ -253,11 +404,13 @@ Authenticated via platform identity tokens (`casehub-platform-identity`). Standa
 
 ### CloudEvents (Owner → Consumer)
 
-HMAC-signed with a shared secret established at subscription registration. The receiver verifies the signature before processing. This provides application-level payload integrity on top of transport-level TLS.
+HMAC-signed with a shared secret established at subscription registration. The receiver computes `HMAC-SHA256(secret, payload)` and compares against the signature in the CloudEvent. This provides application-level payload integrity on top of transport-level TLS.
+
+**Secret storage:** the shared HMAC secret is stored **encrypted at rest** (not hashed) in the `federation_subscription` table (`hmac_secret_encrypted BYTEA`). HMAC verification requires the raw secret — `hash(secret)` cannot be used to compute `HMAC(secret, payload)`. Encryption uses platform credential management (`casehub-platform-credentials`), which provides JCE-backed encryption with key rotation support.
 
 ### Subscription Registration
 
-Mutual authentication: both peers present platform identity tokens. The shared HMAC secret is exchanged during registration. Pairwise secrets in a mesh of N services means N*(N-1)/2 secrets — manageable at platform scale.
+Mutual authentication: both peers present platform identity tokens. The shared HMAC secret is exchanged during registration over the TLS-protected channel. The registering peer generates the secret and includes it in the registration payload; both sides store it encrypted. Pairwise secrets in a mesh of N services means N*(N-1)/2 secrets — manageable at platform scale.
 
 ## 13. Multi-Tenancy (D11)
 
@@ -292,7 +445,7 @@ Shadow WorkItems inherit the owner's `tenancyId` and are subject to the same RLS
 | Table | Change |
 |-------|--------|
 | `work_item` | Add `origin_service_id VARCHAR(255)`, `origin_work_item_id UUID` (both nullable) |
-| `federation_subscription` | New: `id UUID PK`, `peer_id VARCHAR`, `callback_url VARCHAR`, `tenancy_id VARCHAR NOT NULL`, `filter_json TEXT`, `capabilities_json TEXT`, `hmac_secret_hash VARCHAR`, `created_at TIMESTAMP`, `status VARCHAR` |
+| `federation_subscription` | New: `id UUID PK`, `peer_id VARCHAR`, `callback_url VARCHAR`, `tenancy_id VARCHAR NOT NULL`, `filter_json TEXT`, `capabilities_json TEXT`, `hmac_secret_encrypted BYTEA`, `created_at TIMESTAMP`, `status VARCHAR`, `consecutive_failures INT DEFAULT 0`, `last_failure_at TIMESTAMP` |
 | `federation_subscription_tracking` | New: `subscription_id UUID FK`, `work_item_id UUID`, composite PK |
 | `federation_audit_entry` | New: extends existing audit entry schema with `origin_service_id`, `origin_work_item_id`, `remote_audit_entry_id` |
 
@@ -304,7 +457,7 @@ Version range: per `docs/FLYWAY.md`, reserve a V-number block for the federation
 - **A2A adapter** — `casehub-work-a2a` module mapping between A2A tasks and WorkItem lifecycle. Publishes Agent Cards for federation discovery.
 - **#332 Coordinated rollback** — extends federation protocol with subtree-wide rollback messages.
 - **#39 ProvenanceLink** — connects dual audit trails into unified PROV-O causal graph.
-- **#97 Event mesh** — lifecycle events crossing boundaries via webhooks (now implementable with the federation infrastructure).
+- **#97 Event mesh** — #97 is closed; federation infrastructure subsumes the webhook-based lifecycle event crossing that #97 originally envisioned. The subscription model (§8) and FederationTransport (§7) provide the concrete implementation path.
 - **Cross-tenant federation** — optional opt-in for admin services viewing WorkItems across tenants.
 
 ## References
