@@ -1,9 +1,11 @@
 ---
-title: Chunking the Platform for LLMs
+layout: post
+title: "Chunking the Platform for LLMs"
 date: 2026-07-07
-slug: chunking-the-platform-for-llms
-entry_type: diary
+entry_type: note
+subtype: diary
 projects: [casehub-parent]
+tags: [documentation, llm-context, platform]
 ---
 
 PLATFORM.md was 685 lines. That's not huge by document standards, but it's the wrong shape for how LLM sessions actually consume it.
