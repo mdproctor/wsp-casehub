@@ -15,15 +15,17 @@ The pattern produces initiation decisions with content — consuming apps contro
 ### Existing Platform Capabilities (composed, not built)
 
 1. **ReflectionOrchestrator** (neocortex) — `reflect(agentId, tenantId, since, maxSourceMemories) → List<String>` — generates reflective thoughts from accumulated memories
-2. **ObservationAccumulator** (blocks/summarisation) — thread-safe event buffer with tiered rendering for LLM prompts
-3. **AffordanceRenderer** (blocks/summarisation/affordance) — renders available actions per entity for LLM context
-4. **AgentProvider** (platform-agent-api) — `invoke()` with structured output for LLM evaluation
+2. **AgentProvider** (platform-agent-api) — `invoke(AgentSessionConfig) → Multi<AgentEvent>` — LLM invocation returning a reactive stream of events. InnerLife follows the established text-collection-and-parse pattern (RoutingSupport, LlmDecomposition, LlmContentSummariser): collect `TextDelta` events, join into string, parse JSON
+
+### Consumer-Provided Context
+
+- **AffordanceRenderer** output — consumers pre-render affordance context via `AffordanceRenderer` and pass the result as the `channelContext` parameter to `tick()`. InnerLife is decoupled from the affordance rendering pipeline.
 
 ### What InnerLife Adds
 
 1. **CivilityConstraint SPI** — composable pre-dispatch gating for social norms (rate limiting, gap enforcement, cooldown)
 2. **Content quality gate** — novelty scoring + observation count + quiet-period bypass (System 1/2 fast path)
-3. **InnerLifeOrchestrator** — periodic tick cycle: civility → content quality → reflect → score motivation → output
+3. **InnerLifeOrchestrator** — periodic tick cycle: civility → content quality → reflect → score motivation → output. Maintains own per-agent event buffer and raw text buffer (not ObservationAccumulator — simpler lifecycle, no destructive drain or async rendering needed)
 4. **Token-level novelty scorer** — zero-cost content novelty detection
 
 ### Evaluation Pipeline
@@ -73,8 +75,10 @@ public record InitiationContext(
     Instant lastInitiationTimestamp,
     int initiationsInWindow,
     int consecutiveInitiationsWithoutResponse,
-    AgentRef agent) {}
+    AgentDescriptor descriptor) {}
 ```
+
+`AgentDescriptor` (eidos-api) carries agent identity (`agentId`, `tenancyId`), personality (`disposition`), and domain context (`briefing`, `slot`). This is the platform's identity type — the correct domain for social-behaviour gating. `AgentRef` is an execution-domain type for agentic orchestration (WorkerAgent, ChannelAgent, etc.) and carries no identity or personality information. `initiationsInWindow` is computed by the orchestrator from a sliding window of initiation timestamps (see Per-Agent State).
 
 ### Default Implementations
 
@@ -108,9 +112,11 @@ public record ContentQualityGate(double noveltyThreshold,
 ### Evaluation Logic
 
 1. If `observationCount < minObservations` AND `timeSinceLastLlmEval < quietPeriodBypass` → skip (Silent)
-2. Compute token-level Jaccard distance between current observation text and previous observation text
+2. Compute token-level Jaccard distance between current raw observation text and previous raw observation text
 3. If `novelty < noveltyThreshold` AND `timeSinceLastLlmEval < quietPeriodBypass` → skip (Silent)
 4. Otherwise → proceed to reflection + LLM scoring
+
+**Observation text lifecycle:** "Current observation text" is the raw text buffer maintained by the orchestrator — a concatenation of `event.payload().toString()` values appended during each `observe()` call. This is NOT the rendered output of `ObservationAccumulator.drainObservation()`. The raw text buffer is zero-cost to read (no async, no destructive drain) and serves only the novelty comparison. The rendered observation text for the LLM prompt (step 4 of tick) is produced separately by rendering the event buffer when the LLM call proceeds.
 
 The quiet-period bypass enables spontaneous initiation: after extended silence, the LLM decides whether elapsed time alone justifies speaking. Without it, tick() would be functionally reactive.
 
@@ -118,7 +124,9 @@ The quiet-period bypass enables spontaneous initiation: after extended silence, 
 
 Package-private utility. Token-level Jaccard distance: `1 - |A ∩ B| / |A ∪ B|` where A and B are whitespace-tokenized word sets from the observation texts. Returns 1.0 for completely disjoint texts, 0.0 for identical texts.
 
-Note: qhorus's `JaccardSimilarity` is package-private and inaccessible from blocks. This is an independent implementation. Designed to be replaceable — embedding-based novelty via `CbrSimilarityScorer` (neocortex-memory-api) is the natural upgrade when semantic precision justifies the added dependency and latency.
+Independent implementation for two reasons: (1) qhorus's `JaccardSimilarity` is package-private and inaccessible from blocks; (2) Apache Commons Text's `JaccardSimilarity` (on classpath via transitive dependency) operates at the **character level** — each character in the CharSequence is a set element. Character-level Jaccard is semantically meaningless for natural language novelty detection ("hello world" vs "world hello" would score as identical at character level but the word ordering change is irrelevant for both). Token-level Jaccard over whitespace-split word sets is the correct granularity for detecting whether new observations contain materially different content.
+
+Designed to be replaceable — embedding-based novelty via `CbrSimilarityScorer` (neocortex-memory-api) is the natural upgrade when semantic precision justifies the added dependency and latency.
 
 ## Orchestrator
 
@@ -146,7 +154,7 @@ public class InnerLifeOrchestrator {
 
 ### observe(event, agentId)
 
-Accumulates observations into per-agent `ObservationAccumulator`. Called by consuming app whenever channel activity occurs. Tracks observation count since last initiation.
+Appends the event to the per-agent `eventBuffer` and appends `event.payload().toString()` to the per-agent `rawObservationText` buffer. Called by consuming app whenever channel activity occurs. Increments `observationCountSinceLastInitiation`. Updates `lastActivityTimestamp` for eviction tracking.
 
 ### observeResponse(agentId)
 
@@ -154,14 +162,51 @@ Called when a non-self message is observed after an initiation. Resets `consecut
 
 ### tick(descriptor, channelContext)
 
-The periodic thought cycle:
+The periodic thought cycle. Synchronous — blocks on I/O via `.await().indefinitely()` (same pattern as PersonalityEvolutionOrchestrator). Consuming apps call tick() from their own scheduling mechanism, not from Vert.x event-loop threads.
 
-1. **Civility gate (D4):** Build `InitiationContext` from per-agent state. Run all `CivilityConstraint` instances. First `Denied` → return `Silent(reason)`.
-2. **Content quality gate (D3):** Check novelty + observation count + quiet-period bypass. Fail → return `Silent`.
-3. **Reflect:** Call `reflectionOrchestrator.reflect(agentId, tenantId, since, maxSourceMemories)` → `List<String>` reflections.
-4. **Score motivation (D2):** Call `agentProvider.invoke()` with structured output. Prompt includes: accumulated observations (drained from ObservationAccumulator), reflections, affordance context (from `channelContext` parameter), and agent personality (from descriptor). Returns `MotivationAssessment(double score, String content, String channelHint)`.
+1. **Civility gate (D4):** Build `InitiationContext` from per-agent state (compute `initiationsInWindow` from sliding window timestamps). Run all `CivilityConstraint` instances. First `Denied` → return `Silent(reason)`.
+2. **Content quality gate (D3):** Check novelty + observation count + quiet-period bypass using the raw text buffer. Fail → return `Silent`.
+3. **Reflect:** Call `reflectionOrchestrator.reflect(agentId, tenantId, since, maxSourceMemories)` → `List<String>` reflections. Synchronous.
+4. **Score motivation (D2):** Render the event buffer into observation text. Build `AgentSessionConfig` with system prompt and assembled user prompt (see Prompt Design below). Invoke `agentProvider.invoke(config)`, collect `TextDelta` events into a string via `.await().indefinitely()`, parse as JSON into `MotivationAssessment(double score, String content, String channelHint)`. On parse failure (malformed JSON, missing fields, score outside [0,1]): log warning, return `Silent("parse failure")`.
 5. **Threshold check:** If `score >= motivationThreshold` → return `Initiated(content, channelHint, score)`. Otherwise → return `Silent`.
-6. **Update state:** Record `lastLlmEvaluationTimestamp`, store current observation text as `previousObservationText`. If Initiated: record `lastInitiationTimestamp`, increment `initiationsInWindow` and `consecutiveInitiationsWithoutResponse`, reset observation count.
+6. **Update state:** Record `lastLlmEvaluationTimestamp`, store current raw text buffer as `previousObservationText`, clear event buffer and raw text buffer. If Initiated: record `lastInitiationTimestamp`, add timestamp to sliding window, increment `consecutiveInitiationsWithoutResponse`, reset observation count.
+
+### Prompt Design
+
+**System prompt:**
+
+```
+You are an agent with an inner life. Given your personality, recent observations,
+reflections, and available channels, decide whether you are motivated to initiate
+a conversation right now.
+
+Respond with JSON only: {"score": <0.0-1.0>, "content": "<what you want to say>",
+"channelHint": "<suggested channel or null>"}
+
+Score 0.0 = no motivation. Score 1.0 = strongly motivated. Only produce content
+if you genuinely have something worth saying. If unmotivated, set score low and
+content to empty string.
+```
+
+**User prompt assembly:**
+
+```
+Personality: {descriptor.name()} — {descriptor.briefing()}
+Disposition: {formatted disposition profile}
+
+Recent observations:
+{rendered event buffer — event.payload().toString() with timestamps}
+
+Reflections:
+{reflections joined with newlines, or "No recent reflections." if empty}
+
+Available channels and context:
+{channelContext parameter}
+```
+
+**Model:** Uses the default model from `AgentSessionConfig.of(systemPrompt, userPrompt)` — no model override. Consuming apps that need model control can provide a custom `AgentProvider` wrapper.
+
+**Extension point:** A `SystemPromptCustomiser`-style hook is not included in the initial design. The system prompt is internal to InnerLife — it defines the motivation-scoring contract. If consumer customisation proves necessary, a `MotivationPromptCustomiser` SPI can be added as a follow-up without breaking the existing API.
 
 ### InnerLifeTick (D1)
 
@@ -179,21 +224,25 @@ public sealed interface InnerLifeTick {
 
 In-memory, keyed by `tenancyId:agentId` in `ConcurrentHashMap`:
 
-| Field | Purpose |
-|---|---|
-| `ObservationAccumulator` | Buffered observations |
-| `lastInitiationTimestamp` | For civility gap check |
-| `lastLlmEvaluationTimestamp` | For quiet-period bypass |
-| `initiationsInWindow` | For rate limiting (window resets on configurable interval) |
-| `consecutiveInitiationsWithoutResponse` | For cooldown (reset via `observeResponse()`) |
-| `previousObservationText` | For novelty scoring (Jaccard distance vs current) |
-| `observationCountSinceLastInitiation` | For minimum observation check |
+| Field | Type | Purpose |
+|---|---|---|
+| `eventBuffer` | `List<LevelEvent<?>>` | Buffered observations for LLM prompt rendering |
+| `rawObservationText` | `StringBuilder` | Raw `payload.toString()` concatenation for novelty scoring |
+| `lastInitiationTimestamp` | `Instant` | For civility gap check |
+| `lastLlmEvaluationTimestamp` | `Instant` | For quiet-period bypass |
+| `initiationTimestamps` | `Deque<Instant>` | Sliding window for rate limiting — `initiationsInWindow` is computed as count of timestamps where `now - ts < windowDuration`. Old entries pruned on each tick |
+| `consecutiveInitiationsWithoutResponse` | `int` | For cooldown (reset via `observeResponse()`) |
+| `previousObservationText` | `String` | For novelty scoring (Jaccard distance vs current rawObservationText) |
+| `observationCountSinceLastInitiation` | `int` | For minimum observation check |
+| `lastActivityTimestamp` | `Instant` | For staleness-based eviction |
+
+**Eviction:** Per-agent state entries not observed for a configurable duration (default: 24 hours) are evicted lazily during `observe()` and `tick()`. Prevents unbounded memory growth from transient agents (e.g., Discord bot observing many users). The `lastActivityTimestamp` is updated on every `observe()` and `tick()` call.
 
 **Restart resilience:** All state is in-memory (`@ApplicationScoped` lifecycle). On restart, all agents start with zero state — no initiations pending, no cooldowns active. This is acceptable because the first tick after restart evaluates fresh, and the conservative defaults (5 min gap, 3/hour max) prevent over-posting even without history. Same reasoning as PersonalityEvolutionOrchestrator.
 
 ### Thread Safety
 
-Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrchestrator). `observe()` delegates to synchronized `ObservationAccumulator.collect()`. `observeResponse()` uses atomic operations on the per-agent state.
+Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrchestrator). `observe()` synchronizes on the per-agent state object to append to `eventBuffer` and `rawObservationText`. `tick()` snapshots and clears the buffers under the same lock before proceeding with the pipeline. `observeResponse()` uses atomic operations on the per-agent state.
 
 ### Configuration (InnerLifeConfig)
 
@@ -205,10 +254,23 @@ Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrch
 | `quietPeriodBypass` | 30 min | Time before quiet-period triggers LLM evaluation regardless |
 | `maxReflectionSources` | 10 | Max source memories for ReflectionOrchestrator |
 | `windowDuration` | 1 hour | Time window for MaxPerWindowConstraint rate limiting |
+| `evictionTimeout` | 24 hours | Remove per-agent state not observed for this duration |
+
+## Evolution from Issue #119
+
+Issue #119 listed composition targets: "ReflectionOrchestrator + Affordance + ActivationRule + Watchdog + JobScheduler." The spec departs from this list based on architectural analysis:
+
+- **ActivationRule** → replaced by CivilityConstraint (D6: different architectural domain — orchestration activation vs social initiation)
+- **Watchdog** → replaced by own civility gate (D4/D5: pre-dispatch gating vs post-hoc alerting)
+- **JobScheduler** → consumer-driven scheduling (InnerLife is a library, not a framework; consumers call tick() from their own scheduling mechanism)
+
+The decisions doc (D4, D5, D6) records the full rationale. The issue description on GitHub should be updated to reflect the actual composition when the spec is implemented.
 
 ## Package Structure
 
 **`io.casehub.blocks.agentic.personality`** (additions to existing package)
+
+ARC42STORIES.MD §5 needs updating to include the `personality` sub-package (currently unlisted — PersonalityEvolution from #118 is also missing). This is an implementation task.
 
 | Class | What it does |
 |---|---|
@@ -221,7 +283,7 @@ Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrch
 | `ContentQualityGate` | Record: novelty threshold, min observations, quiet-period bypass |
 | `InnerLifeTick` | Sealed: `Silent(reason)`, `Initiated(content, channelHint, motivationScore)` |
 | `InnerLifeOrchestrator` | CDI bean: `observe()`, `observeResponse()`, `tick()` |
-| `InnerLifeConfig` | Record with defaults and preference-based resolution |
+| `InnerLifeConfig` | Record with defaults and validation (same pattern as `PersonalityEvolutionConfig`) |
 | `TokenJaccardDistance` | Package-private: token-level novelty scoring |
 
 ## Testing Strategy
@@ -240,12 +302,13 @@ All tests are plain JUnit 5 + Mockito (no Quarkus runtime).
 ## References
 
 - `ReflectionOrchestrator` (neocortex) — reflection generation SPI
-- `ObservationAccumulator` (blocks/summarisation/observation) — event buffering with tiered rendering
-- `AffordanceRenderer` (blocks/summarisation/observation/affordance) — action vocabulary rendering
+- `AffordanceRenderer` (blocks/summarisation/observation/affordance) — consumer-side action vocabulary rendering (not composed by InnerLife; output passed via `channelContext`)
 - `ActivationRule` / `ActivationContext` (blocks/agentic/activation) — separate domain (D6)
 - `PersonalityEvolutionOrchestrator` (blocks/agentic/personality) — established tick() pattern
-- `AgentProvider.invoke()` (platform-agent-api) — LLM invocation with structured output
+- `AgentProvider.invoke()` (platform-agent-api) — `invoke(AgentSessionConfig) → Multi<AgentEvent>` — text-collection-and-parse pattern
+- `RoutingSupport.invokeAndCollect()` (blocks/routing/agent) — reference implementation of the text-collection-and-parse pattern
 - `Watchdog` / `WatchdogConditionType` (qhorus-api) — channel-level alerting (distinct from agent-level civility, D5)
+- `AgentDescriptor` (eidos-api) — agent identity and personality record
 - Research doc §2.1 — InnerLife pattern description, capability composition
 - Research doc §2.8 — System 1/2 fast path fold-in, novelty engine fold-in
 - Liu, Fang, Shi, Wu, Igarashi, Chen — "Proactive Conversational Agents with Inner Thoughts" (CHI 2025, arXiv:2501.00383) — 82% user preference for agents with inner thoughts
