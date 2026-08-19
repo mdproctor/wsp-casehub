@@ -144,19 +144,21 @@ public class InnerLifeOrchestrator {
         Instance<CivilityConstraint> civilityConstraints,
         InnerLifeConfig config);
 
-    void observe(LevelEvent<?> event, String agentId);
+    void observe(LevelEvent<?> event, AgentDescriptor descriptor);
 
-    void observeResponse(String agentId);
+    void observeResponse(AgentDescriptor descriptor);
 
     InnerLifeTick tick(AgentDescriptor descriptor, String channelContext);
 }
 ```
 
-### observe(event, agentId)
+### observe(event, descriptor)
 
-Appends the event to the per-agent `eventBuffer` and appends `event.payload().toString()` to the per-agent `rawObservationText` buffer. Called by consuming app whenever channel activity occurs. Increments `observationCountSinceLastInitiation`. Updates `lastActivityTimestamp` for eviction tracking.
+Appends the event to the per-agent `eventBuffer` and appends `event.payload().toString()` to the per-agent `rawObservationText` buffer. Per-agent state is keyed by `descriptor.tenancyId() + ":" + descriptor.agentId()` — same composite key pattern as `PersonalityEvolutionOrchestrator.agentKey()`. Called by consuming app whenever channel activity occurs. Increments `observationCountSinceLastInitiation`. Updates `lastActivityTimestamp` for eviction tracking.
 
-### observeResponse(agentId)
+**Payload contract:** `event.payload().toString()` must produce human-readable text for the novelty gate (Jaccard distance) and LLM prompt to be meaningful. Consuming apps are responsible for ensuring event payloads have useful `toString()` implementations — domain records with default `toString()` (e.g., `MyRecord[field=value]`) are acceptable; opaque object references are not.
+
+### observeResponse(descriptor)
 
 Called when a non-self message is observed after an initiation. Resets `consecutiveInitiationsWithoutResponse` to 0. This is how the cooldown constraint knows someone responded.
 
@@ -164,12 +166,13 @@ Called when a non-self message is observed after an initiation. Resets `consecut
 
 The periodic thought cycle. Synchronous — blocks on I/O via `.await().indefinitely()` (same pattern as PersonalityEvolutionOrchestrator). Consuming apps call tick() from their own scheduling mechanism, not from Vert.x event-loop threads.
 
+0. **Snapshot:** Under the per-agent state lock, snapshot `eventBuffer` and `rawObservationText` (copy), then clear both live buffers. Release lock. All subsequent steps operate on the snapshot — `observe()` can keep appending to the (now empty) live buffers concurrently.
 1. **Civility gate (D4):** Build `InitiationContext` from per-agent state (compute `initiationsInWindow` from sliding window timestamps). Run all `CivilityConstraint` instances. First `Denied` → return `Silent(reason)`.
-2. **Content quality gate (D3):** Check novelty + observation count + quiet-period bypass using the raw text buffer. Fail → return `Silent`.
-3. **Reflect:** Call `reflectionOrchestrator.reflect(agentId, tenantId, since, maxSourceMemories)` → `List<String>` reflections. Synchronous.
-4. **Score motivation (D2):** Render the event buffer into observation text. Build `AgentSessionConfig` with system prompt and assembled user prompt (see Prompt Design below). Invoke `agentProvider.invoke(config)`, collect `TextDelta` events into a string via `.await().indefinitely()`, parse as JSON into `MotivationAssessment(double score, String content, String channelHint)`. On parse failure (malformed JSON, missing fields, score outside [0,1]): log warning, return `Silent("parse failure")`.
+2. **Content quality gate (D3):** Check novelty + observation count + quiet-period bypass using the **snapshotted** raw text. Fail → return `Silent`.
+3. **Reflect:** Call `reflectionOrchestrator.reflect(agentId, tenantId, since, maxSourceMemories)` → `List<String>` reflections. Synchronous. `since` = `lastLlmEvaluationTimestamp` (or `Instant.EPOCH` on first evaluation) — reflections cover the period since the LLM last consumed reflection context, avoiding duplicate input.
+4. **Score motivation (D2):** Render the **snapshotted** event buffer into observation text (most recent `maxObservationsInPrompt` events; default 50). Build `AgentSessionConfig` with system prompt and assembled user prompt (see Prompt Design below). Invoke `agentProvider.invoke(config)`, collect `TextDelta` events into a string via `.await().indefinitely()`, parse as JSON into `MotivationAssessment(double score, String content, String channelHint)` — a package-private record internal to the orchestrator. On parse failure (malformed JSON, missing fields, score outside [0,1]): log warning, return `Silent("parse failure")`.
 5. **Threshold check:** If `score >= motivationThreshold` → return `Initiated(content, channelHint, score)`. Otherwise → return `Silent`.
-6. **Update state:** Record `lastLlmEvaluationTimestamp`, store current raw text buffer as `previousObservationText`, clear event buffer and raw text buffer. If Initiated: record `lastInitiationTimestamp`, add timestamp to sliding window, increment `consecutiveInitiationsWithoutResponse`, reset observation count.
+6. **Update state:** Record `lastLlmEvaluationTimestamp`, store **snapshotted** raw text as `previousObservationText`. If Initiated: record `lastInitiationTimestamp`, add timestamp to sliding window, increment `consecutiveInitiationsWithoutResponse`, reset observation count. Prune stale entries from the agent state map (eviction scan).
 
 ### Prompt Design
 
@@ -194,7 +197,7 @@ content to empty string.
 Personality: {descriptor.name()} — {descriptor.briefing()}
 Disposition: {formatted disposition profile}
 
-Recent observations:
+Recent observations (most recent {maxObservationsInPrompt}, default 50):
 {rendered event buffer — event.payload().toString() with timestamps}
 
 Reflections:
@@ -236,13 +239,13 @@ In-memory, keyed by `tenancyId:agentId` in `ConcurrentHashMap`:
 | `observationCountSinceLastInitiation` | `int` | For minimum observation check |
 | `lastActivityTimestamp` | `Instant` | For staleness-based eviction |
 
-**Eviction:** Per-agent state entries not observed for a configurable duration (default: 24 hours) are evicted lazily during `observe()` and `tick()`. Prevents unbounded memory growth from transient agents (e.g., Discord bot observing many users). The `lastActivityTimestamp` is updated on every `observe()` and `tick()` call.
+**Eviction:** Per-agent state entries not observed for a configurable duration (default: 24 hours) are evicted during `tick()` only (step 6). Not during `observe()` — observe is the fast path (called on every channel event) and must stay O(1). The eviction scan during tick is negligible relative to the LLM call cost. The `lastActivityTimestamp` is updated on every `observe()` and `tick()` call.
 
 **Restart resilience:** All state is in-memory (`@ApplicationScoped` lifecycle). On restart, all agents start with zero state — no initiations pending, no cooldowns active. This is acceptable because the first tick after restart evaluates fresh, and the conservative defaults (5 min gap, 3/hour max) prevent over-posting even without history. Same reasoning as PersonalityEvolutionOrchestrator.
 
 ### Thread Safety
 
-Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrchestrator). `observe()` synchronizes on the per-agent state object to append to `eventBuffer` and `rawObservationText`. `tick()` snapshots and clears the buffers under the same lock before proceeding with the pipeline. `observeResponse()` uses atomic operations on the per-agent state.
+Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrchestrator). `observe()` synchronizes on the per-agent state object to append to `eventBuffer` and `rawObservationText` — O(1), never blocks on the tick lock. `tick()` step 0 acquires the same state-object lock to snapshot and clear the buffers, then releases it before the pipeline proceeds. This means `observe()` and tick's snapshot are mutually exclusive, but observe() never blocks for the duration of the LLM call. `observeResponse()` uses atomic operations on the per-agent state.
 
 ### Configuration (InnerLifeConfig)
 
@@ -253,6 +256,7 @@ Per-agent `ReentrantLock` for `tick()` (same pattern as PersonalityEvolutionOrch
 | `minObservations` | 3 | Minimum observations before LLM evaluation |
 | `quietPeriodBypass` | 30 min | Time before quiet-period triggers LLM evaluation regardless |
 | `maxReflectionSources` | 10 | Max source memories for ReflectionOrchestrator |
+| `maxObservationsInPrompt` | 50 | Max events rendered in LLM prompt (most recent N) |
 | `windowDuration` | 1 hour | Time window for MaxPerWindowConstraint rate limiting |
 | `evictionTimeout` | 24 hours | Remove per-agent state not observed for this duration |
 
@@ -284,6 +288,7 @@ ARC42STORIES.MD §5 needs updating to include the `personality` sub-package (cur
 | `InnerLifeTick` | Sealed: `Silent(reason)`, `Initiated(content, channelHint, motivationScore)` |
 | `InnerLifeOrchestrator` | CDI bean: `observe()`, `observeResponse()`, `tick()` |
 | `InnerLifeConfig` | Record with defaults and validation (same pattern as `PersonalityEvolutionConfig`) |
+| `MotivationAssessment` | Package-private record: `(double score, String content, String channelHint)` — JSON parse target in tick step 4. Not part of public API; parsed values flow into `InnerLifeTick.Initiated` |
 | `TokenJaccardDistance` | Package-private: token-level novelty scoring |
 
 ## Testing Strategy
