@@ -6,7 +6,7 @@
 
 ## Summary
 
-InnerLife is a background thought loop in `io.casehub.blocks.agentic.personality` that enables agents to initiate conversations proactively rather than only responding when spoken to. It composes existing platform capabilities (ReflectionOrchestrator, ObservationAccumulator, AffordanceRenderer, AgentProvider) into a three-stage evaluation pipeline gated by composable civility constraints.
+InnerLife is a background thought loop in `io.casehub.blocks.agentic.personality` that enables agents to initiate conversations proactively rather than only responding when spoken to. It composes existing platform capabilities (ReflectionOrchestrator, AgentProvider) with consumer-provided context (AffordanceRenderer output) into a three-stage evaluation pipeline gated by composable civility constraints.
 
 The pattern produces initiation decisions with content — consuming apps control dispatch. It does NOT own channel communication, scheduling, or message formatting.
 
@@ -276,7 +276,7 @@ ARC42STORIES.MD §5 needs updating to include the `personality` sub-package (cur
 |---|---|
 | `CivilityConstraint` | `@FunctionalInterface` SPI: `permitInitiation(InitiationContext) → CivilityCheck` |
 | `CivilityCheck` | Sealed: `Permitted`, `Denied(reason)` |
-| `InitiationContext` | Record: lastInitiationTimestamp, initiationsInWindow, consecutiveInitiationsWithoutResponse, agent |
+| `InitiationContext` | Record: lastInitiationTimestamp, initiationsInWindow, consecutiveInitiationsWithoutResponse, descriptor |
 | `MinimumGapConstraint` | Default civility: denied if gap too short |
 | `MaxPerWindowConstraint` | Default civility: denied if rate exceeded |
 | `ConsecutiveInitiationCooldownConstraint` | Default civility: denied after N unanswered initiations |
