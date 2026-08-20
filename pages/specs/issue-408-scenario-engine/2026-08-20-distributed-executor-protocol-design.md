@@ -160,6 +160,11 @@ When `sections` is present at top level, `steps` must be nested inside
 sections. When `steps` is at top level, no hierarchy — just a flat list of
 steps.
 
+Labels must be unique within their level: no two chapters with the same
+label, no two sections with the same label within a chapter, no two steps
+with the same label within a section. The `runTo` command matches the
+first occurrence if labels are ambiguous across levels.
+
 ### 3.3 Step schema
 
 ```yaml
@@ -374,9 +379,9 @@ executor's sequence. When `remaining` reaches 0, the sequence is complete.
 }
 ```
 
-The orchestrator validates that all `target` values in the scenario map to
-registered executors. If a required executor is not connected, the
-orchestrator waits with timeout before starting.
+The orchestrator validates that all `target` values in the scenario match
+the `name` field of registered executors. If a required executor is not
+connected, the orchestrator waits with timeout before starting.
 
 ### 4.7 Inter-executor coordination
 
@@ -611,13 +616,22 @@ casehub.scenario.executor.enabled=true
 `scenario-handler.ts` evolves to handle the new protocol:
 
 ```typescript
+interface ScenarioCommand {
+  action: string;
+  target?: AriaTarget;
+  value?: string;
+  data?: Record<string, unknown>;
+  await?: AwaitCondition;
+  timeout?: number;
+}
+
 interface DispatchSequence {
   op: 'dispatch-sequence';
   sessionId: string;
   steps: Array<{
     name: string;
     label: string;
-    commands: CommandPayload[];
+    commands: ScenarioCommand[];
   }>;
   speed: number;
   paused: boolean;
