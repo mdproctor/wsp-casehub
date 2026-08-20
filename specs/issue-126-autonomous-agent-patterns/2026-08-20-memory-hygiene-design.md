@@ -16,7 +16,7 @@ Composes existing infrastructure — no new persistence layers:
 
 Two entry modes:
 
-1. **Tick** — `MemoryHygieneOrchestrator.tick(agentId, tenantId)` → `HygieneTick`. On-demand, bounded cost. Runs: importance scoring → consolidation (pass 1: summarise) → eviction. Called by consuming apps at their chosen cadence.
+1. **Tick** — `MemoryHygieneOrchestrator.tick(agentId, tenantId)` → `HygieneTick`. On-demand, bounded cost. Runs: importance scoring → eviction → consolidation (pass 1: summarise). Eviction runs before consolidation to reduce the consolidation workload. Called by consuming apps at their chosen cadence.
 
 2. **Maintain** — `MemoryHygieneScheduler.maintain(agentId, tenantId)` → `MaintenanceTick`. Full idle-time pipeline. Externally composes: tick() + reflection (pass 2) + cross-linking + integrity checks. Called during idle periods (MemGPT "Sleeptime" concept).
 
@@ -29,17 +29,18 @@ The orchestrator has a single entry point (`tick()`), consistent with `Personali
 │ tick() — on-demand                                          │
 │                                                             │
 │  1. Score importance    ImportanceScorer × each memory       │
-│  2. Consolidate (P1)   ContentSummariser<ScoredCbrCase>     │
-│     └─ Supersede sources, store consolidated case           │
-│  3. Evict              Composite score < threshold → erase  │
+│  2. Evict              Composite score < threshold → erase  │
+│  3. Consolidate (P1)   Merge similar survivors via          │
+│     └─ ContentSummariser → FeatureVectorCbrCase             │
+│     └─ Supersede sources, annotate source_cases feature     │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │ maintain() — idle-time (scheduler composes externally)      │
 │                                                             │
 │  4. Reflect (P2)       ReflectionOrchestrator.reflect()     │
 │     └─ Store as ReflectionEntry records                     │
-│  5. Cross-link          Annotate consolidated cases with    │
-│     └─ source caseIds as StringListVal features             │
+│  5. Peer-link          Discover related memories by         │
+│     └─ similarity; annotate with StringListVal features     │
 │  6. Integrity check    IntegrityChecker → structural        │
 │     └─ Escalate flagged anomalies to SemanticIntegrity      │
 │                                                             │
@@ -60,9 +61,9 @@ Agents using MemoryHygiene should disable `CbrRetentionScheduler` for the same d
 
 | Type | Kind | Description |
 |------|------|-------------|
-| `ImportanceScorer` | `@FunctionalInterface` | `double score(CbrCaseSummary summary, Instant now)` → [0,1]. Pluggable importance scoring. |
-| `ArousalScorer` | class, `@DefaultBean` | Heuristic approximation: word-list sentiment intensity from case problem/solution text. Zero LLM cost. Production override with LLM-backed implementation for psychological fidelity. |
-| `SurpriseScorer` | class, `@DefaultBean` | Heuristic approximation: information entropy of case features relative to agent's typical feature distribution. Zero LLM cost. |
+| `ImportanceScorer` | `@FunctionalInterface` | `double score(ScoredCbrCase<? extends CbrCase> memory, Instant now)` → [0,1]. Input is the full scored case with text (`problem()`, `solution()`) and `features()`. |
+| `ArousalScorer` | class, `@DefaultBean` | Heuristic approximation: word-list sentiment intensity from `CbrCase.problem()` + `CbrCase.solution()` text. Zero LLM cost. Production override with LLM-backed implementation for psychological fidelity. |
+| `SurpriseScorer` | class, `@DefaultBean` | Heuristic approximation: information entropy of `CbrCase.features()` relative to agent's typical feature distribution. Zero LLM cost. |
 | `CompositeImportanceScorer` | class | Weighted combination: `score = Σ(scorer_i.score() × weight_i) / Σ(weight_i)`. Constructor takes `List<WeightedScorer>`. |
 | `WeightedScorer` | record | `(ImportanceScorer scorer, double weight)` — entry in the composite. Weight validated > 0. |
 
@@ -70,15 +71,19 @@ Agents using MemoryHygiene should disable `CbrRetentionScheduler` for the same d
 
 | Type | Kind | Description |
 |------|------|-------------|
-| `RetentionScore` | record | `(String caseId, double importance, double recencyFactor, double scopeFactor, double trustFactor, double composite)` — full audit trail per memory. `composite = (importance × iw + recency × rw + scope × sw + trust × tw) / (iw + rw + sw + tw)` (weighted arithmetic mean, all inputs [0,1]). |
+| `RetentionScore` | record | `(String caseId, String entityId, double importance, double recencyFactor, double scopeFactor, double trustFactor, double composite)` — full audit trail per memory. `entityId` needed for `EraseRequest`. `composite = (importance × iw + recency × rw + scope × sw + trust × tw) / (iw + rw + sw + tw)` (weighted arithmetic mean, all inputs [0,1]). |
 | `RetentionConfig` | record | `retentionThreshold` [0,1] (default 0.1), `importanceWeight` (default 1.0), `recencyWeight` (default 1.0), `scopeWeight` (default 0.5), `trustWeight` (default 0.5). Validates: all weights ≥ 0, at least one > 0. |
 | `MemoryHygieneConfig` | interface (`@ConfigMapping`) | `retentionConfig()`, `consolidationBatchSize()` (default 100), `maxReflectionSources()` (default 50), `crossLinkSimilarityThreshold()` (default 0.7), `memoryDomain()` (required), `caseTypes()` (required). |
 
 ### Consolidation
 
-Consolidation uses `ContentSummariser<ScoredCbrCase<? extends CbrCase>>` — the existing blocks summarisation SPI. The orchestrator groups memories by similarity (via `retrieveSimilar` with high topK), then feeds each group to the summariser. The summariser produces a merged case; sources are superseded via `CbrCaseMemoryStore.supersede(sourceId, mergedId, "hygiene-consolidation")`.
+Consolidation is a two-step process:
+1. **Text synthesis** — `ContentSummariser<ScoredCbrCase<? extends CbrCase>>` produces a `SummaryResult` (text + annotations) from a group of related memories.
+2. **Case construction** — The orchestrator builds a `FeatureVectorCbrCase` from the `SummaryResult.text()` (as `problem`), merged features (union of source features), and `source_cases` provenance annotation (as `StringListVal`). This produces a storable `CbrCase`.
 
-The tick uses `TieredContentSummariser` dispatch: small groups (≤5) get heuristic merging (feature union, text concatenation), larger groups get LLM-backed synthesis.
+Sources are superseded via `CbrCaseMemoryStore.supersede(sourceId, mergedId, "hygiene-consolidation")`.
+
+The tick uses `TieredContentSummariser` dispatch: small groups (≤5) get heuristic merging (feature union, text concatenation), larger groups get LLM-backed synthesis. `FeatureVectorCbrCase` supports `withFeatures()`, so cross-link annotations work without issues.
 
 ### Reflection Storage
 
@@ -112,81 +117,111 @@ Reflections from `ReflectionOrchestrator.reflect()` are `List<String>` — abstr
 
 ## Tick Pipeline Detail
 
+The tick iterates over each configured `caseType` independently (matching `CbrRetentionScheduler`'s per-caseType loop). Scope is `Path.root()` — hygiene operates at the agent level, not scoped to a specific path.
+
 ### Step 1: Importance Scoring
 
 ```java
-// Retrieve all active memories for this agent in the configured domain
-var query = CbrQuery.of(tenantId, domain, scope, caseType, Map.of(), config.consolidationBatchSize())
-    .withMinSimilarity(0.0);
-var memories = store.retrieveSimilar(query, CbrCase.class);
+var now = Instant.now();
+var domain = new MemoryDomain(config.memoryDomain());
 
-// Score each memory
-var scored = memories.stream()
-    .map(m -> new RetentionScore(
-        m.caseId(),
-        importanceScorer.score(toSummary(m), now),
-        temporalDecay.factor(m.storedAt(), now),
-        scopeDecay.factor(depthDistance(m, scope)),
-        trustFactor(m),
-        composite(importance, recency, scope, trust, config.retentionConfig())))
-    .toList();
+for (var caseType : config.caseTypes()) {
+    // Retrieve all active memories for this agent in the configured domain
+    // Empty features + minSimilarity(0.0) returns all cases (GE-20260804-eb75e0)
+    var query = CbrQuery.of(tenantId, domain, Path.root(), caseType,
+            Map.of(), config.consolidationBatchSize())
+        .withMinSimilarity(0.0)
+        .withProducerAgentId(agentId);
+    var memories = store.retrieveSimilar(query, CbrCase.class);
+
+    // Score each memory
+    var scored = memories.stream()
+        .map(m -> new RetentionScore(
+            m.caseId(),
+            importanceScorer.score(m, now),
+            temporalDecay.factor(m.storedAt(), now),
+            scopeDecay.factor(0),  // root scope = 0 distance
+            m.cbrCase().trustScore() != null ? m.cbrCase().trustScore() : 1.0,
+            computeComposite(config.retentionConfig(), ...)))
+        .toList();
+    // ... steps 2 and 3 follow per caseType
+}
 ```
 
-### Step 2: Consolidation (Pass 1)
+### Step 2: Eviction
 
-Group high-similarity memories and merge via `ContentSummariser`:
-
-1. Retrieve memory pairs with similarity above `crossLinkSimilarityThreshold`
-2. Group into merge candidates (connected components)
-3. For each group: summarise → store merged case → supersede sources
-4. Supersession provides invalidate-not-delete: `store.supersede(sourceId, mergedId, "hygiene-consolidation")`
-5. `SupersessionStatus.supersededAt` provides temporal context for when the original memory was valid
-
-### Step 3: Eviction
+Eviction runs before consolidation to reduce workload — remove obvious garbage first, then consolidate survivors.
 
 ```java
 var toEvict = scored.stream()
     .filter(s -> s.composite() < config.retentionConfig().retentionThreshold())
     .toList();
 for (var eviction : toEvict) {
-    store.erase(new EraseRequest(eviction.caseId(), tenantId));
+    store.erase(new EraseRequest(
+        eviction.entityId(), domain, tenantId, eviction.caseId()));
 }
+var survivors = scored.stream()
+    .filter(s -> s.composite() >= config.retentionConfig().retentionThreshold())
+    .toList();
 ```
+
+### Step 3: Consolidation (Pass 1)
+
+Group high-similarity survivors and merge:
+
+1. Identify groups of similar memories (connected components above `crossLinkSimilarityThreshold`)
+2. For each group: run `ContentSummariser` → produces `SummaryResult`
+3. Build `FeatureVectorCbrCase` from `SummaryResult.text()` + merged features + `source_cases` `StringListVal`
+4. Store consolidated case, supersede sources: `store.supersede(sourceId, mergedId, "hygiene-consolidation")`
+5. `SupersessionStatus.supersededAt` provides temporal context for when the original memory was valid
 
 ## Maintain Pipeline Detail (Scheduler)
 
 ### Step 4: Reflection (Pass 2)
 
+The scheduler knows which cases were processed by the tick (returned in `HygieneTick.Completed.scores()`). These scored caseIds are passed as `sourceCaseIds` to give reflections provenance.
+
 ```java
+var hygieneTick = orchestrator.tick(agentId, tenantId);
+var sourceCaseIds = switch (hygieneTick) {
+    case HygieneTick.Completed c -> c.scores().stream().map(RetentionScore::caseId).toList();
+    default -> List.<String>of();
+};
+
 var reflections = reflectionOrchestrator.reflect(agentId, tenantId, since, config.maxReflectionSources());
 for (var insight : reflections) {
     reflectionStore.store(new ReflectionEntry(agentId, tenantId, insight, now, sourceCaseIds));
 }
 ```
 
-### Step 5: Cross-Linking
+### Step 5: Peer-Link Discovery
 
-During consolidation (step 2), the merged case stores its source caseIds as a `StringListVal` feature:
-
-```java
-var features = new HashMap<>(mergedCase.features());
-features.put("source_cases", FeatureValue.stringList(sourceCaseIds));
-mergedCase = mergedCase.withFeatures(features);
-```
-
-This is a write-only annotation — consolidation provenance, not a navigable graph.
+Consolidation provenance (`source_cases` feature) is written during Step 3 as part of the tick. Step 5 discovers additional *peer* relationships — memories that are related but not similar enough to merge. The scheduler queries for pairs above a lower similarity threshold and annotates them with `related_cases` `StringListVal` features. This enriches retrieval context without merging.
 
 ### Step 6: Integrity Checking
 
+`DefaultIntegrityChecker` gracefully degrades when `CbrCaseMemoryStore.scan()` is unsupported — it catches `UnsupportedOperationException` and skips scan-dependent checks (DUPLICATE_CASE, MISSING_FEATURES), logging a warning. Supersession-based checks (ORPHANED_SUPERSESSION) use `findSupersededCases()` which is a required method. UNPROCESSED_STALE detection uses `retrieveSimilar` with broad queries.
+
 ```java
 var violations = integrityChecker.check(agentId, tenantId, domain);
-// DefaultIntegrityChecker runs structural checks:
-// - Orphaned supersessions: supersededCaseId points to non-existent case
+// Structural checks that always work:
+// - Orphaned supersessions via findSupersededCases()
+// - Unprocessed stale via retrieveSimilar + age check
+// Structural checks requiring scan() (graceful degradation):
 // - Duplicate cases: same features+outcome within similarity threshold
 // - Missing features: required feature keys absent
-// - Unprocessed stale: cases older than config threshold never reviewed by hygiene
 // Then escalates flagged items to SemanticIntegrityChecker
 ```
+
+## Observability
+
+Per epic #126 design principle 4 ("Observable — all state changes emit events consumable by existing platform infrastructure"), the orchestrator and scheduler emit `HygieneEvent` records via an injected `Consumer<HygieneEvent>` (no-op default):
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `HygieneEvent` | sealed interface | `MemoryEvicted(String caseId, RetentionScore score)`, `MemoryConsolidated(String mergedCaseId, List<String> sourceCaseIds)`, `ReflectionGenerated(String agentId, String insight)`, `IntegrityViolationDetected(IntegrityViolation violation)` |
+
+Consumers wire the event sink to their observability infrastructure (platform EventSink, metrics, logging).
 
 ## Dependencies
 
