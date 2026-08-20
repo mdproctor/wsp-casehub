@@ -23,6 +23,28 @@ This spec defines:
 4. A **shared executor library** with CDI annotation-driven action handlers
    for services
 
+### 1.1 Relationship to cross-platform scenario engine design spec
+
+The cross-platform spec (casehub-life, 2026-08-11) defined the original
+vision: Pages as central orchestrator making HTTP calls to services, with
+`delivery` modes (rest, ui-form, simulated), `endpoint` fields, and a
+`ControlChannel` for frontend synchronisation.
+
+This spec **evolves** that architecture based on what was learned during
+implementation:
+
+| Cross-platform spec | This spec | Why |
+|---------------------|-----------|-----|
+| HTTP delivery modes (rest, simulated) | Executor dispatch via push wire | Eliminates HTTP round-trips, enables stepping at the executor level, local CDI event observation |
+| `ControlChannel` (ScenarioHost/Remote) | `dispatch-sequence` + `executor-control` | Same purpose, unified with the executor protocol. ControlChannel is superseded. |
+| Flat step list with `delivery`/`endpoint` | Hierarchical chapters/sections/steps/commands with `target` | Demo navigation (run-to, stepping at chapter/section level) requires hierarchy |
+| Orchestrator makes all calls | Services embed executor library | Executor can observe local CDI events directly instead of polling REST |
+
+The `GraphQLDispatcher` is retained as a fallback for services without a
+local executor (§8.3), preserving the HTTP delivery path for incremental
+adoption. The cross-platform spec's `data` section, `actor` field, and
+trigger semantics are preserved.
+
 ## 2. Architecture
 
 ### 2.1 Three-layer model
@@ -247,8 +269,7 @@ record ExecutorRegister(String id, String name,
 
 record StepResult(String id, String sessionId, String stepName,
                   boolean ok, String error,
-                  Map<String, Object> result,
-                  int remaining) implements PushRequest {
+                  Map<String, Object> result) implements PushRequest {
     public String op() { return "step-result"; }
 }
 ```
@@ -276,7 +297,7 @@ Executor                          Orchestrator
    |<-- dispatch-sequence --------------|  steps: [{name, label, commands}], speed, paused
    |                                    |
    |    [execute step 1 commands]       |
-   |--- step-result ------------------->|  stepName, ok, result, remaining=2
+   |--- step-result ------------------->|  stepName, ok, result
    |                                    |
    |    [check control, delay by speed] |
    |                                    |
@@ -287,14 +308,14 @@ Executor                          Orchestrator
    |<-- executor-control ---------------|  command: "step"
    |                                    |
    |    [execute step 2 commands]       |
-   |--- step-result ------------------->|  stepName, ok, result, remaining=1
+   |--- step-result ------------------->|  stepName, ok, result
    |                                    |
    |    [paused after step command]     |
    |                                    |
    |<-- executor-control ---------------|  command: "resume"
    |                                    |
    |    [execute step 3 commands]       |
-   |--- step-result ------------------->|  stepName, ok, result, remaining=0
+   |--- step-result ------------------->|  stepName, ok, result (last step)
    |                                    |
 ```
 
@@ -331,7 +352,8 @@ The executor receives this and:
 1. Starts executing if `paused` is false
 2. Runs all commands in step 1 without pausing
 3. Sends `step-result` for step 1
-4. Waits `(1000 / speed)` ms (adjusted by speed factor)
+4. Waits `(1000 / speed)` ms between steps. Speed must be > 0 (use
+   `pause` control for zero-speed). Executor clamps to minimum 0.01.
 5. Runs step 2, sends result
 6. Sequence complete
 
@@ -349,7 +371,7 @@ The executor receives this and:
 | `pause` | Complete current step's commands, then pause |
 | `resume` | Continue executing remaining steps at current speed |
 | `step` | Execute one step (all commands), then pause |
-| `speed` | Adjust delay between steps. Speed=0 equivalent to pause |
+| `speed` | Adjust delay between steps. Must be > 0. Use `pause` for zero |
 
 ### 4.5 Step-result format
 
@@ -360,13 +382,13 @@ The executor receives this and:
   "sessionId": "s-001",
   "stepName": "create-ticket",
   "ok": true,
-  "result": {"ticketId": "T-001", "status": "TRIAGED"},
-  "remaining": 1
+  "result": {"ticketId": "T-001", "status": "TRIAGED"}
 }
 ```
 
-`remaining` tells the orchestrator how many steps are left in this
-executor's sequence. When `remaining` reaches 0, the sequence is complete.
+The orchestrator tracks sequence progress by matching `stepName` against
+the dispatched sequence. No `remaining` counter — the orchestrator already
+knows the sequence contents.
 
 ### 4.6 Executor-register format
 
@@ -401,14 +423,50 @@ helpdesk executor                 orchestrator              browser executor
        |                              |                           |
 ```
 
-### 4.8 Error handling
+### 4.8 Session lifecycle
+
+A session is created when the controller API receives `POST /scenario/start`.
+The orchestrator generates a `sessionId` (UUID) and includes it in all
+protocol messages. One session at a time per orchestrator.
+
+| Event | Behaviour |
+|-------|-----------|
+| `POST /scenario/start` | Create session, parse scenario, wait for executors, dispatch first sequences |
+| All steps complete | Session ends. Orchestrator broadcasts final state, clears executor queues |
+| `POST /scenario/stop` | Session aborts. Orchestrator sends `executor-control: stop` to all executors. Executors discard remaining steps. |
+| Orchestrator restart | Session is lost. Executors detect WebSocket disconnect, discard session state, reconnect and re-register |
+| Executor reconnect | Executor re-registers. If the session is still active and the executor has pending steps, the orchestrator re-dispatches them |
+
+An executor handles one session at a time. Receiving a `dispatch-sequence`
+with a different `sessionId` implicitly ends the previous session's work
+for that executor.
+
+### 4.9 Sequence dispatch rules
+
+The orchestrator translates the trigger graph into sequences:
+
+1. **Untriggered steps** in the same section targeting the same executor
+   are dispatched as one sequence when the section starts
+2. **Triggered steps** are dispatched individually when their trigger fires
+3. If multiple triggers fire simultaneously for the same executor, the
+   steps are grouped into one sequence
+4. An executor can receive a new `dispatch-sequence` while a previous one
+   is running. The new sequence is **appended** — the executor completes
+   the current sequence first, then starts the new one
+5. `executor-control` affects all sequences (current and queued)
+
+This means the orchestrator dispatches eagerly: as soon as a step's
+trigger fires, it dispatches. The executor queues sequences and processes
+them in order.
+
+### 4.10 Error handling
 
 | Error | Behaviour |
 |-------|-----------|
 | Command fails within step | Step result `ok: false` with error message. Remaining commands in step skipped. |
 | Await timeout | Step result `ok: false`, error: "await timed out". |
 | Executor disconnects | Orchestrator marks all pending steps for that executor as failed. Reconnecting executor re-registers and can receive new sequences. |
-| Step failure propagation | Orchestrator applies scenario-level `on-error` policy: `continue` (skip dependents), `stop` (abort), or `pause` (operator intervention). |
+| Step failure propagation | Orchestrator applies scenario-level `on-error` policy: `continue` (skip dependents transitively — if A fails and C depends on A, C is skipped; if D depends on C, D is also skipped), `stop` (abort all executors), or `pause` (all executors pause, operator intervention). |
 
 ## 5. Controller API
 
@@ -504,8 +562,9 @@ label (checking chapter labels, then section labels, then step labels).
 All steps before the target execute at maximum speed with no pausing.
 When the target is reached, the orchestrator pauses.
 
-If the label is behind the current position, it has no effect (no
-rewinding — scenarios are not idempotent).
+If the label is behind the current position, the API returns an error
+response with status `already-past` and the current position. Scenarios
+are not idempotent — no rewinding. Unknown labels return `not-found`.
 
 ### 5.6 Stepping semantics
 
@@ -526,7 +585,7 @@ happen, then the demo pauses at the next step boundary.
 
 ### 6.1 Module
 
-New module: `casehub-pages-scenario-executor` in the pages backend.
+New module: `casehub-pages-scenario-client` in the pages backend.
 
 Dependencies:
 - `casehub-pages-push` (WebSocket client, push wire protocol)
@@ -611,7 +670,29 @@ casehub.scenario.orchestrator.url=ws://localhost:8080/ws/push
 casehub.scenario.executor.enabled=true
 ```
 
-### 6.6 Browser executor evolution
+### 6.6 EventConnection evolution
+
+The current `EventConnection` in `pages-data` only handles `op: "ack"`,
+`op: "error"`, and `op: "event"` messages. Any other op is silently
+dropped (see GE-20260812-5cd146). The new protocol types
+(`dispatch-sequence`, `executor-control`) must be handled.
+
+`EventConnection.handleMessage()` must be extended with cases for the new
+ops. Each new op dispatches a typed `CustomEvent` on the `eventTarget`:
+
+```typescript
+case 'dispatch-sequence':
+  eventTarget.dispatchEvent(new CustomEvent('scenario-dispatch', { detail: msg }));
+  break;
+case 'executor-control':
+  eventTarget.dispatchEvent(new CustomEvent('scenario-control', { detail: msg }));
+  break;
+```
+
+This is a pre-release breaking change to EventConnection's contract —
+acceptable per platform maturity stage.
+
+### 6.7 Browser executor evolution
 
 `scenario-handler.ts` evolves to handle the new protocol:
 
