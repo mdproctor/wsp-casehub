@@ -136,3 +136,27 @@
 **Exploration:** quick
 **Depends on:** D8, D9
 **Status:** captured
+
+## D12: Nested YAML hierarchy — chapters → sections → steps → commands
+
+**Choice:** Scenario files use a nested structure: chapters contain sections, sections contain steps, steps contain commands. A "step" is the demo-meaningful unit (e.g., "fill out the support form") — all commands within a step execute without pausing. Labels on chapters, sections, and steps serve as navigation points for "run to" and stepping.
+**Alternatives:**
+- Flat steps with label annotations — steps remain a flat list, each annotated with chapter/section. More flexible for concurrent triggers but denormalizes labels (repeated on every step). Doesn't match how a presenter thinks about a demo script.
+**Rationale:** The nested structure matches the demo narrative: chapters are major topic transitions, sections are sub-narratives, steps are individual demo moments. The presenter thinks in terms of "run to chapter 2" or "step through this section." The hierarchy is the natural authoring model.
+**Trade-offs:** The trigger graph from the cross-platform design spec (concurrent steps connected by triggers) operates within/across sections, not across the flat list. Triggers reference steps by name within their section scope, or by fully-qualified path for cross-section references. This is more structured than the flat model but enforces the narrative order.
+**Sources:** Cross-platform scenario engine design spec §3 (current flat step format), §5.2 (speed control modes)
+**Exploration:** quick
+**Depends on:** D8
+**Status:** captured
+
+## D13: Separable controller with REST/GraphQL/MCP API and push-wire state broadcast
+
+**Choice:** The orchestrator exposes a controller API (REST, GraphQL, MCP tools) for scenario control: start, pause, resume, step, runTo(label), nextSection, nextChapter, speed. A `<scenario-controller>` UI connects to this API and receives real-time state updates via push wire (`scenario:state` topic). The controller UI can be embedded in the demo app OR run on a separate device (phone controlling a laptop display).
+**Alternatives:**
+- Embedded-only controller — simpler but can't be used from a separate device. Limits the demo operator to the same screen as the audience.
+- Direct WebSocket commands only — no REST/GraphQL API. Controller UI must speak push wire protocol. Excludes programmatic control from CI, MCP agents, or simple curl commands.
+**Rationale:** Demos are presented — the operator needs a "presenter remote" that works from any device with a browser. REST/GraphQL gives programmatic access (CI verification, MCP agent control). Push wire delivers real-time position updates to all connected controllers.
+**Trade-offs:** Three API surfaces (REST, GraphQL, MCP) to maintain. But the implementation is thin — all delegate to the same orchestrator methods. The MCP tools reuse the existing casehub-pages-mcp module pattern.
+**Exploration:** quick
+**Depends on:** D12
+**Status:** captured
