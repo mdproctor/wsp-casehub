@@ -345,18 +345,19 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Depends on:** D23 (full BDI scope), D24 (tiered inference)
 **Status:** captured
 
-## D26: GOAP integration — world state enrichment
+## D26: GOAP integration — confidence-aware projection
 
-**Choice:** MentalModel exposes a project(agentId, subjectId, tenantId) method that returns Map<String, Boolean> — projected BDI state as GOAP-compatible world state conditions. Consumers merge these into their GoapWorldState before planning. MentalModel has no knowledge of GOAP internals.
+**Choice:** MentalModel exposes a project(agentId, subjectId, tenantId) → List<MentalProjection> method. Each MentalProjection carries: conditionKey (String), value (boolean), confidence (double [0,1]), and source (BDI dimension enum). Consumers decide their own boolean threshold when mapping to GoapWorldState (e.g., only project conditions with confidence ≥ 0.5). Integration uses the current GoapWorldState API: `new GoapWorldState(conditions)` or chaining `.with(key, value)`.
 **Alternatives:**
-- Planning-aware orchestrator — MentalModel takes GoapAction definitions and reasons about action appropriateness. Tight coupling to engine GOAP API. Violates blocks scope (blocks doesn't orchestrate engine planning).
-- Defer GOAP integration — build MentalModel standalone, document GOAP integration as consumer concern. Misses the primary value proposition from the research: planning that accounts for others' states.
-**Rationale:** Loose coupling via a projection method. MentalModel produces conditions ("subject_stressed", "subject_has_deadline", "subject_wants_quick_resolution"); consumers decide how to use them in planning. The projection is a pure function of current BDI state — no side effects, no GOAP dependency. Consumers call project() and merge into GoapWorldState.closedWorld() or GoapWorldState.openWorld() as appropriate.
-**Trade-offs:** Condition naming is consumer-defined — no standard vocabulary. MentalModel provides suggested condition names based on BDI dimensions, but consumers may need domain-specific mappings.
-**Sources:** GoapWorldState.closedWorld()/openWorld() (engine-api), GoapPlanner (engine-api), Research §2.5 (GOAP integration depth), GE-20260818-534e70 (ternary world state semantics)
+- Map<String, Boolean> projection — collapses confidence to boolean. Discards the uncertainty information that is MentalModel's core value (R1-05). A confidence-0.3 and confidence-0.9 inference become identical.
+- Planning-aware orchestrator — MentalModel takes GoapAction definitions and reasons about action appropriateness. Tight coupling to engine GOAP API. Violates blocks scope.
+- Defer GOAP integration — build MentalModel standalone. Misses the primary value proposition.
+**Rationale:** Loose coupling via a projection method. MentalModel produces projections with confidence; consumers filter and map to their GoapWorldState. The projection is a pure function of current BDI state — no side effects, no GOAP dependency. Confidence-aware projection preserves the uncertainty that D27's confidence decay creates, letting consumers make threshold decisions at the point of consumption.
+**Trade-offs:** Condition naming is consumer-defined — no standard vocabulary. MentalModel provides suggested condition names based on BDI dimensions, but consumers may need domain-specific mappings. Consumers must write the confidence→boolean threshold logic.
+**Sources:** GoapWorldState (engine-api, record with Map<String, Boolean> conditions + .with() method), GoapPlanner (engine-api), Research §2.5 (GOAP integration depth)
 **Exploration:** quick
-**Depends on:** D23 (full BDI scope)
-**Status:** captured
+**Depends on:** D23 (full BDI scope), D27 (confidence decay — confidence propagated to projection)
+**Status:** revised (R1-05: Map<String, Boolean> → List<MentalProjection> with confidence; R1-04: fixed GoapWorldState API references to current API)
 
 ## D27: Temporal dynamics — confidence decay with entrenchment
 
@@ -366,10 +367,11 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 - Current state only — latest inferred state, no decay. Simplest but stale inferences persist indefinitely; an agent might act on a belief the subject held three months ago.
 **Rationale:** Confidence decay naturally handles the core ToM challenge: we can never be certain about others' mental states, and our certainty decreases with elapsed time. TimeToM (ACL 2024) emphasizes temporal reasoning as critical for ToM accuracy. Entrenchment in BeliefSet provides formal revision ordering — deeply entrenched beliefs (reinforced by multiple signals) resist revision by contradictory evidence, which matches how real belief attribution works.
 **Trade-offs:** Decay rate tuning requires experimentation. Too aggressive = useful inferences vanish too quickly. Too slow = stale state persists. Mitigated by separate decay rates for B, D, and I (beliefs are more stable than desires, which are more stable than intentions).
+**Entrenchment vs confidence interaction (R1-10):** These are separate dimensions serving different purposes. Entrenchment (int) = revision resistance during AGM belief revision. Increases each time a reinforcing signal arrives. Used only by BeliefSet.revise() to determine which beliefs survive when the set is inconsistent. Confidence (double [0,1]) = temporal freshness. Decays with elapsed time since last reinforcing signal. Used for eviction (below floor → remove regardless of entrenchment) and projection weighting (higher confidence → stronger MentalProjection). They don't conflict: a belief with high entrenchment and low confidence was well-established historically but hasn't been reinforced recently — it gets evicted. Entrenchment only matters when new contradictory evidence forces revision between beliefs that are both above the confidence floor.
 **Sources:** TimeToM (ACL 2024), BeliefSet.revise() (blocks/agentic/belief), TemporalDecay (neocortex-memory-api), UserModel D18 (familiarity decay)
 **Exploration:** quick
 **Depends on:** D23 (full BDI scope)
-**Status:** captured
+**Status:** revised (R1-10: clarified entrenchment vs confidence interaction — separate dimensions, eviction trumps entrenchment below confidence floor)
 
 ## D28: Persistence — MentalModelStore SPI
 
@@ -395,4 +397,30 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Sources:** UserModelOrchestrator (blocks/agentic/social), PersonalityEvolutionOrchestrator (blocks/agentic/social), DPT-Agent (2025, unified BDI reasoning)
 **Exploration:** quick
 **Depends on:** D23 (full BDI), D24 (tiered inference), D25 (signal-based input)
+**Status:** captured
+
+## D30: MentalModel↔UserModel boundary
+
+**Choice:** MentalModel and UserModel are complementary, not overlapping. UserModel tracks **stable behavioral traits** (communication style, preferences, topics of interest — slow-changing, identity-level). MentalModel tracks **dynamic cognitive state** (current beliefs, desires, intentions — fast-changing, situation-level). Both are keyed by (agentId, subjectId, tenantId) but serve different consumer needs and update at different cadences.
+**Alternatives:**
+- MentalModel subsumes UserModel's LLM synthesis — MentalModel produces the open-ended profile dimensions (communication style, topics) that UserModel currently generates. Eliminates duplicate LLM calls. But: UserModel is already implemented with 44 tests. Redesigning its synthesis pipeline introduces regression risk for no user-facing benefit. The boundary is also conceptually clean: "how they communicate" (UserModel) vs "what they currently think/want" (MentalModel).
+- Shared LLM synthesis — both orchestrators share a single LLM call that produces both profile updates and BDI inferences. Reduces LLM cost but tightly couples two orchestrators that should evolve independently.
+**Rationale:** The semantic boundary is genuine. "User prefers concise communication" (UserModel — stable trait, persists across contexts) is different from "User currently believes the deployment is risky" (MentalModel — situational belief, may change after a reassuring explanation). Consumers query different profiles for different purposes: UserModel for tone/style adaptation, MentalModel for action planning. Future consolidation is possible via a shared inference engine, but premature now.
+**Trade-offs:** Potential duplicate LLM interpretation of the same conversation signals. Consumers calling both record() methods for the same event do pay twice. Accepted because the inference targets are different (behavioral patterns vs cognitive state) and each orchestrator's LLM prompt is tuned for its purpose.
+**Sources:** UserModelOrchestrator (blocks/agentic/social), D16-D22 (UserModel decisions), R1-06 (decision review finding)
+**Exploration:** quick (surfaced by R1-06)
+**Depends on:** D23 (full BDI scope), D25 (signal-based input)
+**Status:** captured
+
+## D31: Per-orchestrator signal types (not unified)
+
+**Choice:** MentalModel uses its own MentalStateSignal sealed interface, consistent with the per-orchestrator signal pattern. No unified SocialObservation bus.
+**Alternatives:**
+- Unified SocialObservation — single event type published to an EventStreamBus, all social cognition orchestrators subscribe. Reduces consumer integration from 4 record() calls to 1 publish(). But: each orchestrator extracts fundamentally different data from the same event (trait activation vs quality signals vs cognitive cues). A unified type becomes a kitchen-sink carrying all possible fields. The consumer saves one line but the orchestrators each need parsing/filtering logic for irrelevant fields.
+- Adapter layer — consumers write one SocialObservation, adapters translate to per-orchestrator signals. Adds an abstraction layer without reducing total code.
+**Rationale:** The 4 signal types extract orthogonal information. PersonalityEvolution cares about signal magnitude and polarity for trait activation. UserModel cares about quality signal counts for familiarity scoring. MentalModel cares about cognitive content (what was said/implied about beliefs/desires/intentions). Forcing these into one type loses the domain-specific contract each signal provides. The consumer cost (4 record() calls, each O(1)) is manageable. The orchestrator benefit (typed, validated input) outweighs it.
+**Trade-offs:** Consumer writes 4 mapping functions per domain event type. N×M integration cost. Acceptable for the pattern library; consumers who find this onerous can write their own thin adapter.
+**Sources:** InteractionSignal (blocks/agentic/social), EventStreamBus pattern (blocks/summarisation), R1-07 (decision review finding)
+**Exploration:** quick (surfaced by R1-07)
+**Depends on:** D25 (signal-based input)
 **Status:** captured
