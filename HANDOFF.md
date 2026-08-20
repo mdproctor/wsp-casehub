@@ -1,6 +1,6 @@
 # HANDOFF — Slot 112: Cross-Platform Scenario Engine
 
-**Date:** 2026-08-14
+**Date:** 2026-08-20
 **Branch:** `issue-408-scenario-engine`
 **Slot:** `/Users/mdproctor/claude/casehub/slots/112`
 **Epic:** casehubio/parent#408
@@ -9,22 +9,21 @@
 
 ## Last Session
 
-Completed #412 frontend (push-driven dashboard with platform components, scenario controller, info overlay). Then pivoted to strategic redesign: brainstormed the full example slices curriculum — 13 slices across 13 domains, each teaching a different Blocks agentic-AI pattern. Audited all 88 platform patterns (38 explicit, 38 compositional, 7 gaps). Wrote pattern catalog to blocks repo. Filed learning portal issue (#415), helpdesk rework issue (#416), and blocks pattern gaps epic (blocks#105 with 7 child issues). Built landing page for casehub-examples. Created slot 119 for blocks gaps work.
+Completed #416 helpdesk rework — replaced hand-coded services (TicketService, TicketCreationHandler, DemoTicketClassifier) with platform-driven orchestration: CaseDefinition YAML, WorkerFunction.Sync via YamlCaseHub.augment(), humanTask binding for specialist WorkItems, ChatCaseCreationHandler. 13 tests passing, full lifecycle integration test proves classify→WorkItem→resolve→notify→complete. Built two-page helpdesk UI served from Quarkus static resources. Filed ARIA epic (parent#417, done in slot 122) and MCP+ARIA automation gap issues (connectors#96, pages#323, pages#324, examples#49). All gap work landed via slot 138 except examples#49.
 
 ## Immediate Next Step
 
-Run `/work` to continue on #416 (slice 1 helpdesk rework). The design spec is written and reviewed at `specs/issue-408-scenario-engine/2026-08-14-example-slices-design.md`. Next: invoke `writing-plans` to create the implementation plan, then execute — rip out TicketService, add CaseDefinition YAML, wire engine/work, add ops tab with blocks-ui components.
+Run `/work` to continue on examples#49. The `.plan` is already advanced — #49 is active. Implement `@McpDomain("helpdesk")` on the helpdesk app: bootstrap mutations, ticket/notification queries. Then test end-to-end MCP+ARIA automation of the helpdesk scenario using the new platform MCP surface (casehub_model/casehub_action) and Playwright ARIA tree driver.
 
 ## Cross-Module
 
 **Enabled** (delivered, downstream can proceed):
-- `blocks` — pattern catalog committed, slot 119 created for gaps epic blocks#105 (7 issues) · L · Med
+- `connectors` — MCP domain connectors#96 landed (slot 138)
+- `pages` — scenario executor MCP client pages#323 + ARIA driver pages#324 landed (slot 138)
+- `blocks` — ARIA interaction model parent#417 landed (slot 122)
 
 ## References
 
-- Design spec: `specs/issue-408-scenario-engine/2026-08-14-example-slices-design.md` (workspace)
-- Slice decisions: `specs/issue-408-scenario-engine/slice-decisions.md` (workspace)
-- Pattern catalog: `/Users/mdproctor/claude/casehub/blocks/docs/pattern-catalog.md`
-- Landing page: `/Users/mdproctor/claude/casehub/examples/index.html`
-- Review workspace: `~/reviews/casehub-examples/example-slices-design-*/`
-- `.plan` at `/Users/mdproctor/claude/casehub/slots/112/.plan` — #413 active (position 6/9)
+- Implementation plan: `plans/2026-08-14-helpdesk-rework.md` (workspace)
+- Design spec: `specs/issue-408-scenario-engine/2026-08-12-example-applications-design.md` (workspace)
+- `.plan` at `/Users/mdproctor/claude/casehub/slots/112/.plan` — #49 active
