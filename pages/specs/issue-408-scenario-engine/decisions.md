@@ -111,3 +111,16 @@
 **Exploration:** quick
 **Depends on:** D8
 **Status:** captured
+
+## D10: New op types in PushMessage/PushRequest sealed interfaces
+
+**Choice:** Add new op types to the PushMessage and PushRequest sealed interfaces for scenario protocol messages: `dispatch-sequence`, `executor-control`, `step-result`, `executor-register`. Type-safe, IDE completion, exhaustive pattern matching in switch expressions.
+**Alternatives:**
+- Topic-based payloads using existing `event` op — avoids sealed interface changes but loses type safety. Scenario messages are untyped JSON payloads, no compiler help.
+- Single `scenario` envelope op — one sealed interface change, scenario protocol self-contained inside. Partial type safety but still needs internal discriminated union parsing.
+**Rationale:** Pre-release platform — breaking changes cost nothing. The right design is type-safe protocol messages with exhaustive matching. Adding ops to the sealed interface is the cleanest way to get that. Every consumer that switches on `PushRequest` will get a compile error if they don't handle the new variants — that's a feature, not a cost.
+**Trade-offs:** Changes the push protocol's sealed interface. All existing PushRequest switch expressions must add cases. Pre-release, this is free.
+**Sources:** PushRequest.java (existing sealed interface with Subscribe, Unsubscribe, Listen, Unlisten, CommandResult), PushMessage.java
+**Exploration:** quick
+**Depends on:** D9
+**Status:** captured
