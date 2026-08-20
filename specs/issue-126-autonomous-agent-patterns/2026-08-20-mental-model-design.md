@@ -8,19 +8,27 @@
 
 MentalModel maintains a BDI (Beliefs, Desires, Intentions) model per actor the agent interacts with. It tracks what others know, want, and plan to do — enabling the agent to reason about other people's cognitive states, not just its own goals.
 
-**Distinction from UserModel:** UserModel tracks stable behavioral traits (communication style, preferences, topics of interest) — identity-level, slow-changing. MentalModel tracks dynamic cognitive state (current beliefs, desires, intentions) — situation-level, fast-changing. "User prefers concise communication" is UserModel. "User currently believes the deployment is risky" is MentalModel. Both are keyed by (agentId, subjectId, tenantId) but serve different consumer needs (D30).
+**Distinction from UserModel (D30):** UserModel tracks stable behavioral traits (communication style, preferences, topics of interest) — identity-level, slow-changing. MentalModel tracks dynamic cognitive state (current beliefs, desires, intentions) — situation-level, fast-changing. "User prefers concise communication" is UserModel. "User currently believes the deployment is risky" is MentalModel. Both are keyed by (agentId, subjectId, tenantId) but serve different consumer needs.
+
+**Composition targets (issue #123):** BeliefSet + RelationshipEvent + GoapPlanner + EpistemicRule. All four are composed:
+- `BeliefSet<String>` — AGM revision for belief conflict resolution
+- `RelationshipEvent` — signal source via `RelationshipCue` variant
+- `GoapWorldState` — confidence-aware projection via `project()`
+- `EpistemicRule` — optional conversation-derived belief classification via `observeConversation()`
 
 ## Architecture
 
 ### Orchestrator: `MentalModelOrchestrator`
 
-`@ApplicationScoped` CDI bean following the established social cognition pattern. Per-subject BDI state in `ConcurrentHashMap<String, SubjectMentalState>`. Per-subject `ReentrantLock` for tick concurrency. Three public methods:
+`@ApplicationScoped` CDI bean following the established social cognition pattern. Per-subject BDI state in `ConcurrentHashMap<String, SubjectMentalState>`. Per-subject `ReentrantLock` for tick concurrency. Four public methods:
 
-- **`record(MentalStateSignal, agentId, subjectId, tenantId)`** — accumulates signals. Heuristic extraction of explicit cues happens immediately (O(1), no LLM, no store write). Appends signal text to a buffer for later LLM inference.
+- **`record(MentalStateSignal, agentId, subjectId, tenantId)`** — accumulates signals. Heuristic extraction of explicit cues from `VerbalCue` signals happens immediately (O(n) in signal text length, no LLM, no store write). Appends signal text to a bounded ring buffer for later LLM inference.
 
-- **`tick(agentId, subjectId, tenantId) → MentalModelTick`** — re-evaluates all three BDI dimensions. Applies confidence decay. Optionally invokes LLM when enough new signal has accumulated (gated by `minSignalsForInference` and `inferenceCooldown`). Persists via `MentalModelStore`. Returns sealed outcome: `Unchanged`, `Updated`, `Inferred` (LLM ran).
+- **`tick(agentId, subjectId, tenantId) → MentalModelTick`** — re-evaluates all three BDI dimensions. Applies confidence decay. Evicts entries below confidence floor. Optionally invokes LLM when enough new signal has accumulated (gated by `minSignalsForInference` and `inferenceCooldown`). Persists via `MentalModelStore`. Returns sealed outcome: `Unchanged`, `Updated`, `Inferred` (LLM ran). When subject state is null but a stored snapshot exists, reloads from `MentalModelStore` before processing.
 
-- **`project(agentId, subjectId, tenantId) → List<MentalProjection>`** — projects current BDI state into a list of condition/confidence pairs. Each `MentalProjection` carries: `conditionKey` (String), `value` (boolean), `confidence` (double [0,1]), `dimension` (BDI enum). Consumers filter by confidence threshold and merge into `GoapWorldState` via `new GoapWorldState(conditions)` or `.with(key, value)`.
+- **`project(agentId, subjectId, tenantId) → List<MentalProjection>`** — projects current BDI state into condition/confidence pairs. Mapping: each BDI entry with confidence above the projection floor produces one `MentalProjection` where `conditionKey` = entry key (e.g., "deployment_risk"), `value` = true (the entry exists and is believed/desired/intended), `confidence` = the entry's current confidence, `dimension` = BELIEF/DESIRE/INTENTION. Consumers filter by confidence threshold and merge into `GoapWorldState`.
+
+- **`observeConversation(CommonGroundState, agentId, subjectId, tenantId)`** — optional composition with the conversation infrastructure. When a `CommonGroundAnalyser` has classified conversation points via `EpistemicRule`, the consumer passes the resulting `CommonGroundState`. The orchestrator extracts belief attributions: ESTABLISHED facts → high-confidence beliefs (0.9), PENDING claims → medium-confidence beliefs (0.5), DISPUTED points → low-confidence beliefs (0.3). This bridges the conversation epistemic layer into per-actor belief tracking.
 
 ### BDI State Container: `SubjectMentalState`
 
@@ -29,11 +37,11 @@ Package-private mutable state per subject:
 ```
 SubjectMentalState:
   agentId, subjectId, tenantId     — identity triple
-  beliefs: BeliefSet<String>       — AGM-style, key=topic, value=attributed belief text
-  desires: List<AttributedDesire>  — what the subject wants
-  intentions: List<AttributedIntention> — what the subject plans to do
+  beliefs: Map<String, AttributedState> — key=topic, with confidence + entrenchment
+  desires: Map<String, AttributedState> — key=desire name, with confidence
+  intentions: Map<String, AttributedState> — key=intention name, with confidence
   pendingSignals: int              — count since last inference
-  textBuffer: StringBuilder        — raw signal text for LLM
+  signalBuffer: RingBuffer<String> — bounded (maxBufferSize), newest overwrites oldest
   lastSignalTimestamp: Instant     — for confidence decay
   lastInferenceTimestamp: Instant  — for cooldown gating
   lastActivityTimestamp: Instant   — for eviction
@@ -42,33 +50,27 @@ SubjectMentalState:
 
 ### BDI Dimension Types
 
-**Beliefs** — use existing `BeliefSet<String>` from `blocks.agentic.belief`:
-- Key = topic (e.g., "deployment_risk", "team_capacity")
-- Value = attributed belief text (e.g., "subject thinks deployments are risky")
-- Entrenchment = reinforcement count (increases on each confirming signal)
-- Confidence = temporal freshness [0,1], decays with time
-- AGM revision via `BeliefSet.revise()` when contradictory evidence arrives
-- Default `ConsistencyChecker<String>`: always consistent (no domain-specific constraints). Consumers override to enforce domain rules (e.g., mutually exclusive beliefs like "subject trusts us" and "subject distrusts us").
+**Unified type:** All three BDI dimensions use `AttributedState` (R1-07). The `BdiDimension` enum distinguishes them. Different half-lives per dimension are configured in `MentalModelConfig`.
 
-**Desires** — new `AttributedDesire` record:
 ```java
-record AttributedDesire(
-    String key,           // e.g., "quick_resolution"
-    String description,   // "subject wants a quick resolution"
-    double confidence,    // [0,1], decays faster than beliefs
-    Instant lastReinforced
+record AttributedState(
+    String key,              // e.g., "deployment_risk" or "quick_resolution"
+    String description,      // e.g., "subject thinks deployments are risky"
+    double confidence,       // [0,1], decays with time
+    int entrenchment,        // reinforcement count (beliefs only; 0 for desires/intentions)
+    Instant lastReinforced,  // timestamp of last confirming signal
+    BdiDimension dimension   // BELIEF, DESIRE, INTENTION
 ) {}
 ```
 
-**Intentions** — new `AttributedIntention` record:
-```java
-record AttributedIntention(
-    String key,           // e.g., "escalate_to_manager"
-    String description,   // "subject plans to escalate to their manager"
-    double confidence,    // [0,1], decays fastest
-    Instant lastReinforced
-) {}
-```
+**Belief revision via BeliefSet:** `BeliefSet<String>` is used specifically for AGM revision when contradictory evidence arrives — not as the primary belief container. The orchestrator maintains beliefs in `Map<String, AttributedState>`. When revision is needed (LLM detects contradiction or consumer signals conflict), the orchestrator:
+1. Constructs a temporary `BeliefSet<String>` from the current beliefs map (mapping entrenchment from AttributedState)
+2. Calls `revise(newBelief, consistencyChecker)`
+3. Reads surviving beliefs back into the map, preserving confidence/timestamps from the original entries
+
+This avoids extending `Belief<T>` with confidence (which would change the existing API). BeliefSet provides the AGM revision algorithm; AttributedState provides the temporal metadata.
+
+**Default ConsistencyChecker:** Always consistent. This means `revise()` degenerates to `expand()` (simple overwrite by key) unless the consumer provides a domain-specific checker. AGM revision is opt-in infrastructure — semantic consistency checking (e.g., "trusts us" contradicts "distrusts us") requires domain knowledge that blocks cannot provide. The spec is honest about this: without a consumer-provided checker, belief updates are last-write-wins by key.
 
 ### Confidence Decay
 
@@ -79,26 +81,28 @@ Each BDI dimension decays at a configurable rate (D27):
 
 Decay formula: `confidence × Math.pow(0.5, elapsed / halfLife)`
 
-Below a configurable floor (default 0.1), entries are evicted regardless of entrenchment. Entrenchment only protects beliefs during AGM revision — it determines which beliefs survive when contradictory evidence forces inconsistency resolution.
+Below a configurable floor (default 0.1), entries are evicted regardless of entrenchment. Entrenchment is orthogonal to confidence: it determines revision ordering when beliefs conflict (which survives AGM contraction), not whether a belief is still fresh enough to act on.
 
 ### GOAP Projection
 
 `MentalProjection` record:
 ```java
 record MentalProjection(
-    String conditionKey,      // e.g., "subject_stressed"
-    boolean value,            // projected boolean
-    double confidence,        // from BDI entry
+    String conditionKey,      // = AttributedState.key (e.g., "deployment_risk")
+    boolean value,            // true = entry exists above projection floor
+    double confidence,        // from AttributedState.confidence
     BdiDimension dimension    // BELIEF, DESIRE, INTENTION
 ) {}
 ```
 
-Consumers decide their own threshold:
+**Projection mapping:** Each `AttributedState` entry with confidence ≥ `projectionFloor` (default 0.3) produces one `MentalProjection`. The `conditionKey` IS the entry's key — no transformation. Beliefs project as-is ("deployment_risk" → true at confidence 0.7). Desires and intentions project with their key as well. The value is always `true` — the entry's existence above the floor IS the condition.
+
+Consumer usage:
 ```java
 var projections = mentalModel.project(agentId, subjectId, tenantId);
 var conditions = new HashMap<String, Boolean>();
 for (var p : projections) {
-    if (p.confidence() >= 0.5) {
+    if (p.confidence() >= 0.5) {  // consumer's threshold
         conditions.put(p.conditionKey(), p.value());
     }
 }
@@ -111,7 +115,7 @@ The projection method is a pure function of current BDI state — no side effect
 
 ### `MentalStateSignal` — sealed interface (D25, D31)
 
-Per-orchestrator signal type, consistent with the social cognition pattern. Each variant carries cognitive cues the orchestrator can extract:
+Per-orchestrator signal type, consistent with the social cognition pattern:
 
 ```java
 sealed interface MentalStateSignal {
@@ -119,34 +123,45 @@ sealed interface MentalStateSignal {
 
     record VerbalCue(String content, CueType type) implements MentalStateSignal {}
     // Explicit verbal statements: "I think X", "I want Y", "I plan to Z"
-    // CueType: BELIEF_STATEMENT, DESIRE_EXPRESSION, INTENTION_DECLARATION
 
     record BehavioralCue(String content, String actionType) implements MentalStateSignal {}
     // Observable actions that imply mental state
-    // e.g., repeatedly checking a dashboard → desire for status visibility
 
     record ContextualCue(String content, Map<String, String> metadata) implements MentalStateSignal {}
     // Contextual information: deadlines, stress indicators, environmental factors
+
+    record RelationshipCue(RelationshipEvent event) implements MentalStateSignal {
+        @Override public String content() { return event.description(); }
+    }
+    // Wraps RelationshipEvent — composes the neocortex relationship layer
 }
 ```
+
+`CueType` enum: `BELIEF_STATEMENT`, `DESIRE_EXPRESSION`, `INTENTION_DECLARATION`.
+
+The `RelationshipCue` variant fulfills the issue #123 composition mandate for RelationshipEvent. Consumers already producing `RelationshipEvent`s can wrap them as `RelationshipCue` to feed MentalModel. The quality signal on the event informs belief confidence (POSITIVE → higher confidence on inferred beliefs from that interaction).
 
 ### Heuristic Extraction (Tier 1)
 
 On `record()`, extract explicit cues from `VerbalCue` signals:
-- "I think/believe/know X" → expand belief (key derived from X, high confidence)
-- "I want/need/wish X" → add desire (high confidence)
-- "I plan to/will/am going to X" → add intention (high confidence)
+- `BELIEF_STATEMENT` → expand belief (key derived from content, confidence 0.8)
+- `DESIRE_EXPRESSION` → add desire (confidence 0.8)
+- `INTENTION_DECLARATION` → add intention (confidence 0.8)
 
-Heuristic extraction is keyword-based and runs at O(1). False positives from figurative language are tolerated — LLM inference on the next tick can correct them.
+Heuristic extraction runs in O(n) of signal text length. False positives from figurative language are tolerated — LLM inference on the next tick can correct them via merge semantics.
 
 ### LLM Inference (Tier 2)
 
 On `tick()`, when `pendingSignals >= minSignalsForInference` and `inferenceCooldown` has elapsed:
 
-1. Assemble prompt with current BDI state + accumulated signal text
-2. Ask LLM to infer: what does this person currently believe, desire, and intend?
-3. Parse structured JSON response into BDI updates
-4. Apply updates via `BeliefSet.revise()` for beliefs, replace for desires/intentions
+1. Assemble prompt with current BDI state + recent signals from ring buffer (most recent `maxSignalsInPrompt` entries)
+2. Ask LLM to infer BDI updates
+3. Parse structured JSON response
+4. Apply updates via **merge semantics** (matching UserModel precedent):
+   - Entries present in response: update description, reset confidence to LLM-provided value, reset lastReinforced
+   - Entries absent from response: preserved unchanged (previous state survives)
+   - New entries (key not in current state): added
+   - For beliefs, if the ConsistencyChecker is non-trivial, run BeliefSet.revise() on the merged set
 
 System prompt template:
 ```
@@ -159,8 +174,8 @@ Respond with JSON only:
  "desires": [{"key": "...", "text": "...", "confidence": 0.7}],
  "intentions": [{"key": "...", "text": "...", "confidence": 0.5}]}
 
-Only include entries with non-trivial confidence (>= 0.3).
-For unchanged entries, omit them — previous state is preserved.
+Only include NEW or CHANGED entries. Omit unchanged entries — they are preserved.
+Only include entries with confidence >= 0.3.
 ```
 
 ## Persistence
@@ -183,32 +198,26 @@ record MentalModelSnapshot(
     String agentId,
     String subjectId,
     String tenantId,
-    List<SnapshotBelief> beliefs,
-    List<AttributedDesire> desires,
-    List<AttributedIntention> intentions,
+    List<AttributedState> beliefs,
+    List<AttributedState> desires,
+    List<AttributedState> intentions,
     Instant lastSignal,
     Instant lastInference,
     Instant snapshotCreated
 ) {}
-
-record SnapshotBelief(
-    String key,
-    String value,
-    int entrenchment,
-    double confidence,
-    Instant lastReinforced
-) {}
 ```
+
+Uses `AttributedState` directly — no separate `SnapshotBelief` type needed since `AttributedState` already carries entrenchment, confidence, and timestamp.
 
 ### `CbrMentalModelStore` — `@DefaultBean` adapter
 
 Backs onto `CbrCaseMemoryStore`. Mental model snapshot stored as a CbrCase:
 - `problem` = serialized BDI summary text
 - `caseType` = "mental-model"
-- Features: agentId, subjectId, tenantId (for lookup), beliefs/desires/intentions as JSON StringVal
+- Features: agentId, subjectId, tenantId (for lookup), BDI entries as JSON StringVal
 - Supersession for versioning (each tick that persists supersedes the previous snapshot)
 
-Same adapter pattern as `CbrUserProfileStore` (D20). The CbrCase impedance mismatch is hidden behind the typed SPI.
+Same adapter pattern as `CbrUserProfileStore` (D20). Known limitation: lookup uses `retrieveSimilar` with feature-match query — this is a similarity search pretending to be an exact-key lookup. Acceptable for the same reason as UserProfileStore: the alternative is a new persistence SPI at the neocortex level, which is premature. If lookup becomes a bottleneck, the in-memory state (ConcurrentHashMap) serves most reads — the store is only consulted on cold-start reload.
 
 ## Configuration
 
@@ -219,14 +228,18 @@ record MentalModelConfig(
     Duration beliefHalfLife,           // default: 7 days
     Duration desireHalfLife,           // default: 1 day
     Duration intentionHalfLife,        // default: 4 hours
-    double confidenceFloor,            // default: 0.1
+    double confidenceFloor,            // default: 0.1 — eviction threshold
+    double projectionFloor,            // default: 0.3 — projection threshold
     int minSignalsForInference,        // default: 3
     Duration inferenceCooldown,        // default: 5 minutes
     int maxSignalsInPrompt,            // default: 20
+    int maxBufferSize,                 // default: 100 — ring buffer cap
     Duration evictionTimeout,          // default: 24 hours (for in-memory state)
     Duration expectedTickInterval      // default: 1 minute
 ) {}
 ```
+
+**Config interaction:** With `expectedTickInterval` = 1 min and `inferenceCooldown` = 5 min, at most 1 in 5 ticks triggers LLM inference. The other 4 ticks apply decay, evict stale entries, and persist. This is intentional: most ticks should be cheap. LLM inference is the expensive exception, not the common path.
 
 ## Tick Outcome
 
@@ -245,31 +258,31 @@ sealed interface MentalModelTick {
 
 `io.casehub.blocks.agentic.social` — alongside PersonalityEvolutionOrchestrator, InnerLifeOrchestrator, and UserModelOrchestrator. MentalModel is the fourth member of the social cognition family: how the agent models others' cognitive states (D22 extended).
 
+**Cross-orchestrator integration:** MentalModel is architecturally independent — it doesn't call or depend on the other orchestrators. Integration happens at the consumer level: consumers can feed MentalModel projections into InnerLife's motivation assessment, or use UserModel's relationship stage to set confidence priors for MentalModel. These are consumer-side compositions, not built into blocks.
+
 ## Type Inventory
 
 | Type | Kind | What it does |
 |------|------|-------------|
-| `MentalModelOrchestrator` | `@ApplicationScoped` CDI bean | Composition root: record()+tick()+project() |
-| `MentalStateSignal` | Sealed interface | Input signal: VerbalCue, BehavioralCue, ContextualCue |
+| `MentalModelOrchestrator` | `@ApplicationScoped` CDI bean | Composition root: record()+tick()+project()+observeConversation() |
+| `MentalStateSignal` | Sealed interface | Input signal: VerbalCue, BehavioralCue, ContextualCue, RelationshipCue |
 | `CueType` | Enum | BELIEF_STATEMENT, DESIRE_EXPRESSION, INTENTION_DECLARATION |
-| `AttributedDesire` | Record | Inferred desire with confidence and reinforcement timestamp |
-| `AttributedIntention` | Record | Inferred intention with confidence and reinforcement timestamp |
+| `AttributedState` | Record | Unified BDI entry: key, description, confidence, entrenchment, lastReinforced, dimension |
 | `MentalProjection` | Record | GOAP projection: conditionKey + value + confidence + dimension |
 | `BdiDimension` | Enum | BELIEF, DESIRE, INTENTION |
 | `MentalModelTick` | Sealed interface | Tick outcome: Unchanged, Updated, Inferred |
 | `MentalModelSnapshot` | Record | Persisted BDI state |
-| `SnapshotBelief` | Record | Persisted belief with entrenchment + confidence |
 | `MentalModelStore` | Interface (SPI) | Persistence: store, lookup, findByAgent, eraseSubject |
 | `CbrMentalModelStore` | `@DefaultBean @ApplicationScoped` | CbrCaseMemoryStore adapter |
 | `MentalModelConfig` | Record | Configuration: decay rates, thresholds, cooldowns |
 
-13 types total (8 new records/enums, 2 sealed interfaces, 1 CDI bean, 1 SPI interface, 1 default bean).
+11 types total (6 new records/enums, 2 sealed interfaces, 1 CDI bean, 1 SPI interface, 1 default bean).
 
 ## Dependencies
 
-**Compile (existing):** `casehub-neocortex-memory-api` (CbrCaseMemoryStore, RelationshipEvent, QualitySignal)
+**Compile (existing):** `casehub-neocortex-memory-api` (CbrCaseMemoryStore, RelationshipEvent — composed via RelationshipCue)
 **Provided (existing):** `casehub-platform-agent-api` (AgentProvider for LLM inference)
-**Internal (existing):** `blocks.agentic.belief` (BeliefSet, Belief, ConsistencyChecker)
+**Internal (existing):** `blocks.agentic.belief` (BeliefSet, Belief, ConsistencyChecker — used for AGM revision), `blocks.conversation` (CommonGroundState, EpistemicStatus — composed via observeConversation())
 
 No new external dependencies.
 
@@ -281,9 +294,10 @@ No new external dependencies.
 - TimeToM (Findings of ACL 2024) — Temporal reasoning in Theory of Mind
 - DPT-Agent (2025) — Dual Process Theory with Theory of Mind
 - BeliefSet.java (blocks/agentic/belief) — AGM belief revision infrastructure
-- EpistemicRule.java (blocks/conversation) — epistemic status classification
-- GoapPlanner.java (engine-api) — A* planner API
+- EpistemicRule.java, CommonGroundState.java (blocks/conversation) — epistemic classification
 - GoapWorldState.java (engine-api) — world state record with .with() builder
+- RelationshipEvent.java (neocortex-memory-api) — relationship interaction records
 - UserModelOrchestrator.java (blocks/agentic/social) — precedent orchestrator
 - InteractionSignal.java (blocks/agentic/social) — precedent signal model
 - D23-D31 decisions — validated design choices
+- Spec review R1-01 through R1-12 — addressed findings
