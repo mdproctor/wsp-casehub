@@ -124,3 +124,15 @@
 **Exploration:** quick
 **Depends on:** D9
 **Status:** captured
+
+## D11: CDI annotation-driven action handlers for executor contract
+
+**Choice:** Service executors register action handlers via `@ScenarioAction("action-name")` annotations on CDI beans. A shared executor library dispatches incoming steps to matching handlers, manages lifecycle and control, and reports results back to the orchestrator.
+**Alternatives:**
+- Executor interface — service implements `ScenarioExecutor.execute(Step)` and dispatches internally via switch. More explicit, but puts action routing in every service instead of the shared library.
+- CDI event bridging — incoming steps fired as `@ObservesAsync` CDI events. Natural CDI integration but control messages (pause/resume/speed) don't map to the CDI event model. Lifecycle management becomes implicit.
+**Rationale:** Mirrors the CDI `@Observes` pattern that CaseHub developers already know. The shared library handles protocol, lifecycle, and control. Services only implement domain-specific action methods. Minimal boilerplate per service.
+**Trade-offs:** Annotation scanning at startup. Action name is a string — typos compile but fail at dispatch time. Mitigated by startup validation (executor library checks all registered actions against the scenario before starting).
+**Exploration:** quick
+**Depends on:** D8, D9
+**Status:** captured
