@@ -1,35 +1,20 @@
-# Handoff — issue-181-embed-separate-regression
+# Handoff — 2026-08-20 (issue-202-retrain-strategy-classifier)
 
-**Date:** 2026-07-26
-**Branch:** issue-181-embed-separate-regression (closed)
-**Status:** Merged to main, pushed to origin + upstream
+## Last Session
 
-## What was done
+Replaced BatchNorm with LayerNorm. Fixed pipeline label mismatch bug (phantom output classes from consolidation). Built dual-encoder architecture with separate Conv stacks for player/opponent features, learned sigmoid gating, feature projection (119→64), residual 4-head attention. Added label smoothing (0.1) and calibrated modality dropout (20%→40%). Per-source diagnostic revealed MSC (player-only) at 42.3% is the structural bottleneck — player features are an indirect proxy for the opponent's strategy. Results: vs_terran 52.8% (from 51.4%), vs_zerg 70.2% (from 66.5%), vs_protoss 74.0% (from 69.9%).
 
-Fixed #181: `embedSeparate()` was producing different retrieval results than
-the old `embedBatch()` path, causing a -2.2pp precision regression in the
-Hortora engine benchmark.
+## Immediate Next Step
 
-**Root cause:** The default `embedSeparate` on `MultiModalEmbedder` called
-`embed(Map)` which resolved to individual `embed(String)` calls (ONNX batch
-size 1). The old retriever code used `embedBatch` (batch size 2). ONNX
-transformer models produce subtly different embeddings at different batch
-sizes due to padding/attention mask differences.
+Batch 5 in the .plan: implement hierarchical classification head for vs_terran. If that doesn't break 65%, the bottleneck is temporal window length (strategy divergence happens at minute 5-7 but data only covers ~3-5 minutes). Extending windows requires re-extracting from raw replay archives with `max_windows > 10` in HyperParams — a significant effort (batch 4 tasks 9-10 are blocked on this).
 
-**Fix:** Changed `embedSeparate` to delegate to `embedBatch` and cherry-pick
-dense from index 0, sparse/colbert from index 1 — same batch composition as
-the pre-#117 retriever code.
+## Cross-Module
 
-## Files changed
+*Unchanged — `git show HEAD~1:HANDOFF.md`*
 
-- `inference-api/.../MultiModalEmbedder.java` — `embedSeparate` default method now uses `embedBatch`
-- `inference-api/.../MultiModalEmbedderEmbedSeparateTest.java` — new test with `BatchSensitiveEmbedder` verifying batch composition preservation
+## Notes
 
-## Follow-up
-
-- Hortora engine benchmark should re-run with the updated neocortex dependency to confirm precision recovery to 61.6%
-- Garden entry GE-20260726-f2a554 captures the ONNX batch-size sensitivity gotcha
-
-## Slot
-
-This work was done in worktree slot 37. The slot can be archived — all work is landed.
+- Pipeline now saves `classes.json` per matchup in `data/combined/` — run_pipeline reads it automatically
+- `--min-samples 250` needed for normalize to trigger AIR_SUPERIORITY→MACRO_ECONOMY consolidation (243 samples)
+- vs_protoss has 3 near-zero classes (DT_RUSH 6.8%, BLINK_STALKER 4.5%, AIR_SUPERIORITY 8.9%) — may need similar consolidation
+- Garden push has unpushed commits — resolve on next garden maintenance
