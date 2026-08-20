@@ -9,11 +9,11 @@
 
 ## Last Session
 
-Implemented `@McpDomain("helpdesk")` for examples#49 — the first consumer of the direct `@PlatformMutation`/`@PlatformQuery` interface discovery path (platform#243). Four MCP operations: `bootstrapClassifications`, `injectTicket`, `tickets`, `notifications`. 15 unit tests + 13 existing integration tests all green. Also drove two upstream fixes: platform#243 (DomainScanner interface scanning — eliminates GraphQL/codegen/Jandex dependency for MCP-only consumers) and connectors#98 (Signal config properties breaking consuming apps).
+Verified the full scenario engine architecture via IntelliJ against the actual codebase — corrected prior assumptions about what exists (ScenarioExecutor/GraphQLDispatcher/AriaDispatcher were on a git commit not checked out anywhere). Rebased all 6 slot repos onto upstream/main, resolving conflicts. This brought `scenario-runtime` onto the slot's branch. Reconciled the architectural vision (central orchestrator + distributed executors with stepping) against what's built (ARIA-only dispatch + GraphQL HTTP calls, no stepping, no distributed executor protocol). Created 6 issues across 3 repos to close the gaps and populated the .plan queue.
 
 ## Immediate Next Step
 
-Run `/work` to continue. examples#49 MCP domain is implemented. Next: test end-to-end MCP+ARIA automation — wire the scenario executor (`delivery: mcp`) to the new helpdesk domain operations, then run the helpdesk scenario through the Playwright ARIA tree driver.
+Run `/work` to continue. First issue in queue is parent#418 — brainstorm the distributed executor protocol. This is the foundational design question: how do orchestrator ↔ local executors communicate, what's the script fragment format, and how does stepping propagate. Design this before implementing anything.
 
 ## Cross-Module
 
