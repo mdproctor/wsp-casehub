@@ -140,9 +140,9 @@ double normalised = Math.max(0.0, Math.min(1.0, (rawScore + 1.0) / 2.0));
 double decayed = normalised * Math.pow(1.0 - decayRate, ticksSinceLastInteraction);
 ```
 
-The `+1` in the denominator prevents division by zero and dampens early scores when signal count is low (Laplace smoothing). The decay factor applies per-tick regression toward 0 when no new interactions occur — inactive relationships naturally regress.
+The `+1` in the denominator prevents division by zero and dampens early scores when signal count is low (Laplace smoothing). The decay factor applies per-tick regression toward 0 when no new interactions occur — inactive relationships naturally regress. `ticksSinceLastInteraction` is computed as `max(0, (now - lastInteractionTimestamp) / expectedTickInterval)` where `expectedTickInterval` is a config parameter (default: 1 hour). This converts wall-clock inactivity into tick-equivalent units regardless of actual tick frequency.
 
-Stage is resolved by finding the highest tier whose threshold is ≤ the score.
+Stage is resolved by finding the highest tier whose threshold is ≤ the decayed score.
 
 ## UserProfile
 
@@ -365,6 +365,7 @@ Per-subject `ReentrantLock` in `ConcurrentHashMap<String, ReentrantLock>`. The l
 | `positiveWeight` | 1.0 | Weight of positive signals in familiarity computation |
 | `negativeWeight` | 0.5 | Weight of negative signals (dampened, per LLMPTBench D4 precedent) |
 | `stageConfig` | `RelationshipStageConfig.defaults()` | Stage tiers and thresholds |
+| `expectedTickInterval` | 1 hour | Expected tick frequency — converts wall-clock inactivity to tick units for decay |
 | `evictionTimeout` | 7 days | Remove per-subject state not accessed for this duration |
 | `memoryDomain` | `"user-model"` | CbrCaseMemoryStore domain |
 | `caseType` | `"user-profile"` | CbrCase type identifier |
