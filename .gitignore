@@ -1,6 +1,5 @@
 # Child workspace repos — each has its own git history
 /claudony
-/connectors
 /devtown
 /engine
 /flow
@@ -15,12 +14,9 @@
 proj
 .claude/
 .trellis/
-/pages
 /aml
-/clinical
 platform/
 /eidos
-/life
 /openclaw
 /drafthouse
 neocortex
