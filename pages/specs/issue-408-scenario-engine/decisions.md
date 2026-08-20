@@ -81,3 +81,20 @@
 **Exploration:** quick
 **Depends on:** D1
 **Status:** captured
+
+---
+
+# Distributed Executor Protocol Decisions (#418)
+
+## D8: Orchestrator dispatches ordered step sequences to executors
+
+**Choice:** The orchestrator groups consecutive steps bound for the same executor and dispatches them as an ordered sequence. The executor runs them in order, reports per-step progress. The orchestrator sends control messages (pause/resume/speed/step) that affect execution pace within the sequence.
+**Alternatives:**
+- Single-step RPC — orchestrator sends one step at a time, waits for result, decides next. Simpler but chatty (4 helpdesk steps = 4 round-trips). All sequencing in orchestrator.
+- Sub-scenario with triggers — executor manages its own trigger graph and sequencing. Most autonomous but complex. The protocol should be composable enough that this can be added later (hierarchy of orchestrators) without redesigning the core.
+- Progressive (start with RPC, add fragments later) — lower upfront complexity but risks protocol redesign.
+**Rationale:** Ordered sequences reduce round-trips for co-located work (e.g., helpdesk: inject → verify → resolve → verify as one dispatch). Executors have enough autonomy to manage internal pacing without the complexity of local trigger evaluation. The orchestrator remains authoritative for the trigger graph and inter-executor coordination.
+**Trade-offs:** Executors need lifecycle state (idle → running → paused → complete) and per-step progress reporting. More complex than single-step RPC. But the protocol should be composable — same message types at every level — so hierarchy can be layered on later.
+**Sources:** ScenarioExecutor.java (current sequential executor), AriaDispatcher.java (existing single-command push protocol), scenario-handler.ts (browser executor), cross-platform scenario engine design spec §5
+**Exploration:** quick
+**Status:** captured
