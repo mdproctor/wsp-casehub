@@ -1,0 +1,21 @@
+# Work Plan — issue-408-scenario-engine
+
+## State
+branch: issue-408-scenario-engine
+state: active
+project-sha: slot-creation
+date: 2026-08-11
+issue-repo: casehubio/parent
+covers: 408
+flyway-next-v: unknown
+design-repo: project
+design-section-hashes: 
+
+## Queue
+- [ ] #408 — Issue #408 ← active
+- [ ] #418 — Distributed executor protocol — orchestrator ↔ service script dispatch with stepping
+- [ ] #419 — MCP scenario submission — compose and submit scripts to orchestrator
+- [ ] #332 — Local executor base module — reusable distributed executor for services
+- [ ] #333 — Wire SimulatedStep delivery in ScenarioExecutor
+- [ ] #50 — Helpdesk as distributed executor — scenario automation wiring
+- [ ] #420 — End-to-end helpdesk scenario — MCP → orchestrator → distributed executors → verify
