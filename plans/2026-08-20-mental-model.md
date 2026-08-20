@@ -151,6 +151,10 @@ class MentalModelConfigTest {
         assertThat(config.inferenceCooldown()).isEqualTo(Duration.ofMinutes(5));
         assertThat(config.maxSignalsInPrompt()).isEqualTo(20);
         assertThat(config.maxBufferSize()).isEqualTo(100);
+        assertThat(config.evictionTimeout()).isEqualTo(Duration.ofHours(24));
+        assertThat(config.expectedTickInterval()).isEqualTo(Duration.ofMinutes(1));
+        assertThat(config.memoryDomain()).isEqualTo("mental-model");
+        assertThat(config.caseType()).isEqualTo("mental-model");
     }
 
     @Test
@@ -363,7 +367,9 @@ public record MentalModelConfig(
         int maxSignalsInPrompt,
         int maxBufferSize,
         Duration evictionTimeout,
-        Duration expectedTickInterval) {
+        Duration expectedTickInterval,
+        String memoryDomain,
+        String caseType) {
     public MentalModelConfig {
         Objects.requireNonNull(beliefHalfLife);
         Objects.requireNonNull(desireHalfLife);
@@ -371,13 +377,16 @@ public record MentalModelConfig(
         Objects.requireNonNull(inferenceCooldown);
         Objects.requireNonNull(evictionTimeout);
         Objects.requireNonNull(expectedTickInterval);
+        Objects.requireNonNull(memoryDomain, "memoryDomain required");
+        Objects.requireNonNull(caseType, "caseType required");
     }
 
     public static MentalModelConfig defaults() {
         return new MentalModelConfig(
                 Duration.ofDays(7), Duration.ofDays(1), Duration.ofHours(4),
                 0.1, 0.3, 3, Duration.ofMinutes(5), 20, 100,
-                Duration.ofHours(24), Duration.ofMinutes(1));
+                Duration.ofHours(24), Duration.ofMinutes(1),
+                "mental-model", "mental-model");
     }
 
     public Duration halfLifeFor(BdiDimension dimension) {
