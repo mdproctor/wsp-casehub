@@ -263,18 +263,18 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Depends on:** D17 (tiered synthesis — tick triggers the synthesis)
 **Status:** captured
 
-## D20: Profile storage — CbrCaseMemoryStore with dedicated schema
+## D20: Profile storage — UserProfileStore SPI backed by CbrCaseMemoryStore
 
-**Choice:** Profile stored as a CbrCase with a UserProfileSchema. Profile fields mapped to FeatureValues. Enables similarity-based retrieval ("find subjects similar to this one"), supersession for profile versioning, and TrendAnalyzer enrichment.
+**Choice:** `UserProfileStore` SPI with `store(UserProfile)`, `lookup(agentId, subjectId, tenantId) → Optional<UserProfile>`, `findByAgent(agentId, tenantId) → List<UserProfile>`, `eraseSubject(subjectId, tenantId)`. Default implementation (`CbrUserProfileStore`) backs onto `CbrCaseMemoryStore` internally — CbrCase convention (profile summary as problem, fields as features, supersession for versioning) is contained in the adapter. Consumers get a profile-oriented API; the CbrCase hack is hidden.
 **Alternatives:**
-- Custom UserProfileStore SPI — dedicated @FunctionalInterface for profile CRUD. Simpler contract but misses CBR similarity search, trend analysis, and supersession. Adds a new persistence SPI consumers must implement
-- In-memory only — profile in ConcurrentHashMap, lost on restart. Too limiting for the "long-term relationship" use case
-**Rationale:** Consistent with PersonalityEvolution's CBR transition recording. CbrCaseMemoryStore is already a dependency. FeatureValue's type system (StringVal, NumberVal, StringListVal) maps naturally to profile fields. Supersession provides temporal versioning — previous profile versions are preserved, not overwritten. TrendAnalyzer can enrich profiles with behavioral trends (slope of interaction frequency, volatility of quality signals).
-**Trade-offs:** CbrCase structure (problem/solution/features) doesn't map naturally to a profile — requires convention (e.g., profile summary as "problem", empty "solution", profile fields as features). Per GE-20260820-c19b68, agent-scoped queries require post-filtering by producerAgentId.
-**Sources:** CbrCaseMemoryStore (neocortex-memory-api), PersonalityTransitionSchema (neocortex-memory-api — precedent for dedicated schemas), FeatureValue (neocortex-memory-api), GE-20260820-c19b68 (producerAgentId post-filtering)
+- Raw CbrCaseMemoryStore — exposes CbrCase semantics (problem/solution/features) that don't map naturally to profiles. Every consumer must post-filter by producerAgentId AND caseType. Erasure by subjectId is impossible without scanning all cases. The "similarity search across profiles" benefit is secondary analytics, not a core retrieval pattern.
+- In-memory only — lost on restart. Too limiting for long-term relationships.
+**Rationale:** R1-03 (decision review): the reviewer identified that CbrCase is a semantic misfit for profile storage and proposed the adapter pattern. The primary access pattern is direct lookup by (agentId, subjectId, tenantId) — something a dedicated SPI expresses naturally. Supersession, trend enrichment, and similarity search are preserved in the backing implementation. The `eraseSubject()` method provides the GDPR Art.17 erasure path (R1-05) that raw CbrCaseMemoryStore cannot express.
+**Trade-offs:** One additional SPI type (UserProfileStore) and one adapter class (CbrUserProfileStore). Minor cost for significant clarity.
+**Sources:** CbrCaseMemoryStore (neocortex-memory-api), R1-03 (decision review finding), R1-05 (GDPR erasure gap), GE-20260820-c19b68 (producerAgentId post-filtering)
 **Exploration:** quick
 **Depends on:** D16 (profile subject identity — subjectId stored as feature)
-**Status:** captured
+**Status:** revised (R1-03: UserProfileStore SPI wrapping CbrCaseMemoryStore, not raw CbrCase exposure; R1-05: eraseSubject for GDPR compliance)
 
 ## D21: Profile structure — fixed core + extensible metadata
 
@@ -289,15 +289,16 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Depends on:** D17 (tiered synthesis — core fields from heuristics, open-ended from LLM), D20 (CBR storage — features Map for extensibility)
 **Status:** captured
 
-## D22: Package placement — blocks.agentic.personality
+## D22: Package placement — blocks.agentic.social
 
-**Choice:** UserModel lives in io.casehub.blocks.agentic.personality alongside PersonalityEvolution and InnerLife.
+**Choice:** All three social cognition orchestrators live in `io.casehub.blocks.agentic.social`: PersonalityEvolution (self-model), InnerLife (self-expression), UserModel (other-model).
 **Alternatives:**
-- blocks.user (new top-level) — signals infrastructure not agentic-specific, but UserModel is specifically about agent social cognition, unlike MemoryHygiene which is genuinely domain-neutral infrastructure
-- blocks.agentic.user (new sub-package) — under agentic but separate from personality. Adds package fragmentation for one pattern
-**Rationale:** UserModel is about how an agent perceives and adapts to individuals — personality-adjacent social cognition. The "personality" package is really about agent social behavior: PersonalityEvolution (how the agent changes), InnerLife (when the agent speaks), UserModel (what the agent knows about others). These three form a coherent social cognition triad. Creating a separate package for one pattern fragments related concepts.
-**Trade-offs:** The "personality" package name doesn't perfectly describe "user modeling" — but a more general name like "social" would require renaming the existing package, which is a larger change
-**Sources:** PersonalityEvolutionOrchestrator (blocks/agentic/personality), InnerLifeOrchestrator (blocks/agentic/personality), D15 precedent (MemoryHygiene chose top-level because it's domain-neutral; UserModel is domain-specific)
+- blocks.agentic.personality — captures only the first orchestrator's concern. "Personality" doesn't describe user modeling or proactive initiation.
+- blocks.user (new top-level) — signals infrastructure not agentic-specific, but UserModel is specifically about agent social cognition
+- blocks.agentic.user (new sub-package) — fragments related concepts across multiple sub-packages
+**Rationale:** R1-04 (decision review): no code exists in `blocks.agentic.personality` yet — all three orchestrators are being built on this branch. Zero cost to choose the right name from the start. The research doc §3.3 groups these patterns under "Conversation & Social." `social` captures the triad: how the agent changes (PersonalityEvolution), when it speaks (InnerLife), and what it knows about others (UserModel).
+**Trade-offs:** None — the package doesn't exist yet, so there's nothing to rename.
+**Sources:** PersonalityEvolutionOrchestrator, InnerLifeOrchestrator (both on this branch, not yet merged), R1-04 (decision review), Research §3.3, D15 precedent (MemoryHygiene chose top-level because it's domain-neutral)
 **Exploration:** quick
 **Depends on:** D16 (profile subject identity)
-**Status:** captured
+**Status:** revised (R1-04: renamed from blocks.agentic.personality to blocks.agentic.social — correct name at zero cost since no code is merged)

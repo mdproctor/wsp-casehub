@@ -7,7 +7,7 @@
 
 ## Summary
 
-UserModel is a per-subject profile synthesis orchestrator in `io.casehub.blocks.agentic.personality` that composes existing neocortex memory capabilities (RelationshipEvent, ExperienceRecorder, TrendAnalyzer, CbrCaseMemoryStore) into a structured behavioral profile for anyone an agent interacts with. The profile tracks relationship stage, interaction patterns, and LLM-synthesized open-ended dimensions (communication style, topics of interest, preferences).
+UserModel is a per-subject profile synthesis orchestrator in `io.casehub.blocks.agentic.social` that composes existing neocortex memory capabilities (RelationshipEvent, ExperienceRecorder, TrendAnalyzer, CbrCaseMemoryStore) into a structured behavioral profile for anyone an agent interacts with. The profile tracks relationship stage, interaction patterns, and LLM-synthesized open-ended dimensions (communication style, topics of interest, preferences).
 
 The pattern does NOT duplicate neocortex's raw event storage. It fills the gap between "interaction events are recorded" and "the agent has a holistic understanding of this person" by providing tiered synthesis (heuristic for countable dimensions, LLM for open-ended), configurable relationship staging, and CBR-backed profile persistence with temporal versioning.
 
@@ -187,9 +187,22 @@ public record UserProfile(
 
 **Extensible:** `metadata` map for domain-specific fields not covered by the core schema.
 
-### UserProfileSchema
+### UserProfileStore SPI
 
-Maps `UserProfile` fields to `FeatureValue` types for CbrCase storage:
+```java
+public interface UserProfileStore {
+    void store(UserProfile profile);
+    Optional<UserProfile> lookup(String agentId, String subjectId, String tenantId);
+    List<UserProfile> findByAgent(String agentId, String tenantId);
+    void eraseSubject(String subjectId, String tenantId);
+}
+```
+
+`store()` persists a profile, superseding any previous version for the same (agentId, subjectId, tenantId) triple. `lookup()` retrieves the current profile. `findByAgent()` returns all profiles an agent maintains. `eraseSubject()` removes ALL profiles across all agents for a given subject — the GDPR Art.17 erasure path.
+
+### CbrUserProfileStore (default implementation)
+
+`@DefaultBean @ApplicationScoped` implementation backed by `CbrCaseMemoryStore`. Maps `UserProfile` fields to `FeatureValue` types:
 
 | Profile field | FeatureValue type | CBR feature key |
 |---|---|---|
@@ -204,7 +217,9 @@ Maps `UserProfile` fields to `FeatureValue` types for CbrCase storage:
 | `topicsOfInterest` | `StringVal` | `topics_of_interest` |
 | `preferences` | `StringVal` | `preferences` |
 
-The CbrCase `problem` field carries the profile summary text. `solution` is empty (profiles are not problem-solution pairs). `producerAgentId` is set to `agentId` for agent-scoped retrieval filtering (per GE-20260820-c19b68).
+The CbrCase `problem` field carries the profile summary text. `solution` is empty. `producerAgentId` is set to `agentId` for agent-scoped retrieval filtering (per GE-20260820-c19b68). The CbrCase convention (problem/solution/features) is contained entirely within this adapter — consumers interact only with `UserProfileStore` and `UserProfile`.
+
+`eraseSubject()` queries all agents' profiles by `subject_id` feature and erases each via `CbrCaseMemoryStore.erase()`. This scanning erasure is acceptable for the GDPR use case (infrequent, batch, correctness-critical).
 
 ## Orchestrator
 
@@ -217,7 +232,7 @@ The CbrCase `problem` field carries the profile summary text. `solution` is empt
 public class UserModelOrchestrator {
 
     UserModelOrchestrator(
-        CbrCaseMemoryStore cbrStore,
+        UserProfileStore profileStore,
         AgentProvider agentProvider,
         UserModelConfig config);
 
@@ -265,9 +280,7 @@ The periodic synthesis cycle. Synchronous — consuming apps call from their own
 5. **Build UserProfile** from heuristic fields + LLM fields (new or retained from previous).
 
 6. **Persist:**
-   - Build `FeatureVectorCbrCase` from profile fields using `UserProfileSchema`
-   - If previous profile case exists: `cbrStore.supersede(previousCaseId, newCaseId, "user-model-update")`
-   - Store new case via `cbrStore.store()`
+   - Store via `profileStore.store(profile)` — the store handles supersession internally
    - Update in-memory cached profile
 
 7. **Return outcome:**
@@ -344,12 +357,11 @@ In-memory, keyed by `agentId:subjectId:tenantId` in `ConcurrentHashMap`:
 | `lastSynthesisTimestamp` | `Instant` | For synthesis cooldown gate |
 | `lastTickTimestamp` | `Instant` | For decay factor |
 | `currentProfile` | `UserProfile` | Cached latest profile |
-| `currentCaseId` | `String` | CbrCase ID for supersession |
 | `lastActivityTimestamp` | `Instant` | For staleness-based eviction |
 
 **Eviction:** Per-subject state entries not accessed for a configurable duration (default: 7 days) are evicted during `tick()` only. Same eviction pattern as InnerLifeOrchestrator.
 
-**Restart resilience:** On restart, all in-memory state is lost. The first `tick()` for a subject loads the latest profile from the CbrCaseMemoryStore by querying for the subject's `subject_id` feature. Cumulative counters are recovered from the loaded profile's signal counts. LLM-synthesised fields are preserved in the stored CbrCase. The text buffer is lost — this means the first post-restart tick may not trigger LLM synthesis if insufficient new signals have accumulated. Acceptable because the stored profile retains the last synthesis.
+**Restart resilience:** On restart, all in-memory state is lost. The first `tick()` for a subject loads the latest profile via `profileStore.lookup()`. Cumulative counters are recovered from the loaded profile's signal counts. LLM-synthesised fields are preserved. The text buffer is lost — this means the first post-restart tick may not trigger LLM synthesis if insufficient new signals have accumulated. Acceptable because the stored profile retains the last synthesis.
 
 ### Thread Safety
 
@@ -384,7 +396,7 @@ This is a follow-up enhancement, not part of the initial implementation. The pro
 
 ## Package Structure
 
-**`io.casehub.blocks.agentic.personality`** (additions to existing package)
+**`io.casehub.blocks.agentic.social`** (additions to existing package)
 
 | Class | What it does |
 |---|---|
@@ -395,6 +407,8 @@ This is a follow-up enhancement, not part of the initial implementation. The pro
 | `UserModelConfig` | Record with defaults and validation |
 | `RelationshipStageConfig` | Record: stage tiers, decay rate, signal weights |
 | `StageTier` | Record: `(String name, double threshold)` |
+| `UserProfileStore` | SPI: `store()`, `lookup()`, `findByAgent()`, `eraseSubject()` |
+| `CbrUserProfileStore` | `@DefaultBean`: CbrCaseMemoryStore-backed UserProfileStore |
 | `UserProfileSchema` | Package-private: CbrFeatureSchema for profile storage |
 | `SynthesisResult` | Package-private record: parsed LLM output |
 
