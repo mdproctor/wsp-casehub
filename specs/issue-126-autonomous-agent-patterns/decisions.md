@@ -107,30 +107,30 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Exploration:** quick
 **Status:** captured
 
-## D8: Importance scoring placement — blocks SPIs
+## D8: Importance scoring placement — blocks SPIs with heuristic defaults
 
-**Choice:** Define ImportanceScorer as a @FunctionalInterface SPI in blocks with ArousalScorer and SurpriseScorer as provided implementations
+**Choice:** Define ImportanceScorer as a @FunctionalInterface SPI in blocks. Default implementations (ArousalScorer, SurpriseScorer) are heuristic approximations (@DefaultBean): word-list sentiment intensity for arousal, information entropy relative to agent's memory baseline for surprise. Production-quality psychological scoring requires LLM-backed consumer overrides — the defaults are functional but coarse.
 **Alternatives:**
 - In neocortex as retention extensions — closer to memory data but couples blocks to neocortex internals
 - Split SPI in blocks / impl in neocortex — clean separation but adds cross-module coordination
-**Rationale:** Blocks owns the orchestration pattern; importance scoring is a pluggable strategy within that pattern. Consumers override via CDI. Consistent with how blocks defines other SPIs (ConvergencePolicy, AcceptancePolicy, etc.).
-**Trade-offs:** Implementations can't directly access neocortex internals without injection
-**Sources:** blocks scope criteria (CLAUDE.md); PersonalityEvolution TraitPressureSource pattern
+**Rationale:** Blocks owns the orchestration pattern; importance scoring is a pluggable strategy within that pattern. Consumers override via CDI. Consistent with how blocks defines other SPIs (ConvergencePolicy, AcceptancePolicy, etc.). Heuristic defaults follow the HeuristicMessageSummariser precedent — zero LLM cost, consumers upgrade when needed.
+**Trade-offs:** Heuristic defaults are coarse approximations of psychological constructs. LUFY uses LLM-based scoring — full fidelity requires consumer-provided LLM-backed implementations.
+**Sources:** blocks scope criteria (CLAUDE.md); PersonalityEvolution TraitPressureSource pattern; HeuristicMessageSummariser precedent; LUFY (2024)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-05: clarified heuristic defaults, LLM-backed for production)
 
-## D9: Orchestrator architecture — tick + idle scheduler, single class
+## D9: Orchestrator architecture — single-entry tick() + external composition in scheduler
 
-**Choice:** Single MemoryHygieneOrchestrator with dual entry points: tick() for on-demand and maintain() for idle-time full pipeline. Separate MemoryHygieneScheduler discovers agents/tenants and calls maintain().
+**Choice:** MemoryHygieneOrchestrator has a single entry point: tick(agentId, tenantId) → HygieneTick. Runs importance scoring → consolidation (pass 1) → eviction. Consistent with PersonalityEvolutionOrchestrator.tick() and InnerLifeOrchestrator.tick(). Separate MemoryHygieneScheduler externally composes the full idle-time pipeline: calls tick() + ReflectionOrchestrator.reflect() + cross-linking + integrity checks. maintain() lives on the scheduler, not the orchestrator.
 **Alternatives:**
-- Tick-only orchestrator — consistent with PersonalityEvolution but misses idle-time processing
+- Dual-entry tick()/maintain() on orchestrator — introduces a new pattern not established by existing orchestrators
 - Batch scheduler only — closer to CbrRetentionScheduler but no on-demand path
 - Separate orchestrator + scheduler with shared pipeline stages — more flexible but more types
-**Rationale:** Tick and maintain share the same pipeline stages at different depths. Internal methods, not separate types. Mirrors InnerLifeOrchestrator's depth-controlled design. Scheduler is a thin wrapper that iterates agents/tenants.
-**Trade-offs:** maintain() is a superset of tick() — some stage overlap, but avoids type explosion
-**Sources:** PersonalityEvolutionOrchestrator; InnerLifeOrchestrator; CbrRetentionScheduler
+**Rationale:** Consistent with the established single-entry pattern (PersonalityEvolution, InnerLife). The orchestrator owns the core memory lifecycle (score → consolidate → evict). The scheduler composes higher-level operations externally. This keeps the orchestrator focused and testable.
+**Trade-offs:** Scheduler has more responsibility (reflection, cross-linking, integrity) — but these are naturally batch-time concerns, not tick-time concerns
+**Sources:** PersonalityEvolutionOrchestrator.tick(); InnerLifeOrchestrator.tick(); CbrRetentionScheduler
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-03: single-entry tick(), maintain() moved to scheduler as external composition)
 
 ## D10: Consolidation strategy — two-pass (summarise + reflect)
 
@@ -139,22 +139,23 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 - SummarisationRunner composition only — simpler but misses knowledge synthesis
 - ReflectionOrchestrator delegation only — generates insights but doesn't merge/reduce raw memories
 **Rationale:** Two passes serve different purposes: data reduction (100→20 memories) vs knowledge synthesis ("user raises security concerns after deployments"). Tick mode stays cheap (heuristic summariser, no LLM). Idle mode leverages Sleeptime concept for full LLM-powered reflection.
-**Trade-offs:** Idle scheduler has higher LLM cost; reflection output stored as CBR cases ("reflection" case type)
+**Trade-offs:** Idle scheduler has higher LLM cost. Reflection output is stored separately from CBR cases — reflections are `List<String>` (abstract insights) that don't fit the `CbrCase` contract (problem/solution/outcome). Stored as lightweight `ReflectionEntry` records to avoid polluting CBR retrieval results with structurally mismatched entries.
 **Sources:** Research §2.2 (LUFY, MemGPT Sleeptime); ContentSummariser; TieredContentSummariser; ReflectionOrchestrator
 **Exploration:** deep-analysis
-**Status:** captured
+**Status:** revised (R1-07: reflections stored as ReflectionEntry, not CBR cases — avoids retrieval pollution and semantic mismatch with CbrCase contract)
 
-## D11: Eviction policy — composite score threshold
+## D11: Eviction policy — composite score threshold (replaces CbrRetentionScheduler)
 
-**Choice:** Compute composite retention score from importance (arousal, surprise), recency (TemporalDecay), scope (ScopeDecay), and trust. Evict below configurable threshold.
+**Choice:** Compute composite retention score from importance (arousal, surprise), recency (TemporalDecay), scope (ScopeDecay), and trust. Evict below configurable threshold. The orchestrator implements its own scan-and-evict loop using retrieveSimilar + erase — it does NOT use CbrRetentionPolicy.purge(), which cannot express weighted composite scores. For agents that use MemoryHygiene, the orchestrator replaces CbrRetentionScheduler's purge, not composes with it.
 **Alternatives:**
 - Staged filters (age → importance → capacity) — simpler but less nuanced
 - Configurable EvictionStrategy SPI with composite default — adds SPI overhead for a single-strategy concern
-**Rationale:** Single unified score is easier to tune and reason about. All signal types already produce [0,1] factors. Composite = weighted product of factors. Threshold is the one knob operators adjust.
-**Trade-offs:** Weight tuning requires experimentation; no independent stage-level visibility
-**Sources:** TemporalDecay; ScopeDecay; CbrRetentionPolicy; LUFY retention target (<10%)
+- Compose with CbrRetentionPolicy.purge() — impossible because purge uses simple filter criteria (maxAgeDays, maxCasesPerType, minTrustScore), not weighted composite scores
+**Rationale:** Single unified score is easier to tune and reason about. All signal types already produce [0,1] factors. Composite = weighted product of factors. Threshold is the one knob operators adjust. Retrieval-time decay (TemporalDecayCbrCaseMemoryStore decorator) and eviction-time decay serve different purposes: retrieval decay modulates ranking; eviction decay determines whether the memory is worth keeping at all.
+**Trade-offs:** Weight tuning requires experimentation; no independent stage-level visibility. Agents using MemoryHygiene should disable CbrRetentionScheduler for the same domain to avoid conflicting retention decisions.
+**Sources:** TemporalDecay; ScopeDecay; CbrRetentionPolicy; CbrRetentionScheduler; LUFY retention target (<10%); GE-20260804-eb75e0 (scan returns summaries without features — use retrieveSimilar)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-01: clarified relationship with neocortex retention — replaces, not composes)
 
 ## D12: Temporal versioning — supersession-based
 
@@ -168,21 +169,22 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Exploration:** quick
 **Status:** captured
 
-## D13: Cross-linking — feature-based links
+## D13: Cross-linking — feature-based write-only annotations
 
-**Choice:** Store cross-links as feature values on CbrCase (e.g., "related_cases" → comma-separated caseIds). Read via retrieveSimilar with feature matching.
+**Choice:** Store cross-links as StringListVal feature values on CbrCase (e.g., "related_cases" → list of caseIds). Cross-links are write-only annotations that enrich consolidated cases — not a navigable graph. During consolidation, the orchestrator records which source cases were merged into the consolidated entry. No reverse traversal (finding "what links TO case B" requires scanning all cases).
 **Alternatives:**
-- Dedicated MemoryLinkStore SPI — richer graph model but adds persistence contract
+- Dedicated MemoryLinkStore SPI — richer graph model with bidirectional traversal, but adds persistence contract consumers must implement
 - Supersession chains — limited to parent-child, no peer links
-**Rationale:** No store API change. Feature maps are extensible by design. Cross-links are metadata on the memory, not a separate graph. Consolidation step writes links as part of the merged case.
-**Trade-offs:** No graph traversal — link queries are feature-match queries, not path queries
-**Sources:** CbrCase.features(); FeatureValue; Research §2.8 (Zettelkasten/A-MEM)
+- Comma-separated StringVal — rejected: forces string parsing, doesn't use FeatureValue type system
+**Rationale:** No store API change. StringListVal uses the type system correctly. Cross-links serve consolidation context ("these 5 memories were merged into this one"), not knowledge graph navigation. If navigable graph queries become needed, a dedicated link store can be added later without changing the annotation format.
+**Trade-offs:** No reverse traversal. Not a Zettelkasten-style navigable graph — scoped to consolidation provenance. Adequate for the memory hygiene use case but not for general knowledge graph queries.
+**Sources:** CbrCase.features(); FeatureValue.StringListVal; Research §2.8 (Zettelkasten/A-MEM)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-02: StringListVal replaces comma-separated StringVal; scoped to write-only annotations, not navigable graph)
 
 ## D14: Integrity checking — IntegrityChecker SPI with hybrid default
 
-**Choice:** IntegrityChecker SPI. Default implementation does structural checks (orphaned supersessions, duplicate caseIds, missing features, stale undecayed memories), flags anomalies, escalates to optional SemanticIntegrityChecker (LLM-backed, @DefaultBean no-op). Consumers override semantic checker to activate.
+**Choice:** IntegrityChecker SPI. Default implementation does structural checks (orphaned supersessions, duplicate caseIds, missing features, unprocessed stale memories — i.e., old memories never reviewed by the hygiene pipeline), flags anomalies, escalates to optional SemanticIntegrityChecker (LLM-backed, @DefaultBean no-op). Consumers override semantic checker to activate.
 **Alternatives:**
 - Structural checks only — cheaper but misses contradictory memories
 - Single strategy with escalation config — simpler but less flexible
@@ -193,14 +195,15 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Exploration:** quick
 **Status:** captured
 
-## D15: Package placement — agentic.memory
+## D15: Package placement — blocks.memory (top-level)
 
-**Choice:** New sub-package io.casehub.blocks.agentic.memory
+**Choice:** New top-level package io.casehub.blocks.memory — parallel to blocks.summarisation
 **Alternatives:**
-- agentic.personality — keeps cognitive patterns together but conflates memory lifecycle with personality
+- agentic.memory — signals "agentic-specific" but memory hygiene is orthogonal to agentic orchestration; a non-agentic app with CBR could use it
+- agentic.personality — conflates memory lifecycle with personality
 - agentic.personality.memory — nested sub-package, awkward nesting
-**Rationale:** Memory lifecycle is a distinct concern from personality evolution. Clean separation with own test directory. Consistent with how blocks organises sub-packages (belief, coalition, intention are peer packages under agentic).
-**Trade-offs:** More packages under agentic — but the package tree is already wide
-**Sources:** Existing package structure: agentic.belief, agentic.coalition, agentic.intention, agentic.personality
+**Rationale:** Memory hygiene is reusable infrastructure like summarisation, not an agentic interaction pattern like coalition or intention. blocks.summarisation is already used by both agentic and non-agentic consumers. Memory hygiene has the same profile — it composes neocortex memory APIs, not agentic orchestration primitives.
+**Trade-offs:** Breaks the pattern of "all epic #126 types under agentic.*" — but architectural accuracy matters more than issue grouping
+**Sources:** Existing package structure: blocks.summarisation (top-level, non-agentic); blocks.agentic.belief/coalition/intention (agentic-specific)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-09: moved from agentic.memory to blocks.memory — memory hygiene is infrastructure, not agentic-specific)
