@@ -98,3 +98,16 @@
 **Sources:** ScenarioExecutor.java (current sequential executor), AriaDispatcher.java (existing single-command push protocol), scenario-handler.ts (browser executor), cross-platform scenario engine design spec §5
 **Exploration:** quick
 **Status:** captured
+
+## D9: Push wire WebSocket as universal executor transport
+
+**Choice:** All executors (browser and service) connect to Pages' existing `/ws/push` WebSocket endpoint and communicate via the push wire protocol. Service executors connect as WebSocket clients. Executor-specific topics (e.g., `scenario:helpdesk:dispatch`, `scenario:helpdesk:control`) route messages. Reuses EventBroadcaster, TopicRegistry, reconnection, and topic matching.
+**Alternatives:**
+- Dedicated `/ws/scenario` WebSocket endpoint — cleaner separation but duplicates connection management, topic routing, and reconnection logic
+- HTTP-based (REST dispatch + callback) — no persistent connection, simpler deployment, but no real-time control messages. Stepping/pause would need polling — incompatible with interactive demo experience
+**Rationale:** The push wire protocol already provides bidirectional WebSocket communication with topic routing, event persistence (EventStore), reconnection, and wildcard matching. The browser executor (scenario-handler.ts) already uses it. Extending to service executors is a natural evolution — same protocol, same infrastructure, same message patterns.
+**Trade-offs:** Service executors become WebSocket clients of Pages. This inverts the typical server→service direction. Acceptable for the scenario use case — the orchestrator (Pages) is the coordinator, executors register by connecting. Services need the push client library as a dependency.
+**Sources:** AriaDispatcher.java (existing push wire usage), scenario-handler.ts (browser executor using push wire), EventBroadcaster.java, PushRequest.java (CommandResult already exists), GE-20260818-78bf96 (push wire subscribe vs listen protocol distinction)
+**Exploration:** quick
+**Depends on:** D8
+**Status:** captured
