@@ -48,6 +48,7 @@ SubjectMentalState:
 - Entrenchment = reinforcement count (increases on each confirming signal)
 - Confidence = temporal freshness [0,1], decays with time
 - AGM revision via `BeliefSet.revise()` when contradictory evidence arrives
+- Default `ConsistencyChecker<String>`: always consistent (no domain-specific constraints). Consumers override to enforce domain rules (e.g., mutually exclusive beliefs like "subject trusts us" and "subject distrusts us").
 
 **Desires** — new `AttributedDesire` record:
 ```java
