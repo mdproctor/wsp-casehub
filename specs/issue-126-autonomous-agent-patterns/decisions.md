@@ -302,3 +302,97 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Exploration:** quick
 **Depends on:** D16 (profile subject identity)
 **Status:** revised (R1-04: renamed from blocks.agentic.personality to blocks.agentic.social — correct name at zero cost since no code is merged)
+
+---
+
+# MentalModel (#123) Design Decisions
+
+## D23: BDI scope — full Beliefs + Desires + Intentions
+
+**Choice:** Track all three BDI dimensions per actor: beliefs (what they know/think), desires (what they want), and intentions (what they plan to do).
+**Alternatives:**
+- Beliefs + goals only — skip intentions as too opaque. Loses the planning integration that makes ToM valuable for GOAP enrichment.
+- Beliefs only — simplest, grounded in existing BeliefSet<T>. Defers the desires/intentions dimensions that academic literature (ToMA, DPT-Agent) shows are critical for social reasoning.
+**Rationale:** The research consistently shows all three BDI dimensions are needed for effective ToM. Desires and intentions are harder to infer but still informative — even low-confidence inferences about what someone wants shape agent behavior (e.g., "user seems to want quick resolution" → prioritise conciseness). Confidence decay handles uncertainty: low-confidence inferences fade fast without reinforcing signals.
+**Trade-offs:** Desires and intentions are speculative. Unlike beliefs (which can be explicitly stated and verified), D+I rely heavily on LLM inference quality. Mitigated by confidence scoring and decay.
+**Sources:** Research §2.5, ToMA (ACL 2026), DPT-Agent (2025), Beyond Words (ACL 2025)
+**Exploration:** quick
+**Status:** captured
+
+## D24: Inference mechanism — tiered (heuristic + LLM)
+
+**Choice:** Two-tier inference: heuristic extraction for explicit signals ("I think X", "I want Y", "I plan to Z") + LLM inference for implicit signals (tone, context, behavioral patterns).
+**Alternatives:**
+- LLM-only inference — all BDI dimensions inferred by LLM. Simpler code but no heuristic fast-path; every tick requires LLM call. Breaks bounded-cost tick principle.
+- Rule-based extraction only — pattern-matching on speech acts. Cheapest but misses the implicit signals that make ToM valuable (people rarely state their mental states explicitly).
+**Rationale:** Follows the tiered pattern established by UserModel (D17): heuristic fold for well-defined countable dimensions, LLM for open-ended interpretation. Most ticks update counters and apply decay — LLM fires only when enough new signal has accumulated. Heuristic extraction catches explicit cues at zero LLM cost.
+**Trade-offs:** Two code paths. Heuristic extraction can be noisy (false positives from figurative language). LLM inference quality varies with model capability.
+**Sources:** UserModel D17 (tiered synthesis), TieredContentSummariser pattern, ToMA (ACL 2026), InnerLifeOrchestrator (heuristic gates before LLM)
+**Exploration:** quick
+**Depends on:** D23 (full BDI scope)
+**Status:** captured
+
+## D25: Input model — signal-based record()+tick()
+
+**Choice:** Define MentalStateSignal as a sealed interface for domain events that carry cognitive cues. Consumers construct signals from their domain events and call record(). The orchestrator accumulates signals and processes on tick().
+**Alternatives:**
+- Message observer — MentalModel implements MessageObserver and directly observes channel messages. Tighter coupling to qhorus conversation infrastructure; excludes non-conversation signals (e.g., action outcomes, behavioral observations).
+- Conversation state reader — reads ConversationState snapshots on tick. Requires an active conversation; can't model actors observed outside conversations.
+**Rationale:** Consistent with the social cognition triad pattern. UserModel uses InteractionSignal (sealed interface with RelationshipSignal, ExperienceSignal, CustomSignal variants). PersonalityEvolution uses BehavioralSignal. record() is O(1) — no LLM, no store write. Decouples MentalModel from qhorus conversation infrastructure. Any domain event that carries cognitive cues (conversation messages, action outcomes, behavioral observations) can be wrapped as a MentalStateSignal.
+**Trade-offs:** Consumers must translate their domain events into MentalStateSignals. Extra mapping layer, but this is the established blocks pattern and provides maximum composability.
+**Sources:** InteractionSignal (blocks/agentic/social), BehavioralSignal (blocks/agentic/social), PersonalityEvolutionOrchestrator.record()/tick(), UserModelOrchestrator.record()/tick()
+**Exploration:** quick
+**Depends on:** D23 (full BDI scope), D24 (tiered inference)
+**Status:** captured
+
+## D26: GOAP integration — world state enrichment
+
+**Choice:** MentalModel exposes a project(agentId, subjectId, tenantId) method that returns Map<String, Boolean> — projected BDI state as GOAP-compatible world state conditions. Consumers merge these into their GoapWorldState before planning. MentalModel has no knowledge of GOAP internals.
+**Alternatives:**
+- Planning-aware orchestrator — MentalModel takes GoapAction definitions and reasons about action appropriateness. Tight coupling to engine GOAP API. Violates blocks scope (blocks doesn't orchestrate engine planning).
+- Defer GOAP integration — build MentalModel standalone, document GOAP integration as consumer concern. Misses the primary value proposition from the research: planning that accounts for others' states.
+**Rationale:** Loose coupling via a projection method. MentalModel produces conditions ("subject_stressed", "subject_has_deadline", "subject_wants_quick_resolution"); consumers decide how to use them in planning. The projection is a pure function of current BDI state — no side effects, no GOAP dependency. Consumers call project() and merge into GoapWorldState.closedWorld() or GoapWorldState.openWorld() as appropriate.
+**Trade-offs:** Condition naming is consumer-defined — no standard vocabulary. MentalModel provides suggested condition names based on BDI dimensions, but consumers may need domain-specific mappings.
+**Sources:** GoapWorldState.closedWorld()/openWorld() (engine-api), GoapPlanner (engine-api), Research §2.5 (GOAP integration depth), GE-20260818-534e70 (ternary world state semantics)
+**Exploration:** quick
+**Depends on:** D23 (full BDI scope)
+**Status:** captured
+
+## D27: Temporal dynamics — confidence decay with entrenchment
+
+**Choice:** Each attributed belief, desire, and intention carries a confidence score [0,1] that decays with time since last reinforcing signal. Beliefs additionally use BeliefSet entrenchment ordering for AGM-style revision. Configurable decay rate per BDI dimension (beliefs decay slowly, desires/intentions decay faster). Entries below a configurable floor are evicted.
+**Alternatives:**
+- Versioned snapshots — full timestamped history of mental state changes. Richer temporal queries but high storage cost for volatile state.
+- Current state only — latest inferred state, no decay. Simplest but stale inferences persist indefinitely; an agent might act on a belief the subject held three months ago.
+**Rationale:** Confidence decay naturally handles the core ToM challenge: we can never be certain about others' mental states, and our certainty decreases with elapsed time. TimeToM (ACL 2024) emphasizes temporal reasoning as critical for ToM accuracy. Entrenchment in BeliefSet provides formal revision ordering — deeply entrenched beliefs (reinforced by multiple signals) resist revision by contradictory evidence, which matches how real belief attribution works.
+**Trade-offs:** Decay rate tuning requires experimentation. Too aggressive = useful inferences vanish too quickly. Too slow = stale state persists. Mitigated by separate decay rates for B, D, and I (beliefs are more stable than desires, which are more stable than intentions).
+**Sources:** TimeToM (ACL 2024), BeliefSet.revise() (blocks/agentic/belief), TemporalDecay (neocortex-memory-api), UserModel D18 (familiarity decay)
+**Exploration:** quick
+**Depends on:** D23 (full BDI scope)
+**Status:** captured
+
+## D28: Persistence — MentalModelStore SPI
+
+**Choice:** MentalModelStore SPI with store(MentalModelSnapshot), lookup(agentId, subjectId, tenantId) → Optional<MentalModelSnapshot>, findByAgent(agentId, tenantId) → List<MentalModelSnapshot>, eraseSubject(subjectId, tenantId). Default implementation backed by CbrCaseMemoryStore (same adapter pattern as CbrUserProfileStore). Beliefs stored as features; desires and intentions as JSON feature values.
+**Alternatives:**
+- In-memory with optional persist — primary state is ConcurrentHashMap, persistence is callback. State lost on restart, which is unacceptable for long-lived agents tracking relationship context over months.
+- RelationshipEvent storage — record mental state observations as RelationshipEvents. No separate store. Reconstruction from history is expensive (scan + replay) and loses confidence/entrenchment metadata.
+**Rationale:** Follows UserProfileStore (D20) pattern exactly. Dedicated SPI hides CbrCase impedance mismatch. The primary access pattern is direct lookup by (agentId, subjectId, tenantId). eraseSubject() provides GDPR compliance (established by D20). CbrCaseMemoryStore gives similarity search, supersession, and feature-based retrieval for free.
+**Trade-offs:** One more SPI type + adapter class. Same cost as UserProfileStore; same clarity benefit.
+**Sources:** UserProfileStore/CbrUserProfileStore (D20), CbrCaseMemoryStore (neocortex-memory-api), GDPR Art.17 erasure (D20 R1-05)
+**Exploration:** quick
+**Depends on:** D23 (full BDI scope), D27 (confidence decay — confidence stored as feature)
+**Status:** captured
+
+## D29: Orchestrator architecture — unified with per-subject BDI state
+
+**Choice:** Single MentalModelOrchestrator with per-subject state holding all three BDI dimensions. ConcurrentHashMap<String, SubjectMentalState> + ReentrantLock per subject for tick concurrency. record()+tick()+project() public API.
+**Alternatives:**
+- Decomposed per-dimension — three trackers (BeliefTracker, DesireTracker, IntentionTracker) composed by a facade. More flexible but creates artificial boundaries between interdependent dimensions. Coordination overhead for cross-dimension consistency.
+- Belief-centric with derived D+I — BeliefSet as primary, D+I derived by LLM from beliefs each tick. Simpler state but loses explicitly stated desires/intentions; D+I quality entirely depends on LLM.
+**Rationale:** BDI dimensions are deeply interconnected: beliefs inform desires (knowing someone is stressed → inferring they want resolution), desires inform intentions (wanting resolution → planning to escalate). A unified state container lets the tiered inference engine reason across all three dimensions coherently. Follows the UserModelOrchestrator precedent (single orchestrator, per-subject state, record+tick).
+**Trade-offs:** Single orchestrator is more complex internally than separate trackers. Accepted because the alternative (coordination between three trackers maintaining cross-dimension consistency) is harder to get right.
+**Sources:** UserModelOrchestrator (blocks/agentic/social), PersonalityEvolutionOrchestrator (blocks/agentic/social), DPT-Agent (2025, unified BDI reasoning)
+**Exploration:** quick
+**Depends on:** D23 (full BDI), D24 (tiered inference), D25 (signal-based input)
+**Status:** captured
