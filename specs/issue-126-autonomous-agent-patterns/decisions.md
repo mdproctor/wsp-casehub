@@ -207,3 +207,97 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Sources:** Existing package structure: blocks.summarisation (top-level, non-agentic); blocks.agentic.belief/coalition/intention (agentic-specific)
 **Exploration:** quick
 **Status:** revised (R1-09: moved from agentic.memory to blocks.memory — memory hygiene is infrastructure, not agentic-specific)
+
+---
+
+# UserModel (#122) Design Decisions
+
+## D16: Profile subject identity — any interlocutor
+
+**Choice:** Profile subject is any interlocutor the agent interacts with — human users, other agents, external systems. Keyed by generic string ID triple: `(agentId, subjectId, tenantId)`.
+**Alternatives:**
+- Other agents only — requires AgentDescriptor for subject, excludes human users which are the primary use case in devtown, clinical, ops, and wacky-manor
+- Configurable per domain — SPI for subject identity. Over-engineered: identity is always a string; what varies per domain is profile fields, not subject identification
+**Rationale:** Every real consumer's primary use case is modeling human users, not other agents. RelationshipEvent.otherAgentId() is already a generic String — no API changes needed. Agent-to-agent is a natural subset. Avoids the GE-20260811-e941cc pitfall (coupling to a specific identity type that excludes half the consumers).
+**Trade-offs:** No access to subject's AgentDescriptor (personality, briefing). If the subject happens to be an agent, this enrichment context is optional — consumers can provide it but it's not required.
+**Sources:** RelationshipEvent.java (neocortex-memory-api), ExperienceEvent.java (neocortex-memory-api), GE-20260811-e941cc (AgentDisposition vs DispositionProfile type split), Research §2.4, arXiv:2510.07925
+**Exploration:** quick
+**Status:** captured
+
+## D17: Synthesis mechanism — tiered (heuristic + LLM)
+
+**Choice:** Tiered synthesis: heuristic fold for well-defined countable dimensions (relationship stage from signal counts, interaction frequency, recency), LLM synthesis for open-ended dimensions (communication style, topics of interest, behavioral patterns).
+**Alternatives:**
+- LLM synthesis on every tick — flexible but expensive, breaks bounded-cost tick principle established by PersonalityEvolution/InnerLife/MemoryHygiene
+- Heuristic fold only — zero LLM cost but too rigid for open-ended dimensions like communication style and topics of interest that require natural language interpretation
+**Rationale:** Follows TieredContentSummariser pattern established in blocks. PersonalityEvolution's core loop is pure heuristic (DispositionHealth.probe() is math). MemoryHygiene uses TieredContentSummariser. InnerLife gates heuristic checks before LLM calls. Most ticks will only update counters and check stage thresholds — LLM fires only when enough new textual signal has accumulated. An agent modeling dozens of subjects needs bounded per-tick cost.
+**Trade-offs:** Two code paths (heuristic + LLM) are more complex than either alone. LLM synthesis quality depends on accumulated signal volume — sparse signals may produce low-quality synthesis.
+**Sources:** TieredContentSummariser (blocks/summarisation), PersonalityEvolutionOrchestrator.tick() (blocks/agentic/personality), InnerLifeOrchestrator.tick() (blocks/agentic/personality), MemoryHygieneOrchestrator.tick() (blocks/memory)
+**Exploration:** quick
+**Depends on:** D16 (profile subject identity)
+**Status:** captured
+
+## D18: Relationship stage model — continuous score + threshold tiers
+
+**Choice:** Maintain a continuous familiarity score [0,1] from accumulated QualitySignals. Configurable thresholds map score ranges to named stages. Score can decay with inactivity. Consumers define their own stage names and thresholds.
+**Alternatives:**
+- Discrete state machine — explicit transitions (stranger→acquaintance requires N positive signals). Clearer boundaries but rigid, hard to handle regression or domain-specific stages
+- Multi-dimensional continuous — separate scores per dimension (trust, familiarity, rapport). Richer but more complex to configure and reason about
+**Rationale:** Continuous score is the simplest model that supports regression (score decays with inactivity), domain-specific stages (consumers set their own thresholds and labels), and smooth transitions. Threshold tiers give consumers discrete categories when needed (e.g., "if stage >= FRIEND, use informal tone") without forcing a rigid state machine. Decay naturally handles staleness — inactive relationships regress.
+**Trade-offs:** Single dimension may be reductive for complex relationships (you can trust someone professionally but not personally). Multi-dimensional is the upgrade path but adds configuration burden. Start simple.
+**Sources:** Research §2.4 (stranger → acquaintance → friend → confidant), Relationship science — perceived partner responsiveness (Smith, Bradbury, Karney, 2025), TemporalDecay (neocortex-memory-api)
+**Exploration:** quick
+**Depends on:** D17 (tiered synthesis — familiarity score is a heuristic dimension)
+**Status:** captured
+
+## D19: Update cadence — event-driven record + periodic tick
+
+**Choice:** record() accumulates signals immediately (cheap counter updates). tick() re-evaluates heuristic dimensions and optionally triggers LLM synthesis when enough new signal has accumulated. Matches PersonalityEvolution's record()+tick() dual-entry pattern. Consumer controls tick frequency.
+**Alternatives:**
+- Pure event-driven — profile updates on every recorded event. LLM synthesis on every event would be expensive; without LLM, open-ended dimensions never update
+- Pure periodic tick — all signals batched, processed on tick. Misses the separation of cheap recording from expensive synthesis. Events between ticks have no immediate effect
+**Rationale:** record() is O(1) — increment counters, append to event buffer. No LLM, no store write. tick() amortises the expensive operations (LLM synthesis, CBR store write). This separation is the established pattern across all three prior orchestrators (PersonalityEvolution, InnerLife, MemoryHygiene). The consumer controls both what events to record and how often to tick, matching blocks' "library, not framework" architecture.
+**Trade-offs:** Profile is not instantly updated after record() — there's a lag until the next tick. For the use case (long-term relationship modeling), this lag is imperceptible and architecturally correct.
+**Sources:** PersonalityEvolutionOrchestrator.record()/tick() (blocks/agentic/personality), InnerLifeOrchestrator.observe()/tick() (blocks/agentic/personality)
+**Exploration:** quick
+**Depends on:** D17 (tiered synthesis — tick triggers the synthesis)
+**Status:** captured
+
+## D20: Profile storage — CbrCaseMemoryStore with dedicated schema
+
+**Choice:** Profile stored as a CbrCase with a UserProfileSchema. Profile fields mapped to FeatureValues. Enables similarity-based retrieval ("find subjects similar to this one"), supersession for profile versioning, and TrendAnalyzer enrichment.
+**Alternatives:**
+- Custom UserProfileStore SPI — dedicated @FunctionalInterface for profile CRUD. Simpler contract but misses CBR similarity search, trend analysis, and supersession. Adds a new persistence SPI consumers must implement
+- In-memory only — profile in ConcurrentHashMap, lost on restart. Too limiting for the "long-term relationship" use case
+**Rationale:** Consistent with PersonalityEvolution's CBR transition recording. CbrCaseMemoryStore is already a dependency. FeatureValue's type system (StringVal, NumberVal, StringListVal) maps naturally to profile fields. Supersession provides temporal versioning — previous profile versions are preserved, not overwritten. TrendAnalyzer can enrich profiles with behavioral trends (slope of interaction frequency, volatility of quality signals).
+**Trade-offs:** CbrCase structure (problem/solution/features) doesn't map naturally to a profile — requires convention (e.g., profile summary as "problem", empty "solution", profile fields as features). Per GE-20260820-c19b68, agent-scoped queries require post-filtering by producerAgentId.
+**Sources:** CbrCaseMemoryStore (neocortex-memory-api), PersonalityTransitionSchema (neocortex-memory-api — precedent for dedicated schemas), FeatureValue (neocortex-memory-api), GE-20260820-c19b68 (producerAgentId post-filtering)
+**Exploration:** quick
+**Depends on:** D16 (profile subject identity — subjectId stored as feature)
+**Status:** captured
+
+## D21: Profile structure — fixed core + extensible metadata
+
+**Choice:** Core fields defined by UserModel: relationship stage (String), familiarity score (double), interaction count (int), last interaction timestamp, positive/negative signal counts. Open-ended dimensions (topics of interest, communication style, preferences) stored as LLM-synthesized text in a summary field plus domain-specific metadata via the CbrCase features Map.
+**Alternatives:**
+- Fully extensible ProfileDimension SPI — consumers declare what dimensions to track. Maximum flexibility but over-engineered; every consumer must configure dimensions before anything works
+- Fixed schema only — all fields pre-defined. Too rigid: clinical needs different dimensions than gaming
+**Rationale:** Fixed core gives consumers reliable, queryable fields for the common needs (relationship stage drives tone, interaction count drives personalization depth). Extensible metadata via features Map lets domains add whatever they need. LLM synthesis produces a free-text summary that captures nuances no fixed schema could anticipate. The CbrCase features Map is already designed for this — FeatureValue supports String, Number, and StringList values.
+**Trade-offs:** LLM-synthesized summary is opaque — consumers can't query specific sub-fields without parsing. Mitigation: the LLM can be prompted to produce structured JSON that's stored as a StringVal feature, giving partial queryability.
+**Sources:** FeatureValue (neocortex-memory-api), UserProfileSchema concept, HeuristicMessageSummariser precedent (fixed structure from message metadata), Research §2.4 (profile schema extensibility)
+**Exploration:** quick
+**Depends on:** D17 (tiered synthesis — core fields from heuristics, open-ended from LLM), D20 (CBR storage — features Map for extensibility)
+**Status:** captured
+
+## D22: Package placement — blocks.agentic.personality
+
+**Choice:** UserModel lives in io.casehub.blocks.agentic.personality alongside PersonalityEvolution and InnerLife.
+**Alternatives:**
+- blocks.user (new top-level) — signals infrastructure not agentic-specific, but UserModel is specifically about agent social cognition, unlike MemoryHygiene which is genuinely domain-neutral infrastructure
+- blocks.agentic.user (new sub-package) — under agentic but separate from personality. Adds package fragmentation for one pattern
+**Rationale:** UserModel is about how an agent perceives and adapts to individuals — personality-adjacent social cognition. The "personality" package is really about agent social behavior: PersonalityEvolution (how the agent changes), InnerLife (when the agent speaks), UserModel (what the agent knows about others). These three form a coherent social cognition triad. Creating a separate package for one pattern fragments related concepts.
+**Trade-offs:** The "personality" package name doesn't perfectly describe "user modeling" — but a more general name like "social" would require renaming the existing package, which is a larger change
+**Sources:** PersonalityEvolutionOrchestrator (blocks/agentic/personality), InnerLifeOrchestrator (blocks/agentic/personality), D15 precedent (MemoryHygiene chose top-level because it's domain-neutral; UserModel is domain-specific)
+**Exploration:** quick
+**Depends on:** D16 (profile subject identity)
+**Status:** captured
