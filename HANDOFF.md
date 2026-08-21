@@ -9,11 +9,11 @@
 
 ## Last Session
 
-Implemented the full distributed executor protocol stack end-to-end. Hierarchical scenario parser (chapters/sections/steps/commands with triggers). ScenarioOrchestrator with sequence dispatch, stepping, and REST controller. Browser executor evolution (EventConnection + scenario-handler). Service executor library (`casehub-pages-scenario-client`) with `@ScenarioAction` CDI handlers and stepping protocol (pause/resume/step/speed on virtual threads). MCP scenario domain. Helpdesk `@ScenarioAction` handlers wired and tested. E2E test proven over WebSocket — executor client connects, registers, receives dispatch-sequence, runs actions, sends step-result back through push wire. Added data modes (bulk/stepped/stream) and narrative content (inline markdown, template with section extraction, reveal.js slide references) to the scenario format.
+Implemented casehub-pages#341 (Scenario Controller UI) end-to-end. Backend: added `scenario:state` push wire broadcast via `EventBroadcaster` to `ScenarioOrchestrator`, `stop()` with executor-control before session clear, `runTo()` with max-speed fast-forward and pause-at-target, `GET /scenario/outline` with recursive `OutlineNode`, `GET /scenario/content` for template serving, Jackson `@JsonTypeInfo` on `NarrativeContent`. Frontend: `ScenarioConnectionController` (shared Lit ReactiveController for push wire lifecycle), `PagesScenarioController` (outline tree, transport controls, keyboard shortcuts), `PagesScenarioNarrative` (sanitized markdown), standalone `/scenario/remote.html` page with ESM bundle. Design reviews caught and fixed: reactive controller extraction, `pages-` prefix naming, XSS via `unsafeHTML`, `stop()` ordering, `runTo()` stub, `eventTarget` gap. 157 tests pass (98 TS + 59 Java). Advanced queue to #343.
 
 ## Immediate Next Step
 
-Run `/work` to continue. Active issue is casehub-pages#341 (Scenario Controller UI), position 10/10 in queue. Build the `<scenario-controller>` Lit web component — outline panel, transport controls, narrative panel, standalone `/scenario/remote` page. Backend is ready: REST endpoints, push wire `scenario:state` broadcast with content inheritance, `NarrativeContent` in `ScenarioState`. Use Playwright MCP to verify visually.
+Run `/work` to continue. Active issue is casehub-pages#343 (Move scenario push routing into push-runtime — zero-config orchestrator), position 10/11 in queue. This involves extracting scenario-specific push wire routing from the orchestrator into the push-runtime module so that any Quarkus app that includes push-runtime gets scenario support without manual wiring.
 
 ## Cross-Module
 
