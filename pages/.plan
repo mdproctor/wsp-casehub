@@ -20,3 +20,5 @@ design-section-hashes:
 - [x] casehubio/examples#50 — Helpdesk as distributed executor — scenario automation wiring
 - [ ] casehubio/parent#420 — End-to-end helpdesk scenario — MCP → orchestrator → distributed executors → verify ← active
 - [ ] casehubio/casehub-pages#340 — Scenario data modes — bulk
+- [ ] casehubio/casehub-pages#342 — Scenario narrative content — optional markdown per chapter/section/step
+- [ ] casehubio/casehub-pages#341 — Scenario controller UI — visual transport controls and outline
