@@ -12,20 +12,11 @@ design-repo: project
 design-section-hashes: 
 
 ## Queue
-- [x] #408 — Issue #408
-- [ ] #418 — Distributed executor protocol — orchestrator ↔ service script dispatch with stepping ← active
-  - [ ] Batch 1: Protocol+Format
-    - [ ] Task 1: PushRequest/PushMessage extensions
-    - [ ] Task 2: Scenario format types and parser
-  - [ ] Batch 2: Orchestrator
-    - [ ] Task 3: ScenarioOrchestrator + controller REST API
-  - [ ] Batch 3: Executors
-    - [ ] Task 4: Browser executor evolution
-    - [ ] Task 5: Service executor library (scenario-client)
-  - [ ] Batch 4: Integration
-    - [ ] Task 6: Helpdesk scenario actions + e2e test
-- [ ] #419 — MCP scenario submission — compose and submit scripts to orchestrator
-- [ ] casehubio/casehub-pages#332 — Local executor base module — reusable distributed executor for services
-- [ ] casehubio/casehub-pages#333 — Wire SimulatedStep delivery in ScenarioExecutor
+- [x] casehubio/parent#408 — Issue #408
+- [x] casehubio/parent#418 — Distributed executor protocol — orchestrator ↔ service script dispatch with stepping
+- [x] casehubio/parent#419 — MCP scenario submission — compose and submit scripts to orchestrator
+- [x] casehubio/casehub-pages#332 — Local executor base module — reusable distributed executor for services
+- [x] casehubio/casehub-pages#333 — Wire SimulatedStep delivery in ScenarioExecutor
 - [x] casehubio/examples#50 — Helpdesk as distributed executor — scenario automation wiring
-- [ ] #420 — End-to-end helpdesk scenario — MCP → orchestrator → distributed executors → verify
+- [ ] casehubio/parent#420 — End-to-end helpdesk scenario — MCP → orchestrator → distributed executors → verify ← active
+- [ ] casehubio/casehub-pages#340 — Scenario data modes — bulk
