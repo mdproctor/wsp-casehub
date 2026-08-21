@@ -13,8 +13,8 @@ flyway-next-v: none
 
 ## Queue
 - [ ] #48 — Issue #48 ← active
-  - [ ] Batch 1: blocks
-    - [ ] Task 1: CognitiveObservationSections utility + tests
+  - [x] Batch 1: blocks
+    - [x] Task 1: CognitiveObservationSections utility + tests
   - [ ] Batch 2: manor
     - [ ] Task 2: ManorWorldObservationProvider + ManorExchangeObservationProvider
     - [ ] Task 3: Refactor ObservationBuilder + update callers + tests
