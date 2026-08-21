@@ -9,11 +9,11 @@
 
 ## Last Session
 
-Verified the full scenario engine architecture via IntelliJ against the actual codebase — corrected prior assumptions about what exists (ScenarioExecutor/GraphQLDispatcher/AriaDispatcher were on a git commit not checked out anywhere). Rebased all 6 slot repos onto upstream/main, resolving conflicts. This brought `scenario-runtime` onto the slot's branch. Reconciled the architectural vision (central orchestrator + distributed executors with stepping) against what's built (ARIA-only dispatch + GraphQL HTTP calls, no stepping, no distributed executor protocol). Created 6 issues across 3 repos to close the gaps and populated the .plan queue.
+Designed the distributed executor protocol (#418) — brainstorming through spec to first implementation commit. Six decisions captured (D8-D13): ordered step sequences over push wire WebSocket, new PushRequest/PushMessage op types, CDI @ScenarioAction handlers, optional hierarchical scenario format (chapters/sections/steps/commands), separable controller API. Light review addressed 16 findings. Implementation plan written (4 batches, 6 tasks). Task 1 complete — `ExecutorRegister`, `StepResult`, `dispatchSequence()`, `executorControl()` added to push wire protocol (123 tests pass).
 
 ## Immediate Next Step
 
-Run `/work` to continue. First issue in queue is parent#418 — brainstorm the distributed executor protocol. This is the foundational design question: how do orchestrator ↔ local executors communicate, what's the script fragment format, and how does stepping propagate. Design this before implementing anything.
+Run `/work` to continue. Active issue is #418, position 1/7 in queue. Next implementation task is Task 2 — hierarchical scenario format types and parser (`HierarchicalParser`, `ScenarioCommand`, `ScenarioChapter`, `ScenarioSection`, `HierarchicalStep`, `Trigger`). Plan at `plans/2026-08-20-distributed-executor-protocol.md`. **Important:** IntelliJ MCP routes edits to the main repo when slot modules share the same Maven artifactId (GE-20260821-8ada11). For push/scenario modules, use the git-patch workaround or edit new files only via `ide_create_file` in the slot.
 
 ## Cross-Module
 
