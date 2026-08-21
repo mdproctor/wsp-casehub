@@ -1,18 +1,16 @@
-# Handover — casehub-blocks #124
+# Handover — casehub-blocks #126 (epic)
 
 ## Last Session
 
-Implemented the StrategyLearning pattern (#124) — multi-level reflection on interaction strategies. Full brainstorm (D32-D41) → decision review (light, all HIGH findings addressed: multi-tier tick outcome, causal attribution, feature extraction conflation, dimension-to-signal mapping) → spec review (light, 15 findings addressed: TrendAnalyzer cross-case analysis, signal drain, conversationId correlation, GDPR erasure, API consistency, config validation, Clock injection, error handling) → inline execution (3 batches, 3 commits). 8 new types, 60 new tests (1618 total passing). Queue advanced — all issues complete (8/8). Work-end started: review passed (code review clean, branch audit clean), CLAUDE.md updated. Lifecycle state: `closing:verified`.
+Implemented StrategyLearning (#124) — full brainstorm → design review → spec review → inline execution. 8 new types, 60 tests. Then discovered #121 (Mood) was never implemented despite being on the queue — the neocortex prerequisite (MoodState, MoodDecay, MoodBaseline, MoodModulatedRetrieval) already existed in the slot. Built MoodOrchestrator — 4 types, 20 tests, simplest of the seven patterns (pure PAD heuristic, no LLM). Wrote 3 blog entries: StrategyLearning diary, Mood diary, epic capstone ("The Social Brain"). Updated capstone to reflect all 7 patterns complete. 1638 total tests passing. All 7 child issues implemented. Lifecycle state: `closing:verified`.
 
 ## Immediate Next Step
 
-Run `work end` to resume work-end from Step 3 (Sweep). Review already passed — the remaining steps are: sweep (forage, protocol, ADR, write-content), then execute (promote, rebase, squash, land), verify, and close. The lifecycle state is `closing:verified` — forward-only from here.
+Run `work end` to resume work-end from Step 3 (Sweep). Review already passed (code review clean, branch audit clean). Remaining steps: sweep (forage, protocol, ADR), then execute (promote, rebase, squash, land), verify, close issues, archive slot. The lifecycle state is `closing:verified` — forward-only from here.
 
 ## References
 
 - StrategyLearning spec: `work/specs/issue-126-autonomous-agent-patterns/2026-08-21-strategy-learning-design.md`
-- Plan: `work/plans/2026-08-21-strategy-learning.md`
-- Decisions: `work/specs/issue-126-autonomous-agent-patterns/decisions.md` (D32–D41)
-- Decision review: `~/reviews/casehub-slots/issue-124-strategylearning-decision-20260821-024811/responses/reviewer-1.md`
-- Spec review: `~/reviews/casehub-slots/issue-124-strategylearning-spec-20260821-030910/responses/reviewer-1.md`
-- Research: `docs/research/2026-08-16-autonomous-agent-patterns-landscape.md` §2.6
+- Decisions: `work/specs/issue-126-autonomous-agent-patterns/decisions.md` (D1–D41)
+- Research: `docs/research/2026-08-16-autonomous-agent-patterns-landscape.md`
+- Blog entries: `docs/blog/2026-08-21-mdp01-*`, `docs/blog/2026-08-21-mdp02-*`, `docs/blog/2026-08-21-mdp03-*`
