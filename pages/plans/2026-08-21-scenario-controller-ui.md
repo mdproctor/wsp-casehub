@@ -9,15 +9,16 @@
 **Focal issue:** casehubio/casehub-pages#341 — Scenario controller UI
 **Issue group:** #341 (under epic casehubio/parent#408)
 
-**Goal:** Build `<scenario-controller>` and `<scenario-narrative>` Lit
+**Goal:** Build `<pages-scenario-controller>` and `<pages-scenario-narrative>` Lit
 web components with a standalone `/scenario/remote` page, backed by
 push wire state broadcasting and a REST outline endpoint.
 
 **Architecture:** The orchestrator broadcasts `ScenarioState` on the
-`scenario:state` push wire topic after every state mutation. Controller
-components listen via `EventConnection.listen()` and receive events on
-an injected `EventTarget`. Commands are sent via REST. A recursive
-`OutlineNode` model projects the scenario hierarchy for navigation.
+`scenario:state` push wire topic after every state mutation. A shared
+`ScenarioConnectionController` (Lit ReactiveController) manages connection
+lifecycle, topic listening, and state extraction for both components.
+Commands are sent via REST. A recursive `OutlineNode` model projects
+the scenario hierarchy for navigation.
 
 **Tech Stack:** Java 21 (Quarkus), TypeScript 5, Lit 3, Vitest, Jackson
 
@@ -30,6 +31,19 @@ an injected `EventTarget`. Commands are sent via REST. A recursive
 - All commits reference `Refs #341`
 - `lit` must be added as explicit dependency to pages-aria `package.json`
 - Jackson `@JsonTypeInfo`/`@JsonSubTypes` on `NarrativeContent` for polymorphic wire format
+- Custom element names use `pages-` prefix: `pages-scenario-controller`, `pages-scenario-narrative`
+- pages-aria uses subpath exports in package.json — add `"./controller"` entry, not root index.ts
+- `createEventConnection` must be imported statically — no dynamic `await import()`
+- ScenarioOrchestrator uses constructor injection only — no `@Inject` field annotations
+- Markdown rendering must sanitize HTML (DOMPurify or entity escaping) — no raw `unsafeHTML`
+
+## Scope Notes
+
+- **Start-from-remote deferred:** The current `POST /scenario/start` takes raw YAML content,
+  not a scenario name. A `GET /scenario/list` endpoint and start UI in the controller are
+  deferred to a follow-up issue. The remote page controls already-running scenarios only.
+- **`runTo()` full semantics:** Implemented as part of Task 2 (max-speed fast-forward with
+  pause at target label).
 
 ---
 
@@ -162,7 +176,9 @@ Refs #341"
 void startBroadcastsState() {
     // Given: orchestrator with mock EventBroadcaster
     var captured = new ArrayList<Object>();
-    var broadcaster = new EventBroadcaster(/* ... */) {
+    var broadcaster = new EventBroadcaster(
+            new InMemoryEventStore(100), new TopicRegistry(),
+            (id, msg) -> {}, obj -> "{}") {
         @Override
         public <T> long broadcast(String topic, T event) {
             if ("scenario:state".equals(topic)) captured.add(event);
@@ -215,17 +231,61 @@ void stopClearsSessionAndBroadcastsIdle() {
 
 ```java
 public void stop() {
+    if (this.sessionId == null) return;
+    broadcastControl("stop", null);   // notify executors BEFORE clearing sessionId
     this.sessionId = null;
     this.scenario = null;
     this.allSteps = List.of();
     this.completedSteps.clear();
     this.paused = false;
     this.speed = 1.0;
-    broadcastState();
+    this.runToTarget = null;
+    broadcastState();                 // broadcast idle state to controllers
 }
 ```
 
 Wire `ScenarioControlResource.stop()` to call `orchestrator.stop()`.
+
+- [ ] **Step 6b: Implement runTo() full semantics**
+
+Add `runToTarget` field and implement max-speed fast-forward with pause-at-target:
+
+```java
+private volatile String runToTarget;
+
+public RunToResult runTo(String label) {
+    requireSession();
+    int targetIndex = findStepIndex(label);
+    if (targetIndex < 0) return RunToResult.NOT_FOUND;
+    int currentIndex = completedSteps.size();
+    if (targetIndex < currentIndex) return RunToResult.ALREADY_PAST;
+
+    this.runToTarget = label;
+    this.paused = false;
+    broadcastControl("speed", 1000.0);  // max speed for fast-forward
+    broadcastControl("resume", null);
+    broadcastState();
+    return RunToResult.OK;
+}
+```
+
+In `onStepResult()`, add target check after recording the completed step:
+
+```java
+public void onStepResult(PushRequest.StepResult result) {
+    if (sessionId == null || !sessionId.equals(result.sessionId())) return;
+    completedSteps.put(result.stepName(), result.ok());
+
+    // Check runTo target
+    if (runToTarget != null && runToTarget.equals(result.stepName())) {
+        runToTarget = null;
+        this.speed = 1.0;  // restore normal speed
+        pause();            // pause() broadcasts control + state
+        return;
+    }
+    broadcastState();
+}
+```
 
 - [ ] **Step 7: Write failing test for outline()**
 
@@ -312,23 +372,29 @@ Refs #341"
 
 ## Batch 2: Frontend — scenario-controller component
 
-### Task 3: Add lit dependency to pages-aria and scaffold controller
+### Task 3: Add lit dependency, scaffold reactive controller and component
 
 **Files:**
-- Modify: `packages/pages-aria/package.json` — add `lit` dependency
+- Modify: `packages/pages-aria/package.json` — add `lit` dependency + `"./controller"` subpath export
 - Create: `packages/pages-aria/src/controller/index.ts`
+- Create: `packages/pages-aria/src/controller/scenario-connection-controller.ts`
 - Create: `packages/pages-aria/src/controller/scenario-controller.ts`
 - Create: `packages/pages-aria/src/controller/scenario-controller.test.ts`
-- Modify: `packages/pages-aria/src/index.ts` — add controller export
 
 **Interfaces:**
-- Consumes: `EventConnection` from `@casehubio/pages-data`
-- Produces: `<scenario-controller>` custom element with properties: `connection`, `eventTarget`, `baseUrl`
+- Consumes: `EventConnection`, `createEventConnection` from `@casehubio/pages-data`
+- Produces: `ScenarioConnectionController` — shared Lit ReactiveController for connection lifecycle
+- Produces: `<pages-scenario-controller>` custom element
 
-- [ ] **Step 1: Add lit dependency**
+- [ ] **Step 1: Add lit dependency and subpath export**
 
 ```bash
 yarn workspace @casehubio/pages-aria add lit
+```
+
+Add to `packages/pages-aria/package.json` exports:
+```json
+"./controller": "./src/controller/index.ts"
 ```
 
 - [ ] **Step 2: Write failing test for component registration**
@@ -338,15 +404,15 @@ yarn workspace @casehubio/pages-aria add lit
 import { describe, it, expect } from 'vitest';
 import './scenario-controller.js';
 
-describe('scenario-controller', () => {
+describe('pages-scenario-controller', () => {
   it('registers as custom element', () => {
-    expect(customElements.get('scenario-controller')).toBeDefined();
+    expect(customElements.get('pages-scenario-controller')).toBeDefined();
   });
 
   it('renders empty state when no connection', async () => {
-    const el = document.createElement('scenario-controller');
+    const el = document.createElement('pages-scenario-controller');
     document.body.appendChild(el);
-    await el.updateComplete;
+    await (el as any).updateComplete;
     expect(el.shadowRoot?.textContent).toContain('No connection configured');
     el.remove();
   });
@@ -358,15 +424,14 @@ describe('scenario-controller', () => {
 Run: `yarn workspace @casehubio/pages-aria run test -- --reporter=verbose`
 Expected: FAIL — module not found
 
-- [ ] **Step 4: Create the component skeleton**
+- [ ] **Step 4: Create ScenarioConnectionController (shared reactive controller)**
 
 ```typescript
-// scenario-controller.ts
-import { LitElement, html, css } from 'lit';
-import { property, state } from 'lit/decorators.js';
-import type { EventConnection } from '@casehubio/pages-data';
+// scenario-connection-controller.ts
+import type { ReactiveController, ReactiveControllerHost } from 'lit';
+import { createEventConnection, type EventConnection } from '@casehubio/pages-data';
 
-interface ControllerState {
+export interface ScenarioState {
   scenario: string | null;
   chapter: string | null;
   section: string | null;
@@ -374,7 +439,101 @@ interface ControllerState {
   paused: boolean;
   speed: number;
   progress: number;
+  content: { type: string; markdown?: string; path?: string; section?: string; ref?: unknown } | null;
+  slides: string | null;
 }
+
+export interface ScenarioConnectionOptions {
+  connection?: EventConnection;
+  eventTarget?: EventTarget;
+  baseUrl?: string;
+  onState?: (state: ScenarioState) => void;
+}
+
+export class ScenarioConnectionController implements ReactiveController {
+  private _host: ReactiveControllerHost;
+  private _opts: ScenarioConnectionOptions;
+  private _ownConnection?: EventConnection;
+  private _ownEventTarget?: EventTarget;
+  state: ScenarioState = {
+    scenario: null, chapter: null, section: null, step: null,
+    paused: false, speed: 1.0, progress: 0, content: null, slides: null,
+  };
+  connectionStatus: string = 'disconnected';
+
+  constructor(host: ReactiveControllerHost, opts: ScenarioConnectionOptions) {
+    this._host = host;
+    this._opts = opts;
+    host.addController(this);
+  }
+
+  get restBase(): string {
+    return this._opts.baseUrl || window.location.origin;
+  }
+
+  private _eventHandler = (e: Event) => {
+    const detail = (e as CustomEvent).detail as { topic?: string; payload?: unknown };
+    if (detail?.topic !== 'scenario:state') return;
+    this.state = detail.payload as ScenarioState;
+    this._opts.onState?.(this.state);
+    this._host.requestUpdate();
+  };
+
+  hostConnected(): void {
+    const conn = this._resolveConnection();
+    const target = this._resolveEventTarget();
+    if (conn && target) {
+      void conn.listen(['scenario:state']);
+      target.addEventListener('pages-event', this._eventHandler);
+      this.connectionStatus = conn.status;
+    }
+  }
+
+  hostDisconnected(): void {
+    const target = this._resolveEventTarget();
+    if (target) target.removeEventListener('pages-event', this._eventHandler);
+    const conn = this._resolveConnection();
+    if (conn) void conn.unlisten(['scenario:state']);
+    if (this._ownConnection) {
+      this._ownConnection.close();
+      this._ownConnection = undefined;
+    }
+  }
+
+  private _resolveConnection(): EventConnection | undefined {
+    if (this._opts.connection) return this._opts.connection;
+    if (this._opts.baseUrl && !this._ownConnection) {
+      const wsUrl = this._opts.baseUrl.replace(/^http/, 'ws') + '/ws/push';
+      this._ownEventTarget = new EventTarget();
+      this._ownConnection = createEventConnection(wsUrl, {
+        config: { eventTarget: this._ownEventTarget },
+      });
+    }
+    return this._ownConnection;
+  }
+
+  private _resolveEventTarget(): EventTarget | undefined {
+    return this._opts.eventTarget ?? this._ownEventTarget;
+  }
+
+  async sendCommand(path: string, body?: object): Promise<void> {
+    await fetch(`${this.restBase}/scenario${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  }
+}
+```
+
+- [ ] **Step 5: Create the component skeleton**
+
+```typescript
+// scenario-controller.ts
+import { LitElement, html, css } from 'lit';
+import { property, state } from 'lit/decorators.js';
+import type { EventConnection } from '@casehubio/pages-data';
+import { ScenarioConnectionController, type ScenarioState } from './scenario-connection-controller.js';
 
 interface OutlineNode {
   label: string;
@@ -382,35 +541,39 @@ interface OutlineNode {
   children: OutlineNode[];
 }
 
-export class ScenarioController extends LitElement {
+export class PagesScenarioController extends LitElement {
   static override styles = css`
     :host { display: block; font-family: var(--pages-font-family, system-ui, sans-serif); }
     .error { padding: var(--pages-space-4, 16px); color: var(--pages-danger-9, #dc2626); }
   `;
 
-  @property({ attribute: false })
-  connection?: EventConnection;
-
-  @property({ attribute: false })
-  eventTarget?: EventTarget;
-
-  @property()
-  baseUrl?: string;
-
-  @state() private _state: ControllerState = {
-    scenario: null, chapter: null, section: null,
-    step: null, paused: false, speed: 1.0, progress: 0,
-  };
-
+  @property({ attribute: false }) connection?: EventConnection;
+  @property({ attribute: false }) eventTarget?: EventTarget;
+  @property() baseUrl?: string;
   @state() private _outline: OutlineNode[] = [];
-  @state() private _connectionStatus: string = 'disconnected';
 
-  private _ownConnection?: EventConnection;
-  private _ownEventTarget?: EventTarget;
+  private _conn!: ScenarioConnectionController;
 
-  get restBase(): string {
-    if (this.baseUrl) return this.baseUrl;
-    return window.location.origin;
+  override connectedCallback(): void {
+    this._conn = new ScenarioConnectionController(this, {
+      connection: this.connection,
+      eventTarget: this.eventTarget,
+      baseUrl: this.baseUrl,
+      onState: (s) => this._onStateChange(s),
+    });
+    super.connectedCallback();
+  }
+
+  private _onStateChange(s: ScenarioState): void {
+    if (s.scenario && this._outline.length === 0) void this._fetchOutline();
+    if (!s.scenario) this._outline = [];
+  }
+
+  private async _fetchOutline(): Promise<void> {
+    try {
+      const resp = await fetch(`${this._conn.restBase}/scenario/outline`);
+      if (resp.ok) this._outline = await resp.json();
+    } catch { /* ignore */ }
   }
 
   override render() {
@@ -421,49 +584,47 @@ export class ScenarioController extends LitElement {
   }
 }
 
-if (!customElements.get('scenario-controller')) {
-  customElements.define('scenario-controller', ScenarioController);
+if (!customElements.get('pages-scenario-controller')) {
+  customElements.define('pages-scenario-controller', PagesScenarioController);
 }
 ```
 
 Create `index.ts`:
 ```typescript
-export { ScenarioController } from './scenario-controller.js';
+export { PagesScenarioController } from './scenario-controller.js';
+export { ScenarioConnectionController } from './scenario-connection-controller.js';
 ```
 
-Add to `packages/pages-aria/src/index.ts`:
-```typescript
-export { ScenarioController } from './controller/index.js';
-```
+- [ ] **Step 6: Run test to verify it passes**
 
-- [ ] **Step 5: Run test to verify it passes**
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add packages/pages-aria/
-git commit -m "feat(#341): scaffold scenario-controller component with lit dependency
+git commit -m "feat(#341): scaffold pages-scenario-controller with shared connection controller
 
 Refs #341"
 ```
 
-### Task 4: Push wire state listening and REST commands
+### Task 4: State listening and REST command tests
 
 **Files:**
 - Modify: `packages/pages-aria/src/controller/scenario-controller.ts`
 - Modify: `packages/pages-aria/src/controller/scenario-controller.test.ts`
 
 **Interfaces:**
-- Consumes: `EventConnection.listen(['scenario:state'])`, `EventConnection.send()`
-- Consumes: `createEventConnection` from `@casehubio/pages-data`
-- Produces: reactive `_state` updated from push wire events
-- Produces: `sendCommand(path, body?)` for REST dispatch
+- Consumes: `ScenarioConnectionController` from Task 3 (handles connection lifecycle)
+- Produces: state-driven rendering, REST command dispatch via controller
+
+The connection lifecycle (listen, unlisten, mode resolution) is handled by
+`ScenarioConnectionController`. This task verifies state updates flow through
+the reactive controller to trigger re-renders.
 
 - [ ] **Step 1: Write failing test for state update from push event**
 
 ```typescript
 it('updates state from scenario:state event', async () => {
-  const el = document.createElement('scenario-controller') as ScenarioController;
+  const el = document.createElement('pages-scenario-controller') as PagesScenarioController;
   const mockTarget = new EventTarget();
   const mockConnection = {
     listen: vi.fn().mockResolvedValue({ topics: ['scenario:state'] }),
@@ -498,97 +659,14 @@ it('updates state from scenario:state event', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Expected: FAIL — component doesn't listen or update state
+Expected: FAIL — component renders placeholder, not state
 
-- [ ] **Step 3: Implement lifecycle and event handling**
+- [ ] **Step 3: Wire render() to use ScenarioConnectionController state**
 
-Add to `ScenarioController`:
+The controller's `_conn.state` is reactive (triggers `requestUpdate()` via
+the ReactiveController). Update `render()` to read from `this._conn.state`.
 
-```typescript
-private _eventHandler = (e: Event) => {
-  const detail = (e as CustomEvent).detail as { topic?: string; payload?: unknown };
-  if (detail?.topic !== 'scenario:state') return;
-  const payload = detail.payload as ControllerState;
-  const scenarioChanged = payload.scenario !== this._state.scenario;
-  this._state = { ...payload };
-  if (scenarioChanged && payload.scenario) {
-    void this._fetchOutline();
-  }
-  if (!payload.scenario) {
-    this._outline = [];
-  }
-};
-
-override connectedCallback(): void {
-  super.connectedCallback();
-  const target = this._resolveEventTarget();
-  const conn = this._resolveConnection();
-  if (conn && target) {
-    conn.listen(['scenario:state']);
-    target.addEventListener('pages-event', this._eventHandler);
-    if (conn.status) this._connectionStatus = conn.status;
-    void this._fetchInitialState();
-  }
-}
-
-override disconnectedCallback(): void {
-  super.disconnectedCallback();
-  const target = this._resolveEventTarget();
-  const conn = this._resolveConnection();
-  if (conn) conn.unlisten(['scenario:state']);
-  if (target) target.removeEventListener('pages-event', this._eventHandler);
-  if (this._ownConnection) {
-    this._ownConnection.close();
-    this._ownConnection = undefined;
-  }
-}
-
-private _resolveConnection(): EventConnection | undefined {
-  if (this.connection) return this.connection;
-  if (this.baseUrl && !this._ownConnection) {
-    const wsUrl = this.baseUrl.replace(/^http/, 'ws') + '/ws/push';
-    this._ownEventTarget = new EventTarget();
-    const { createEventConnection } = await import('@casehubio/pages-data');
-    this._ownConnection = createEventConnection(wsUrl, {
-      config: { eventTarget: this._ownEventTarget },
-    });
-  }
-  return this._ownConnection;
-}
-
-private _resolveEventTarget(): EventTarget | undefined {
-  return this.eventTarget ?? this._ownEventTarget;
-}
-
-private async _fetchInitialState(): Promise<void> {
-  try {
-    const resp = await fetch(`${this.restBase}/scenario/state`);
-    if (resp.ok) {
-      this._state = await resp.json();
-      if (this._state.scenario) void this._fetchOutline();
-    }
-  } catch { /* connection not ready */ }
-}
-
-private async _fetchOutline(): Promise<void> {
-  try {
-    const resp = await fetch(`${this.restBase}/scenario/outline`);
-    if (resp.ok) this._outline = await resp.json();
-  } catch { /* ignore */ }
-}
-
-private async _sendCommand(path: string, body?: object): Promise<void> {
-  await fetch(`${this.restBase}/scenario${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-- [ ] **Step 5: Write test for REST command dispatch**
+- [ ] **Step 4: Write test for REST command dispatch**
 
 ```typescript
 it('sends pause command via REST', async () => {
@@ -603,11 +681,11 @@ it('sends pause command via REST', async () => {
 });
 ```
 
-- [ ] **Step 6: Run tests, commit**
+- [ ] **Step 5: Run tests, commit**
 
 ```bash
 git add packages/pages-aria/
-git commit -m "feat(#341): push wire state listening and REST command dispatch
+git commit -m "feat(#341): state listening and REST command tests
 
 Refs #341"
 ```
@@ -644,6 +722,27 @@ it('renders outline tree with current position highlighted', async () => {
 
 - [ ] **Step 3: Implement outline tree rendering**
 
+Add `_isBeforeCurrent()` helper — flattens the outline tree and checks if
+a label appears before the current step:
+
+```typescript
+private _flattenLabels(nodes: OutlineNode[]): string[] {
+  const result: string[] = [];
+  for (const node of nodes) {
+    if (node.children.length === 0) result.push(node.label);
+    else result.push(...this._flattenLabels(node.children));
+  }
+  return result;
+}
+
+private _isBeforeCurrent(label: string): boolean {
+  const labels = this._flattenLabels(this._outline);
+  const currentIdx = labels.indexOf(this._conn.state.step ?? '');
+  const labelIdx = labels.indexOf(label);
+  return labelIdx >= 0 && currentIdx >= 0 && labelIdx < currentIdx;
+}
+```
+
 Add `_renderOutline()` method that walks `_outline` recursively:
 
 ```typescript
@@ -660,8 +759,8 @@ private _renderOutline(): TemplateResult {
 
 private _renderNode(node: OutlineNode, depth: number): TemplateResult {
   const isLeaf = node.children.length === 0;
-  const isCurrent = isLeaf && node.label === this._state.step;
-  const isCompleted = isLeaf && this._isCompleted(node.label);
+  const isCurrent = isLeaf && node.label === this._conn.state.step;
+  const isCompleted = isLeaf && this._isBeforeCurrent(node.label);
 
   if (isLeaf) {
     return html`
@@ -709,23 +808,23 @@ Add `_renderTransport()` method:
 
 ```typescript
 private _renderTransport(): TemplateResult {
-  const hasScenario = !!this._state.scenario;
+  const hasScenario = !!this._conn.state.scenario;
   return html`
     <div class="transport">
-      <button aria-label=${this._state.paused ? 'Resume' : 'Pause'}
+      <button aria-label=${this._conn.state.paused ? 'Resume' : 'Pause'}
               ?disabled=${!hasScenario}
-              @click=${() => this._sendCommand(this._state.paused ? '/resume' : '/pause')}>
-        ${this._state.paused ? '▶' : '⏸'}
+              @click=${() => this._sendCommand(this._conn.state.paused ? '/resume' : '/pause')}>
+        ${this._conn.state.paused ? '▶' : '⏸'}
       </button>
       <button aria-label="Step" ?disabled=${!hasScenario}
               @click=${() => this._sendCommand('/step')}>⏩</button>
       <input type="range" min="-2" max="1" step="0.01"
-             .value=${String(Math.log10(this._state.speed))}
+             .value=${String(Math.log10(this._conn.state.speed))}
              ?disabled=${!hasScenario}
-             aria-label="Speed" aria-valuetext="${this._state.speed.toFixed(1)}x"
+             aria-label="Speed" aria-valuetext="${this._conn.state.speed.toFixed(1)}x"
              @input=${this._onSpeedChange}>
-      <span class="speed-label">${this._state.speed.toFixed(1)}x</span>
-      <span class="progress">${Math.round(this._state.progress * 100)}%</span>
+      <span class="speed-label">${this._conn.state.speed.toFixed(1)}x</span>
+      <span class="progress">${Math.round(this._conn.state.progress * 100)}%</span>
     </div>
   `;
 }
@@ -746,7 +845,7 @@ private _onSpeedChange(e: Event): void {
 
 ```typescript
 private _renderStatus(): TemplateResult {
-  const breadcrumb = [this._state.chapter, this._state.section, this._state.step]
+  const breadcrumb = [this._conn.state.chapter, this._conn.state.section, this._conn.state.step]
     .filter(Boolean).join(' → ');
   return html`
     <div class="status-bar">
@@ -789,32 +888,39 @@ Refs #341"
 
 ## Batch 3: Narrative component and standalone remote page
 
-### Task 6: `<scenario-narrative>` component
+### Task 6: `<pages-scenario-narrative>` component
 
 **Files:**
 - Create: `packages/pages-aria/src/controller/scenario-narrative.ts`
 - Create: `packages/pages-aria/src/controller/scenario-narrative.test.ts`
 - Modify: `packages/pages-aria/src/controller/index.ts` — add export
-- Modify: `packages/pages-aria/src/index.ts` — add export
 
 **Interfaces:**
-- Consumes: Same `EventConnection` + `EventTarget` pattern as controller
-- Produces: `<scenario-narrative>` custom element rendering NarrativeContent
+- Consumes: `ScenarioConnectionController` from Task 3 (shared lifecycle)
+- Produces: `<pages-scenario-narrative>` custom element rendering NarrativeContent
 
 - [ ] **Step 1: Write failing test for inline markdown rendering**
 
 ```typescript
 it('renders inline markdown content', async () => {
-  const el = document.createElement('scenario-narrative') as ScenarioNarrative;
-  // ... set up with mock connection + eventTarget ...
+  const el = document.createElement('pages-scenario-narrative') as PagesScenarioNarrative;
+  const mockTarget = new EventTarget();
+  const mockConnection = {
+    listen: vi.fn().mockResolvedValue({ topics: ['scenario:state'] }),
+    unlisten: vi.fn().mockResolvedValue(undefined),
+    send: vi.fn(), close: vi.fn(), connected: true, status: 'connected' as const,
+  };
+  el.connection = mockConnection;
+  el.eventTarget = mockTarget;
   document.body.appendChild(el);
+  await el.updateComplete;
 
-  // Simulate state event with inline content
   mockTarget.dispatchEvent(new CustomEvent('pages-event', {
     detail: {
       topic: 'scenario:state',
       payload: {
         scenario: 'test', content: { type: 'inline', markdown: '# Hello\n\nWorld' },
+        chapter: null, section: null, step: null, paused: false, speed: 1.0, progress: 0, slides: null,
       },
     },
   }));
@@ -829,68 +935,68 @@ it('renders inline markdown content', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-- [ ] **Step 3: Implement scenario-narrative**
+- [ ] **Step 3: Implement scenario-narrative using ScenarioConnectionController**
 
 ```typescript
 import { LitElement, html, css, nothing } from 'lit';
-import { property, state } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import type { EventConnection } from '@casehubio/pages-data';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+import { ScenarioConnectionController, type ScenarioState } from './scenario-connection-controller.js';
 
-interface NarrativeState {
-  type: string;
-  markdown?: string;
-  path?: string;
-  section?: string;
-  ref?: unknown;
-}
-
-export class ScenarioNarrative extends LitElement {
+export class PagesScenarioNarrative extends LitElement {
   static override styles = css`
     :host { display: block; }
     .narrative-content {
       padding: var(--pages-space-4, 16px);
-      max-width: 680px;
-      line-height: 1.6;
+      max-width: 680px; line-height: 1.6;
       font-size: var(--pages-font-size-base, 14px);
       font-family: var(--pages-font-family, system-ui, sans-serif);
     }
     .narrative-content h1 { font-size: 1.5em; margin: 0.5em 0; }
     .narrative-content h2 { font-size: 1.25em; margin: 0.5em 0; }
     .narrative-content p { margin: 0.5em 0; }
-    .narrative-content code { background: var(--pages-neutral-3, #f5f5f5); padding: 2px 4px; border-radius: 3px; }
+    .narrative-content code {
+      background: var(--pages-neutral-3, #f5f5f5);
+      padding: 2px 4px; border-radius: 3px;
+    }
   `;
 
   @property({ attribute: false }) connection?: EventConnection;
   @property({ attribute: false }) eventTarget?: EventTarget;
   @property() baseUrl?: string;
 
-  @state() private _content: NarrativeState | null = null;
-  private _templateCache = new Map<string, string>();
-  // ... same lifecycle pattern as controller (listen, unlisten, event handler)
+  private _conn!: ScenarioConnectionController;
 
-  override render() {
-    if (!this._content) return nothing;
-    return html`<div class="narrative-content">${this._renderContent()}</div>`;
+  override connectedCallback(): void {
+    this._conn = new ScenarioConnectionController(this, {
+      connection: this.connection,
+      eventTarget: this.eventTarget,
+      baseUrl: this.baseUrl,
+    });
+    super.connectedCallback();
   }
 
-  private _renderContent() {
-    if (!this._content) return nothing;
-    switch (this._content.type) {
+  override render() {
+    const content = this._conn?.state?.content;
+    if (!content) return nothing;
+
+    switch (content.type) {
       case 'inline':
-        return unsafeHTML(this._parseMarkdown(this._content.markdown ?? ''));
+        return html`<div class="narrative-content">${this._renderMarkdown(content.markdown ?? '')}</div>`;
       case 'template':
-        return html`<div class="template-loading">Loading...</div>`;
+        return html`<div class="narrative-content">Loading template...</div>`;
       case 'slide':
-        return html`<div class="slide-ref">Slide: ${String(this._content.ref)}</div>`;
+        return html`<div class="narrative-content">Slide: ${String(content.ref)}</div>`;
       default:
         return nothing;
     }
   }
 
-  private _parseMarkdown(md: string): string {
-    // Minimal markdown: headings, paragraphs, bold, italic, code, lists
-    return md
+  private _renderMarkdown(md: string): unknown {
+    // Sanitize: escape HTML entities FIRST, then apply markdown formatting
+    const escaped = md
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rendered = escaped
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
       .replace(/^## (.+)$/gm, '<h2>$1</h2>')
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -898,16 +1004,23 @@ export class ScenarioNarrative extends LitElement {
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code>$1</code>')
       .replace(/^- (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
       .replace(/\n\n/g, '</p><p>')
       .replace(/^(?!<[hulo])(.+)$/gm, '<p>$1</p>');
+
+    const container = document.createElement('div');
+    container.innerHTML = rendered;
+    return html`${Array.from(container.childNodes)}`;
   }
 }
 
-if (!customElements.get('scenario-narrative')) {
-  customElements.define('scenario-narrative', ScenarioNarrative);
+if (!customElements.get('pages-scenario-narrative')) {
+  customElements.define('pages-scenario-narrative', PagesScenarioNarrative);
 }
 ```
+
+Note: HTML is sanitized by escaping `<`, `>`, `&` before markdown processing,
+preventing XSS. For production use with richer markdown, consider `marked` +
+`DOMPurify`.
 
 - [ ] **Step 4: Write test for empty content (renders nothing)**
 
@@ -923,7 +1036,7 @@ it('renders nothing when content is null', async () => {
 
 ```bash
 git add packages/pages-aria/
-git commit -m "feat(#341): scenario-narrative component with markdown rendering
+git commit -m "feat(#341): pages-scenario-narrative component with sanitized markdown
 
 Refs #341"
 ```
@@ -970,11 +1083,11 @@ Or use the existing build pipeline if pages-aria has one.
   <style>
     body { margin: 0; font-family: system-ui, sans-serif;
            background: var(--pages-neutral-1, #fafafa); }
-    scenario-controller { display: block; width: 100vw; height: 100vh; }
+    pages-scenario-controller { display: block; width: 100vw; height: 100vh; }
   </style>
 </head>
 <body>
-  <scenario-controller id="ctrl"></scenario-controller>
+  <pages-scenario-controller id="ctrl"></scenario-controller>
   <script type="module">
     import '/scenario/controller.js';
     document.getElementById('ctrl').baseUrl = window.location.origin;
