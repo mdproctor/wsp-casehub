@@ -28,6 +28,21 @@ This spec covers:
   Those can be added later if a consumer needs them.
 - **Pre-release:** breaking changes to public API are acceptable.
 
+### 1.2 Prerequisites
+
+The following backend gaps must be addressed as part of this issue:
+
+- **`stop()` implementation:** `ScenarioOrchestrator` has no `stop()` method.
+  `ScenarioControlResource.stop()` is a no-op. Implement: clear session,
+  broadcast `executor-control: stop` to all executors, broadcast idle state.
+- **`runTo()` completion:** The current `runTo()` just calls `resume()` —
+  it does not override speed to maximum, track the target label, or pause
+  when the target is reached. Implement the full semantics from the
+  protocol spec §5.5.
+- **Jackson annotations on `NarrativeContent`:** The sealed interface needs
+  `@JsonTypeInfo` and `@JsonSubTypes` for polymorphic serialization so the
+  wire format includes a type discriminator.
+
 ## 2. Backend Additions
 
 ### 2.1 State broadcast — `scenario:state` topic
@@ -68,9 +83,21 @@ state changes to listening controllers. Add state broadcasting.
 }
 ```
 
-The `content` field is polymorphic — serialised as the `NarrativeContent`
-sealed interface (Inline, Template, Slide). The controller and narrative
-components handle each variant.
+The `content` field is polymorphic. `NarrativeContent` requires Jackson
+annotations for wire serialization:
+
+```java
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = NarrativeContent.Inline.class, name = "inline"),
+    @JsonSubTypes.Type(value = NarrativeContent.Template.class, name = "template"),
+    @JsonSubTypes.Type(value = NarrativeContent.Slide.class, name = "slide"),
+})
+public sealed interface NarrativeContent { ... }
+```
+
+This produces the `{"type": "inline", "markdown": "..."}` discriminator
+shown in the wire format example above.
 
 **When to broadcast:**
 - `start()` — initial state after dispatch
@@ -95,24 +122,29 @@ public ScenarioOutline outline() {
 
 **Response model:**
 
-```java
-public record ScenarioOutline(
-    String scenario,
-    List<OutlineChapter> chapters,
-    List<OutlineSection> sections,
-    List<OutlineStep> steps
-) {
-    // Mirrors HierarchicalScenario's three mutually exclusive
-    // top-level structures: chapters, sections, or flat steps
-}
+Rather than maintaining parallel type hierarchies, `outline()` projects
+from the existing `HierarchicalScenario` model using a single recursive
+node type:
 
-public record OutlineChapter(String label, List<OutlineSection> sections) {}
-public record OutlineSection(String label, List<OutlineStep> steps) {}
-public record OutlineStep(String label, String target) {}
+```java
+public record OutlineNode(String label, String target,
+                          List<OutlineNode> children) {
+    public OutlineNode(String label, List<OutlineNode> children) {
+        this(label, null, children);
+    }
+    public OutlineNode(String label, String target) {
+        this(label, target, List.of());
+    }
+}
 ```
 
-The outline is a static, label-only tree for the controller's navigation.
-No commands, no data, no narrative content — just the hierarchy and labels
+Chapters become nodes with section children. Sections become nodes with
+step children. Steps are leaf nodes with a `target` (executor name).
+The `orchestrator.outline()` method walks the `HierarchicalScenario`
+tree and strips commands, triggers, and content — returning only labels
+and structure.
+
+The outline is static per scenario run — just the hierarchy and labels
 that the "run to" feature needs.
 
 Returns `404` if no scenario is active.
@@ -121,7 +153,10 @@ Returns `404` if no scenario is active.
 
 ### 3.1 Package and registration
 
-Lives in `packages/pages-aria/src/controller/`.
+Lives in `packages/pages-aria/src/controller/`. The `pages-aria` package
+must add `lit` as an explicit dependency (it currently has `pages-primitives`
+which depends on Lit transitively, but the direct dependency must be
+declared for a package that defines LitElement subclasses).
 
 ```
 packages/pages-aria/src/controller/
@@ -138,17 +173,31 @@ Registered as `<scenario-controller>`. Exported from `pages-aria` index.
 @property({ attribute: false })
 connection?: EventConnection;        // Embedded mode — shared connection
 
+@property({ attribute: false })
+eventTarget?: EventTarget;           // Embedded mode — where push events dispatch
+
 @property()
 baseUrl?: string;                    // Remote mode — e.g. "http://localhost:8080"
 ```
 
+The `eventTarget` property is required in embedded mode because
+`EventConnection` does not expose its internal `eventTarget` — it
+dispatches `pages-event` CustomEvents on the `PushSourceConfig.eventTarget`
+passed at creation time. The host must provide both the connection (for
+`listen`/`send`) and the eventTarget (for receiving dispatched events).
+This matches `createScenarioHandler`'s existing pattern of accepting both.
+
+In remote mode, the component creates its own `EventConnection` with its
+own `EventTarget`, so no external `eventTarget` is needed.
+
 **Mode resolution:**
 - If `connection` is set → embedded mode. Use the provided connection for
-  listening. REST base URL is `baseUrl` if provided, otherwise
-  `window.location.origin` (same-origin assumption for embedded use).
+  listening. Receive events on `eventTarget`. REST base URL is `baseUrl`
+  if provided, otherwise `window.location.origin`.
 - If only `baseUrl` is set → remote mode. Create an internal
-  `EventConnection` to `${baseUrl.replace(/^http/, 'ws')}/ws/push`.
-  REST base is `baseUrl`.
+  `EventConnection` with a private `EventTarget`. Derive WebSocket URL
+  from baseUrl: `${baseUrl.replace(/^http/, 'ws')}/ws/push`. REST base
+  is `baseUrl`.
 - If neither → render an error state ("No connection configured").
 
 ### 3.3 Internal state
@@ -233,10 +282,24 @@ placeholder.
 Core controls:
 - **Play/Pause toggle** — `POST /scenario/resume` or `POST /scenario/pause`
 - **Step** — `POST /scenario/step` (advance one step, then pause)
-- **Speed slider** — range input, 0.1x to 10x, sends `POST /scenario/speed`
-  with debounce (250ms). Display current speed as label.
+- **Speed slider** — range input, 0.01x to 10x (matching backend minimum
+  clamp of 0.01), sends `POST /scenario/speed` with debounce (250ms).
+  Display current speed as label. Logarithmic scale for usable control
+  across the wide range.
 
-All buttons disabled when no scenario is active.
+All transport buttons disabled when no scenario is active.
+
+**Start/stop controls:**
+
+When no scenario is active, show a **Start** button. The controller
+fetches available scenarios via `GET /scenario/list` (a new endpoint
+returning scenario names from the orchestrator's registered set) or
+accepts a YAML text input for ad-hoc start. Clicking Start calls
+`POST /scenario/start` with the selected scenario.
+
+When a scenario is active, show a **Stop** button that calls
+`POST /scenario/stop`. This enables the full lifecycle from the remote
+page without requiring a separate terminal.
 
 **Status bar (bottom):**
 
@@ -287,6 +350,16 @@ Uses CSS custom properties from `pages-ui-tokens` for consistency:
 Shadow DOM with `:host` sizing to fill its container. The host can control
 dimensions via CSS.
 
+### 3.8 Accessibility
+
+- **Outline tree:** `role="tree"` / `role="treeitem"` ARIA markup. Arrow
+  key navigation via `RovingTabindexMixin` from `pages-primitives`.
+  Enter/Space to expand/collapse and activate "run to".
+- **Transport controls:** `Space` toggles play/pause (media convention).
+  Buttons have `aria-label` attributes describing their action.
+- **Speed slider:** `aria-valuemin`, `aria-valuemax`, `aria-valuenow`,
+  `aria-valuetext` (e.g. "1.5x speed").
+
 ## 4. `<scenario-narrative>` Web Component
 
 ### 4.1 Package and registration
@@ -307,11 +380,14 @@ Registered as `<scenario-narrative>`.
 @property({ attribute: false })
 connection?: EventConnection;
 
+@property({ attribute: false })
+eventTarget?: EventTarget;
+
 @property()
 baseUrl?: string;
 ```
 
-Same connection/mode pattern as `<scenario-controller>`.
+Same connection/mode/eventTarget pattern as `<scenario-controller>`.
 
 ### 4.3 Rendering
 
@@ -324,9 +400,14 @@ existing one (marked) or a minimal implementation for the subset needed
 HTML is set via `innerHTML` on a container with scoped styles.
 
 **`Template` (path + section extraction):**
-Fetch the template file from `${restBase}/${path}`, extract the named
-section (if specified), and render the resulting markdown. Cache fetched
-templates — the same file may be referenced by multiple steps.
+Fetch the template file from `GET ${restBase}/scenario/content?path=${path}`.
+This requires a new endpoint in `ScenarioControlResource` that serves
+template files from a configurable content root directory
+(`casehub.scenario.content-root`, defaulting to `META-INF/resources/scenario/content/`).
+Extract the named section (if specified — find the heading, take content
+until the next heading of the same or higher level) and render as markdown.
+Cache fetched templates by path — the same file may be referenced by
+multiple steps.
 
 **`Slide` (reveal.js reference):**
 Render a reference or embed. Details TBD based on the reveal.js integration
@@ -372,16 +453,19 @@ mode:
   </style>
 </head>
 <body>
-  <scenario-controller baseUrl=""></scenario-controller>
-  <script type="module" src="/scenario/controller.js"></script>
+  <scenario-controller id="ctrl"></scenario-controller>
+  <script type="module">
+    import '/scenario/controller.js';
+    document.getElementById('ctrl').baseUrl = window.location.origin;
+  </script>
 </body>
 </html>
 ```
 
-The `baseUrl=""` means "same origin" — the remote page is served by the
-same backend that runs the orchestrator. The script bundle
-(`controller.js`) is the pages-aria controller entry point, built as
-an ESM bundle for standalone loading.
+The `baseUrl` is set programmatically to `window.location.origin` — the
+remote page is served by the same backend that runs the orchestrator.
+Setting via script avoids the empty-string problem (`""` is falsy and
+doesn't produce valid WebSocket URLs).
 
 ### 5.3 Bundle
 
@@ -469,7 +553,7 @@ broadcast is the canonical source).
 - ScenarioState.java — state record with NarrativeContent
 - EventConnection.ts — push wire client with `listen()` API
 - scenario-handler.ts — browser executor (dispatch-sequence/control handling)
-- PagesButton.ts — existing Lit component pattern
+- pages-ui-components/src/button/pages-button.ts — existing Lit component pattern
 - [GE-20260818-c61c29] — topicSource adapter for push wire → DataSource bridge
 - [GE-20260816-e89cda] — composable Lit reactive controllers (evaluated, deferred for single-consumer case)
 - [GE-20260812-5cd146] — EventConnection drops non-event messages (addressed — dispatch-sequence/control now handled)
