@@ -22,16 +22,7 @@ design-section-hashes:
 - [x] casehubio/casehub-pages#340 — Scenario data modes — bulk
 - [x] casehubio/casehub-pages#342 — Scenario narrative content — optional markdown per chapter/section/step
 - [ ] casehubio/casehub-pages#341 — Scenario controller UI — visual transport controls and outline ← active
-  - [x] Batch 1: Backend prerequisites
-    - [x] Task 1: Jackson annotations + OutlineNode
-    - [x] Task 2: State broadcast + outline endpoint + stop()
-  - [x] Batch 2: Frontend controller
-    - [x] Task 3: Scaffold controller component
-    - [x] Task 4: Push wire listening + REST commands
-    - [x] Task 5: Outline tree + transport controls
-  - [x] Batch 3: Narrative + remote
-    - [x] Task 6: Narrative component
-    - [x] Task 7: Standalone remote page + bundle
-  - [x] Batch 4: Integration
-    - [x] Task 8: E2E integration test
+  - [ ] Batch 1: Gaps
+    - [ ] Task 1: Keyboard shortcuts for controller
+    - [ ] Task 2: Template content serving endpoint
 - [ ] casehubio/casehub-pages#343 — Move scenario push routing into push-runtime — zero-config orchestrator
