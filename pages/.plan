@@ -32,6 +32,6 @@ design-section-hashes:
   - [x] Batch 3: Narrative + remote
     - [x] Task 6: Narrative component
     - [x] Task 7: Standalone remote page + bundle
-  - [ ] Batch 4: Integration
-    - [ ] Task 8: E2E integration test
+  - [x] Batch 4: Integration
+    - [x] Task 8: E2E integration test
 - [ ] casehubio/casehub-pages#343 — Move scenario push routing into push-runtime — zero-config orchestrator
