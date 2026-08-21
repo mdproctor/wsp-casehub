@@ -84,6 +84,89 @@
 
 ---
 
+# Scenario Controller UI Decisions (#341)
+
+## D14: REST endpoint for scenario outline data
+
+**Choice:** Add `GET /scenario/outline` to `ScenarioControlResource` returning the parsed chapter/section/step hierarchy. Controller fetches once on scenario start.
+**Alternatives:**
+- Inline full outline in every `scenario:state` push wire message — bloats every state update with static data that only changes on new scenario start
+- REST initial + push delta for position changes — more complex for marginal bandwidth savings on a local-network use case
+**Rationale:** The outline tree is static per scenario run. A single REST fetch on start is simple, cacheable, and doesn't bloat real-time state updates.
+**Trade-offs:** One extra REST call on scenario start. Negligible.
+**Exploration:** quick
+**Status:** captured
+
+## D15: Push wire broadcast for real-time state updates
+
+**Choice:** Add `scenario:state` topic broadcast to `ScenarioOrchestrator` via `EventBroadcaster`. Controller listens via `EventConnection.listen(['scenario:state'])`. Broadcast on every state change (step completion, pause, resume, speed change).
+**Alternatives:**
+- REST polling `GET /scenario/state` on an interval — laggy, wastes bandwidth, doesn't support multi-device sync
+**Rationale:** Real-time state is required for the "presenter remote" use case (phone controlling laptop display). Multiple controllers must stay in sync. Push wire is the existing infrastructure for this — no new transport needed.
+**Trade-offs:** Requires backend change to ScenarioOrchestrator — adding EventBroadcaster injection and broadcast calls after each state mutation.
+**Sources:** ScenarioOrchestrator.java, EventBroadcaster.java, GE-20260818-c61c29 (topicSource adapter)
+**Exploration:** quick
+**Depends on:** D9 (push wire as universal executor transport)
+**Status:** captured
+
+## D16: Controller component lives in pages-aria package
+
+**Choice:** `<scenario-controller>` and `<scenario-narrative>` live in `packages/pages-aria` alongside existing scenario code (parser, runner, scenario-handler).
+**Alternatives:**
+- New `pages-scenario-controller` package — clean boundary but adds a package for a single component
+- `pages-ui-components` — contains general UI primitives (button, input); scenario controller is domain-specific, not a general primitive
+**Rationale:** pages-aria already owns all browser-side scenario concerns. The controller is the UI counterpart of the scenario system. Keeping them together avoids cross-package imports for shared types (DispatchSequence, ScenarioState).
+**Trade-offs:** pages-aria grows beyond pure ARIA concerns. Acceptable — the package name reflects its origin, not its ceiling.
+**Exploration:** quick
+**Status:** captured
+
+## D17: Property injection for connection mode
+
+**Choice:** Embedded mode: host passes an existing `EventConnection` via property. Remote mode: host passes a `baseUrl` string and the component creates its own connection internally.
+**Alternatives:**
+- Reactive controller — `ScenarioConnectionController` managing the EventConnection; more structured but adds indirection for a two-mode problem with one consumer
+- Auto-detect — controller checks for pages-runtime context; implicit, harder to test, magical
+**Rationale:** Clean API surface. The host decides the mode, the controller doesn't care. Testable — pass a mock connection in tests.
+**Trade-offs:** Embedded hosts must pass the connection explicitly. Minor wiring cost.
+**Sources:** GE-20260816-e89cda (composable Lit controllers — pattern considered but rejected for single-consumer case)
+**Exploration:** quick
+**Status:** captured
+
+## D18: Separate <scenario-narrative> component
+
+**Choice:** Narrative content rendering is a separate `<scenario-narrative>` LitElement, not part of `<scenario-controller>`.
+**Alternatives:**
+- Integrated in controller — single component with outline + transport + narrative. Simpler for the common case but locks narrative display to the controller's layout.
+**Rationale:** Narrative and transport controls serve different audiences. A presenter remote (phone) needs transport controls but not narrative. The main display might show narrative without transport. Separate components let hosts position them independently. Both listen to the same `scenario:state` push wire topic.
+**Trade-offs:** Two components to wire instead of one. Offset by layout flexibility.
+**Exploration:** quick
+**Status:** captured
+
+## D19: Standalone remote page served by Quarkus backend
+
+**Choice:** A static HTML file served at `/scenario/remote` by the Java backend (via `META-INF/resources`). Loads only the `<scenario-controller>` component. No webapp build dependency.
+**Alternatives:**
+- Part of the webapp webpack bundle — couples the remote to the main app build
+- In examples gallery — semantically wrong; the remote is operational tooling, not an example
+**Rationale:** The remote page is a single HTML file loading a web component. No build step beyond the component itself. Available wherever the backend runs.
+**Trade-offs:** The component's JS bundle must be independently loadable — needs a standalone entry point or ESM import.
+**Exploration:** quick
+**Depends on:** D16 (component in pages-aria)
+**Status:** captured
+
+## D20: Single LitElement architecture (not composable controllers)
+
+**Choice:** `<scenario-controller>` is one self-contained LitElement. Internal state managed by reactive properties updated from push wire events. REST commands sent by internal methods. No controller extraction.
+**Alternatives:**
+- Composable reactive controllers (per GE-20260816-e89cda) — ScenarioStateController + ScenarioCommandController composed by host. More structured but over-engineered when there's only one host consuming the controllers.
+**Rationale:** One component, one purpose. Extract controllers later if a second consumer appears. The simplest thing that works.
+**Trade-offs:** If another host needs the same state management, we'd refactor to controllers. YAGNI applies — no second consumer exists.
+**Sources:** GE-20260816-e89cda (composable Lit controllers pattern — evaluated, deferred)
+**Exploration:** quick
+**Status:** captured
+
+---
+
 # Distributed Executor Protocol Decisions (#418)
 
 ## D8: Orchestrator dispatches ordered step sequences to executors
