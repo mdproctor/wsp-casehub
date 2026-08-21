@@ -25,7 +25,7 @@ design-section-hashes:
   - [ ] Batch 4: Integration
     - [ ] Task 6: Helpdesk scenario actions + e2e test
 - [ ] #419 — MCP scenario submission — compose and submit scripts to orchestrator
-- [ ] #332 — Local executor base module — reusable distributed executor for services
-- [ ] #333 — Wire SimulatedStep delivery in ScenarioExecutor
-- [x] #50 — Helpdesk as distributed executor — scenario automation wiring
+- [ ] casehubio/casehub-pages#332 — Local executor base module — reusable distributed executor for services
+- [ ] casehubio/casehub-pages#333 — Wire SimulatedStep delivery in ScenarioExecutor
+- [x] casehubio/examples#50 — Helpdesk as distributed executor — scenario automation wiring
 - [ ] #420 — End-to-end helpdesk scenario — MCP → orchestrator → distributed executors → verify
