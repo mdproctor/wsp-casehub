@@ -174,26 +174,24 @@ public final class ObservationBuilder {
                                            Map<String, List<Memory>> relationshipMemories) {
         var sections = new ArrayList<ObservationSection>();
 
-        // World sections (from provider)
+        // World perception (from provider)
         sections.addAll(worldProvider.worldSections());
 
-        // Relationship notes (between world and cognitive — positioned after characters)
+        // Character state (manor-local)
         for (var entry : relationshipMemories.entrySet()) {
             if (!entry.getValue().isEmpty()) {
                 sections.add(CognitiveObservationSections.relationshipNotesSection(
                         entry.getKey(), entry.getValue()));
             }
         }
-
-        // Character-local sections (manor types)
         sections.add(inventorySection(character));
         var thinking = currentThinkingSection(character);
         if (thinking != null) { sections.add(thinking); }
+
+        // Cognitive state (blocks utility + manor-local)
         sections.add(CognitiveObservationSections.goalsSection(goals));
         planSections(character).forEach(sections::add);
         sections.add(CognitiveObservationSections.recentActivitySection(drain));
-
-        // Cognitive sections (from blocks utility)
         if (memories != null && !memories.isEmpty()) {
             sections.add(CognitiveObservationSections.pastExperienceSection(memories));
         }
@@ -215,10 +213,28 @@ public final class ObservationBuilder {
 - `buildExchangeObservation` follows the same pattern with
   `ManorExchangeObservationProvider`.
 
-**Section ordering** is preserved — world sections first, then character/
-cognitive sections, lastActionResult at the end. The provider controls
-internal ordering of world sections; the builder controls the overall
-structure.
+**Section ordering changes** from the current interleaved layout to a
+grouped layout:
+
+```
+── World perception (from provider) ──
+  Current Location, Exits, Visible Objects, Characters Present,
+  Remembered, Keen Observations / Directed to You
+
+── Character state (manor-local) ──
+  Relationship Notes, Your Inventory, Your Current Thinking
+
+── Cognitive state (from blocks utility + manor-local) ──
+  Your Goals, Plan: {goal}, Recent Activity,
+  Past Experience, Insights, Last Action Result
+```
+
+The current code interleaves world and cognitive sections (e.g.,
+`recentActivity` appears before `remembered`). The new layout groups
+all world perception together, then all internal state. This is
+intentionally cleaner — the LLM sees "what's around you" before
+"what you're thinking/planning." Section headers are unchanged, so
+any prompt-level section referencing works the same.
 
 ### 3.1 Relationship Notes Positioning
 
