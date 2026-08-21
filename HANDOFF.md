@@ -2,15 +2,8 @@
 
 ## Last Session
 
-Implemented StrategyLearning (#124) — full brainstorm → design review → spec review → inline execution. 8 new types, 60 tests. Then discovered #121 (Mood) was never implemented despite being on the queue — the neocortex prerequisite (MoodState, MoodDecay, MoodBaseline, MoodModulatedRetrieval) already existed in the slot. Built MoodOrchestrator — 4 types, 20 tests, simplest of the seven patterns (pure PAD heuristic, no LLM). Wrote 3 blog entries: StrategyLearning diary, Mood diary, epic capstone ("The Social Brain"). Updated capstone to reflect all 7 patterns complete. 1638 total tests passing. All 7 child issues implemented. Lifecycle state: `closing:verified`.
+All 7 child patterns implemented: PersonalityEvolution (#118), InnerLife (#119), MemoryHygiene (#120), Mood (#121), UserModel (#122), MentalModel (#123), StrategyLearning (#124). 1638 total tests passing. 8 blog entries written. CLAUDE.md updated with all types. Work-end in progress: review passed (clean), CLAUDE.md updated, artifacts promoted, rebase clean. Lifecycle state: `closing:promoted`. Squash working branch created: `squash/wip-issue-126-autonomous-agent-patterns-20260821-135638`.
 
 ## Immediate Next Step
 
-Run `work end` to resume work-end from Step 3 (Sweep). Review already passed (code review clean, branch audit clean). Remaining steps: sweep (forage, protocol, ADR), then execute (promote, rebase, squash, land), verify, close issues, archive slot. The lifecycle state is `closing:verified` — forward-only from here.
-
-## References
-
-- StrategyLearning spec: `work/specs/issue-126-autonomous-agent-patterns/2026-08-21-strategy-learning-design.md`
-- Decisions: `work/specs/issue-126-autonomous-agent-patterns/decisions.md` (D1–D41)
-- Research: `docs/research/2026-08-16-autonomous-agent-patterns-landscape.md`
-- Blog entries: `docs/blog/2026-08-21-mdp01-*`, `docs/blog/2026-08-21-mdp02-*`, `docs/blog/2026-08-21-mdp03-*`
+Run `work end` to resume from Step 4.3 (squash). The working branch exists. 40 commits to classify by issue — natural grouping: one feat commit per issue (#118–#124), wip/docs absorbed. After squash: land (slot merge), verify, close issues (#118–#124, #126), archive slot.
