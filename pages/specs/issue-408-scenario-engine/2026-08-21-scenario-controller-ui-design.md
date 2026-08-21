@@ -144,12 +144,12 @@ baseUrl?: string;                    // Remote mode — e.g. "http://localhost:8
 
 **Mode resolution:**
 - If `connection` is set → embedded mode. Use the provided connection for
-  listening. Send commands via REST using the connection's origin or
-  `baseUrl` if provided.
+  listening. REST base URL is `baseUrl` if provided, otherwise
+  `window.location.origin` (same-origin assumption for embedded use).
 - If only `baseUrl` is set → remote mode. Create an internal
-  `EventConnection` to `${baseUrl}/ws/push`. Send commands via REST to
-  `${baseUrl}/scenario/*`.
-- If neither → render an error state.
+  `EventConnection` to `${baseUrl.replace(/^http/, 'ws')}/ws/push`.
+  REST base is `baseUrl`.
+- If neither → render an error state ("No connection configured").
 
 ### 3.3 Internal state
 
