@@ -25,3 +25,14 @@
 **Depends on:** D1 (cognitive formatters go to blocks)
 **Exploration:** quick
 **Status:** captured
+
+## D3: buildExchangeObservation refactoring
+
+**Choice:** Separate `ManorExchangeObservationProvider` — a second `WorldObservationProvider` implementation for the exchange path. It captures only exchange-specific world state (room name, other characters present, dialogue text) and returns a minimal list of world sections. `buildExchangeObservation` uses the same assembly pattern as the full build path: `provider.worldSections()` + character sections.
+**Alternatives:**
+- Keep buildExchangeObservation as-is — only 3-4 sections, minimal code. But creates a special case in ObservationBuilder that bypasses the provider pattern.
+**Rationale:** Consistent assembly pattern — ObservationBuilder always calls `provider.worldSections()` + cognitive/character sections. No special-case code paths. The exchange provider is small (~15 lines) and makes the builder's assembly logic uniform.
+**Trade-offs:** A tiny class for a simple case. Acceptable — consistency over minimalism at this scale.
+**Depends on:** D2 (method categorisation)
+**Exploration:** quick
+**Status:** captured
