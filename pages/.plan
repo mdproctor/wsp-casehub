@@ -22,7 +22,7 @@ design-section-hashes:
 - [x] casehubio/casehub-pages#340 — Scenario data modes — bulk
 - [x] casehubio/casehub-pages#342 — Scenario narrative content — optional markdown per chapter/section/step
 - [ ] casehubio/casehub-pages#341 — Scenario controller UI — visual transport controls and outline ← active
-  - [ ] Batch 1: Gaps
-    - [ ] Task 1: Keyboard shortcuts for controller
-    - [ ] Task 2: Template content serving endpoint
+  - [x] Batch 1: Gaps
+    - [x] Task 1: Keyboard shortcuts for controller
+    - [x] Task 2: Template content serving endpoint
 - [ ] casehubio/casehub-pages#343 — Move scenario push routing into push-runtime — zero-config orchestrator
