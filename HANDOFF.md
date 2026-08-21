@@ -1,19 +1,18 @@
-# Handover — casehub-blocks #123
+# Handover — casehub-blocks #124
 
 ## Last Session
 
-Implemented the MentalModel pattern (#123) — per-actor BDI Theory of Mind with confidence decay, GOAP projection, and epistemic bridge via CommonGroundState. Full brainstorm → decision review (light, D23-D31) → spec review (light, all HIGH findings addressed: BeliefSet reuse clarified, composition mandate met, projection mapping defined, merge semantics) → plan review (light, CbrCaseMemoryStore API corrected) → inline execution. 11 new types, 51 new tests (1558 total passing). Queue advanced to #124 (StrategyLearning).
+Implemented the StrategyLearning pattern (#124) — multi-level reflection on interaction strategies. Full brainstorm (D32-D41) → decision review (light, all HIGH findings addressed: multi-tier tick outcome, causal attribution, feature extraction conflation, dimension-to-signal mapping) → spec review (light, 15 findings addressed: TrendAnalyzer cross-case analysis, signal drain, conversationId correlation, GDPR erasure, API consistency, config validation, Clock injection, error handling) → inline execution (3 batches, 3 commits). 8 new types, 60 new tests (1618 total passing). Queue advanced — all issues complete (8/8). Work-end started: review passed (code review clean, branch audit clean), CLAUDE.md updated. Lifecycle state: `closing:verified`.
 
 ## Immediate Next Step
 
-Run `/work` to continue. #124 (StrategyLearning — multi-level reflection on interaction strategies) is the active issue — begin brainstorming. Note: #124 requires "foundation addition: engagement scoring in neocortex" per the issue body — assess feasibility before designing.
+Run `work end` to resume work-end from Step 3 (Sweep). Review already passed — the remaining steps are: sweep (forage, protocol, ADR, write-content), then execute (promote, rebase, squash, land), verify, and close. The lifecycle state is `closing:verified` — forward-only from here.
 
 ## References
 
-- MentalModel spec: `work/specs/issue-126-autonomous-agent-patterns/2026-08-20-mental-model-design.md`
-- Plan: `work/plans/2026-08-20-mental-model.md`
-- Decisions: `work/specs/issue-126-autonomous-agent-patterns/decisions.md` (D23–D31)
-- Decision review: `~/reviews/casehub-slots/issue-123-mentalmodel-decision-20260820-182103/responses/reviewer-1.md`
-- Spec review: `~/reviews/casehub-slots/issue-123-mentalmodel-spec-20260820-183601/responses/reviewer-1.md`
-- Plan review: `~/reviews/casehub-slots/issue-123-mentalmodel-plan-20260820-185648/responses/reviewer-1.md`
-- Research: `docs/research/2026-08-16-autonomous-agent-patterns-landscape.md` §2.5, §2.6
+- StrategyLearning spec: `work/specs/issue-126-autonomous-agent-patterns/2026-08-21-strategy-learning-design.md`
+- Plan: `work/plans/2026-08-21-strategy-learning.md`
+- Decisions: `work/specs/issue-126-autonomous-agent-patterns/decisions.md` (D32–D41)
+- Decision review: `~/reviews/casehub-slots/issue-124-strategylearning-decision-20260821-024811/responses/reviewer-1.md`
+- Spec review: `~/reviews/casehub-slots/issue-124-strategylearning-spec-20260821-030910/responses/reviewer-1.md`
+- Research: `docs/research/2026-08-16-autonomous-agent-patterns-landscape.md` §2.6
