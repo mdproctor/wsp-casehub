@@ -314,34 +314,19 @@ Respond as JSON:
 {"guidelines": ["...", ...], "dimensionDeltas": {"verbosity": -0.1, ...}}
 ```
 
-### Prompt Delivery — StrategyPromptSection
+### Strategy Retrieval — currentStrategy()
 
-A `RoutingPromptSection` implementation (analogous to `OptimisedFewShotSection` and `CbrRoutingPromptSection`) that injects strategy context into agent system prompts:
+The orchestrator exposes a convenience method for retrieving the current strategy profile, consistent with `UserModelOrchestrator.currentProfile()` and `MentalModelOrchestrator.project()`:
 
 ```java
-@ApplicationScoped
-public class StrategyPromptSection implements RoutingPromptSection {
-    @Inject StrategyStore strategyStore;
-
-    @Override
-    public String id() { return "strategy"; }
-
-    @Override
-    public @Nullable String render(AgentRoutingContext context) {
-        var profile = strategyStore.lookup(
-            context.agentRef().name(), context.tenantId());
-        if (profile.isEmpty()) return null;
-
-        var sb = new StringBuilder("## Interaction Strategy\n\n");
-        for (String guideline : profile.get().guidelines()) {
-            sb.append("- ").append(guideline).append('\n');
-        }
-        return sb.toString();
-    }
+public Optional<StrategyProfile> currentStrategy(String agentId, String tenantId) {
+    // Returns in-memory profile if loaded, otherwise queries strategyStore.lookup()
 }
 ```
 
-Consumers that need per-subject strategy can query `strategyStore.subjectInsights()` and append subject-specific guidance at the prompt level.
+Consumers read the profile and inject guidelines into their agent prompts via their own `PromptAssembler`, `SystemPromptCustomiser`, or direct prompt construction. Neither `RoutingPromptSection` (routing-time, takes `AgentRoutingContext`) nor `SystemPromptCustomiser` (variant-scoped) is the right SPI for operational prompt injection. The other social cognition orchestrators follow the same pattern — they provide data retrieval, not prompt construction.
+
+For per-subject strategy context, consumers call `strategyStore.subjectInsights(agentId, subjectId, tenantId)` and append subject-specific guidance at the prompt level.
 
 ## Type Summary
 
@@ -354,10 +339,9 @@ Consumers that need per-subject strategy can query `strategyStore.subjectInsight
 | `StrategyReflection` | sealed interface | reflect() outcome: NoChange, Reflected |
 | `StrategyStore` | interface (SPI) | Strategy profile persistence |
 | `CbrStrategyStore` | class (@DefaultBean) | CbrCaseMemoryStore-backed StrategyStore |
-| `StrategyLearningOrchestrator` | class | Composition root: record() + tick() + reflect() |
-| `StrategyPromptSection` | class (@ApplicationScoped) | Injects strategy into agent prompts |
+| `StrategyLearningOrchestrator` | class | Composition root: record() + tick() + reflect() + currentStrategy() |
 
-9 new types. ~500 lines of production code estimated.
+8 new types. ~450 lines of production code estimated.
 
 ## Testing Strategy
 
@@ -380,9 +364,9 @@ Consumers that need per-subject strategy can query `strategyStore.subjectInsight
 | reflect() per-subject grouping | Cases grouped by subjectId for per-subject analysis |
 | Concurrency | Concurrent record() + tick() on same agent — no lost signals |
 | Stale state eviction | Agent states evicted after staleStateTimeout |
-| StrategyPromptSection rendering | Formats guidelines as markdown list |
+| currentStrategy() | Returns in-memory profile or loads from store |
 
-~45 tests estimated.
+~43 tests estimated.
 
 ## References
 
