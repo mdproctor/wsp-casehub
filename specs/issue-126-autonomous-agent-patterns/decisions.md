@@ -424,3 +424,132 @@ Note: probe() returns Drifted (not EvolutionPending) when the dominant exceeds o
 **Exploration:** quick (surfaced by R1-07)
 **Depends on:** D25 (signal-based input)
 **Status:** captured
+
+---
+
+# StrategyLearning (#124) Design Decisions
+
+## D32: Reflection scope — per-agent output, per-subject evidence
+
+**Choice:** StrategyLearning produces a per-agent StrategyProfile (global strategy defaults) but accumulates per-subject engagement evidence in CBR cases (subjectId as a feature). Periodic reflection analyzes both per-subject patterns ("humor works with User X") and cross-subject patterns ("I'm too verbose generally").
+**Alternatives:**
+- Pure per-agent (no per-subject data) — simpler but can't learn subject-specific strategies. Cross-subject aggregation loses the signal about what works with whom.
+- Pure per-subject (like UserModel/MentalModel) — creates 5th per-subject orchestrator. The metacognitive value ("what works globally") is lost; that requires cross-subject analysis.
+**Rationale:** The cognitive operation is "evaluate + learn from feedback." Per-subject evidence is essential (engagement varies by person), but the actionable output is a global strategy with per-subject annotations. The profile provides defaults; textual guidelines can include per-subject insights.
+**Trade-offs:** CBR cases carry subjectId as a feature requiring post-filtering for per-subject analysis (GE-20260820-c19b68). Acceptable for periodic batch analysis.
+**Sources:** Research §2.6, UserModelOrchestrator.findByAgent() pattern, GE-20260820-c19b68 (producerAgentId post-filtering)
+**Exploration:** quick
+**Status:** captured
+
+## D33: Orchestrator API — single orchestrator with multi-granularity tick
+
+**Choice:** Single StrategyLearningOrchestrator with record() + tick() pattern. Three reflection tiers (per-response, per-conversation, periodic) are internal — the orchestrator decides what to run based on accumulated data and elapsed time. Consumers call record() to accumulate engagement signals and tick() at their chosen cadence.
+**Alternatives:**
+- Three-tier explicit API with assessResponse(), assessConversation(), reflectPeriodic() — more consumer control but breaks established record()+tick() pattern and pushes scheduling complexity to consumer.
+**Rationale:** Consistent with PersonalityEvolution, InnerLife, UserModel, and MentalModel. The tiers are an internal implementation detail, not a consumer-facing API surface. The consumer's only decisions are what to record and how often to tick.
+**Trade-offs:** Consumer has no explicit control over which tier fires when. Acceptable because the tiers are designed to fire at the right time based on accumulated data.
+**Sources:** PersonalityEvolutionOrchestrator.record()/tick(), UserModelOrchestrator.record()/tick(), InnerLifeOrchestrator.observe()/tick(), MentalModelOrchestrator.record()/tick()
+**Exploration:** quick
+**Status:** captured
+
+## D34: Output model — StrategyProfile with guidelines + dimensions
+
+**Choice:** StrategyProfile record containing: ranked textual guidelines (List<String>, LLM-generated), dimensional scores (Map<String, Double>, [0,1] per dimension), last update timestamp, evidence count (how many CBR cases informed this profile), and extensible metadata. Consumers inject guidelines into agent system prompts via SystemPromptCustomiser or read dimensional scores directly.
+**Alternatives:**
+- Parameterized dimensions only (no text) — simpler but not actionable in prompts. Consumers must map numbers to prompt fragments.
+- CBR case library only (no profile) — situational retrieval, no stable baseline. Rich but no persistent strategy.
+**Rationale:** Combines structured dimensions (queryable, configurable) with LLM-generated text (actionable in prompts). Parallels UserProfile's structure: fixed core fields + LLM-synthesized summary.
+**Trade-offs:** LLM synthesis is expensive — only runs on periodic tier. Guidelines may become stale between periodic ticks. Dimensional scores update on cheaper tiers.
+**Sources:** UserProfile (blocks/agentic/social), SystemPromptCustomiser (blocks/prompt), Research §2.6
+**Exploration:** quick
+**Status:** captured
+
+## D35: Signal type — EngagementSignal with strategy context
+
+**Choice:** EngagementSignal sealed interface with variants: TurnOutcome(EngagementEvent event, String strategyUsed, String responseExcerpt, String subjectId) — per-turn engagement data with what approach the agent took; ConversationOutcome(String conversationId, String subjectId, String conversationSummary, int turnCount) — conversation-boundary marker for tier-2 analysis. Follows D31 per-orchestrator signal pattern.
+**Alternatives:**
+- Raw EngagementEvent passthrough — zero mapping cost but no strategy context. The orchestrator sees outcomes but not what caused them. Reflection quality suffers.
+- Unified SocialObservation bus — already rejected in D31.
+**Rationale:** The "what approach was used" context is essential for learning. Without it, the orchestrator can detect "engagement dropped" but can't learn "formal tone caused engagement to drop." EngagementEvent carries the outcome metrics; strategyUsed carries the causal context.
+**Trade-offs:** Consumers must construct EngagementSignals with strategy context — extra mapping beyond the raw EngagementEvent. Acceptable; consumers already construct signals for the other four orchestrators.
+**Sources:** EngagementEvent (neocortex-memory-api), InteractionSignal pattern (blocks/agentic/social), MentalStateSignal pattern (blocks/agentic/social), D31
+**Exploration:** quick
+**Depends on:** D31 (per-orchestrator signal types)
+**Status:** captured
+
+## D36: Storage — StrategyStore SPI backed by CbrCaseMemoryStore
+
+**Choice:** StrategyStore SPI with store(StrategyProfile), lookup(agentId, tenantId) → Optional<StrategyProfile>, eraseAgent(agentId, tenantId). Default CbrStrategyStore backed by CbrCaseMemoryStore. No subjectId in lookup — per-agent scope. Same adapter pattern as CbrUserProfileStore (D20) and CbrMentalModelStore (D28).
+**Alternatives:**
+- In-memory only — profiles lost on restart. Unacceptable for learning that accumulates over weeks/months.
+- Direct CbrCaseMemoryStore — exposes CbrCase semantics. Already rejected in D20 and D28.
+**Rationale:** Same pattern, same rationale, same trade-offs as the two prior stores. Dedicated SPI hides CbrCase impedance mismatch. Placeholder solution field per GE-20260820-d4e011.
+**Trade-offs:** One more SPI type + adapter class. Same cost as UserProfileStore; same clarity benefit.
+**Sources:** UserProfileStore/CbrUserProfileStore (D20), MentalModelStore/CbrMentalModelStore (D28), GE-20260820-d4e011 (non-blank solution placeholder)
+**Exploration:** quick
+**Depends on:** D32 (per-agent scope — no subjectId in lookup)
+**Status:** captured
+
+## D37: Three-tier reflection mechanics
+
+**Choice:** tick() internally runs whichever tiers are due:
+- Tier 1 (per-response, every tick with new signals): Pure heuristic — score each pending EngagementSignal against current strategy dimensions. Update running engagement counters per subject. Zero LLM cost.
+- Tier 2 (per-conversation, on ConversationOutcome signal or signal count threshold): Summarize conversation engagement via ContentSummariser<EngagementSignal>. Store as CBR case with engagement features (avg response length, sentiment trend, continuation rate, strategy used). Builds the per-subject evidence base.
+- Tier 3 (periodic, time-based cadence): Full reflection pipeline. ReflectionOrchestrator.reflect() over accumulated memories. TrendAnalyzer on CBR case history for engagement trends. LLM synthesis produces updated StrategyProfile (new guidelines, revised dimensional scores). Stores profile via StrategyStore.
+**Alternatives:**
+- SummarisationRunner pipeline for tier aggregation — KeyedSummarisationRunner with per-conversation keys. Overhead is disproportionate to engagement signal volume (conversation pace, not game-event pace).
+- Two separate classes (orchestrator + scheduler like MemoryHygiene) — splits tick tiers 1-2 from tier 3. Adds a type for a concern that fits in one class.
+**Rationale:** Inline tiered analysis matches UserModelOrchestrator (heuristic + LLM synthesis gated by signal accumulation). ContentSummariser for conversation summarisation gets compositional benefit without full pipeline overhead. Tier cadence is data-driven, not consumer-configured.
+**Trade-offs:** All three tiers in one tick() method makes it the most complex tick among the five orchestrators. Mitigated by internal method decomposition. Tier 3 LLM cost is amortised over many ticks.
+**Sources:** UserModelOrchestrator.doTick() (tiered pattern), ContentSummariser (blocks/summarisation), ReflectionOrchestrator (neocortex-memory-api), TrendAnalyzer (neocortex-memory-api), MemoryHygieneScheduler.maintain() (reflection composition precedent), GE-20260813-keyed-summarisation-runner-api (API mismatch warning)
+**Exploration:** quick
+**Depends on:** D33 (single orchestrator), D35 (EngagementSignal with ConversationOutcome variant)
+**Status:** captured
+
+## D38: Strategy dimensions — fixed core + extensible metadata
+
+**Choice:** Five core dimensions: verbosity (concise↔elaborate), formality (casual↔formal), initiative (reactive↔proactive), directness (indirect↔direct), questionRate (statements↔questions). Each double [0,1], default 0.5 (neutral). Consumers add domain-specific dimensions via CbrCase features on the backing store.
+**Alternatives:**
+- Fully configurable dimension set — maximum flexibility but every consumer must configure.
+- Open-ended only (no numerics) — simple but not queryable.
+**Rationale:** Same rationale as UserProfile D21 (fixed core for reliable queryable fields, extensible metadata for domain-specific needs). Five dimensions are universal communication strategy axes grounded in pragmatics literature. LLM reflection adjusts these based on engagement trend analysis.
+**Trade-offs:** Five dimensions may be reductive — some strategies (humor, empathy) don't map cleanly to a single axis. Mitigated by textual guidelines capturing what dimensions can't.
+**Sources:** Communication Accommodation Theory (Giles), Research §2.6 (strategy dimensions), UserProfile D21 (fixed core + extensible pattern)
+**Exploration:** quick
+**Depends on:** D34 (StrategyProfile output model)
+**Status:** captured
+
+## D39: Package placement — blocks.agentic.social
+
+**Choice:** io.casehub.blocks.agentic.social, alongside PersonalityEvolution, InnerLife, UserModel, MentalModel.
+**Alternatives:** None worth exploring — StrategyLearning is social cognition (metacognitive self-improvement of interaction strategies).
+**Rationale:** Fifth member of the social cognition package: self-model (PersonalityEvolution), self-expression (InnerLife), other-model (UserModel), other-mind (MentalModel), self-improvement (StrategyLearning).
+**Trade-offs:** None.
+**Sources:** D22 (package placement precedent)
+**Exploration:** quick
+**Depends on:** D32 (scope is social cognition)
+**Status:** captured
+
+## D40: Tick outcome — StrategyLearningTick sealed interface
+
+**Choice:** Sealed interface StrategyLearningTick with variants: NoChange(String reason) — nothing to do; HeuristicUpdate(int signalsProcessed, Map<String, Double> dimensionDeltas) — tier 1 ran; ConversationStored(String conversationId, String subjectId, int casesStored) — tier 2 ran; Reflected(StrategyProfile profile, List<String> newGuidelines, TrendProfile trends) — tier 3 ran.
+**Alternatives:** Single outcome record with nullable fields — simpler but loses type safety and forces null-checking.
+**Rationale:** Follows EvolutionTick, InnerLifeTick, UserModelTick, MentalModelTick sealed interface pattern. Each variant carries only the data relevant to that tier outcome.
+**Trade-offs:** Four variants is more than the 2-3 in other orchestrators. Justified by three distinct tiers producing different data.
+**Sources:** EvolutionTick (blocks/agentic/social), UserModelTick (blocks/agentic/social), MentalModelTick (blocks/agentic/social)
+**Exploration:** quick
+**Depends on:** D37 (three-tier mechanics)
+**Status:** captured
+
+## D41: Boundary with UserModel — perceive vs learn-and-adapt
+
+**Choice:** StrategyLearning owns ALL strategy learning — both per-subject engagement evaluation and per-agent metacognition. UserModel stays purely observational (perceive). Clean cognitive boundary: UserModel = "what IS this person like" (descriptive). StrategyLearning = "what WORKS with this person and in general" (prescriptive). No overlap, no changes to UserModel.
+**Alternatives:**
+- Complementary layers with gap — UserModel = per-subject observation, StrategyLearning = per-agent global. Leaves per-subject strategy uncovered — nobody learns "humor works with User X."
+- Extend UserModel for per-subject strategy — adds engagement processing and strategy output to UserModel. Blurs the perception/prescription boundary. UserModel's LLM prompt asks "how does this person communicate?" (observation); adding "what works with this person?" (strategy) makes it do two different cognitive operations.
+**Rationale:** First-principles cognitive decomposition: perceive (observe traits/state) and learn (evaluate outcomes, extract patterns) are distinct operations. UserModel's LLM synthesis asks about the subject's behavior — descriptive. StrategyLearning's LLM synthesis asks what approach produces good engagement — prescriptive. Merging them conflates observation with optimization. The per-subject strategy gap is filled by StrategyLearning's CBR cases (subjectId as feature), not by extending UserModel.
+**Trade-offs:** Two orchestrators read interaction data for different purposes. Consumers record signals to both. Acceptable per D31 (per-orchestrator signal types are orthogonal). StrategyLearning's per-subject insights are in CBR cases, not in a per-subject profile — no dedicated per-subject strategy lookup, only aggregate analysis.
+**Sources:** UserModelOrchestrator (blocks/agentic/social), D30 (MentalModel↔UserModel boundary), D31 (per-orchestrator signal types), fork analysis of UserModel LLM synthesis prompt
+**Exploration:** deep-analysis (first-principles fork + code analysis)
+**Depends on:** D32 (per-agent output scope), D35 (signal carries subjectId)
+**Status:** captured
