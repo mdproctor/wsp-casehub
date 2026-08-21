@@ -10,3 +10,18 @@
 **Trade-offs:** blocks gains cognitive awareness (goals, memories, reflections). Acceptable — it already depends on those APIs.
 **Exploration:** deep-analysis
 **Status:** captured
+
+## D2: Method categorisation
+
+**Choice:** Three-way split by type dependency:
+- **World sections (7)** → `ManorWorldObservationProvider` in the manor: `locationSection`, `exitsSection`, `objectsSection` + `toObservableEntity`, `charactersSection`, `keenObservationsSection`, `directedDialogueSection`, `rememberedSection`
+- **Cognitive sections (5)** → `CognitiveObservationSections` in blocks: `goalsSection`, `recentActivitySection`, `pastExperienceSection`, `insightsSection`, `relationshipNotesSection`
+- **CharacterState-dependent (4)** → stay in manor's `ObservationBuilder`: `inventorySection`, `currentThinkingSection`, `planSections`, `lastActionResultSection`
+**Alternatives:**
+- Two-way split (world vs everything else stays in manor) — misses the cognitive extraction goal
+- Two-way split (world vs all cognitive to blocks) — CharacterState is a manor type; blocks can't depend on it
+**Rationale:** The split follows the type boundary: methods using only platform types (AgentGoal, Memory, PartitionedDrain) move to blocks; methods requiring manor types (CharacterState, WorldState) stay in the manor. inventorySection reads CharacterState.inventory() — it's character-own-state, not world perception, so it stays in manor.
+**Trade-offs:** 4 methods remain in the manor's ObservationBuilder. Extracting them would require abstracting CharacterState — deferred.
+**Depends on:** D1 (cognitive formatters go to blocks)
+**Exploration:** quick
+**Status:** captured
