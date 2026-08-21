@@ -1,6 +1,6 @@
 # HANDOFF — Slot 112: Cross-Platform Scenario Engine
 
-**Date:** 2026-08-20
+**Date:** 2026-08-21
 **Branch:** `issue-408-scenario-engine`
 **Slot:** `/Users/mdproctor/claude/casehub/slots/112`
 **Epic:** casehubio/parent#408
@@ -9,11 +9,11 @@
 
 ## Last Session
 
-Designed the distributed executor protocol (#418) — brainstorming through spec to first implementation commit. Six decisions captured (D8-D13): ordered step sequences over push wire WebSocket, new PushRequest/PushMessage op types, CDI @ScenarioAction handlers, optional hierarchical scenario format (chapters/sections/steps/commands), separable controller API. Light review addressed 16 findings. Implementation plan written (4 batches, 6 tasks). Task 1 complete — `ExecutorRegister`, `StepResult`, `dispatchSequence()`, `executorControl()` added to push wire protocol (123 tests pass).
+Implemented the full distributed executor protocol stack end-to-end. Hierarchical scenario parser (chapters/sections/steps/commands with triggers). ScenarioOrchestrator with sequence dispatch, stepping, and REST controller. Browser executor evolution (EventConnection + scenario-handler). Service executor library (`casehub-pages-scenario-client`) with `@ScenarioAction` CDI handlers and stepping protocol (pause/resume/step/speed on virtual threads). MCP scenario domain. Helpdesk `@ScenarioAction` handlers wired and tested. E2E test proven over WebSocket — executor client connects, registers, receives dispatch-sequence, runs actions, sends step-result back through push wire. Added data modes (bulk/stepped/stream) and narrative content (inline markdown, template with section extraction, reveal.js slide references) to the scenario format.
 
 ## Immediate Next Step
 
-Run `/work` to continue. Active issue is #418, position 1/7 in queue. Next implementation task is Task 2 — hierarchical scenario format types and parser (`HierarchicalParser`, `ScenarioCommand`, `ScenarioChapter`, `ScenarioSection`, `HierarchicalStep`, `Trigger`). Plan at `plans/2026-08-20-distributed-executor-protocol.md`. **Important:** IntelliJ MCP routes edits to the main repo when slot modules share the same Maven artifactId (GE-20260821-8ada11). For push/scenario modules, use the git-patch workaround or edit new files only via `ide_create_file` in the slot.
+Run `/work` to continue. Active issue is casehub-pages#341 (Scenario Controller UI), position 10/10 in queue. Build the `<scenario-controller>` Lit web component — outline panel, transport controls, narrative panel, standalone `/scenario/remote` page. Backend is ready: REST endpoints, push wire `scenario:state` broadcast with content inheritance, `NarrativeContent` in `ScenarioState`. Use Playwright MCP to verify visually.
 
 ## Cross-Module
 
