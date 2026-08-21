@@ -202,6 +202,21 @@ yarn workspace @casehubio/pages-examples run dev
 - `casehub-pages-push` — Typed wire protocol SDK: `PushMessage` (server→client builders), `PushRequest` (sealed client→server parser with ack/error correlation), `TopicRegistry` (wildcard-aware connection tracking), `EventStore` SPI + `InMemoryEventStore` (bounded per-topic event replay). jackson-core only, no Quarkus.
 - `casehub-pages-push-runtime` — CDI producers for EventBroadcaster, TopicRegistry, EventStore. @DefaultBean InMemoryEventStore with configurable capacity. Consumer provides SessionSender. Quarkus Arc, no JPA.
 
+### J2CL Compatibility (backend Java)
+
+Backend Java modules are written to be J2CL-transpilable (casehub-pages#344). Core logic must avoid JVM-only constructs so J2CL can compile it to JS for browser-only and Node.js deployment modes.
+
+**In core logic modules** (scenario, push protocol types, orchestrator):
+- Use records and sealed interfaces (J2CL handles these)
+- No reflection (`java.lang.reflect`) — use interface dispatch
+- No CDI annotations in logic — keep `@ApplicationScoped`/`@Inject` on thin adapter classes
+- No Jackson directly — use `JsonReader`/`JsonWriter` SPI (extraction pending)
+- No `ConcurrentHashMap` — use plain `HashMap`; JVM adapters add concurrency
+- No `Thread`, `Lock`, `synchronized` — keep concurrency in SPI impls
+- Prefer `List.of()`, `Map.of()`, `Map.copyOf()` — immutable collections J2CL supports
+
+**CDI adapters and JVM-only code** (push-runtime, REST resources) are exempt — they don't transpile.
+
 ### Data Flow
 
 ```
