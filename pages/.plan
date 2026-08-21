@@ -25,10 +25,10 @@ design-section-hashes:
   - [x] Batch 1: Backend prerequisites
     - [x] Task 1: Jackson annotations + OutlineNode
     - [x] Task 2: State broadcast + outline endpoint + stop()
-  - [ ] Batch 2: Frontend controller
-    - [ ] Task 3: Scaffold controller component
-    - [ ] Task 4: Push wire listening + REST commands
-    - [ ] Task 5: Outline tree + transport controls
+  - [x] Batch 2: Frontend controller
+    - [x] Task 3: Scaffold controller component
+    - [x] Task 4: Push wire listening + REST commands
+    - [x] Task 5: Outline tree + transport controls
   - [ ] Batch 3: Narrative + remote
     - [ ] Task 6: Narrative component
     - [ ] Task 7: Standalone remote page + bundle
