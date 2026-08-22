@@ -1,16 +1,16 @@
-# casehub-examples Handover — 2026-08-21
+# casehub-examples Handover — 2026-08-22
 
 ## Last Session
 
-Designed and implemented #48 — Extract Observation SPI. Three-way split: world-specific sections into `ManorWorldObservationProvider` (manor), cognitive formatters into `CognitiveObservationSections` (blocks#128), CharacterState-dependent methods stay in `ObservationBuilder`. Section ordering regrouped from interleaved to perception-first layout. 395 tests pass. Code review: no findings.
+Continued work-end for #48. Code review and branch-audit both passed with no findings. Wrote cohesive blog entry under blocks covering WorldObservationProvider (#127) + CognitiveObservationSections (#128). Updated blocks ARC42STORIES.MD with both new types. Resolved pre-existing merge conflict in blocks CLAUDE.md.
 
-Cross-repo: created blocks#128 (`CognitiveObservationSections` utility class — 5 static methods + 8 tests). Updated blocks ARC42STORIES.MD (committed but blocks repo on detached HEAD from pre-existing merge conflict — needs fixup).
+Lifecycle is at `closing:verified`. 395 tests pass (1 pre-existing error in PersonalityCompositionVerificationTest — unrelated, requires dev services).
 
 ## Immediate Next Step
 
-Run `work continue` then `work end` to complete close ceremony. Branch-audit, sweep, squash, land, verify, and close remain. Also: write cohesive blog under blocks covering WorldObservationProvider (#127) + CognitiveObservationSections (#128). Fix blocks detached HEAD before pushing.
+Run `work continue` then `work end` to finish close ceremony. Remaining steps: squash (2 commits on branch), rebase onto main, land (push + stamp), verify, close #48. Blocks repo detached HEAD from resolved merge conflict needs manual fixup before pushing blocks changes.
 
 ## Cross-Module
 
-**Enabled** (we delivered, downstream unblocked):
-- `blocks` — WorldObservationProvider (#127) + CognitiveObservationSections (#128) published as SNAPSHOT. Any agent can now implement the observation SPI pattern. · S · Low
+**Enabled** (delivered, downstream unblocked):
+- `blocks` — WorldObservationProvider (#127) + CognitiveObservationSections (#128) + ARC42STORIES + blog published as SNAPSHOT. Detached HEAD in blocks repo needs fixup before push.
