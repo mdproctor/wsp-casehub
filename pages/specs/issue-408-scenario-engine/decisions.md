@@ -243,3 +243,30 @@
 **Exploration:** quick
 **Depends on:** D12
 **Status:** captured
+
+---
+
+# Scenario Controller Display Modes (#347)
+
+## D21: Compact mode layout — pill + expand
+
+**Choice:** Collapsed pill showing play/pause icon, scenario name, progress %. Click expands to full outline + transport controls in a floating card.
+**Alternatives:**
+- Always-visible transport — larger footprint, outline behind toggle. Better for active stepping but takes more screen space.
+- Mini controller bar — horizontal bar anchored to bottom. No outline access in compact mode.
+**Rationale:** Minimal footprint when not actively stepping. The overlay should be unobtrusive during self-running demos but provide full control when needed. The remote.html standalone page already covers the full-control use case.
+**Trade-offs:** Requires a click to access transport controls.
+**Sources:** PagesScenarioController render structure (scenario-controller.ts:134-236)
+**Exploration:** quick
+**Status:** captured
+
+## D22: Scope — compact overlay only, defer bar/detached
+
+**Choice:** Implement only `compact` mode for #347. Bar and detached modes deferred to a follow-up issue.
+**Alternatives:**
+- All modes in one pass — more complete but delays visible results.
+**Rationale:** Get the overlay working in the helpdesk UI now. Future modes can be added to the same `mode` property without API changes.
+**Trade-offs:** Only two modes (`full`, `compact`) initially.
+**Exploration:** quick
+**Depends on:** D21
+**Status:** captured
