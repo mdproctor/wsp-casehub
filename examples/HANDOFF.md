@@ -1,20 +1,16 @@
-# casehub-examples Handover — 2026-08-20
+# casehub-examples Handover — 2026-08-22
 
 ## Last Session
 
-Implemented per-type EventLevels for observation filtering (#7). Added `Function<E, EventLevel>` level-resolver constructor overload to `PartitionedObservationService` in blocks (branch `feat/per-event-level-resolver`). Three levels: DIALOGUE(30) > ACTION(20) > MOVEMENT(10). Also fixed pre-existing compile errors in CharacterProfileDTOTest (migrated to AgentDescriptor.builder()). 389 tests pass.
+Continued work-end for #48. Code review and branch-audit both passed with no findings. Wrote cohesive blog entry under blocks covering WorldObservationProvider (#127) + CognitiveObservationSections (#128). Updated blocks ARC42STORIES.MD with both new types. Resolved pre-existing merge conflict in blocks CLAUDE.md.
 
-Moved 3 misplaced issues to their correct repos: #35 → Hortora/trellis#52, #36 → casehubio/docs#1, #37 → casehubio/platform#242. All closed in examples.
+Lifecycle is at `closing:verified`. 395 tests pass (1 pre-existing error in PersonalityCompositionVerificationTest — unrelated, requires dev services).
 
-## Cross-Repo Changes
+## Immediate Next Step
 
-- **blocks** branch `feat/per-event-level-resolver` (commit 8677e2a) — needs review and merge. Also fixes pre-existing ChannelObserver compile error. Test suite has pre-existing compile errors in channel/negotiation tests (MessageReceivedEvent constructor changed in qhorus-api).
+Run `work continue` then `work end` to finish close ceremony. Remaining steps: squash (2 commits on branch), rebase onto main, land (push + stamp), verify, close #48. Blocks repo detached HEAD from resolved merge conflict needs manual fixup before pushing blocks changes.
 
-## What's Next
+## Cross-Module
 
-| Item | Scale | Complexity | Notes |
-|------|-------|------------|-------|
-| #48 Observation SPI extraction | M | Med | Gates eidos-api SPI definition |
-| Hortora/trellis#52 — migrate ActionService rate limiter | S | Low | Depends on platform agent-gate |
-| casehubio/docs#1 — document @Decorator CDI pattern | S | Low | Depends on #30 |
-| casehubio/platform#242 — GatedAgentSession leak detection | S | Med | Depends on #30 |
+**Enabled** (delivered, downstream unblocked):
+- `blocks` — WorldObservationProvider (#127) + CognitiveObservationSections (#128) + ARC42STORIES + blog published as SNAPSHOT. Detached HEAD in blocks repo needs fixup before push.

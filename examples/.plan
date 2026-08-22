@@ -1,0 +1,21 @@
+# Work Plan — issue-48-extract-observation-spi
+
+## State
+branch: issue-48-extract-observation-spi
+state: closing:promoted
+project-sha: 270c4ee28a6dde982a857925cec77d449f03490d
+date: 2026-08-21
+issue-repo: casehubio/examples
+covers: 48
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+evidence-era: true
+## Queue
+- [ ] casehubio/examples#48 — Issue #48 ← active
+  - [x] Batch 1: blocks
+    - [x] Task 1: CognitiveObservationSections utility + tests
+  - [x] Batch 2: manor
+    - [x] Task 2: ManorWorldObservationProvider + ManorExchangeObservationProvider
+    - [x] Task 3: Refactor ObservationBuilder + update callers + tests
