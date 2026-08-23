@@ -28,5 +28,12 @@ active-issue: 349
 - [x] casehubio/casehub-pages#347 — Scenario controller display modes
 - [x] casehubio/casehub-pages#348 — Browser executor — connect scenario-handler to push wire
 - [ ] casehubio/casehub-pages#349 — Controller YAML fly-out with position tracking ← active
+  - [ ] Batch 1: Highlighter
+    - [ ] Task 1: YAML tokenizer and position mapper
+  - [ ] Batch 2: Component
+    - [ ] Task 2: YAML viewer Lit component
+  - [ ] Batch 3: Integration
+    - [ ] Task 3: Controller toggle and detach
+    - [ ] Task 4: Pop-out HTML page
 - [ ] casehubio/casehub-pages#350 — Demo driver mode — start paused and restart
 - [ ] casehubio/casehub-pages#351 — Visual feedback for automated UI interactions
