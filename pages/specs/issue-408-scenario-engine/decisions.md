@@ -270,3 +270,44 @@
 **Exploration:** quick
 **Depends on:** D21
 **Status:** captured
+
+---
+
+# YAML Fly-Out Viewer Decisions (#349)
+
+## D23: Include detach support
+
+**Choice:** Include detach — YAML viewer pops out into a separate window with its own push wire connection
+**Alternatives:**
+- Defer detach — simpler, but removes a key demo transparency feature
+- Panel only, no card integration — standalone component but no in-page toggle from controller
+**Rationale:** The YAML viewer as a standalone component with its own push wire connection makes detach nearly free — `window.open()` with a minimal page that loads the same component. The architecture for standalone viewing IS the architecture for detach.
+**Trade-offs:** Cross-window lifecycle management (close detection, reconnect on window focus)
+**Sources:** casehubio/casehub-pages#349, scenario-connection-controller.ts (existing push wire pattern)
+**Exploration:** quick
+**Status:** captured
+
+## D24: yaml CST for highlighting and position tracking
+
+**Choice:** yaml package CST (Concrete Syntax Tree) parsing — already a dependency, zero additions
+**Alternatives:**
+- Prism.js (~16KB) — battle-tested highlighting but needs separate position-tracking logic and adds a new dependency
+- Custom YAML tokenizer — minimal footprint but reinvents what the yaml package already provides
+**Rationale:** The yaml package's `parseDocument()` returns AST nodes with `.range` properties (start offset, value end, node end). A single parse gives both syntax tokens for highlighting AND source position mapping for step tracking. Zero new dependencies.
+**Trade-offs:** Highlighting fidelity limited to what we tokenize from the AST. Acceptable for structurally simple scenario YAML.
+**Sources:** yaml package docs, packages/pages-aria/package.json (existing dependency)
+**Exploration:** quick
+**Status:** captured
+
+## D25: Second independent floating element for UI layout
+
+**Choice:** Separate draggable floating YAML viewer alongside the controller
+**Alternatives:**
+- Tab within the card — Outline|Source tabs in the existing 280px card, compact but cramped for reading YAML
+- Expand the card — card widens to ~600px for side-by-side, single element but large
+**Rationale:** The controller is a floating overlay, not a panel. Attaching a panel to it would look inconsistent. A second floating element is natural — both float independently, both are draggable. The viewer IS the standalone component whether floating on-page or in its own window. Consistent with the detach architecture (D23).
+**Trade-offs:** Two floating elements can overlap. Needs sensible initial positioning (viewer to the left of the controller).
+**Depends on:** D23 (detach support determines the component must be standalone)
+**Sources:** scenario-controller.ts (existing compact floating overlay pattern, drag implementation)
+**Exploration:** quick
+**Status:** captured
