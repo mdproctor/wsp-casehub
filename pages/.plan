@@ -10,6 +10,7 @@ covers: 408
 flyway-next-v: unknown
 design-repo: project
 design-section-hashes: 
+active-issue: 349
 
 ## Queue
 - [x] casehubio/parent#408 — Issue #408
@@ -21,8 +22,11 @@ design-section-hashes:
 - [x] casehubio/parent#420 — End-to-end helpdesk scenario — MCP → orchestrator → distributed executors → verify
 - [x] casehubio/casehub-pages#340 — Scenario data modes — bulk
 - [x] casehubio/casehub-pages#342 — Scenario narrative content — optional markdown per chapter/section/step
-- [ ] casehubio/casehub-pages#341 — Scenario controller UI — visual transport controls and outline ← active
-  - [x] Batch 1: Gaps
-    - [x] Task 1: Keyboard shortcuts for controller
-    - [x] Task 2: Template content serving endpoint
-- [ ] casehubio/casehub-pages#343 — Move scenario push routing into push-runtime — zero-config orchestrator
+- [x] casehubio/casehub-pages#341 — Scenario controller UI — visual transport controls and outline
+- [x] casehubio/casehub-pages#343 — Move scenario push routing into push-runtime — zero-config orchestrator
+- [x] casehubio/casehub-pages#346 — Helpdesk executor auto-registration at startup
+- [x] casehubio/casehub-pages#347 — Scenario controller display modes
+- [x] casehubio/casehub-pages#348 — Browser executor — connect scenario-handler to push wire
+- [ ] casehubio/casehub-pages#349 — Controller YAML fly-out with position tracking ← active
+- [ ] casehubio/casehub-pages#350 — Demo driver mode — start paused and restart
+- [ ] casehubio/casehub-pages#351 — Visual feedback for automated UI interactions
