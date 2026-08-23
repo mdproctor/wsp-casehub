@@ -311,3 +311,31 @@
 **Sources:** scenario-controller.ts (existing compact floating overlay pattern, drag implementation)
 **Exploration:** quick
 **Status:** captured
+
+---
+
+# Visual Feedback Decisions (#351)
+
+## D26: Separate visual-feedback module
+
+**Choice:** New `visual-feedback.ts` module with `highlightElement()`, `typeText()`, `injectStyles()`. scenario-handler.ts calls it before/after each command. Executor stays pure.
+**Alternatives:**
+- In command-executor.ts — couples visual concerns into the pure ARIA executor
+- Inline in scenario-handler.ts — makes the handler larger, harder to test feedback independently
+**Rationale:** The executor resolves targets and dispatches DOM events. Visual feedback is a presentation concern orthogonal to execution. A separate module can be tested independently (does the CSS inject? does typing animate?) without wiring up the full scenario handler.
+**Trade-offs:** scenario-handler gains a dependency on visual-feedback. Minor — both live in the same package.
+**Sources:** command-executor.ts (pure executor pattern), scenario-handler.ts (orchestration layer)
+**Exploration:** quick
+**Status:** captured
+
+## D27: Typing animation is scenario-only
+
+**Choice:** `typeText()` in visual-feedback module as an async alternative to `fill()`. scenario-handler uses `typeText()` during execution. The executor's `fill()` stays instant.
+**Alternatives:**
+- Always animate — replace fill() with async progressive version. Simpler but makes all ARIA fills slow, including tests.
+**Rationale:** Tests and programmatic use need instant fill. Only demo scenarios benefit from the typing animation. Keeping fill() synchronous preserves the executor's simplicity and test performance.
+**Trade-offs:** scenario-handler must know when to use typeText vs fill — but it already knows it's running a scenario, so this is natural.
+**Depends on:** D26 (visual-feedback module owns typeText)
+**Sources:** command-executor.ts:fill (current synchronous implementation)
+**Exploration:** quick
+**Status:** captured
