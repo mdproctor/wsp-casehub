@@ -1,16 +1,16 @@
-# HANDOFF — 2026-08-10
+# casehub-examples Handover — 2026-08-22
 
 ## Last Session
 
-Issue #38 autonomous interactions: built the full autonomous agent stack in two phases. Phase 1: capability-gated observations, concealment system, STEAL action, dual-fidelity NarrativeDescription. Phase 2: expanded response format (talkTo, newGoals, dropGoals), persistent plans (thinking → currentPlan → observation section), dynamic goals (DynamicGoal model with capped storage and drop/replace lifecycle), directed dialogue with capability-gated overhearing, PULL_ASIDE focused exchanges via ExchangeRunner, behavioral assertions replacing hardcoded completion (CompletionReason.DAWN). Also: design spec written and reviewed (4-dimension adversarial review, $104), implementation plan written and executed (8 tasks). UI fixes: stop endpoint, object list layout, compact rooms, scrollable panels. 320 unit tests + 10 LLM eval tests green.
+Continued work-end for #48. Code review and branch-audit both passed with no findings. Wrote cohesive blog entry under blocks covering WorldObservationProvider (#127) + CognitiveObservationSections (#128). Updated blocks ARC42STORIES.MD with both new types. Resolved pre-existing merge conflict in blocks CLAUDE.md.
+
+Lifecycle is at `closing:verified`. 395 tests pass (1 pre-existing error in PersonalityCompositionVerificationTest — unrelated, requires dev services).
 
 ## Immediate Next Step
 
-Run `/work-end` to close branch `issue-38-autonomous-interactions`. work-end was blocked by sibling submodule dirty state (blocks, chat-app showing as modified in workspace parent). Project repo itself is clean. Fix: either `git -C ~/claude/public/casehub update-index --assume-unchanged blocks chat-app` or commit the submodule refs on workspace main before running work-end.
+Run `work continue` then `work end` to finish close ceremony. Remaining steps: squash (2 commits on branch), rebase onto main, land (push + stamp), verify, close #48. Blocks repo detached HEAD from resolved merge conflict needs manual fixup before pushing blocks changes.
 
-## Forage — deferred to next session
+## Cross-Module
 
-3 garden entries identified:
-1. [gotcha] Quarkus dev mode stale frontend build — npm build → dist/ but Quarkus serves target/classes/META-INF/resources/
-2. [technique] Dual-fidelity narrative events — NarrativeDescription(publicText, detailedText) for capability-gated observation without modifying drain pipeline
-3. [convention] Autonomous agent response schema pattern — static identity goals + dynamic situational goals + persistent plan + directed communication
+**Enabled** (delivered, downstream unblocked):
+- `blocks` — WorldObservationProvider (#127) + CognitiveObservationSections (#128) + ARC42STORIES + blog published as SNAPSHOT. Detached HEAD in blocks repo needs fixup before push.

@@ -7,7 +7,8 @@
 - Design-reviewed spec (10 rounds, $30.80), 1 blog entry published
 - Slot 54 created for engine#813 (alternative scheduler SPI)
 
-## Immediate Next Step
+- **casehubio/engine#799** — engine-side: module rename (blackboard→planning), sealed PlanItemDefinition, Compound container (lifecycle, completion, gating), Stage retirement, DagPlan unification, HTN SPI promotion, DecompositionStrategy wiring
+- **casehubio/blocks#73** — blocks-side: migrate to engine-api types, GoalOrientedDecomposition (GOAP), DispositionAwareRouting, agent dispatch wiring, ExecutionBackend, PatternType
 
 - Pick up #817 (YAML schema for QuorumConfig) — needs design brainstorm before implementation
 
@@ -15,7 +16,9 @@
 
 - engine#817: YAML schema for QuorumConfig — needs design brainstorm (Med complexity) · S · Med
 - engine#764: update architecture spec §5 Connectors · S · Low
+- scaffold#35: replace scaffold inline REST with engine-rest dependency · M · Med
 - Work repo DataRef support — follow-on from #740 (not yet filed) · M · Med
+- Real `WorkloadDataProvider` implementation (actor-state or work adapter) — not filed · M · Med
 
 ## What's Next
 
