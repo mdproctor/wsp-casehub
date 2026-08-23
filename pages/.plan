@@ -29,4 +29,4 @@ active-issue: 351
 - [x] casehubio/casehub-pages#348 — Browser executor — connect scenario-handler to push wire
 - [x] casehubio/casehub-pages#349 — Controller YAML fly-out with position tracking
 - [x] casehubio/casehub-pages#350 — Demo driver mode — start paused and restart
-- [ ] casehubio/casehub-pages#351 — Visual feedback for automated UI interactions ← active
+- [x] casehubio/casehub-pages#351 — Visual feedback for automated UI interactions
