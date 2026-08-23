@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-408-scenario-engine
-state: closing:review
+state: closing:promoted
 project-sha: slot-creation
 date: 2026-08-11
 issue-repo: casehubio/parent
