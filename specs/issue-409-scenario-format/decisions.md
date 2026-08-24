@@ -90,6 +90,18 @@
 **Exploration:** quick
 **Status:** captured
 
+## D10: Three error modes — stop, continue, pause
+
+**Choice:** Scenario-level `on-error` field with three modes: `stop` (abort all executors — default), `continue` (skip failed step's dependents transitively), `pause` (freeze for operator intervention). Default is `stop`.
+**Alternatives:**
+- Stop only — error recovery is the executor's problem. But the format already captures execution semantics (target routing, variable dependencies), and error policy is part of execution semantics.
+- Two modes (stop + continue, drop pause) — pause is a runtime/UI concern. But pause is the natural mode for human-paced demos (D6) — when something fails during a live walkthrough, freezing for intervention is the right behaviour.
+**Rationale:** The error mode is a property of the use case. Unattended automations use `stop` (fail-fast, safe default). Resilient pipelines use `continue` (skip failures, run what you can). Human-paced scenarios use `pause` (freeze, let the operator decide). All three are legitimate use cases that the format should support declaratively.
+**Trade-offs:** `pause` blocks forever without a human — but that's the point. An automation that declares `pause` is declaring it expects human oversight.
+**Depends on:** D6 (automations vs scenarios — error mode aligns with use case)
+**Exploration:** quick
+**Status:** captured
+
 ## D6: Flexible hierarchy — automations as core, scenarios as overlay
 
 **Choice:** The base format is an automation (steps + commands, no human oversight needed). Chapters and sections are a presentation overlay for when humans pace through the execution (demos, walkthroughs). Top level can be chapters, sections, or steps directly — mutually exclusive.
