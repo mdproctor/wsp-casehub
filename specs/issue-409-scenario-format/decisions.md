@@ -55,6 +55,18 @@
 **Exploration:** quick
 **Status:** captured
 
+## D7: Explicit command objects — action as value, not key
+
+**Choice:** Every command uses an explicit `action` field as the type discriminator: `{action: click, target: {role: button, name: Submit}}`. All three action types (ARIA, GraphQL, HTTP) share the same structure.
+**Alternatives:**
+- ARIA shorthand keys — action name as the YAML key (`click: {role: button, name: Submit}`). More compact for ARIA-heavy sequences, reads like prose. But only helps ARIA — GraphQL and HTTP commands are the same length either way. Creates two syntactic styles in one file. Key collision risk between action names and metadata fields. Harder to schema-validate (polymorphic keys vs uniform discriminator).
+- Hybrid — allow both forms. Doubles parser complexity for style flexibility without a clear win.
+**Rationale:** The format serves humans, LLMs, and parsers. Uniform structure means one pattern to learn, generate, and validate. The compactness savings from shorthand are real but marginal (one field per command) and only apply to ARIA actions while introducing inconsistency with GraphQL/HTTP commands in the same file.
+**Trade-offs:** ARIA sequences are slightly more verbose than shorthand. Acceptable — the consistency across all action types outweighs per-command brevity.
+**Depends on:** D2 (three action types must use the same command structure)
+**Exploration:** quick
+**Status:** captured
+
 ## D6: Flexible hierarchy — automations as core, scenarios as overlay
 
 **Choice:** The base format is an automation (steps + commands, no human oversight needed). Chapters and sections are a presentation overlay for when humans pace through the execution (demos, walkthroughs). Top level can be chapters, sections, or steps directly — mutually exclusive.
