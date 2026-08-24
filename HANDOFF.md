@@ -16,7 +16,7 @@ architecture that doesn't match the existing implementation in the pages repo.
 
 These decisions were confirmed by the user and remain the design intent:
 
-- **D1:** GraphQL operations replace REST as the canonical server-side action. Every CaseHub service must expose GraphQL — enforced at build time.
+- **D1:** GraphQL is the canonical API surface for MCP tooling and scenario automation. REST remains alongside it for external integration. Every CaseHub service must expose GraphQL — enforced at build time.
 - **D2:** Three action types — GraphQL (server), ARIA (frontend), HTTP (third-party). No "delivery modes."
 - **D3:** Direct ARIA references (role + accessible name). No CSS selectors.
 - **D4:** Distributed execution — backend sends YAML script fragments to executors, batching as much as possible per executor boundary. Each executor runs its fragment locally.
