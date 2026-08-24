@@ -102,6 +102,17 @@
 **Exploration:** quick
 **Status:** captured
 
+## D11: Variable interpolation — ${stepName.field.path}
+
+**Choice:** Keep the existing `${stepName.field.path}` syntax from `VariableContext.java`. Step names are the namespace, dot-paths navigate the result object. Regex: `\$\{([^}]+)}`. Steps that produce results need a `name` field; unnamed steps can't be referenced.
+**Alternatives:**
+- Scoped prefix syntax `${steps.name.result.field}` — more explicit about where variables come from, but more verbose and doesn't match the existing implementation. The v2 spec proposed this and the review correctly flagged it as divergent from working code.
+**Rationale:** Proven implementation in `VariableContext.java`. Simple, compact, well-understood. No reason to change what works.
+**Trade-offs:** Step names must be unique within the scenario for unambiguous variable resolution. This is already enforced by the existing implementation.
+**Sources:** `pages/backend/scenario-runtime/src/main/java/io/casehub/pages/scenario/runtime/VariableContext.java`
+**Exploration:** quick
+**Status:** captured
+
 ## D6: Flexible hierarchy — automations as core, scenarios as overlay
 
 **Choice:** The base format is an automation (steps + commands, no human oversight needed). Chapters and sections are a presentation overlay for when humans pace through the execution (demos, walkthroughs). Top level can be chapters, sections, or steps directly — mutually exclusive.
