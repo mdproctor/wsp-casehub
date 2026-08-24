@@ -78,6 +78,18 @@
 **Exploration:** quick
 **Status:** captured
 
+## D9: Field naming — `target` for executor, `element` for ARIA element
+
+**Choice:** Step-level `target` means which executor runs the step (`target: browser`). Command-level `element` means which ARIA element to interact with (`element: {role: button, name: Submit}`). No collision — each field name matches what it IS.
+**Alternatives:**
+- Both called `target` — disambiguated by context (step vs command) and type (string vs object), but readers must infer meaning from position. Same word, different semantics at different levels is a readability trap.
+- Step-level called `executor` — more precise, but `target` is the natural word for "where this runs" and is already established in Format B.
+**Rationale:** ARIA targets are elements — role + accessible name identifies a DOM element. Calling the field `element` isn't a rename, it's using the correct name. `target` at the step level means the execution target (which executor). Two distinct concepts, two distinct names.
+**Trade-offs:** None — this is just correct naming.
+**Depends on:** D3 (ARIA element references), D8 (step-level target routing)
+**Exploration:** quick
+**Status:** captured
+
 ## D6: Flexible hierarchy — automations as core, scenarios as overlay
 
 **Choice:** The base format is an automation (steps + commands, no human oversight needed). Chapters and sections are a presentation overlay for when humans pace through the execution (demos, walkthroughs). Top level can be chapters, sections, or steps directly — mutually exclusive.
