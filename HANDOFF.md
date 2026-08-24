@@ -8,9 +8,9 @@
 
 Brainstormed a v2 scenario format spec with GraphQL-first action model, ARIA-based
 UI automation, and distributed fragment execution. Wrote a full design spec, then ran
-a light design review that found 6 HIGH-priority issues — the spec describes an
-architecture that doesn't match the existing implementation in the pages repo.
-**The spec needs to be rewritten from scratch, grounded in the actual codebase.**
+a light design review that found 6 HIGH-priority issues — the spec was written without
+visibility into the pages repo implementation. **The spec needs to be rewritten from
+scratch — design the best architecture first, then propose how to get there.**
 
 ## Design Decisions (still valid — carry forward)
 
@@ -24,36 +24,35 @@ These decisions were confirmed by the user and remain the design intent:
 
 ## User Guardrails (MANDATORY — read before writing anything)
 
-1. **Improve but reconcile** — the new spec may improve on the existing YAML format (more compactness is better), but it must reconcile with what exists, not ignore it.
-2. **Understand the three existing formats** — there are reportedly three YAML format variants already in the codebase. Identify what they are, why they exist, and whether they should be unified or each serves a distinct purpose. Present findings to the user before proposing a canonical format.
-3. **Distributed invocation model** — the coordinator sends YAML scripts to executors, not individual commands. It should batch as much as possible for each executor's boundary. Understand how this currently works (the reviewer found WebSocket push wire dispatch with `dispatch-sequence` protocol messages) and reconcile with the user's intent (YAML fragment distribution).
+1. **Design the best architecture first** — do NOT constrain the spec by what code currently exists. The spec should propose the ideal format, execution model, and capabilities. Compactness matters — less verbose is better. The scope is the whole system (YAML format, execution model, dispatch protocol), not just the YAML syntax.
+2. **Do NOT read the v1 spec** (`parent/docs/platform/scenario-format.md`) — it will anchor you to the old delivery-mode model (rest/ui-form/simulated) which is superseded. The design decisions below already capture what was wrong with it.
+3. **Understand what exists for reconciliation** — read the two implemented formats (A and B below) and the distributed executor protocol to understand what's running. Present findings to the user: what are they, why do they exist, should they unify? But design the ideal first, then propose migration.
+4. **Distributed invocation model** — the coordinator sends YAML scripts to executors, not individual commands. It should batch as much as possible for each executor's boundary. The current implementation sends structured JSON `dispatch-sequence` messages over WebSocket — reconcile with the user's intent (YAML fragment distribution).
 
-## Files to Read First (from review findings)
+## Existing Formats (read for reconciliation, not as constraints)
 
-The previous session had no visibility into the pages repo implementation. Read these before writing anything:
+**Format A — early parser** (`backend/scenario/` module):
+Flat steps, ARIA shorthand inline, GraphQL via `delivery: graphql` + `domain` + `operation`.
+Parser: `ScenarioParser.java`, executor: `ScenarioExecutor.java`, dispatcher: `GraphQLDispatcher.java`.
+Test YAML: `backend/scenario/src/test/resources/scenarios/*.yaml`.
+**Possibly orphaned** — the distributed executor protocol (Format B) may have superseded
+this parser. Investigate whether anything still uses it or if it's dead code.
 
-**Pages repo — existing scenario implementation:**
-- `backend/scenario/src/main/java/io/casehub/pages/scenario/ScenarioParser.java`
-- `backend/scenario/src/main/java/io/casehub/pages/scenario/ScenarioStep.java` — sealed interface: `AriaStep`, `GraphQLStep`, `SimulatedStep`
-- `backend/scenario-runtime/src/main/java/io/casehub/pages/scenario/runtime/ScenarioExecutor.java`
-- `backend/scenario-runtime/src/main/java/io/casehub/pages/scenario/runtime/GraphQLDispatcher.java` — uses `domain` for routing
-- `backend/scenario-runtime/src/main/java/io/casehub/pages/scenario/runtime/VariableContext.java` — `${stepName.field}` syntax
-- `backend/scenario/src/test/resources/scenarios/*.yaml` — existing test YAML (Format A)
-- `packages/pages-aria/src/scenario/types.ts` — TypeScript types
+**Format B — distributed executor protocol** (spec for #418, production):
+Hierarchical (chapters → sections → steps → commands), `target` field for executor routing,
+`@ScenarioAction` CDI handlers on services, `dispatch-sequence` WebSocket messages.
+Spec: `pages/wksp/specs/issue-408-scenario-engine/2026-08-20-distributed-executor-protocol-design.md`
+Blog: `2026-08-21-mdp01-protocol-to-proof.md`, `2026-08-20-mdp02-distributed-executor-protocol.md`
+This is what's running in production.
 
-**Distributed executor protocol:**
-- Spec for parent#418 in pages workspace specs
-- Blog: `2026-08-23-mdp01-scenario-engine-live.md` — production demo
+**Do NOT read:** `parent/docs/platform/scenario-format.md` (v1 spec — superseded, will anchor to old model).
 
-**Production YAML (Format B — chapters/sections hierarchy):**
-- Referenced in the blog post — this is what's running
-
-**Platform GraphQL:**
+**Platform GraphQL (for D1 context):**
 - `platform/graphql-generator/.../GraphQLResolverProcessor.java`
-- Annotations: `@McpDomain`, `@PlatformQuery`, `@PlatformMutation`, `@ScenarioAction`
+- Annotations: `@McpDomain`, `@PlatformQuery`, `@PlatformMutation`
 
-**Existing v1 spec (Format C):**
-- `parent/docs/platform/scenario-format.md`
+**TypeScript types:**
+- `packages/pages-aria/src/scenario/types.ts`
 
 ## Review Findings Summary
 
@@ -81,4 +80,4 @@ MEDIUM insights worth carrying:
 
 ## Immediate Next Step
 
-Start brainstorming from scratch in a fresh session. Read the pages repo files above first, understand the three existing YAML formats and why they exist, then write a v2 spec that evolves the working system toward D1–D5.
+Start brainstorming from scratch in a fresh session. Design the ideal architecture first (D1–D5 as intent), then read Formats A and B for reconciliation. Present the existing formats to the user before proposing a canonical format. Investigate whether Format A's parser is orphaned code.
