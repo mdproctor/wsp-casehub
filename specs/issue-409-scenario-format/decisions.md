@@ -55,6 +55,17 @@
 **Exploration:** quick
 **Status:** captured
 
+## D8: Step-level target — steps are dispatch units
+
+**Choice:** The `target` field lives on the step, not on individual commands. All commands in a step execute on one executor. Switching executors means starting a new step.
+**Alternatives:**
+- Command-level target — each command specifies its own executor. More flexible for interleaved browser/server sequences, but the orchestrator must decompose steps into sub-fragments per executor, which is functionally identical to having smaller steps. Creates partial failure ambiguity (browser command succeeds, server command fails — is the step failed?). Conflicts with D4's fragment model where steps are the dispatch unit.
+**Rationale:** If you're switching executors, that IS a new step. The step boundary communicates the executor switch to the reader. The orchestrator sends each step to one executor wholesale — no decomposition needed. Batching consecutive same-target steps is trivial. Error model is clean: a step succeeds or fails on one executor. Command-level targets would require the orchestrator to create implicit step boundaries at every executor switch, which means the format pretends steps span executors when the runtime splits them anyway.
+**Trade-offs:** Interleaved browser/server sequences produce more steps. This is a feature — each executor switch is visible in the YAML, not hidden inside a mixed step.
+**Depends on:** D4 (distributed fragment execution — steps are the natural fragment boundary)
+**Exploration:** quick
+**Status:** captured
+
 ## D7: Explicit command objects — action as value, not key
 
 **Choice:** Every command uses an explicit `action` field as the type discriminator: `{action: click, target: {role: button, name: Submit}}`. All three action types (ARIA, GraphQL, HTTP) share the same structure.
