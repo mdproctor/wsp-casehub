@@ -360,11 +360,11 @@ Orchestrator → Executor: executor-control
 ```
 
 **Batching rules** (in precedence order):
-1. **Dependency breaks batches:** if a step references results from a different executor via `${...}` interpolation, it cannot be batched with the steps before the dependency. The orchestrator dispatches it individually after the dependency resolves.
-2. **Same-target consecutive steps batch:** consecutive steps with the same target and no cross-executor dependencies are batched into one `dispatch-sequence`.
+1. **Variable dependencies break batches:** if a step references any prior step's results via `${...}` interpolation, it cannot be batched with steps before that dependency. The orchestrator dispatches it individually after resolving the variable from the dependency's `step-result`.
+2. **Same-target consecutive steps batch:** consecutive steps with the same target and no variable dependencies are batched into one `dispatch-sequence`.
 3. **New sequences queue:** sequences arriving while one is running are queued and appended when the current sequence completes.
 
-**Dependency detection:** the orchestrator scans all interpolatable fields (`value`, `data`, `params`, `url`, `headers`, `body`, `await.match`) for `${stepName.field}` patterns and resolves the referenced step's target. If the referenced step targets a different executor, the current step has a cross-executor dependency.
+**Dependency detection:** the orchestrator scans all interpolatable fields (`value`, `data`, `params`, `url`, `headers`, `body`, `await.match`) for `${stepName.field}` patterns. Any match breaks the batch — variable resolution is centralized in the orchestrator, not in executors. Executors receive fully resolved step data and never see `${...}` patterns.
 
 ### Browser-only mode
 
