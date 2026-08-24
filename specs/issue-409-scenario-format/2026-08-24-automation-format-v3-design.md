@@ -26,7 +26,7 @@ A YAML document has a top-level `scenario` name and optional metadata, followed 
 scenario: <name>                    # required — unique identifier
 description: <text>                 # optional — human-readable summary
 speed: <number>                     # optional — inter-step delay multiplier (omit for no delay)
-actor: <identity>                   # optional — default authentication identity for steps
+actor: <identity>                   # optional — default authentication identity (no header if omitted)
 on-error: stop | continue | pause   # optional — error mode (default: stop)
 
 # Entry point — exactly one of:
@@ -81,8 +81,8 @@ steps:
 | `label` | yes | Human-readable description, unique within its parent |
 | `name` | no | Machine identifier for variable interpolation (`${name.field}`). Required if later steps reference this step's results. Must be unique within the scenario. |
 | `target` | yes | Executor that runs this step (`browser`, service name, etc.) |
-| `actor` | no | Authentication identity for this step. Sent as `X-Scenario-Actor` header on service requests. Overrides the scenario-level `actor` if both are set. |
-| `delay` | no | Milliseconds to wait before executing this step. Applied independently of `speed`. Use for step-specific pacing (e.g., simulating think time between actions). |
+| `actor` | no | Authentication identity for this step. Sent as `X-Scenario-Actor` header on service requests. Overrides the scenario-level `actor` if both are set. When omitted at both levels, no actor header is sent — the service's own authentication default applies. |
+| `delay` | no | Milliseconds to wait before executing this step. When set, replaces the speed-based inter-step delay for this step. |
 | `commands` | yes | Ordered list of commands to execute |
 
 `target` routes the step to a named executor. The orchestrator validates that all targets have registered executors before starting. (D8, D9)
@@ -178,16 +178,14 @@ CaseHub server operations via the platform's GraphQL API. The `domain` field rou
     message: "My laptop won't boot"
 ```
 
-**With await** — poll for a condition on the result:
+**With await** — poll a query until the result matches a condition:
 
 ```yaml
 - action: graphql
-  domain: connectors
-  operation: injectChat
+  domain: helpdesk
+  operation: getTicketStatus
   params:
-    platform: "slack"
-    sender: "Alice"
-    message: "My laptop won't boot"
+    ticketId: "${inject.ticketId}"
   await:
     match:
       category: "HARDWARE"
@@ -195,7 +193,9 @@ CaseHub server operations via the platform's GraphQL API. The `domain` field rou
     interval: 500
 ```
 
-The executor calls the GraphQL mutation, then polls at `interval` ms until the result matches `match` or `timeout` ms elapse. `interval` defaults to 1000ms.
+**Await semantics:** when `await` is present, the executor calls the operation, then re-invokes it at `interval` ms until the result matches `match` or `timeout` ms elapse. `interval` defaults to 1000ms.
+
+**`await` must only be used on query operations.** Each poll cycle re-invokes the operation. For mutations, this duplicates side effects (e.g., `injectChat` called 6 times if classification takes 3 seconds at 500ms interval). If you need to execute a mutation and then wait for a condition, use two steps: the mutation first (no `await`), then a query with `await`.
 
 **Dispatch:** The executor builds an HTTP POST to the service's `/graphql` endpoint. The `GraphQLResolverProcessor` generates resolvers from SPI annotations — the YAML author writes `domain: connectors, operation: injectChat` and the platform routes to the right generated resolver.
 
@@ -326,7 +326,7 @@ chapters: [...]
 - `speed: 0` is invalid (would mean infinite delay)
 - Executors apply the delay between steps, not between commands within a step
 - Speed can be adjusted at runtime via control messages (pause, resume, step, speed)
-- Step-level `delay` is applied before the step executes, independently of `speed` — use for step-specific waits
+- Step-level `delay` replaces the speed-based inter-step delay for that step — the author's explicit wait overrides global pacing
 
 Automations omit `speed` for fastest execution. Human-paced scenarios set `speed` to opt into inter-step pacing.
 
@@ -368,7 +368,16 @@ Orchestrator → Executor: executor-control
 
 ### Browser-only mode
 
-When no backend orchestrator is present, the browser executor runs the full YAML directly — parsing it locally, managing its own step sequencing, and executing ARIA commands against the DOM. GraphQL commands go via HTTP to the service's `/graphql` endpoint. This is the same execution model without the distribution layer.
+When no backend orchestrator is present, the browser executor runs the full YAML directly — parsing it locally, managing its own step sequencing, and executing commands against the DOM and services.
+
+| Action type | Browser-only behavior |
+|---|---|
+| ARIA | Execute against DOM |
+| GraphQL | HTTP POST via `fetch` to the service's `/graphql` endpoint |
+| HTTP | Execute via `fetch` |
+| Custom | Skip with diagnostic warning — no `@ScenarioAction` handler registry exists in the browser |
+
+This is the same execution model without the distribution layer. Steps targeting specific service executors (e.g., `target: helpdesk`) are executed by the browser — target names are ignored in browser-only mode since there is only one executor.
 
 ## Reconciliation
 
@@ -475,7 +484,7 @@ chapters:
 
       - label: "System processes the ticket"
         steps:
-          - label: "Inject chat message for classification"
+          - label: "Inject chat message"
             name: inject
             target: helpdesk
             commands:
@@ -486,6 +495,16 @@ chapters:
                   platform: "web-form"
                   sender: "alice.chen@example.com"
                   message: "Laptop won't boot after update"
+
+          - label: "Wait for classification"
+            name: classified
+            target: helpdesk
+            commands:
+              - action: graphql
+                domain: helpdesk
+                operation: getTicketStatus
+                params:
+                  ticketId: "${inject.ticketId}"
                 await:
                   match:
                     category: "HARDWARE"
