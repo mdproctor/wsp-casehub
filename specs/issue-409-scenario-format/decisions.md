@@ -54,3 +54,15 @@
 **Depends on:** D1 (GraphQL-first platform rule)
 **Exploration:** quick
 **Status:** captured
+
+## D6: Flexible hierarchy — automations as core, scenarios as overlay
+
+**Choice:** The base format is an automation (steps + commands, no human oversight needed). Chapters and sections are a presentation overlay for when humans pace through the execution (demos, walkthroughs). Top level can be chapters, sections, or steps directly — mutually exclusive.
+**Alternatives:**
+- Always full hierarchy — every automation must have chapters/sections even when running unattended, adding verbosity for no benefit
+- Two-level only (steps + commands) — drops the narrative structure that makes helpdesk-style demos self-documenting and navigable
+**Rationale:** Automations and scenarios are different use cases sharing the same execution engine. Simple automations (seed data, smoke tests) just need steps. Human-paced demos need narrative structure. The format shouldn't force one shape on both.
+**Trade-offs:** Parser must handle three entry points (chapters, sections, steps). Worth it — the alternative is forcing demo chrome on headless automations.
+**Depends on:** D4 (distributed execution model applies to both automations and scenarios)
+**Exploration:** quick
+**Status:** captured
