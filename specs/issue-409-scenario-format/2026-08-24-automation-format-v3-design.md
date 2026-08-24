@@ -25,7 +25,8 @@ A YAML document has a top-level `scenario` name and optional metadata, followed 
 ```yaml
 scenario: <name>                    # required — unique identifier
 description: <text>                 # optional — human-readable summary
-speed: <number>                     # optional — inter-step delay multiplier (default: 1)
+speed: <number>                     # optional — inter-step delay multiplier (omit for no delay)
+actor: <identity>                   # optional — default authentication identity for steps
 on-error: stop | continue | pause   # optional — error mode (default: stop)
 
 # Entry point — exactly one of:
@@ -80,6 +81,8 @@ steps:
 | `label` | yes | Human-readable description, unique within its parent |
 | `name` | no | Machine identifier for variable interpolation (`${name.field}`). Required if later steps reference this step's results. Must be unique within the scenario. |
 | `target` | yes | Executor that runs this step (`browser`, service name, etc.) |
+| `actor` | no | Authentication identity for this step. Sent as `X-Scenario-Actor` header on service requests. Overrides the scenario-level `actor` if both are set. |
+| `delay` | no | Milliseconds to wait before executing this step. Applied independently of `speed`. Use for step-specific pacing (e.g., simulating think time between actions). |
 | `commands` | yes | Ordered list of commands to execute |
 
 `target` routes the step to a named executor. The orchestrator validates that all targets have registered executors before starting. (D8, D9)
@@ -196,6 +199,8 @@ The executor calls the GraphQL mutation, then polls at `interval` ms until the r
 
 **Dispatch:** The executor builds an HTTP POST to the service's `/graphql` endpoint. The `GraphQLResolverProcessor` generates resolvers from SPI annotations — the YAML author writes `domain: connectors, operation: injectChat` and the platform routes to the right generated resolver.
 
+**Domain-to-URL routing:** `ScenarioConfig` maps domain names to service URLs. Each domain resolves to a GraphQL endpoint via `ScenarioConfig.graphQLEndpoint(domain)`, falling back to a default endpoint if no domain-specific mapping exists. This is deployment configuration, not YAML — the YAML author writes the logical domain name and the runtime resolves the physical URL.
+
 ### HTTP Actions
 
 Third-party REST calls for external integrations.
@@ -213,6 +218,8 @@ Third-party REST calls for external integrations.
 ```
 
 HTTP actions support variable interpolation in `url`, `headers`, and `body` fields.
+
+**Dispatch:** `http` is a well-known action handled by the executor framework, not by `@ScenarioAction` handlers. Service executors dispatch via `java.net.http.HttpClient`; the browser executor dispatches via `fetch`. For server-side webhooks (Slack, PagerDuty, etc.), target a service executor to avoid browser CORS restrictions.
 
 ### Custom Actions
 
@@ -234,6 +241,16 @@ Map<String, Object> createTicket(ActionContext ctx) {
 ```
 
 Custom actions use a `data` field for key-value parameters. The executor's `@ScenarioAction` registry maps the action name to a handler method. The handler's return value is available for variable interpolation.
+
+**Handler contract:**
+
+| Aspect | Rule |
+|--------|------|
+| **Parameter access** | `ActionContext` provides `data(String key)` for accessing `data` fields, `actor()` for the step's authentication identity, and `stepName()` for the step's machine name. |
+| **Return type** | `Map<String, Object>` — the returned map becomes the command's contribution to the step result. `void` handlers contribute an empty map. |
+| **Error handling** | If a handler throws, the step fails with the exception message as the error. Checked and unchecked exceptions are both caught. No default execution timeout — handlers must manage their own timeouts. |
+| **Discovery** | `ActionRegistry` scans CDI beans for `@ScenarioAction` annotations at startup. The annotation lives on the declaring class, not on CDI proxy subclasses — the registry traverses the superclass chain to find annotated methods. |
+| **Registration** | On executor connect, the `executor-register` message's `actions` list is populated from the `ActionRegistry`'s discovered action names. |
 
 **Well-known action names** (reserved — cannot be used as custom actions):
 `navigate`, `click`, `fill`, `select`, `expand`, `collapse`, `assert`, `wait`, `graphql`, `http`
@@ -266,8 +283,13 @@ steps:
 - Dot-path navigates nested result objects: `${create.details.category}`
 - Interpolation happens in `value`, `data`, `params`, `url`, `headers`, `body`, and `await.match` fields
 - Unknown step reference throws with available step names listed
-- Step names must be unique within the scenario
+- Step names must be unique within the scenario — duplicate names are a parse error
 - Regex: `\$\{([^}]+)}`
+
+**Multi-command result aggregation:**
+When a step has multiple commands, their results merge into a single map with last-write-wins semantics. Each command's result keys are added to the step result; if two commands produce the same key, the later command's value overwrites. The merged map is what subsequent steps see via `${stepName.field}`.
+
+**Intra-step references are prohibited.** A command within step `X` cannot reference `${X.field}` — the step's result namespace is only available after all commands in the step complete. If command 2 needs data from command 1's result, split them into separate steps with the same target (they will batch into one `dispatch-sequence`).
 
 ## Error Handling
 
@@ -284,7 +306,9 @@ The `on-error` field at the scenario level controls failure behaviour. (D10)
 **Step-level results on failure:**
 - Failed step: `{ok: false, error: "<message>"}`
 - Remaining commands in the step after the failure: skipped
+- Partial command results: discarded — the step result contains only the error, not results from commands that succeeded before the failure. This is intentional: partial results are unreliable (side effects may be incomplete), and dependent steps should not execute against a half-finished state.
 - Await timeout: `{ok: false, error: "await timed out"}`
+- In `continue` mode: a step that references a failed step via `${failedStep.field}` is skipped transitively. The failed step's result has no usable fields — only `ok` and `error`.
 
 ## Speed and Pacing
 
@@ -297,12 +321,14 @@ on-error: pause
 chapters: [...]
 ```
 
-- Delay between steps: `1000 / speed` ms
+- When `speed` is omitted: no inter-step delay — steps execute as fast as possible (the default for automations)
+- When `speed` is set: delay between steps is `1000 / speed` ms (opt-in pacing for demos and walkthroughs)
 - `speed: 0` is invalid (would mean infinite delay)
 - Executors apply the delay between steps, not between commands within a step
 - Speed can be adjusted at runtime via control messages (pause, resume, step, speed)
+- Step-level `delay` is applied before the step executes, independently of `speed` — use for step-specific waits
 
-For unattended automations, omit `speed` — the default (1) applies a 1-second inter-step delay. Set `speed` to a high value for fast execution, or control via runtime messages.
+Automations omit `speed` for fastest execution. Human-paced scenarios set `speed` to opt into inter-step pacing.
 
 ## Dispatch Protocol
 
@@ -333,10 +359,12 @@ Orchestrator → Executor: executor-control
    value: <number for speed>}
 ```
 
-**Batching rules:**
-- Untriggered steps with the same target in the same section are batched into one `dispatch-sequence`
-- Steps that depend on results from other executors are dispatched individually after the dependency resolves
-- New sequences arriving while one is running are queued and appended
+**Batching rules** (in precedence order):
+1. **Dependency breaks batches:** if a step references results from a different executor via `${...}` interpolation, it cannot be batched with the steps before the dependency. The orchestrator dispatches it individually after the dependency resolves.
+2. **Same-target consecutive steps batch:** consecutive steps with the same target and no cross-executor dependencies are batched into one `dispatch-sequence`.
+3. **New sequences queue:** sequences arriving while one is running are queued and appended when the current sequence completes.
+
+**Dependency detection:** the orchestrator scans all interpolatable fields (`value`, `data`, `params`, `url`, `headers`, `body`, `await.match`) for `${stepName.field}` patterns and resolves the referenced step's target. If the referenced step targets a different executor, the current step has a cross-executor dependency.
 
 ### Browser-only mode
 
@@ -359,9 +387,19 @@ Format A's parser and execution code is orphaned — no production code path ref
 - `pages/backend/scenario-runtime/ScenarioExecutor.java` — sequential execution with variable context. Refactor for the new step/command hierarchy.
 - `pages/backend/scenario-runtime/AriaDispatcher.java` — ARIA command dispatch to browser via push wire. Adapt field names (`element` instead of `target`).
 
+### Distributed executor protocol branch (issue #408)
+
+The implementation described in the "From Protocol to Proof" blog post (2026-08-21) exists on an unmerged feature branch. These classes are not in the current project index. Their relationship to v3:
+
+- `HierarchicalParser` — superseded by the v3 parser. The chapter/section/step/command hierarchy is the same; the command structure differs (v3 uses `action` as type discriminator with uniform command objects).
+- `ScenarioOrchestrator` + `SequencePartitioner` — adapt for v3. The orchestration logic (partitioning, dispatching, control messages) is correct. Variable dependency tracking needs updating for the multi-command step model and the result aggregation semantics defined here.
+- `@ScenarioAction` + `ActionRegistry` — keep as-is. The annotation and registry are the custom action mechanism described in this spec's Custom Actions section. The CDI proxy superclass-chain traversal is the same.
+- `ScenarioExecutorClient` — keep as-is. The service executor library's WebSocket message handling, `dispatch-sequence` reception, and `step-result` reporting match this spec's wire protocol.
+- Enhanced `scenario-handler.ts` — adapt for v3. The step queue, pause state, and speed-paced delays are the foundation for the browser executor. Extend with HTTP action support via `fetch`.
+
 ### Supersede
 
-- `pages/packages/pages-aria/src/scenario/types.ts` — TypeScript types still reference Format A's flat structure with `delivery` field. Rewrite to match this spec.
+- `pages/packages/pages-aria/src/scenario/types.ts` — TypeScript types still reference Format A's flat structure with `delivery` field. Rewrite to match this spec (see Vocabulary Mapping section for target types).
 - `parent/docs/platform/scenario-format.md` — v1 spec. Replace with this spec once landed.
 - `specs/issue-409-scenario-format/2026-08-24-scenario-format-v2-design.md` — v2 spec (discarded after review). Delete.
 
@@ -517,7 +555,7 @@ steps:
           priority: "CRITICAL"
 
   - label: "Notify Slack channel"
-    target: browser
+    target: helpdesk
     commands:
       - action: http
         method: POST
@@ -528,13 +566,140 @@ steps:
           text: "Critical ticket created: ${create.ticketId} — Server disk full"
 ```
 
+## Vocabulary Mapping
+
+### YAML → TypeScript
+
+| YAML concept | TypeScript type | Description |
+|---|---|---|
+| scenario document | `Scenario` | Top-level parsed scenario |
+| chapter | `Chapter` | Narrative grouping |
+| section | `Section` | Step grouping |
+| step | `Step` | Execution unit with target and commands |
+| ARIA command | `AriaCommand` | Browser UI action (`click`, `fill`, etc.) |
+| GraphQL command | `GraphQLCommand` | CaseHub service operation |
+| HTTP command | `HttpCommand` | Third-party REST call |
+| custom command | `CustomCommand` | `@ScenarioAction` handler invocation |
+| element reference | `ElementRef` | ARIA role + accessible name |
+| await condition | `AwaitCondition` | Poll-until-match condition |
+| step result | `StepResult` | `{ok, result?, error?}` |
+
+**Target TypeScript types** (replace `pages/packages/pages-aria/src/scenario/types.ts`):
+
+```typescript
+interface Scenario {
+  scenario: string;
+  description?: string;
+  speed?: number;
+  actor?: string;
+  onError?: 'stop' | 'continue' | 'pause';
+  chapters?: Chapter[];
+  sections?: Section[];
+  steps?: Step[];
+}
+
+interface Chapter { label: string; sections: Section[]; }
+interface Section { label: string; steps: Step[]; }
+
+interface Step {
+  label: string;
+  name?: string;
+  target: string;
+  actor?: string;
+  delay?: number;
+  commands: Command[];
+}
+
+type Command = AriaCommand | GraphQLCommand | HttpCommand | CustomCommand;
+
+interface AriaCommand {
+  action: 'navigate' | 'click' | 'fill' | 'select'
+        | 'expand' | 'collapse' | 'assert' | 'wait';
+  element?: ElementRef;
+  value?: string;
+  state?: Record<string, unknown>;
+  timeout?: number;
+}
+
+interface GraphQLCommand {
+  action: 'graphql';
+  domain: string;
+  operation: string;
+  params?: Record<string, unknown>;
+  await?: AwaitCondition;
+}
+
+interface HttpCommand {
+  action: 'http';
+  method: string;
+  url: string;
+  headers?: Record<string, string>;
+  body?: unknown;
+}
+
+interface CustomCommand {
+  action: string;
+  data?: Record<string, unknown>;
+}
+
+interface ElementRef {
+  role: string;
+  name: string;
+  within?: ElementRef;
+}
+
+interface AwaitCondition {
+  match: Record<string, unknown>;
+  timeout?: number;
+  interval?: number;
+}
+
+interface StepResult {
+  ok: boolean;
+  result?: Record<string, unknown>;
+  error?: string;
+}
+```
+
+### YAML → Java
+
+| YAML concept | Java type | Module |
+|---|---|---|
+| scenario document | `Scenario` (record) | scenario-runtime |
+| chapter | `Chapter` (record) | scenario-runtime |
+| section | `Section` (record) | scenario-runtime |
+| step | `Step` (record) | scenario-runtime |
+| command | `Command` (sealed interface) | scenario-runtime |
+| element reference | `AriaTarget` (record) | scenario (existing, adapted) |
+| await condition | `AwaitCondition` (record) | scenario (existing) |
+| step result | `ExecutionResult` (record) | scenario-runtime (existing) |
+| variable context | `VariableContext` | scenario-runtime (existing) |
+| custom action handler | `@ScenarioAction` annotation | scenario-client |
+| action parameter access | `ActionContext` interface | scenario-client |
+
+## Deferred Capabilities
+
+The following v1 features are intentionally deferred from v3. Each is tracked as a separate GitHub issue.
+
+| Capability | v1 location | Rationale for deferral | Issue |
+|---|---|---|---|
+| Trigger model (TimeTrigger, AfterTrigger, DataTrigger) | §3 | v3's sequential model covers the majority of use cases. Triggers add significant orchestrator complexity. | [#424](https://github.com/casehubio/parent/issues/424) |
+| Data shapes (bulk/stepped/stream) | §5.1 | Requires pacing integration with the speed model. Designed on the protocol branch but not yet reconciled with v3's command structure. | [#425](https://github.com/casehubio/parent/issues/425) |
+| Loop field | §1 | Continuous restart is a controller/runtime concern. The format supports it trivially once the controller is built. | [#426](https://github.com/casehubio/parent/issues/426) |
+| SSE event-based await | §8.1 | v3's GraphQL polling covers the primary server-side completion detection case. Push-event await requires push wire subscription management. | [#427](https://github.com/casehubio/parent/issues/427) |
+| External data file references | §5.2 | Deferred with data shapes — same design scope. | [#425](https://github.com/casehubio/parent/issues/425) |
+
+**Not restored** (intentional removals, not deferrals):
+- `fast-fallback` — v1 workaround for slow UI automation. v3's clean action type separation (GraphQL vs ARIA) makes this unnecessary. Fast execution uses `speed` or writes a GraphQL-only scenario.
+- Verification mode — runtime/executor configuration, not a format concern. The same YAML runs in normal or verification mode; the executor decides whether to assert or execute. No format change needed.
+
 ## References
 
 - `pages/backend/scenario-runtime/src/main/java/.../VariableContext.java` — variable interpolation implementation
 - `pages/backend/scenario-runtime/src/main/java/.../GraphQLDispatcher.java` — GraphQL HTTP dispatch
 - `pages/backend/scenario-runtime/src/main/java/.../ScenarioExecutor.java` — step execution engine
 - `pages/backend/scenario/src/test/resources/scenarios/*.yaml` — Format A test YAML (to be deleted)
-- `specs/issue-408-scenario-engine/2026-08-20-distributed-executor-protocol-design.md` — Format B distributed executor protocol spec
+- `pages/wksp/specs/issue-408-scenario-engine/2026-08-20-distributed-executor-protocol-design.md` — Format B distributed executor protocol spec
 - `platform/graphql-generator/.../GraphQLResolverProcessor.java` — annotation processor generating GraphQL resolvers
 - `platform/platform-api/.../McpDomain.java`, `PlatformQuery.java`, `PlatformMutation.java` — SPI annotations
 - `pages/packages/pages-aria/src/scenario/types.ts` — TypeScript types (to be rewritten)
