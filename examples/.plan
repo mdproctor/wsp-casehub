@@ -13,9 +13,9 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#39 — Issue #39 ← active
-  - [ ] Batch 1: blocks
-    - [ ] Task 1: AnnotatedSection + ResolutionTier
-    - [ ] Task 2: ObservationFilter + Pipeline + PerceptionFilter
+  - [x] Batch 1: blocks
+    - [x] Task 1: AnnotatedSection + ResolutionTier
+    - [x] Task 2: ObservationFilter + Pipeline + PerceptionFilter
   - [ ] Batch 2: manor
     - [ ] Task 3: Migrate ManorWorldObservationProvider to annotated sections
     - [ ] Task 4: Integrate ObservationPipeline into ObservationBuilder + callers
