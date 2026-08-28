@@ -104,13 +104,12 @@ Providers that don't use filtering continue to return bare
 - Bare `ObservationSection` → passes through all filters unchanged
 - `AnnotatedSection` → filters apply, then unwrap to bare section
 
+`AnnotatedSection implements ObservationSection` with `header()`
+delegating to the wrapped section. This allows mixed lists —
 `WorldObservationProvider.worldSections()` return type stays
-`List<ObservationSection>`. `AnnotatedSection` implements or extends
-a common base so it can be included in the list, OR the pipeline
-accepts `List<Object>` and uses instanceof dispatch. The cleaner
-option: `AnnotatedSection implements ObservationSection` with
-`header()` delegating to the wrapped section. This allows mixed lists
-without type changes.
+`List<ObservationSection>` unchanged. Providers return a mix of bare
+sections and `AnnotatedSection` in the same list. The renderer and
+pipeline use `instanceof` to distinguish them.
 
 ---
 
@@ -230,14 +229,17 @@ visibility or have resolution alternatives. However, this means
 VisibilityFilter must NOT remove sections that have resolution
 alternatives — it should leave them for ResolutionFilter to downgrade.
 
-The cleaner design: **combine visibility and resolution into one
-filter** (`PerceptionFilter`) that handles both in a single pass:
-tags met → keep full section; tags not met + resolutions available →
-downgrade; tags not met + no resolutions → remove.
+The shipped implementation combines visibility and resolution into
+one filter: `PerceptionFilter`. Single pass — tags met → keep full
+section; tags not met + resolutions available → downgrade; tags not
+met + no resolutions → remove. No ordering bugs between separate
+filters. The pipeline composes at the stage level:
+`PerceptionFilter` is one stage, application-provided
+`InterpretiveFilter` implementations are others.
 
-This avoids ordering bugs between the two filters. The pipeline still
-composes — `PerceptionFilter` is one stage, `InterpretiveFilter` is
-another.
+The separate `VisibilityFilter` and `ResolutionFilter` descriptions
+above explain the conceptual operations. `PerceptionFilter` is the
+concrete class that ships.
 
 #### InterpretiveFilter
 
