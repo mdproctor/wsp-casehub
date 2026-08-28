@@ -43,3 +43,14 @@
 **Depends on:** D3 (AnnotatedSection wrapper — filters operate on the wrapper)
 **Exploration:** quick
 **Status:** captured
+
+## D5: Resolution — alternate sections on the annotation
+
+**Choice:** `AnnotatedSection` carries a `Map<ResolutionTier, ObservationSection>` of pre-computed alternate renderings. The provider emits all tiers it supports. `ResolutionFilter` selects the appropriate tier based on observer capabilities, falling back to the lowest available. The default section (full resolution) is the `section` field; alternates are in the map.
+**Alternatives:**
+- Resolution callback (`Function<ResolutionTier, ObservationSection>`) — more flexible but harder to serialise, test, and inspect. Deferred computation adds complexity with no clear benefit when the number of tiers is small.
+**Rationale:** Data-oriented. Alternate sections are concrete, inspectable, testable. Most sections have one tier (full resolution, no alternates — empty map). The manor's keen/directed split becomes: keen at FULL, directed dialogue at REDUCED, both pre-computed by the provider.
+**Trade-offs:** Provider pre-computes all tiers upfront — wasted work if observer always has the capability. Acceptable at POC scale; lazy computation can be added later if profiling justifies it.
+**Depends on:** D3 (AnnotatedSection wrapper), D4 (ResolutionFilter stage)
+**Exploration:** quick
+**Status:** captured
