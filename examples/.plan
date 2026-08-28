@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-39-capability-observation-filter
-state: scaffolded
+state: active
 project-sha: 898879230c963318a9ed8f431b23eb9900f4c1c5
 date: 2026-08-28
 issue-repo: casehubio/examples
@@ -13,3 +13,9 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#39 — Issue #39 ← active
+  - [ ] Batch 1: blocks
+    - [ ] Task 1: AnnotatedSection + ResolutionTier
+    - [ ] Task 2: ObservationFilter + Pipeline + PerceptionFilter
+  - [ ] Batch 2: manor
+    - [ ] Task 3: Migrate ManorWorldObservationProvider to annotated sections
+    - [ ] Task 4: Integrate ObservationPipeline into ObservationBuilder + callers
