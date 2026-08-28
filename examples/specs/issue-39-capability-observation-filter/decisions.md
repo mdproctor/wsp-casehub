@@ -32,3 +32,14 @@
 **Depends on:** D2 (metadata on sections model)
 **Exploration:** quick
 **Status:** captured
+
+## D4: Pipeline composition — ordered filter stages
+
+**Choice:** `ObservationPipeline` as an ordered list of `ObservationFilter` stages. Each filter receives sections (mix of bare `ObservationSection` and `AnnotatedSection`) + observer capability tags, returns a filtered/transformed list. Three built-in filters ship with blocks: `VisibilityFilter` (remove sections whose requiredTags aren't met), `ResolutionFilter` (downgrade resolution tiers based on missing capabilities), `InterpretiveFilter` (add analytical framing sections when matching capabilities are present). Pipeline unwraps `AnnotatedSection` → bare `ObservationSection` after all stages run.
+**Alternatives:**
+- Single monolithic filter interface — simpler but doesn't compose; applications needing visibility + interpretation write one combined filter. Not independently testable.
+**Rationale:** Composability. The manor uses `VisibilityFilter` alone. An enterprise deployment adds `InterpretiveFilter`. Each filter is testable in isolation. Custom filters slot in at any position. The pipeline is the composition mechanism — applications declare which stages they need.
+**Trade-offs:** Pipeline ordering matters — visibility should run before interpretation (no point interpreting sections the observer can't see). Convention or documentation, not enforced by the type system.
+**Depends on:** D3 (AnnotatedSection wrapper — filters operate on the wrapper)
+**Exploration:** quick
+**Status:** captured
