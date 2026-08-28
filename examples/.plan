@@ -1,0 +1,15 @@
+# Work Plan — issue-39-capability-observation-filter
+
+## State
+branch: issue-39-capability-observation-filter
+state: scaffolded
+project-sha: 898879230c963318a9ed8f431b23eb9900f4c1c5
+date: 2026-08-28
+issue-repo: casehubio/examples
+covers: 39
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#39 — Issue #39 ← active
