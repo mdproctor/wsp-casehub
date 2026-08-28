@@ -21,3 +21,14 @@
 **Depends on:** D1 (three operations — the metadata model must support all three)
 **Exploration:** quick
 **Status:** captured
+
+## D3: Metadata carrier — wrapper record
+
+**Choice:** `AnnotatedSection` wrapper record that pairs any `ObservationSection` with filtering metadata (required tags, resolution tier, interpretive frame). Providers that don't filter return bare sections. Providers that do return `AnnotatedSection`. The pipeline unwraps after filtering. The `ObservationSection` sealed interface stays untouched.
+**Alternatives:**
+- Extend the sealed interface with metadata fields — changes the pattern-match surface that `AffordanceRenderer` uses, forces every existing section construction site to update, couples rendering to filtering concerns
+**Rationale:** Additive. Existing code constructing bare `ObservationSection` works unchanged. The pipeline handles both bare sections (pass-through) and annotated sections (apply filters). The renderer only sees unwrapped sections — metadata is a pipeline concern, not a rendering concern.
+**Trade-offs:** Two types in the pipeline (`ObservationSection` and `AnnotatedSection`) — callers must choose which to emit. Acceptable — the default (bare section) is the simple path.
+**Depends on:** D2 (metadata on sections model)
+**Exploration:** quick
+**Status:** captured
