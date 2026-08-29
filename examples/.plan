@@ -16,6 +16,6 @@ flyway-next-v: none
   - [x] Batch 1: blocks
     - [x] Task 1: AnnotatedSection + ResolutionTier
     - [x] Task 2: ObservationFilter + Pipeline + PerceptionFilter
-  - [ ] Batch 2: manor
-    - [ ] Task 3: Migrate ManorWorldObservationProvider to annotated sections
-    - [ ] Task 4: Integrate ObservationPipeline into ObservationBuilder + callers
+  - [x] Batch 2: manor
+    - [x] Task 3: Migrate ManorWorldObservationProvider to annotated sections
+    - [x] Task 4: Integrate ObservationPipeline into ObservationBuilder + callers
