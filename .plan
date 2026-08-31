@@ -21,23 +21,23 @@ date: 2026-08-31
 - [x] casehubio/parent#442 — docs(audit): engine — consumer/contributor guide refresh
 - [x] casehubio/parent#443 — docs(audit): iot — consumer/contributor guide refresh
 - [x] casehubio/parent#444 — docs(audit): ras — consumer/contributor guide refresh
-- [ ] casehubio/parent#445 — docs(audit): desiredstate — consumer/contributor guide refresh ← active
-- [ ] casehubio/parent#446 — docs(audit): blocks — consumer/contributor guide refresh
-- [ ] casehubio/parent#447 — docs(audit): blocks-ui — consumer/contributor guide refresh
-- [ ] casehubio/parent#448 — docs(audit): claudony — consumer/contributor guide refresh
-- [ ] casehubio/parent#449 — docs(audit): openclaw — consumer/contributor guide refresh
-- [ ] casehubio/parent#450 — docs(audit): workers — consumer/contributor guide refresh
-- [ ] casehubio/parent#451 — docs(audit): ops — consumer/contributor guide refresh
-- [ ] casehubio/parent#452 — docs(audit): pages — consumer/contributor guide refresh
-- [ ] casehubio/parent#453 — docs(audit): devtown — consumer/contributor guide refresh
-- [ ] casehubio/parent#454 — docs(audit): aml — consumer/contributor guide refresh
-- [ ] casehubio/parent#455 — docs(audit): clinical — consumer/contributor guide refresh
-- [ ] casehubio/parent#456 — docs(audit): life — consumer/contributor guide refresh
-- [ ] casehubio/parent#457 — docs(audit): drafthouse — consumer/contributor guide refresh
-- [ ] casehubio/parent#458 — docs(audit): quarkmind — consumer/contributor guide refresh
-- [ ] casehubio/parent#459 — docs(audit): soc — consumer/contributor guide refresh
-- [ ] casehubio/parent#460 — docs(audit): fsitrading — consumer/contributor guide refresh
-- [ ] casehubio/parent#461 — docs(audit): chat-app — consumer/contributor guide refresh
+- [x] casehubio/parent#445 — docs(audit): desiredstate — consumer/contributor guide refresh
+- [x] casehubio/parent#446 — docs(audit): blocks — consumer/contributor guide refresh
+- [x] casehubio/parent#447 — docs(audit): blocks-ui — consumer/contributor guide refresh
+- [x] casehubio/parent#448 — docs(audit): claudony — consumer/contributor guide refresh
+- [x] casehubio/parent#449 — docs(audit): openclaw — consumer/contributor guide refresh
+- [x] casehubio/parent#450 — docs(audit): workers — consumer/contributor guide refresh
+- [x] casehubio/parent#451 — docs(audit): ops — consumer/contributor guide refresh
+- [x] casehubio/parent#452 — docs(audit): pages — consumer/contributor guide refresh
+- [x] casehubio/parent#453 — docs(audit): devtown — consumer/contributor guide refresh
+- [x] casehubio/parent#454 — docs(audit): aml — consumer/contributor guide refresh
+- [x] casehubio/parent#455 — docs(audit): clinical — consumer/contributor guide refresh
+- [x] casehubio/parent#456 — docs(audit): life — consumer/contributor guide refresh
+- [x] casehubio/parent#457 — docs(audit): drafthouse — consumer/contributor guide refresh
+- [x] casehubio/parent#458 — docs(audit): quarkmind — consumer/contributor guide refresh
+- [x] casehubio/parent#459 — docs(audit): soc — consumer/contributor guide refresh
+- [x] casehubio/parent#460 — docs(audit): fsitrading — consumer/contributor guide refresh
+- [x] casehubio/parent#461 — docs(audit): chat-app — consumer/contributor guide refresh
 
 ## Deferred
 - [ ] DocMetadataExtractor + doc-ingestion CLI (M / Med) [neocortex] — peer repo — needs its own Claude session with neocortex as project
