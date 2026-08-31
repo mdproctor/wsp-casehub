@@ -179,13 +179,20 @@ The YAML frontmatter on capability chunks enables RAG-quality filtered retrieval
 | `CorpusReader` | Existing filesystem reader | Reads file content as `byte[]` |
 | `CorpusRef` | `new CorpusRef("<tenantId>", "casehub-docs")` | Per-tenant corpus isolation |
 
-The `DocMetadataExtractor` follows the same pattern as Hortora's `GardenMetadataExtractor`: parse YAML frontmatter, strip it from the body, return an `ExtractionResult` with structured metadata. The `CorpusIngestionService` handles everything else: LangChain4j document splitting, metadata propagation to all chunks (via `chunkDocument()` which creates `ChunkInput` records with the same metadata for every segment), dedup via `DedupEmbeddingIngestor`, cursor persistence via `CursorStore`, and reconciliation.
+Neocortex already provides `YamlFrontmatterExtractor` — a `@DefaultBean` `MetadataExtractor` that parses flat key:value YAML frontmatter. `DocMetadataExtractor` extends this base pattern with full YAML parsing (via SnakeYAML, already a Quarkus transitive dependency) to handle the nested anchor structure (`anchors.classes`, `anchors.spis`, `anchors.config-keys`), mapping nested lists to `ExtractionResult.listMetadata`. The `CorpusIngestionService` handles everything else: LangChain4j document splitting, metadata propagation to all chunks (via `chunkDocument()` which creates `ChunkInput` records with the same metadata for every segment), dedup via `DedupEmbeddingIngestor`, cursor persistence via `CursorStore`, and reconciliation.
 
 **Metadata propagation:** Each chunk inherits all frontmatter metadata from its source document. A 300-line capability chunk split into 3 RAG chunks produces 3 `ChunkInput` records, each carrying the same `metadata: {capability: "notifications", audience: "consumer", repo: "casehub-platform"}` and `listMetadata: {anchors: ["NotificationBridge", "SubscriptionEngine"]}`. `PayloadFilter` queries on any metadata field match all chunks from the document, not just the first.
 
 **Retrieval integration:** Callers construct `PayloadFilter` queries from session context — e.g., `PayloadFilter.and(PayloadFilter.eq("repo", "casehub-platform"), PayloadFilter.eq("audience", "consumer"))` to retrieve consumer-facing platform documentation.
 
-**Trigger:** The `CorpusIngestionService` supports two ingestion modes: `AUTO` (processes binding at startup + watches for filesystem changes via `WatchableChangeSource`) and `MANUAL` (triggered via `triggerManual(corpusName)`). The documentation binding uses `AUTO` mode — changes to docs files are detected and ingested automatically when casehub-parent is running. For CI, `triggerManual("casehub-docs")` or `reconcile("casehub-docs")` runs as part of the daily scheduled Action (§3.6).
+**Hosting model:** casehub-parent is a Maven BOM project with no Quarkus runtime — the `CorpusIngestionBinding` cannot run inside it. Following the `example-rag-pipeline` precedent in neocortex, a new `neocortex/doc-ingestion/` module provides a Quarkus CLI tool (`@QuarkusMain`) that:
+1. Bootstraps CDI to auto-wire `EmbeddingIngestor` (Qdrant), `CursorStore`, and `DocumentSplitter`
+2. Constructs a `CorpusIngestionBinding` with `FlatChangeSource` + `DocMetadataExtractor` pointed at the docs directory
+3. Calls `service.reconcile("casehub-docs", binding, splitter)` and exits
+
+This follows the same standalone pattern as `FlatCorpusIngestDemo`: construct the binding, call `processBinding()` or `reconcile()`, exit. No long-running application required.
+
+**Trigger:** The CI daily scheduled Action (§3.6) runs `doc-ingestion-cli reconcile --docs <path>` after cloning casehub-parent. Local development invokes the same CLI manually. The documentation binding does NOT use `AUTO` mode (filesystem watching) — documentation ingestion is a batch operation, not a continuous process.
 
 ---
 
@@ -310,7 +317,7 @@ jobs:
 **Reusable workflow steps:**
 1. Check out parent repo to access `dependency-graph.json` and `doc-freshness-check.py`
 2. **Doc freshness check:** Run `doc-freshness-check.py` with the PR diff. If candidate-stale sections found: post PR comment listing them, set check to "action required"
-3. **Anchor integrity check:** Walk all documentation files with YAML frontmatter, extract anchor class/SPI names, verify each resolves in the codebase via `git ls-files` + package verification (same approach as §3.5 Tier 1 step 2). Report broken anchors as PR comments. This catches anchors that broke outside the current branch's diff — e.g., a class deleted in a prior merge that no branch diff matched to Phase 1's structural check.
+3. **Anchor integrity check:** Walk all documentation files with YAML frontmatter, extract anchor class/SPI names, verify each resolves in the codebase via `git ls-files` + package verification (same approach as §3.5 Tier 1 step 2). **Cross-repo filtering:** only verify anchors whose frontmatter `repo` field matches the current repo — anchors referencing upstream classes (e.g., `CurrentPrincipal` from `casehub-platform-api` in an engine consumer guide) are skipped by CI and caught instead by Phase 3's adversarial check, which has full cross-repo code navigation via IntelliJ MCP. Report broken same-repo anchors as PR comments. This catches anchors that broke outside the current branch's diff — e.g., a class deleted in a prior merge that no branch diff matched to Phase 1's structural check.
 4. If no sections flagged and no broken anchors: pass
 
 Lightweight — structural anchor check + anchor integrity only, no LLM adversarial. Covers the merge paths that work-end misses.
