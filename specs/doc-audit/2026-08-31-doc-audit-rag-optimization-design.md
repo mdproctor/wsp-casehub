@@ -62,15 +62,17 @@ When any anchored element is renamed, moved, or deleted, the diff-based triage d
 
 **Override mechanism:** A `verified-current: 2026-08-31 | commit:<hash>` annotation suppresses re-flagging until the next anchor change. Used when an LLM adversarial check confirms the section is accurate despite an anchor change (e.g., internal refactoring that doesn't affect the documented behavior). The commit hash records which verification produced the annotation, enabling audit trail and staleness detection for ancient overrides.
 
-**Anchor renewal:** When an anchored element is renamed or moved, Phase 3's adversarial verification (§3.3) is responsible for updating both the section prose AND the anchor declarations in YAML frontmatter. This is an explicit output of the adversarial check — the subagent returns corrected anchors alongside corrected prose. If the subagent cannot resolve the new name (element was deleted, not renamed), it removes the anchor and flags the section for human review. The CI anchor integrity check (§8) detects broken anchors between adversarial runs.
+**Anchor renewal:** When an anchored element is renamed or moved, Phase 3's adversarial verification (§3.3) is responsible for updating both the section prose AND the anchor declarations in YAML frontmatter. This is an explicit output of the adversarial check — the subagent returns corrected anchors alongside corrected prose. If the subagent cannot resolve the new name (element was deleted, not renamed), it removes the anchor and flags the section for human review. The CI anchor integrity step (§7) detects broken anchors between adversarial runs.
 
 ### 3.2 Per-Repo Guide Decomposition (D5)
 
 The 2026-07-07 platform doc restructuring decomposed the monolithic PLATFORM.md (685 lines) into 16+ topic-scoped chunks under `docs/platform/` with a thin `INDEX.md` as the discovery entry point. That restructuring left per-repo guides (consumer-guide.md, contributor-guide.md) monolithic — ranging from 119 to 546 lines. This spec extends the same pattern to per-repo guides: extract the largest sections into standalone capability chunks, leaving guides as thin routing documents.
 
-**Relationship to existing indexes:** `docs/consumer-index.md` currently routes by repo to monolithic per-repo guides. After decomposition, `docs/capabilities.md` (§5) replaces `consumer-index.md` as the primary capability discovery point, routing by capability to individual chunks instead of by repo to monolithic guides. `docs/INDEX.md` remains the universal entry point for cross-cutting topics and architecture docs. `docs/contributor-index.md` is unchanged — contributor guides remain monolithic (they describe internal architecture, which doesn't decompose cleanly into independent capability chunks).
+**Relationship to existing indexes:** `docs/consumer-index.md` currently routes by repo to monolithic per-repo guides. After decomposition, `docs/capabilities.md` (§5) replaces `consumer-index.md` as the primary capability discovery point, routing by capability to individual chunks instead of by repo to monolithic guides. `docs/INDEX.md` remains the universal entry point for cross-cutting topics and architecture docs. Both consumer and contributor guides are decomposed — consumer content into `capabilities/` chunks, contributor content into `internals/` chunks.
 
 **Distinction from platform/ topic chunks:** `docs/platform/notifications.md` documents the cross-cutting notification architecture (subscription engine, delivery pipeline, digest batching) for platform builders. `docs/repos/casehub-platform/capabilities/notifications.md` documents what an app builder needs to USE the notification system (APIs to call, SPIs to implement, configuration). These serve different audiences at different abstraction levels and do not duplicate each other.
+
+**Chunk ownership under subtree aggregation:** Capability and internals chunks originate in child repos under `docs/guides/capabilities/` and `docs/guides/internals/`, alongside the existing `docs/guides/consumer-guide.md` and `docs/guides/contributor-guide.md`. The subtree sync mechanism aggregates them into the parent repo at `docs/repos/<repo>/capabilities/` and `docs/repos/<repo>/internals/`. The child repo remains the source of truth — decomposition happens there, not in the parent. This preserves the existing ownership model established by commit `0751d804` (decentralised repo deep-dives).
 
 Following this precedent, guides are incrementally decomposed:
 
@@ -144,7 +146,7 @@ The subagent has access to IntelliJ MCP tools (`ide_find_class`, `ide_find_symbo
 
 Arc42stories refresh runs at **epic close** (not per-branch), using two-tier verification.
 
-**Trigger:** "Epic close" is defined as the `.plan` `advance` call that marks the last issue as done (no remaining issues in the plan). The `advance` command checks for remaining issues and, when the plan is empty, invokes the arc42stories refresh as a post-advance hook. This is a new extension to the `.plan` lifecycle — the `advance` command gains an `--on-epic-close` callback parameter.
+**Trigger:** The `.plan` metadata includes an `arc42stories: true` flag, set at plan creation when the work involves architectural changes (new layers, module restructuring, SPI additions). When this flag is present and the `advance` command marks the last issue as done (no remaining issues in the plan), the arc42stories refresh runs as a post-advance hook. Plans without the `arc42stories` flag (e.g., a plan with 2 bug fixes) skip the refresh entirely. This prevents the refresh from firing on every plan completion — only architecturally-scoped plans trigger it.
 
 **Tier 1 — 3-check sweep (structural assertions):**
 1. Issue status: `gh issue view N` for every §12 reference — remove COMPLETED issues from Active Risks
@@ -166,20 +168,24 @@ Only layers modified during the epic are checked — bounded scope.
 
 ### 3.7 RAG Ingestion Pipeline (D5)
 
-The YAML frontmatter on capability chunks enables RAG-quality filtered retrieval, but only if an ingestion pipeline translates frontmatter into queryable metadata. The pipeline has three components:
+The YAML frontmatter on capability chunks enables RAG-quality filtered retrieval via neocortex's existing `CorpusIngestionService` infrastructure — the same framework that Hortora's knowledge garden uses for YAML-frontmatter Markdown ingestion.
 
-**Ingestion script** (`doc-rag-ingest.py`, alongside `doc-freshness-check.py` in soredium — see §6.3):
-1. Walk `docs/repos/*/capabilities/*.md` and `docs/platform/*.md` files
-2. Parse YAML frontmatter into structured metadata (`capability`, `audience`, `repo`, anchor class names)
-3. Split document body using the same recursive character splitter as neocortex (1000-char boundaries)
-4. For each chunk, create a `ChunkInput` with the document's frontmatter metadata propagated to every chunk — solving the "frontmatter doesn't survive chunking" problem by applying metadata at ingestion time, not at chunking time
-5. Call `EmbeddingIngestor.ingest(corpusRef, chunks)` with a dedicated `CorpusRef("casehub-docs")`
+**Architecture:** A new `CorpusIngestionBinding` for CaseHub documentation, registered via CDI:
+
+| Component | Implementation | Role |
+|-----------|---------------|------|
+| `ChangeSource` | `FlatChangeSource` pointed at `docs/repos/*/capabilities/*.md` + `docs/platform/*.md` | Filesystem scanning with cursor-based delta detection |
+| `MetadataExtractor` | New `DocMetadataExtractor` (implements `MetadataExtractor`) | Parses YAML frontmatter → `ExtractionResult(body, metadata, listMetadata)` where metadata includes `capability`, `audience`, `repo` and listMetadata includes `anchors` |
+| `CorpusReader` | Existing filesystem reader | Reads file content as `byte[]` |
+| `CorpusRef` | `new CorpusRef("<tenantId>", "casehub-docs")` | Per-tenant corpus isolation |
+
+The `DocMetadataExtractor` follows the same pattern as Hortora's `GardenMetadataExtractor`: parse YAML frontmatter, strip it from the body, return an `ExtractionResult` with structured metadata. The `CorpusIngestionService` handles everything else: LangChain4j document splitting, metadata propagation to all chunks (via `chunkDocument()` which creates `ChunkInput` records with the same metadata for every segment), dedup via `DedupEmbeddingIngestor`, cursor persistence via `CursorStore`, and reconciliation.
 
 **Metadata propagation:** Each chunk inherits all frontmatter metadata from its source document. A 300-line capability chunk split into 3 RAG chunks produces 3 `ChunkInput` records, each carrying the same `metadata: {capability: "notifications", audience: "consumer", repo: "casehub-platform"}` and `listMetadata: {anchors: ["NotificationBridge", "SubscriptionEngine"]}`. `PayloadFilter` queries on any metadata field match all chunks from the document, not just the first.
 
-**Retrieval integration:** Callers construct `PayloadFilter` queries from session context — e.g., `PayloadFilter.and(PayloadFilter.eq("repo", "casehub-platform"), PayloadFilter.eq("audience", "consumer"))` to retrieve consumer-facing platform documentation. The filter narrows the vector search to relevant chunks before semantic similarity ranking.
+**Retrieval integration:** Callers construct `PayloadFilter` queries from session context — e.g., `PayloadFilter.and(PayloadFilter.eq("repo", "casehub-platform"), PayloadFilter.eq("audience", "consumer"))` to retrieve consumer-facing platform documentation.
 
-**Trigger:** The ingestion script runs as a post-commit hook on casehub-parent (where docs are aggregated via git subtree) and as part of the daily scheduled Action (§3.6). Delta ingestion via `EmbeddingIngestor.deleteDocument()` + re-ingest for changed files only.
+**Trigger:** The `CorpusIngestionService` supports two ingestion modes: `AUTO` (processes binding at startup + watches for filesystem changes via `WatchableChangeSource`) and `MANUAL` (triggered via `triggerManual(corpusName)`). The documentation binding uses `AUTO` mode — changes to docs files are detected and ingested automatically when casehub-parent is running. For CI, `triggerManual("casehub-docs")` or `reconcile("casehub-docs")` runs as part of the daily scheduled Action (§3.6).
 
 ---
 
@@ -268,7 +274,7 @@ New step `doc_freshness_gate`:
 - **Phase:** `closing:review`
 - **Type:** `judgment` (LLM decides whether findings are genuine)
 - **Skip condition:** No code changes in the branch (docs-only branches skip)
-- **Activation:** Advisory mode until validation corpus confirms ≥80% precision, then hard gate
+- **Activation:** Advisory mode until validation corpus confirms ≥80% precision AND ≥60% recall (F1 ≥0.69), then hard gate
 
 ### 6.2 implementation-doc-sync
 
@@ -303,11 +309,11 @@ jobs:
 
 **Reusable workflow steps:**
 1. Check out parent repo to access `dependency-graph.json` and `doc-freshness-check.py`
-2. Run `doc-freshness-check.py` with the PR diff
-3. If candidate-stale sections found: post PR comment listing them, set check to "action required"
-4. If no sections flagged: pass
+2. **Doc freshness check:** Run `doc-freshness-check.py` with the PR diff. If candidate-stale sections found: post PR comment listing them, set check to "action required"
+3. **Anchor integrity check:** Walk all documentation files with YAML frontmatter, extract anchor class/SPI names, verify each resolves in the codebase via `git ls-files` + package verification (same approach as §3.5 Tier 1 step 2). Report broken anchors as PR comments. This catches anchors that broke outside the current branch's diff — e.g., a class deleted in a prior merge that no branch diff matched to Phase 1's structural check.
+4. If no sections flagged and no broken anchors: pass
 
-Lightweight — structural anchor check only, no LLM adversarial. Covers the merge paths that work-end misses.
+Lightweight — structural anchor check + anchor integrity only, no LLM adversarial. Covers the merge paths that work-end misses.
 
 ---
 
@@ -315,7 +321,7 @@ Lightweight — structural anchor check only, no LLM adversarial. Covers the mer
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Structural anchors themselves drift (class renamed but anchor not updated) | False negatives — stale section not detected | Broken anchors are mechanically detectable (class not found in codebase). CI check validates anchor integrity. Phase 3 adversarial verification (§3.3) explicitly renews anchors — updating renamed references and removing deleted ones. |
+| Structural anchors themselves drift (class renamed but anchor not updated) | False negatives — stale section not detected | Broken anchors are mechanically detectable (class not found in codebase). The reusable workflow's anchor integrity step (§7 step 3) validates all anchors on every PR. Phase 3 adversarial verification (§3.3) explicitly renews anchors — updating renamed references and removing deleted ones. |
 | Work-end becomes too slow with doc gate | Developer friction, gate bypass | Structural anchor check is O(diff size), not O(repo size). LLM adversarial runs only on flagged sections. |
 | Audit slot conflicts with feature work | Merge conflicts on guides | Slot is dedicated — no feature work shares the audit branches. Guide updates are additive (new content), not conflicting. |
 | Monolithic guides resist decomposition | RAG quality stays poor for un-decomposed guides | Demand-driven — decompose when retrieval failures occur or guide exceeds size threshold. Not all-or-nothing. |
