@@ -10,8 +10,8 @@ date: 2026-08-31
 
 ## Queue
 - [x] casehubio/parent#433 — Documentation audit — RAG optimization & freshness gate
-- [ ] casehubio/parent#434 — docs(audit): platform — consumer/contributor guide refresh ← active
-- [ ] casehubio/parent#435 — docs(audit): worker — consumer/contributor guide refresh
+- [x] casehubio/parent#434 — docs(audit): platform — consumer/contributor guide refresh
+- [ ] casehubio/parent#435 — docs(audit): worker — consumer/contributor guide refresh ← active
 - [ ] casehubio/parent#436 — docs(audit): ledger — consumer/contributor guide refresh
 - [ ] casehubio/parent#437 — docs(audit): connectors — consumer/contributor guide refresh
 - [ ] casehubio/parent#438 — docs(audit): work — consumer/contributor guide refresh
