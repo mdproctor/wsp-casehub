@@ -11,17 +11,17 @@ date: 2026-08-31
 ## Queue
 - [x] casehubio/parent#433 — Documentation audit — RAG optimization & freshness gate
 - [x] casehubio/parent#434 — docs(audit): platform — consumer/contributor guide refresh
-- [ ] casehubio/parent#435 — docs(audit): worker — consumer/contributor guide refresh ← active
-- [ ] casehubio/parent#436 — docs(audit): ledger — consumer/contributor guide refresh
-- [ ] casehubio/parent#437 — docs(audit): connectors — consumer/contributor guide refresh
-- [ ] casehubio/parent#438 — docs(audit): work — consumer/contributor guide refresh
-- [ ] casehubio/parent#439 — docs(audit): qhorus — consumer/contributor guide refresh
-- [ ] casehubio/parent#440 — docs(audit): eidos — consumer/contributor guide refresh
-- [ ] casehubio/parent#441 — docs(audit): neocortex — consumer/contributor guide refresh
-- [ ] casehubio/parent#442 — docs(audit): engine — consumer/contributor guide refresh
-- [ ] casehubio/parent#443 — docs(audit): iot — consumer/contributor guide refresh
-- [ ] casehubio/parent#444 — docs(audit): ras — consumer/contributor guide refresh
-- [ ] casehubio/parent#445 — docs(audit): desiredstate — consumer/contributor guide refresh
+- [x] casehubio/parent#435 — docs(audit): worker — consumer/contributor guide refresh
+- [x] casehubio/parent#436 — docs(audit): ledger — consumer/contributor guide refresh
+- [x] casehubio/parent#437 — docs(audit): connectors — consumer/contributor guide refresh
+- [x] casehubio/parent#438 — docs(audit): work — consumer/contributor guide refresh
+- [x] casehubio/parent#439 — docs(audit): qhorus — consumer/contributor guide refresh
+- [x] casehubio/parent#440 — docs(audit): eidos — consumer/contributor guide refresh
+- [x] casehubio/parent#441 — docs(audit): neocortex — consumer/contributor guide refresh
+- [x] casehubio/parent#442 — docs(audit): engine — consumer/contributor guide refresh
+- [x] casehubio/parent#443 — docs(audit): iot — consumer/contributor guide refresh
+- [x] casehubio/parent#444 — docs(audit): ras — consumer/contributor guide refresh
+- [ ] casehubio/parent#445 — docs(audit): desiredstate — consumer/contributor guide refresh ← active
 - [ ] casehubio/parent#446 — docs(audit): blocks — consumer/contributor guide refresh
 - [ ] casehubio/parent#447 — docs(audit): blocks-ui — consumer/contributor guide refresh
 - [ ] casehubio/parent#448 — docs(audit): claudony — consumer/contributor guide refresh
