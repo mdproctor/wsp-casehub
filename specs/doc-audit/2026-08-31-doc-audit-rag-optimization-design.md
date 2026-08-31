@@ -97,7 +97,7 @@ docs/repos/casehub-platform/
 **Layer 3 — Guide Indexes** (existing `consumer-guide.md` / `contributor-guide.md`)
 Become thin routing documents: a brief repo overview + links to capability chunks. For session loading, an LLM reads the guide index and pulls in specific chunks as needed.
 
-**Decomposition priority:** Largest guides first — qhorus (526 lines), devtown (546 lines), ops (474 lines), ledger (448 lines), platform (418 lines), engine (408 lines). Extract the 3-5 largest sections per guide. Smaller guides (fsitrading at 119 lines, quarkmind at 186 lines) may stay monolithic.
+**Decomposition priority:** Largest guides first — devtown (546 lines), qhorus (526 lines), ops (474 lines), ledger (448 lines), platform (418 lines), engine (408 lines). Extract sections exceeding 40 lines into standalone capability chunks (typically 3-5 per guide). Smaller guides (fsitrading at 119 lines, quarkmind at 186 lines) stay monolithic unless retrieval failures justify decomposition.
 
 ### 3.3 Staleness Detection — Hybrid Methodology (D4)
 
