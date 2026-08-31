@@ -9,18 +9,8 @@ Current: casehubio/parent#433 — Documentation audit — RAG optimization & fre
 date: 2026-08-31
 
 ## Queue
-- [ ] casehubio/parent#433 — Documentation audit — RAG optimization & freshness gate ← active
-  - [x] Batch 1: Batch 1
-    - [x] Task 1: Structural anchor parser + detection script
-  - [x] Batch 2: Batch 2
-    - [x] Task 2: Work-end orchestrator gate step
-    - [x] Task 3: GitHub Actions dependency graph + doc freshness
-  - [x] Batch 3: Batch 3
-    - [x] Task 4: DocMetadataExtractor + doc-ingestion CLI
-  - [x] Batch 4: Batch 4
-    - [x] Task 5: Capability index + template guide decomposition
-    - [x] Task 6: Audit process template
-- [ ] casehubio/parent#434 — docs(audit): platform — consumer/contributor guide refresh
+- [x] casehubio/parent#433 — Documentation audit — RAG optimization & freshness gate
+- [ ] casehubio/parent#434 — docs(audit): platform — consumer/contributor guide refresh ← active
 - [ ] casehubio/parent#435 — docs(audit): worker — consumer/contributor guide refresh
 - [ ] casehubio/parent#436 — docs(audit): ledger — consumer/contributor guide refresh
 - [ ] casehubio/parent#437 — docs(audit): connectors — consumer/contributor guide refresh
