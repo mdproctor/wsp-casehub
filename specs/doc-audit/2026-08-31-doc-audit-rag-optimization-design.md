@@ -60,11 +60,19 @@ anchors:
 
 When any anchored element is renamed, moved, or deleted, the diff-based triage detects the change and flags the section for adversarial verification.
 
-**Override mechanism:** A `verified-current: 2026-08-31` annotation suppresses re-flagging until the next anchor change. Used when an LLM adversarial check confirms the section is accurate despite an anchor change (e.g., internal refactoring that doesn't affect the documented behavior).
+**Override mechanism:** A `verified-current: 2026-08-31 | commit:<hash>` annotation suppresses re-flagging until the next anchor change. Used when an LLM adversarial check confirms the section is accurate despite an anchor change (e.g., internal refactoring that doesn't affect the documented behavior). The commit hash records which verification produced the annotation, enabling audit trail and staleness detection for ancient overrides.
 
-### 3.2 Three-Layer Document Structure (D5)
+**Anchor renewal:** When an anchored element is renamed or moved, Phase 3's adversarial verification (§3.3) is responsible for updating both the section prose AND the anchor declarations in YAML frontmatter. This is an explicit output of the adversarial check — the subagent returns corrected anchors alongside corrected prose. If the subagent cannot resolve the new name (element was deleted, not renamed), it removes the anchor and flags the section for human review. The CI anchor integrity check (§8) detects broken anchors between adversarial runs.
 
-Following the PLATFORM.md decomposition precedent (topic files + thin index), guides are incrementally decomposed:
+### 3.2 Per-Repo Guide Decomposition (D5)
+
+The 2026-07-07 platform doc restructuring decomposed the monolithic PLATFORM.md (685 lines) into 16+ topic-scoped chunks under `docs/platform/` with a thin `INDEX.md` as the discovery entry point. That restructuring left per-repo guides (consumer-guide.md, contributor-guide.md) monolithic — ranging from 119 to 546 lines. This spec extends the same pattern to per-repo guides: extract the largest sections into standalone capability chunks, leaving guides as thin routing documents.
+
+**Relationship to existing indexes:** `docs/consumer-index.md` currently routes by repo to monolithic per-repo guides. After decomposition, `docs/capabilities.md` (§5) replaces `consumer-index.md` as the primary capability discovery point, routing by capability to individual chunks instead of by repo to monolithic guides. `docs/INDEX.md` remains the universal entry point for cross-cutting topics and architecture docs. `docs/contributor-index.md` is unchanged — contributor guides remain monolithic (they describe internal architecture, which doesn't decompose cleanly into independent capability chunks).
+
+**Distinction from platform/ topic chunks:** `docs/platform/notifications.md` documents the cross-cutting notification architecture (subscription engine, delivery pipeline, digest batching) for platform builders. `docs/repos/casehub-platform/capabilities/notifications.md` documents what an app builder needs to USE the notification system (APIs to call, SPIs to implement, configuration). These serve different audiences at different abstraction levels and do not duplicate each other.
+
+Following this precedent, guides are incrementally decomposed:
 
 **Layer 1 — Capability Index** (`docs/capabilities.md`)
 A single cross-repo file mapping capabilities to locations. The RAG entry point for ad-hoc retrieval:
@@ -110,7 +118,12 @@ For each file changed in the branch diff, check whether any documentation sectio
 For documentation sections without structural anchors (during the audit transition period), scan all un-anchored sections when any file in the repo changes. This is intentionally coarse — it trades precision for coverage. Sunset condition: once all sections have anchors (D3 exit criteria), diff-based triage is retired.
 
 **Phase 3 — LLM adversarial verification (semantic)**
-For each flagged section, dispatch a subagent that reads the section content alongside the actual current code. The agent tries to falsify claims: "This section says X, but the code now does Y." Reports findings as specific line-level corrections.
+For each flagged section, dispatch a subagent that reads the section content alongside the actual current code. The subagent has two responsibilities:
+
+1. **Falsify claims:** compare section prose against current code — "This section says X, but the code now does Y." Report findings as specific line-level corrections.
+2. **Renew anchors:** verify that all YAML frontmatter anchors (class names, SPIs, config keys) still resolve in the codebase. For renamed elements, update the anchor to the new name. For deleted elements, remove the anchor and flag the section for review.
+
+The subagent has access to IntelliJ MCP tools (`ide_find_class`, `ide_find_symbol`, `ide_find_references`) for semantic code navigation. Success criteria: each finding must cite a specific code location (file + line) that contradicts the documented claim, or a specific anchor that fails to resolve. Uncertain findings (the subagent cannot confirm or deny a claim) are reported as `UNCERTAIN` and excluded from precision/recall metrics but included in the human review queue. Output is a structured list of `{section, claim, evidence, verdict: STALE|CURRENT|UNCERTAIN, corrected_anchors[]}`.
 
 ### 3.4 Work-End Freshness Gate (D1, D2)
 
@@ -120,7 +133,7 @@ For each flagged section, dispatch a subagent that reads the section content alo
 - Changes to `testing/` modules → skip doc checks
 
 **Enforcement model — dual:**
-1. **Work-end hard gate (primary, LLM sessions):** After code review and before squash, the hybrid detection runs. If candidate-stale sections are found, the gate blocks until they're updated. Hard gate activation prerequisite: D4's structural anchor detection must demonstrate ≥80% precision on the initial audit validation corpus.
+1. **Work-end hard gate (primary, LLM sessions):** After code review and before squash, the hybrid detection runs. If candidate-stale sections are found, the gate blocks until they're updated. Hard gate activation prerequisite: D4's structural anchor detection must demonstrate precision ≥80% AND recall ≥60% on the initial audit validation corpus (equivalently, F1 ≥ 0.69). Precision alone is insufficient — a detector that conservatively flags nothing would have vacuous precision but zero recall. The recall threshold ensures the detector catches a meaningful fraction of actually-stale sections.
 2. **PR-level GitHub Action (complementary, all merge paths):** Covers human PRs, manual merges, CI pipeline merges — paths that bypass work-end. Runs structural anchor check only (no LLM adversarial — too slow for CI).
 
 **Dependent repo handling:** When api/ changes affect dependent repos, the gate creates GitHub issues on those repos with specific stale-section details. Does not block the home repo's close.
@@ -129,11 +142,13 @@ For each flagged section, dispatch a subagent that reads the section content alo
 
 ### 3.5 Arc42Stories Refresh (D7)
 
-Arc42stories refresh runs at **epic close** (not per-branch), using two-tier verification:
+Arc42stories refresh runs at **epic close** (not per-branch), using two-tier verification.
+
+**Trigger:** "Epic close" is defined as the `.plan` `advance` call that marks the last issue as done (no remaining issues in the plan). The `advance` command checks for remaining issues and, when the plan is empty, invokes the arc42stories refresh as a post-advance hook. This is a new extension to the `.plan` lifecycle — the `advance` command gains an `--on-epic-close` callback parameter.
 
 **Tier 1 — 3-check sweep (structural assertions):**
 1. Issue status: `gh issue view N` for every §12 reference — remove COMPLETED issues from Active Risks
-2. Class name existence: `find . -name "ClassName.java"` for every §9.4 Key files entry
+2. Class name existence: `git ls-files` with qualified name resolution — for every §9.4 Key files entry, search for `<SimpleName>.java` and `<SimpleName>.kt` (covering both Java and Kotlin sources), then verify the file contains the expected package declaration matching the fully qualified name. For inner classes, search the outer class file. This replaces the fragile `find . -name "ClassName.java"` approach.
 3. File path validity: verify all referenced file paths still exist
 
 **Tier 2 — LLM adversarial check (prose sections):**
@@ -143,9 +158,28 @@ Only layers modified during the epic are checked — bounded scope.
 
 ### 3.6 Dependent Repo Detection (D6)
 
-**Primary:** Automated POM analysis via GitHub Action on casehub-parent. Runs on POM changes, writes `dependency-graph.json` to the parent repo. The work-end gate reads this cached graph — no per-close penalty.
+**Primary:** Automated POM analysis via scheduled GitHub Action on casehub-parent. The Action runs on a daily schedule (not triggered by child repo POM changes, since GitHub Actions in one repo cannot trigger on events in another repo). It clones all child repos, analyzes their POMs, and writes `dependency-graph.json` to the parent repo. The work-end gate reads this cached graph — no per-close penalty. Staleness window: up to 24 hours for newly added dependencies; acceptable because dependency changes are infrequent (typically 1-2 per week across all repos).
+
+**On-demand refresh:** A `workflow_dispatch` trigger on the same Action allows manual refresh when a dependency change is known to have occurred. The work-end `doc_freshness_gate` step can invoke this via `gh workflow run` if the cached graph is older than the branch's POM changes.
 
 **Supplementary:** `docs/platform/dependency-map.md` retains its Nature column (SPI signatures, runtime dep, compile scope) for change-type classification. Edge existence is automated; Nature annotations are manually maintained.
+
+### 3.7 RAG Ingestion Pipeline (D5)
+
+The YAML frontmatter on capability chunks enables RAG-quality filtered retrieval, but only if an ingestion pipeline translates frontmatter into queryable metadata. The pipeline has three components:
+
+**Ingestion script** (`doc-rag-ingest.py`, alongside `doc-freshness-check.py` in soredium — see §6.3):
+1. Walk `docs/repos/*/capabilities/*.md` and `docs/platform/*.md` files
+2. Parse YAML frontmatter into structured metadata (`capability`, `audience`, `repo`, anchor class names)
+3. Split document body using the same recursive character splitter as neocortex (1000-char boundaries)
+4. For each chunk, create a `ChunkInput` with the document's frontmatter metadata propagated to every chunk — solving the "frontmatter doesn't survive chunking" problem by applying metadata at ingestion time, not at chunking time
+5. Call `EmbeddingIngestor.ingest(corpusRef, chunks)` with a dedicated `CorpusRef("casehub-docs")`
+
+**Metadata propagation:** Each chunk inherits all frontmatter metadata from its source document. A 300-line capability chunk split into 3 RAG chunks produces 3 `ChunkInput` records, each carrying the same `metadata: {capability: "notifications", audience: "consumer", repo: "casehub-platform"}` and `listMetadata: {anchors: ["NotificationBridge", "SubscriptionEngine"]}`. `PayloadFilter` queries on any metadata field match all chunks from the document, not just the first.
+
+**Retrieval integration:** Callers construct `PayloadFilter` queries from session context — e.g., `PayloadFilter.and(PayloadFilter.eq("repo", "casehub-platform"), PayloadFilter.eq("audience", "consumer"))` to retrieve consumer-facing platform documentation. The filter narrows the vector search to relevant chunks before semantic similarity ranking.
+
+**Trigger:** The ingestion script runs as a post-commit hook on casehub-parent (where docs are aggregated via git subtree) and as part of the daily scheduled Action (§3.6). Delta ingestion via `EmbeddingIngestor.deleteDocument()` + re-ingest for changed files only.
 
 ---
 
@@ -184,17 +218,22 @@ For each repo:
 
 ### 4.5 Validation Corpus
 
-The first-wave audit (5 foundation repos: platform, worker, ledger, work, qhorus) produces a labeled corpus:
+The first-wave audit produces a labeled corpus from the first 5 foundation repos audited (platform, worker, ledger, work, qhorus — a subset of Wave 1's 10 repos):
 - **Known-stale sections** (before fixes) — true positives for staleness detection
 - **Known-current sections** (after fixes) — true negatives
 
-This corpus validates D4's structural anchor detection. If precision ≥80% (≤20% false positive rate), the work-end hard gate activates. If not, the detection methodology is refined and re-validated.
+This corpus validates D4's structural anchor detection against both precision and recall:
+- **Precision ≥80%** — of sections flagged as stale, ≤20% are false positives
+- **Recall ≥60%** — of actually-stale sections, ≥60% are detected
+- **F1 ≥0.69** — harmonic mean ensures neither metric is sacrificed for the other
+
+If thresholds are met, the work-end hard gate activates. If not, the detection methodology is refined and re-validated against the same corpus.
 
 ---
 
 ## 5. Capability Index Design
 
-The cross-repo capability index (`docs/capabilities.md`) maps capabilities to documentation chunks:
+The cross-repo capability index (`docs/capabilities.md`) replaces the current `docs/consumer-index.md` as the primary capability discovery entry point. Where consumer-index.md routes by repo to monolithic per-repo guides, capabilities.md routes by capability to individual chunks — enabling precise, topic-scoped loading:
 
 ```markdown
 # CaseHub Capability Index
@@ -237,22 +276,36 @@ Extend to check structural anchors in addition to session-scoped analysis. When 
 
 ### 6.3 New: doc-freshness-check script
 
-Python script called by both work-end gate and GitHub Action:
-- Input: branch diff, dependency graph, guide locations
-- Output: list of candidate-stale sections with evidence (which anchor changed, what the diff shows)
-- Shared implementation ensures work-end and CI use the same detection logic
+**Location:** `soredium/doc-freshness/doc-freshness-check.py` — the skill package for the doc freshness gate. Installed to `~/.claude/skills/doc-freshness/` via `sync-local`, matching the existing skill distribution pattern.
+
+**Work-end integration:** The `doc_freshness_gate` step (§6.1) is a `judgment` handler in the work-end orchestrator. It invokes `doc-freshness-check.py` via `python3 ~/.claude/skills/doc-freshness/doc-freshness-check.py` with arguments:
+- `--diff <branch-diff-path>` — the branch diff (already available from work-end context)
+- `--graph <dependency-graph-path>` — path to `dependency-graph.json` in casehub-parent
+- `--docs <docs-root>` — path to the docs directory
+
+**GitHub Action integration:** The Action checks out soredium to access the script, or the script is vendored into casehub-parent's `.github/scripts/` directory.
+
+**Output:** JSON list of candidate-stale sections with evidence (which anchor changed, what the diff shows). The work-end handler reads this JSON and dispatches Phase 3 adversarial verification (§3.3) on flagged sections. Shared implementation ensures work-end and CI use the same detection logic.
 
 ---
 
 ## 7. GitHub Action (PR-level enforcement)
 
-`.github/workflows/doc-freshness.yml` on casehub-parent:
-- **Trigger:** PR to main on any CaseHub repo
-- **Steps:**
-  1. Read `dependency-graph.json` from parent
-  2. Run `doc-freshness-check.py` with PR diff
-  3. If candidate-stale sections found: post PR comment listing them, set check to "action required"
-  4. If no sections flagged: pass
+**Deployment:** A reusable workflow (`.github/workflows/doc-freshness.yml`) is defined in casehub-parent and called from each child repo's CI via `uses: casehubio/parent/.github/workflows/doc-freshness.yml@main`. Each child repo adds a thin caller workflow (3 lines). The reusable workflow pattern ensures consistent detection logic across all 28 repos without duplicating the Action definition.
+
+**Per-repo caller workflow** (deployed to each child repo):
+```yaml
+on: pull_request
+jobs:
+  doc-freshness:
+    uses: casehubio/parent/.github/workflows/doc-freshness.yml@main
+```
+
+**Reusable workflow steps:**
+1. Check out parent repo to access `dependency-graph.json` and `doc-freshness-check.py`
+2. Run `doc-freshness-check.py` with the PR diff
+3. If candidate-stale sections found: post PR comment listing them, set check to "action required"
+4. If no sections flagged: pass
 
 Lightweight — structural anchor check only, no LLM adversarial. Covers the merge paths that work-end misses.
 
@@ -262,7 +315,7 @@ Lightweight — structural anchor check only, no LLM adversarial. Covers the mer
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Structural anchors themselves drift (class renamed but anchor not updated) | False negatives — stale section not detected | Broken anchors are mechanically detectable (class not found in codebase). CI check validates anchor integrity. |
+| Structural anchors themselves drift (class renamed but anchor not updated) | False negatives — stale section not detected | Broken anchors are mechanically detectable (class not found in codebase). CI check validates anchor integrity. Phase 3 adversarial verification (§3.3) explicitly renews anchors — updating renamed references and removing deleted ones. |
 | Work-end becomes too slow with doc gate | Developer friction, gate bypass | Structural anchor check is O(diff size), not O(repo size). LLM adversarial runs only on flagged sections. |
 | Audit slot conflicts with feature work | Merge conflicts on guides | Slot is dedicated — no feature work shares the audit branches. Guide updates are additive (new content), not conflicting. |
 | Monolithic guides resist decomposition | RAG quality stays poor for un-decomposed guides | Demand-driven — decompose when retrieval failures occur or guide exceeds size threshold. Not all-or-nothing. |
