@@ -1,1 +1,1 @@
-# Design Journal — issue-409-scenario-format
+# Design Journal — issue-462-maven-clean-slot-destruction
