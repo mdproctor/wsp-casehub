@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-462-maven-clean-slot-destruction
-state: scaffolded
+state: closing:promoted
 project-sha: a0c038ded8d0ce57cab00e0d7a3a65ca8af8dd28
 date: 2026-09-01
 issue-repo: casehubio/parent
@@ -11,5 +11,6 @@ design-repo: project
 design-section-hashes: 
 flyway-next-v: none
 
+evidence-era: true
 ## Queue
 - [ ] casehubio/parent#462 — Issue #462 ← active
