@@ -1,0 +1,15 @@
+# Work Plan — issue-52-social-cognition-layer
+
+## State
+branch: issue-52-social-cognition-layer
+state: scaffolded
+project-sha: 9f9e26a011bab95877ea48c3e57a86f0a7e731d2
+date: 2026-09-11
+issue-repo: casehubio/examples
+covers: 52
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#52 — Issue #52 ← active
