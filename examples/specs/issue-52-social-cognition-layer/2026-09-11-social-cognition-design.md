@@ -1,366 +1,279 @@
-# Social Cognition Layer — Design Spec
+# Social Cognition Layer — Design Spec (Revised)
 
 **Issue:** casehubio/examples#52
-**Date:** 2026-09-11
-**Status:** Draft
+**Date:** 2026-09-11 (revised)
+**Status:** Draft — revised after deep audit of neocortex/blocks capabilities
 
 ---
 
 ## Problem
 
-Wacky-manor characters currently operate on a stateless observe → act loop.
-Each tick, a character drains observations, recalls flat memories, and invokes
-the LLM with world state. Characters have no persistent beliefs about the
-world or other characters, no social drives shaping their behavior, and no
-normative rules constraining their actions.
+Wacky-manor characters operate on a stateless observe → act loop. They
+have no persistent beliefs about the world, no social drives shaping
+behavior, no normative rules constraining actions, and flat episodic
+memory with no structured knowledge graph.
 
-The result: characters react to what they see but don't form opinions, hold
-grudges, follow personal codes, or pursue social agendas. The Hooded Claw
-doesn't actively scheme against Penelope unless the observation happens to
-contain poison — he has no drive to seek opportunities. Penelope doesn't
-trust Peter Perfect more than strangers. Characters don't maintain beliefs
-that persist across ticks and influence future decisions.
+Meanwhile, neocortex and blocks already have a rich cognitive
+infrastructure — CognitiveProfile, PerspectivalResolver,
+CognitiveDerivationEngine, ConversationBridge, consolidation phases,
+mindmap with typed nodes, per-principal isolation with sharing — all
+built, none consumed by an application.
 
-Meanwhile, blocks has built a full social cognition framework — belief revision,
-social drives, normative reasoning, trust scoring, and memory hygiene — that
-provides exactly these capabilities as pluggable building blocks.
+**Wacky-manor should be the first real consumer of this cognitive stack.**
+The work is primarily wiring, not building.
 
-## Approach
+---
 
-**Hybrid integration** (D1): Replace the simple trust and disposition subsystems
-with blocks equivalents. Layer beliefs, social drives, and normative reasoning
-as new additive cognitive inputs. Keep the working goal/plan/reflection system
-unchanged.
+## Architecture: Three-Tier Memory + Cognitive Profile
 
-| Component | Current | After |
-|-----------|---------|-------|
-| Trust | `ManorTrustProvider` (+1/-2 global scoring) | blocks `trust` — per-relationship, decay, context-aware |
-| Disposition | `ManorDispositionRecorder` + `ManorPersonalityEvolution` | blocks `memory` — surprise/arousal/confidence scoring + hygiene orchestration |
-| Beliefs | *none* | **New** — `BeliefStore` per character, revised on contradicting evidence |
-| Social drives | *none* | **New** — drives from Eidos descriptors, prompt-visible |
-| Norms | *none* | **New** — per-character rules with conflict resolution |
-| Goals/Plans | `ManorGoalFormation/Revision`, `ManorPlanFormation/Revision` | **Keep** unchanged |
-| Observations | `ObservationBuilder` + `ManorWorldObservationProvider` | **Extend** — new cognitive sections for beliefs, drives, norms |
-| Reflection | `ManorReflectionTrigger/Synthesizer` | **Keep** — feed reflection outputs into belief revision |
-| Memory | `AgentExperienceService` + neocortex flat memory | **Keep** for Phase A — Phase B replaces with mindmap |
+### Three-Tier Memory Model
+
+| Tier | What | Storage | Lifecycle |
+|------|------|---------|-----------|
+| **Tier 1 — Working memory** | Current observation, last action, current thinking | In-process (`CharacterState` + tick context) | Rebuilt every tick, never persisted |
+| **Tier 2 — Episodic buffer** | Recent events not yet consolidated | In-process (`AgentExperienceService`) | Accumulates during awake gameplay, consumed during consolidation |
+| **Tier 3 — Knowledge graph** | Consolidated knowledge: entities, relationships, beliefs, trust, judgments | Neocortex mindmap (per-character via `principalId`) | Written during consolidation (sleep), queried for cognitive profile |
+
+Neocortex mindmap is never written to during the high-frequency tick
+loop. Consolidation bridges Tier 2 → Tier 3 during sleep.
+
+### Per-Character Isolation + Sharing
+
+Already built in neocortex:
+- `MindMapNode.principalId()` — ownership per node
+- `MindMapNode.sharedWith()` — explicit sharing with other principals
+- `PerspectivalResolver` + `PerspectivalMerge.merge(shared, overlay)` — per-character views on shared nodes
+
+Conversation transfers knowledge between graphs:
+- HC tells Penelope "poison is in the Ballroom" → Penelope's graph gets a BELIEF node with `confidenceOrigin: STATED`, confidence weighted by trust(HC)
+- Penelope later finds poison in Kitchen → contradicts HC's claim → trust(HC) drops
+- `ConversationBridge.process()` handles text → mindmap with LLM entity extraction + contradiction detection — already built
+
+### Typed Nodes via TypeRegistry
+
+Neocortex `TypeRegistry` supports dynamic type registration. SubgraphType
+was migrated from enum to strings. Existing types: PERSON, PROJECT,
+ORGANISATION, CONCEPT, RESEARCH_AREA, GENERAL.
+
+**Register cognitive types** (neocortex#322 — XS):
+BELIEF, INTENTION, PREDICTION, JUDGMENT, FEAR, DESIRE — parented
+under CONCEPT, with trait interfaces following the Eventlike/Personable
+pattern.
+
+**Register game-world types** (wacky-manor):
+ITEM, LOCATION, CHARACTER — via `typeRegistry.registerType()` at scenario
+start.
+
+Consolidation processes each type differently:
+- BELIEF → revised on contradicting evidence
+- INTENTION → evaluated for viability against current state
+- FEAR → checked against current threats
+- JUDGMENT → strengthened/weakened by new data
+- Episodic events → abstracted into semantic knowledge via `CommunitySummaryPhase`
+
+### Consolidation as a Game Mechanic
+
+"Night falls on the mansion. Characters rest and reflect..."
+
+**Existing consolidation phases:**
+- `AccessFrequencyPhase` — strengthen frequently accessed nodes
+- `MergeDetectionPhase` — deduplicate similar nodes
+- `CommunitySummaryPhase` — abstract event clusters into higher-level nodes
+- `CuriosityRefreshPhase` — curiosity-driven exploration
+
+**Needed:** `consolidateNow(tenantId)` on `ConsolidationScheduler`
+(neocortex#323 — XS) so the game mechanic can trigger consolidation
+explicitly.
+
+**New phase needed:** `ExperienceConsolidationPhase` — graduates worthy
+events from Tier 2 episodic buffer → Tier 3 mindmap nodes. Adapts
+`ConversationBridge` for `ExperienceEvent` input. Uses blocks scoring
+(surprise, arousal, confidence) to decide what graduates vs gets pruned.
+
+---
+
+## What Neocortex Already Provides (Wire, Don't Build)
+
+| Capability | Neocortex Component | What it does |
+|-----------|---------------------|-------------|
+| Per-character knowledge | `principalId` + `sharedWith` on MindMapNode | Isolation + explicit sharing |
+| Character-specific views | `PerspectivalResolver` + `PerspectivalMerge` | HC sees world differently than Penelope |
+| Entity knowledge queries | `CognitiveProfile` → `EntityKnowledge` | "What does this character know about X?" across 6 domains |
+| Personality → cognition | `CognitiveDerivationEngine` | Eidos descriptor → trust formation rate, conflict interpretation, curiosity config, social cognition defaults |
+| Text → knowledge graph | `ConversationBridge` + `MindMapExtractor` | Segments text, creates nodes, extracts entities/relationships, detects contradictions |
+| Memory consolidation | `ConsolidationScheduler` + 4 phases | Strengthen, deduplicate, abstract, explore |
+| Attention/salience | `TemporalFocus` + `AttentionItem` | Rank what the character should be thinking about by proximity, recency, affect |
+| Affect model | PAD (pleasure/arousal/dominance) on every node | Emotional coloring of knowledge |
+| Confidence tracking | `ConfidenceOrigin` (STATED/INFERRED/SPECULATED) with decay | Epistemic provenance |
+| Temporal marking | `TemporalMark`, `validFrom`/`validUntil` | Knowledge has temporal validity windows |
+| Edge vocabulary | `MindMapVocabulary` with per-type decay half-life | Relationship types with configurable forgetting |
+
+---
+
+## What Blocks Already Provides (Wire, Don't Build)
+
+| Capability | Blocks Component | What it does |
+|-----------|-----------------|-------------|
+| Observation rendering | `CognitiveObservationSections` | Render goals, activity, experience, insights, relationships → ObservationSection |
+| Affordance pipeline | `ObservationPipeline` + `PerceptionFilter` | Capability-tag-based observation filtering |
+| Drive model | `DriveProfile`, `DriveConfig`, `DriveOrchestrator` | 4 SDT axes + `motivationalStateSection()` rendering |
+| Drive → prompt | `DrivePromptSection`, `SocialPromptAssembler` | Render drives into prompts |
+| Drive → goals | `DriveGoalFormationStrategy` | Map drives to emergent goals |
+| Normative reasoning | `ConflictResolutionStrategy`, `NormDecision`, `PriorityResolution` etc. | Resolve conflicting norms |
+| Memory scoring | `SurpriseScorer`, `ArousalScorer`, `ConfidenceScorer` | Score events for consolidation importance |
+| Memory hygiene | `MemoryHygieneOrchestrator`, `RetentionConfig` | Automatic memory cleanup |
+| Narrative | `NarrativeOrchestrator`, `NarrativeSynthesiser` | Narrative generation from social dynamics |
+| Belief model | `Belief<T>`, `BeliefSet<T>`, `ConsistencyChecker` | Immutable belief sets with entrenchment-based revision |
+
+---
+
+## What Needs Building
+
+### Neocortex (upstream — benefits all cognitive agents)
+
+| Issue | What | Size |
+|-------|------|------|
+| #322 | Register cognitive node types + trait interfaces | S |
+| #323 | `consolidateNow(tenantId)` public trigger | XS |
+| *new* | Extend MindMapExtractor prompt with cognitive types | XS |
+| *new* | `ExperienceConsolidationPhase` — Tier 2 → Tier 3 graduation | S |
+
+### Blocks (upstream — benefits all cognitive agents)
+
+| Issue | What | Size |
+|-------|------|------|
+| #260 | `CognitiveObservationSections` — beliefs, principles, trust, norms renderers | S |
+
+### Wacky-Manor (app-specific)
+
+| What | Size |
+|------|------|
+| **Refactor: Extract `CharacterCognition`** from ScenarioOrchestrator — per-character object owning cognitive state, querying all three tiers | L |
+| **Refactor: ObservationBuilder → builder pattern** — growing parameter list, exchange path doesn't need full cognition | S |
+| **Refactor: Config records** — group 30+ config properties into typed records | S |
+| **Refactor: AgentExperienceService constructors** — telescoping 13-param constructors → builder/config record | S |
+| **Wire `CognitiveDerivationEngine`** — Eidos descriptors → cognitive defaults (trust formation, social cognition, curiosity) | S |
+| **Wire `ConversationBridge`** — dialogue events → mindmap knowledge extraction + contradiction detection | S |
+| **Wire `CognitiveProfile`/`PerspectivalResolver`** — query mindmap for cognitive observation sections | M |
+| **Wire consolidation** — sleep game mechanic triggering `consolidateNow()` per character | S |
+| **Register game-world types** — ITEM, LOCATION, CHARACTER via TypeRegistry | XS |
+| **`ManorNormFilter`** — context-filter norms by room, nearby characters, inventory | S |
+| **`ManorTrustEvents`** — map ActionType → TrustEvent for relationship trust recording | XS |
+| **Character descriptor extensions** — social config in Eidos extensionData for 5 core characters | S |
+| **Integration + LLM eval tests** | M |
+
+---
+
+## Cognitive Profile Flow (Per Character Per Tick)
+
+```
+AWAKE (per tick):
+  1. Tier 1: Build working memory (current observation, world state)
+  2. Tier 2: Drain episodic buffer (recent events)
+  3. Tier 3: Query mindmap via CognitiveProfile:
+     - beliefs (BELIEF nodes for this principal)
+     - trust (relationship edges to nearby characters)
+     - principles (high-entrenchment identity nodes)
+     - active norms (filtered by context via ManorNormFilter)
+     - fears/intentions (if any)
+  4. Render via CognitiveObservationSections (existing + new #260)
+  5. Build observation (ObservationBuilder with all tiers)
+  6. Invoke LLM
+  7. Process response: dialogue, actions
+  8. Record trust events → relationship edges on mindmap
+  9. Ingest experience → Tier 2 episodic buffer
+  10. ConversationBridge: dialogue text → entity extraction → shared nodes
+
+SLEEP (consolidation — between acts):
+  "Night falls on the mansion..."
+  Per character: consolidateNow(principalId)
+  - ExperienceConsolidationPhase: Tier 2 → Tier 3 (scored by surprise/arousal)
+  - AccessFrequencyPhase: strengthen important nodes
+  - MergeDetectionPhase: deduplicate
+  - CommunitySummaryPhase: abstract events into beliefs/judgments
+  - CuriosityRefreshPhase: exploration
+  Characters wake with evolved understanding.
+```
 
 ---
 
 ## Design Decisions
 
-### 1. Configuration source: Eidos descriptors (D2)
+### D1: Integration approach — Wire existing platform (revised from Hybrid)
 
-All per-character social cognition config lives in the character's Eidos YAML
-descriptor. Eidos already owns personality traits, goals, and capabilities —
-social cognition is a natural extension.
+Wire neocortex CognitiveProfile/PerspectivalResolver/ConversationBridge/
+consolidation and blocks scoring/normative/drives/observation rendering.
+Build only app-specific adapters in wacky-manor.
 
-New `social:` section in each character descriptor:
+### D2: Configuration source — Eidos descriptors + CognitiveDerivationEngine
 
-```yaml
-social:
-  drives:
-    - type: scheming
-      intensity: 0.9
-      description: "Compelled to hatch elaborate plans against Penelope"
-    - type: self-preservation
-      intensity: 0.7
-      description: "Avoids direct confrontation, prefers subterfuge"
-  norms:
-    - rule: "Never help Penelope directly"
-      priority: 10
-    - rule: "Maintain a veneer of charm in public"
-      priority: 5
-    - rule: "Protect personal schemes from discovery"
-      priority: 8
-  initial-beliefs:
-    - key: "penelope-awareness"
-      value: "Penelope is naive and trusts too easily"
-    - key: "peter-threat"
-      value: "Peter Perfect is protective but predictable"
-```
+Social cognition defaults derived from personality via
+`CognitiveDerivationEngine`. Per-character overrides in Eidos
+`extensionData.social`. Engine derives trust formation rate, conflict
+interpretation, curiosity config from Jungian function stack and
+disposition.
 
-**Eidos API impact:** The `social:` section is parsed by wacky-manor, not by
-eidos-api. Eidos descriptors support arbitrary extension data — the YAML is
-loaded by `AgentRegistry` and the social section is extracted by a new
-`SocialCognitionLoader` in wacky-manor. No eidos-api changes required.
+### D3: Influence mode — Prompt-visible via CognitiveObservationSections
 
-### 2. Influence mode: Prompt-visible (D3)
+All cognitive state rendered into observation sections the LLM sees.
+Uses existing + new (#260) `CognitiveObservationSections` methods.
 
-Beliefs, drives, and norms are injected directly into the observation text
-the LLM sees. The LLM reasons about them explicitly — no hidden pre-filtering.
+### D4: Phasing — Upstream first, then wacky-manor
 
-The `ObservationBuilder` gains three new sections rendered by a
-`SocialCognitionRenderer`:
+Neocortex #322, #323 + blocks #260 first (small, unblocking).
+Then wacky-manor refactoring + wiring.
 
-```
-## Your Drives
-- SCHEMING (strong): You are compelled to hatch elaborate plans against Penelope
-- SELF-PRESERVATION (moderate): You avoid direct confrontation, prefer subterfuge
+### D5: Memory architecture — Three-tier with mindmap-native cognition
 
-## Your Beliefs
-- You believe Penelope is naive and trusts too easily
-- You believe Peter Perfect is protective but predictable
-- [REVISED tick 12] You now believe the poison is in the Kitchen (was: Library)
+Working memory (in-process) → episodic buffer (in-process) → knowledge
+graph (neocortex mindmap). Consolidation bridges Tier 2 → 3 during
+sleep. Beliefs, trust, principles, judgments are mindmap queries, not
+separate stores.
 
-## Your Norms
-- NEVER help Penelope directly (priority: high)
-- Maintain a veneer of charm in public (priority: medium)
-- Protect personal schemes from discovery (priority: high)
-```
+### D6: Norms vs constraints — Principles + contextual norms (no duplication)
 
-Revised beliefs are marked with the tick they changed and the prior value,
-so the LLM can reason about what changed and why.
-
-### 3. Trust replacement
-
-**Current:** `ManorTrustProvider` tracks global +/- scores per character.
-STEAL → negative, GIVE → positive. No per-relationship dimension, no decay.
-
-**Note:** blocks `trust` is vouch/intake-oriented (`IntakeClassifier`,
-`VouchService`, `VouchEligibility`) — designed for onboarding trust, not
-ongoing inter-character trust scoring. It doesn't fit wacky-manor's needs.
-
-**Replacement:** New `ManorRelationshipTrust` in wacky-manor — richer than
-the current `ManorTrustProvider` but Manor-specific, not blocks-based:
-
-- **Per-relationship:** HC→Penelope trust is separate from HC→Peter trust
-- **Event-weighted:** STEAL = -2, GIVE = +1, HELP = +0.5, BETRAY = -3
-- **Decay:** trust drifts toward neutral (0.5) over time without events
-- **Prompt-visible:** trust relationships appear in observations:
-  ```
-  ## Your Trust
-  - Peter Perfect: HIGH (he's been helpful consistently)
-  - Penelope Pitstop: LOW (she interfered with your last scheme)
-  - Muttley: MODERATE (loyal but unreliable)
-  ```
-
-Trust updates happen in the same place as current `ManorTrustProvider` calls
-in `ScenarioOrchestrator` — after action resolution, based on action type
-and target. The new model is a drop-in replacement with richer state.
-
-### 4. Disposition replacement
-
-**Current:** `ManorDispositionRecorder` records behavioral signals.
-`ManorPersonalityEvolution` checks for evolution periodically.
-
-**Replacement:** blocks `memory` package:
-
-- `SurpriseScorer` — flags unexpected events (HC being helpful = high surprise)
-- `ArousalScorer` — high-stakes moments (STEAL, USE poison) get more cognitive weight
-- `ConfidenceScorer` — tracks how confident a character is in their plans
-- `MemoryHygieneOrchestrator` — automatic memory cleanup replacing manual decay config
-
-The scoring feeds back into `AgentExperienceService.ingest()` — the importance
-score calculation currently hard-coded in `importanceForAction()` would delegate
-to the blocks scorers.
-
-### 5. Belief store and revision
-
-Uses blocks' `Belief`, `BeliefSet`, and `ConsistencyChecker` from
-`blocks.agentic.belief` as the foundation. Blocks provides the data model
-and consistency checking; wacky-manor adds revision triggers.
-
-**Lifecycle:**
-1. **Init:** Load `initial-beliefs` from Eidos descriptor at scenario start
-2. **Per-tick:** Render current beliefs into observation sections
-3. **Post-tick revision:** After action outcomes and observations from others,
-   check for contradictions against current beliefs
-4. **Revision:** When contradiction detected, update belief, mark as `[REVISED]`
-
-**Belief revision triggers:**
-- Character moves to a room and sees an item they believed was elsewhere
-- Character observes another character doing something contradicting a belief
-  about that character ("believed Muttley was loyal" → sees Muttley steal)
-- Action failure that contradicts an assumption ("tried to use poison in Library"
-  → "poison is not here" → revise location belief)
-
-**Revision is rule-based, not LLM-driven.** The `BeliefRevisionService` checks
-action results and world-state observations against stored beliefs using simple
-pattern matching. This keeps revision deterministic and fast. The LLM sees the
-revised beliefs in the next tick's observation and reasons about them.
-
-### 6. Social drives
-
-Drives use blocks' `DriveProfile` and `DriveConfig` from
-`blocks.agentic.social.drive`. Blocks provides four core axes:
-`AffiliationDrive`, `AutonomyDrive`, `CompetenceDrive`, `CuriosityDrive`
-(self-determination theory). Each has intensity 0.0–1.0.
-
-Wacky-manor character motivations (scheming, loyalty, dominance) don't map
-cleanly to these four axes. Two options:
-
-1. **Map to existing axes:** scheming ≈ high autonomy + high competence,
-   loyalty ≈ high affiliation, curiosity maps directly.
-2. **Use custom descriptive drives alongside blocks axes:** blocks provides
-   `DriveConfig` for profile configuration — use the four axes for the
-   underlying drive model, and add free-text `description` drives in Eidos
-   for LLM-visible flavor.
-
-**Approach: option 2.** Use blocks `DriveProfile` for the structured drive
-model (4 axes with intensities). Add free-text `description` entries in
-the Eidos `social.drives` section for character-specific flavor that the
-LLM sees. `DrivePromptSection` from `blocks.agentic.social.prompt`
-handles rendering the structured drives. The free-text descriptions are
-rendered alongside.
-
-Drives are static personality-level attributes — they don't change during
-gameplay.
-
-### 7. Normative reasoning
-
-Norms are per-character behavioral rules loaded from Eidos descriptors.
-
-Each norm has:
-- `rule` — human-readable constraint
-- `priority` — integer (higher = more important)
-
-**Conflict resolution:** When the LLM's response would violate a norm, the
-system doesn't enforce norms mechanically — the LLM sees them in the prompt
-and is expected to self-regulate. Norms are advisory, not hard constraints.
-
-However, blocks `normative` conflict resolution (`ConflictResolutionStrategy`)
-is used to determine which norms to surface when multiple apply. If a
-character has 10 norms but only 3 are relevant to the current situation,
-the normative resolver filters and ranks them before rendering.
-
-**Norm relevance:** Norms are filtered by context tags matching the current
-situation:
-- In a room with Penelope → norms tagged `penelope` surface
-- Holding a weapon → norms tagged `violence` surface
-- No matching tags → all norms rendered (default behavior)
-
----
-
-## Tick Loop Changes
-
-The autonomous tick loop in `ScenarioOrchestrator.runAutonomousTicks()` changes:
-
-```
-Per character per tick (changes marked ★):
-  1. Drain observations (existing)
-  2. Recall memories/reflections/relationships (existing)
-  ★3. Load beliefs from BeliefStore
-  ★4. Load drives from SocialCognitionLoader (cached per scenario)
-  ★5. Filter norms by context via blocks normative resolver
-  6. Build observation text (existing ObservationBuilder)
-     ★ Append beliefs/drives/norms/trust sections via SocialCognitionRenderer
-  7. Invoke LLM (existing)
-  8. Process response: dialogue, actions (existing)
-  ★9. Record trust via blocks trust (replaces ManorTrustProvider)
-  ★10. Record disposition via blocks memory scoring (replaces ManorDispositionRecorder)
-  ★11. Revise beliefs based on action outcomes
-  12. Ingest experience (existing)
-  13. Check personality evolution (existing — uses blocks scoring now)
-```
-
----
-
-## New Types
-
-| Type | Package | Responsibility |
-|------|---------|---------------|
-| `SocialCognitionLoader` | `manor.agent` | Parses `social:` section from Eidos descriptors. Caches per scenario. |
-| `BeliefStore` | `manor.agent` | Per-character in-memory belief map. CRUD + revision tracking. |
-| `BeliefRevisionService` | `manor.agent` | Post-tick belief revision based on action outcomes and observations. |
-| `SocialCognitionRenderer` | `manor.agent` | Renders beliefs, drives, norms, trust into observation sections. Uses blocks `SocialPromptAssembler` + `DrivePromptSection` from `blocks.agentic.social.prompt`. |
-| `ManorRelationshipTrust` | `manor.agent` | Per-relationship trust with decay and event weighting. Manor-specific (blocks trust is vouch-oriented, doesn't fit). |
-| `BlocksDispositionAdapter` | `manor.agent` | Adapts blocks memory scoring to the existing disposition call sites. |
-
-## Removed Types
-
-| Type | Replaced by |
-|------|-------------|
-| `ManorTrustProvider` | `ManorRelationshipTrust` |
-| `ManorDispositionRecorder` | `BlocksDispositionAdapter` |
-| `ManorPersonalityEvolution` | blocks `MemoryHygieneOrchestrator` via `BlocksDispositionAdapter` |
-
-## Modified Types
-
-| Type | Change |
-|------|--------|
-| `ScenarioOrchestrator` | Wire new services, replace trust/disposition instantiation |
-| `ObservationBuilder` | Accept `SocialCognitionRenderer`, append new sections |
-| `AgentExperienceService` | Delegate importance scoring to blocks scorers |
-
----
-
-## Character Social Profiles
-
-Five core characters get social configuration:
-
-**Hooded Claw:**
-- Drives: scheming (0.9), self-preservation (0.7), dominance (0.6)
-- Norms: never help Penelope, maintain charm in public, protect schemes from discovery
-- Initial beliefs: Penelope is naive, Peter is predictable, poison is in the Library
-
-**Penelope Pitstop:**
-- Drives: cooperation (0.8), curiosity (0.7), self-preservation (0.5)
-- Norms: help anyone in need, avoid violence, trust until proven wrong
-- Initial beliefs: everyone is fundamentally good, the manor has a mystery to solve
-
-**Peter Perfect:**
-- Drives: loyalty (0.9), cooperation (0.6), self-preservation (0.4)
-- Norms: protect Penelope, confront threats directly, never steal
-- Initial beliefs: Hooded Claw is suspicious, Penelope needs protection
-
-**Muttley:**
-- Drives: loyalty (0.7), self-preservation (0.8), curiosity (0.5)
-- Norms: follow Dastardly's lead, avoid direct confrontation, hoard interesting items
-- Initial beliefs: Dastardly has a plan, the other characters are unpredictable
-
-**Dick Dastardly:**
-- Drives: scheming (0.7), dominance (0.8), self-preservation (0.6)
-- Norms: maintain authority over Muttley, outdo the Hooded Claw, never appear weak
-- Initial beliefs: Hooded Claw is a rival schemer, Penelope is an obstacle
-
----
-
-## Testing Strategy
-
-**Unit tests (deterministic):**
-- `BeliefStoreTest` — CRUD, revision tracking, initial belief loading
-- `BeliefRevisionServiceTest` — revision triggers, pattern matching, edge cases
-- `SocialCognitionLoaderTest` — YAML parsing, validation, caching
-- `SocialCognitionRendererTest` — correct section formatting, revised belief markers
-- `BlocksTrustAdapterTest` — per-relationship scoring, decay
-- `BlocksDispositionAdapterTest` — surprise/arousal/confidence scoring delegation
-
-**Integration tests (deterministic):**
-- `ObservationBuilderIntegrationTest` — full observation with social sections
-- `ScenarioOrchestratorSocialTest` — verify social cognition wired into tick loop
-
-**LLM eval tests (non-deterministic, `@Tag("llm-eval")`):**
-- `SocialCognitionEvalTest` — verify that social cognition inputs change character behavior:
-  - HC with scheming drive acts more aggressively than without
-  - Penelope with cooperation norms helps more than without
-  - Belief revision after seeing moved item changes subsequent actions
-  - Trust affects willingness to cooperate
+Eidos constraints stay in system prompt (identity: "you ARE this way").
+Principles copied to observation (active guidance: "remember, you follow
+these"). Norms are situation-specific guidance filtered by context — a
+different concept from identity-level constraints.
 
 ---
 
 ## What's NOT in Scope
 
-- **Goal/plan system changes** — keep existing ManorGoal*/ManorPlan* systems
-- **Memory backend change** — Phase B (mindmap) is a separate issue
-- **RAG, CBR, speech** — not relevant for this demo
-- **PatternSpec YAML** — wacky-manor benefits from readable Java
-- **Norm enforcement** — norms are advisory (prompt-visible), not hard constraints
-- **Dynamic drives** — drives are static personality attributes for Phase A
-- **LLM-driven belief revision** — revision is rule-based for determinism and speed
+- Goal/plan system changes — keep existing ManorGoal*/ManorPlan*
+- RAG, CBR, speech, PatternSpec YAML
+- Mechanical norm enforcement — norms are advisory
+- Dynamic drives — static per scenario for now
+
+---
+
+## Upstream Dependencies
+
+| Repo | Issue | What | Blocks wacky-manor? |
+|------|-------|------|-------------------|
+| neocortex | #322 | Cognitive node types + traits | Partially — wiring can start without, typing improves consolidation |
+| neocortex | #323 | `consolidateNow()` trigger | Yes — sleep mechanic needs this |
+| blocks | #260 | Cognitive observation section renderers | Partially — can use raw ObservationSection.items() as fallback |
+
+None are hard blockers for starting the wacky-manor refactoring. The
+upstream work can proceed in parallel.
 
 ---
 
 ## References
 
-- `ScenarioOrchestrator.java` — current tick loop architecture
-- `ManorTrustProvider.java` — trust subsystem being replaced
-- `ManorDispositionRecorder.java` + `ManorPersonalityEvolution.java` — disposition subsystem being replaced
-- `ObservationBuilder.java` — observation rendering being extended
-- `blocks/blocks/.../trust/` — blocks trust package
-- `blocks/blocks/.../memory/` — blocks memory scoring (SurpriseScorer, ArousalScorer, etc.)
-- `blocks/blocks/.../normative/` — blocks normative reasoning
-- `blocks/blocks/.../agentic/social/` — blocks social cognition
-- `blocks/blocks/.../agentic/belief/` — blocks belief revision
-- `GE-20260816-6635e1` — ChannelObserver bridging pattern (may inform future channel-based belief propagation)
-- `POC-SPEC.md` — phase structure and verdict gates
-- D1–D4 in `decisions.md` — captured design decisions
+- `ScenarioOrchestrator.java:241-434` — autonomous tick loop
+- `ObservationBuilder.java:1-88` — observation rendering
+- `CognitiveProfile.java` (neocortex cognitive-index) — entity knowledge queries
+- `PerspectivalResolver.java` (neocortex mindmap-intelligence) — per-character views
+- `CognitiveDerivationEngine.java` (neocortex cognitive-index) — personality → cognition
+- `ConversationBridge.java` (neocortex mindmap-intelligence) — text → mindmap pipeline
+- `ConsolidationScheduler.java` (neocortex mindmap-intelligence) — consolidation orchestration
+- `CognitiveObservationSections.java` (blocks) — observation section rendering
+- `DriveProfile.java` (blocks) — drive model
+- `ConflictResolutionStrategy.java` (blocks) — normative resolution
+- `SurpriseScorer.java`, `ArousalScorer.java` (blocks) — memory scoring
+- neocortex#322, neocortex#323, blocks#260 — upstream issues
+- D1–D6 in `decisions.md` — captured design decisions
+- GE-20260816-6635e1 — ChannelObserver bridging pattern
