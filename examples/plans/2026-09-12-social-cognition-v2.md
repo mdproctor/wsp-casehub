@@ -13,7 +13,7 @@
 
 **Architecture:** Three-tier memory (working → episodic buffer → mindmap). CharacterCognition per character composes CognitiveProfile queries with Thing trait projections. Consolidation during "sleep" graduates Tier 2 → Tier 3. All cognitive state rendered prompt-visible via CognitiveObservationSections.
 
-**Tech Stack:** Java 21, Quarkus, neocortex (mindmap, CognitiveProfile, PerspectivalResolver, CognitiveDerivationEngine, ConversationBridge, consolidation), blocks (CognitiveObservationSections, DriveProfile, normative, memory scoring), Eidos (extensionData)
+**Tech Stack:** Java 21, Quarkus, neocortex (mindmap, CognitiveProfile with perspectival resolve/compare, CognitiveDerivationEngine, ConversationBridge, consolidation), blocks (CognitiveObservationSections, DriveProfile, normative, memory scoring), Eidos (extensionData)
 
 ## Global Constraints
 
@@ -22,6 +22,8 @@
 - No changes to goal/plan/reflection systems — keep existing ManorGoal*, ManorPlan*
 - All new types in `io.casehub.examples.manor.agent` package
 - Per-concept access via Thing trait projections — no separate store classes
+- PerspectivalResolver is now package-private in neocortex — use `CognitiveProfile.resolve(query.withAsSeenBy(principalId))` for perspective, `CognitiveProfile.compare(query, Set<PrincipalId>)` for multi-agent comparison
+- Affect memories use `MemoryInput.ownedBy(subject, domain, tenant, content, principalId).withPad(p, a, d)` for principal-scoped storage
 - TDD: failing test first, then minimal implementation
 - Use `ide_find_references`, `ide_find_class` for navigation; `ide_insert_member`, `ide_replace_member` for edits
 
@@ -536,6 +538,8 @@ Set up the cognitive infrastructure: register mindmap types, derive cognitive de
 - Consumes: neocortex `TypeRegistry`, `CognitiveDerivationEngine`, Eidos `AgentRegistry`
 - Produces: `ManorCognitiveSetup.init(String tenantId)` — registers ITEM, LOCATION, CHARACTER types. `ManorCognitiveSetup.deriveDefaults(AgentDescriptor descriptor)` — returns `CognitiveDefaults`
 
+> **Pre-step: Check CognitiveDefaultsRegistry** — neocortex now has `CognitiveDefaultsRegistry` for YAML-driven per-agent cognitive config. Before implementing custom `SocialConfig` / `SocialCognitionLoader` / `ManorCognitiveSetup.parseSocialConfig()`, check whether CognitiveDefaultsRegistry already supports drives/norms/beliefs configuration. If it does, use it instead — our custom parsing becomes unnecessary. If it only covers trust formation rate / conflict interpretation (from `CognitiveDerivationEngine.deriveSocialCognition()`), then keep custom parsing for drives/norms/beliefs and wire CognitiveDefaultsRegistry for the personality-derived defaults.
+
 - [ ] **Step 1: Write test for type registration**
 
 ```java
@@ -661,10 +665,13 @@ The main wiring task. CharacterCognition queries mindmap via CognitiveProfile + 
 - Test: `src/test/java/io/casehub/examples/manor/agent/ManorNormFilterTest.java`
 
 **Interfaces:**
-- Consumes: neocortex `CognitiveProfile`, `ConversationBridge`, `PerspectivalResolver`, blocks `CognitiveObservationSections`
+- Consumes: neocortex `CognitiveProfile` (with `resolve(query.withAsSeenBy(principalId))` and `compare(query, Set<PrincipalId>)`), `ConversationBridge`, `CognitiveDerivationEngine`, blocks `CognitiveObservationSections`
+- Note: `PerspectivalResolver` is now package-private — perspective is applied via `CognitiveProfile.resolve()` with `withAsSeenBy()`, not a separate service
 - Produces: `CharacterCognition.renderCognitiveSections()` now returns populated sections (drives, beliefs, norms, trust, principles). `CharacterCognition.processDialogue(String text)` feeds ConversationBridge.
 
-- [ ] **Step 1: Write ManorTrustEvents**
+- [ ] **Step 1: Write ManorTrustEvents — personality-modulated**
+
+`CognitiveDerivationEngine.derive(descriptorView).socialCognition()` returns `SocialCognitionDefaults(trustFormationRate, conflictInterpretation)` per character. ManorTrustEvents should modulate base weights by `trustFormationRate` so that a character with high trust formation (0.7) gains/loses trust faster than one with low trust formation (0.3). `conflictInterpretation` (REPAIR/INFORMATION/NEUTRAL/DISENGAGE) can modulate negative weights — a REPAIR interpreter takes less damage from theft than a DISENGAGE interpreter.
 
 ```java
 package io.casehub.examples.manor.agent;
@@ -673,19 +680,23 @@ import io.casehub.examples.manor.model.ActionType;
 import java.util.Map;
 
 public final class ManorTrustEvents {
-    private static final Map<ActionType, Double> WEIGHTS = Map.of(
+    private static final Map<ActionType, Double> BASE_WEIGHTS = Map.of(
         ActionType.STEAL, -0.4,
         ActionType.GIVE, 0.15,
         ActionType.INTERACT, 0.05,
         ActionType.PULL_ASIDE, 0.0
     );
 
+    public static double weightFor(ActionType action, double trustFormationRate) {
+        return BASE_WEIGHTS.getOrDefault(action, 0.0) * trustFormationRate;
+    }
+
     public static double weightFor(ActionType action) {
-        return WEIGHTS.getOrDefault(action, 0.0);
+        return BASE_WEIGHTS.getOrDefault(action, 0.0);
     }
 
     public static boolean isRelevant(ActionType action) {
-        return WEIGHTS.containsKey(action) && WEIGHTS.get(action) != 0.0;
+        return BASE_WEIGHTS.containsKey(action) && BASE_WEIGHTS.get(action) != 0.0;
     }
 }
 ```
@@ -754,17 +765,20 @@ Update `CharacterCognition` constructor to accept neocortex services. Update `re
 
 1. Load social config from Eidos extensionData (cached per character)
 2. Load principles from Eidos constraints
-3. Query mindmap via CognitiveProfile for belief/trust/judgment nodes (Tier 3) — uses `node.as(traitInterface)` if neocortex#322 has landed, otherwise reads node properties directly
-4. Filter norms via ManorNormFilter
-5. Render all sections via `CognitiveObservationSections` methods (if blocks#260 has landed) or `ObservationSection.items()` fallback
+3. Query mindmap via `CognitiveProfile.resolve(query.withAsSeenBy(PrincipalId.agent(agentId)))` for belief/trust/judgment nodes (Tier 3) — uses `node.as(traitInterface)` if neocortex#322 has landed, otherwise reads node properties directly. Perspective is applied internally by CognitiveProfile (PerspectivalResolver is package-private).
+4. For social context rendering ("how does this character perceive nearby characters"), use `CognitiveProfile.compare(query, nearbyAgentPrincipalIds)` for batched multi-agent comparison
+5. Filter norms via ManorNormFilter
+6. Render all sections via `CognitiveObservationSections` methods (if blocks#260 has landed) or `ObservationSection.items()` fallback
 
-Update `recordTrustEvent()` to buffer events in Tier 2 with `ManorTrustEvents.weightFor()`.
+Update `recordTrustEvent()` to buffer events in Tier 2 with `ManorTrustEvents.weightFor(action, socialCognitionDefaults.trustFormationRate())` — modulated per character personality via `CognitiveDerivationEngine.derive(descriptorView).socialCognition()`.
+
+Store affect memories using `MemoryInput.ownedBy(subject, domain, tenant, content, principalId).withPad(p, a, d)` for principal-scoped storage (follows neocortex walkthrough pattern).
 
 Add `processDialogue(String text, String tenantId)` that calls `ConversationBridge.process()` for knowledge extraction.
 
 - [ ] **Step 5: Update ScenarioOrchestrator to inject neocortex services**
 
-Add `@Inject` fields for neocortex services: `CognitiveProfile`, `ConversationBridge`, `TypeRegistry`. Pass to `CharacterCognition` construction. In the tick loop, after dialogue processing, call `cognition.processDialogue()` with the dialogue text.
+Add `@Inject` fields for neocortex services: `CognitiveProfile`, `ConversationBridge`, `CognitiveDerivationEngine`, `TypeRegistry`. Pass to `CharacterCognition` construction. Cache `SocialCognitionDefaults` per character (derived once at scenario start via `CognitiveDerivationEngine.derive(descriptorView).socialCognition()`). In the tick loop, after dialogue processing, call `cognition.processDialogue()` with the dialogue text.
 
 - [ ] **Step 6: Run full test suite**
 
@@ -885,7 +899,8 @@ git -C /Users/mdproctor/claude/casehub/examples commit -m "feat(#52): wire conso
 
 - **LLM eval tests:** Add once cognitive stack is verified with manual runs. Tag `@Tag("llm-eval")`.
 - **Context-based norm filtering:** ManorNormFilter currently returns all norms sorted. Context matching (checking norm text against nearby characters/items) is an enhancement.
-- **PerspectivalResolver wiring:** Per-character overlay views are powerful but add complexity. Wire after basic CognitiveProfile queries are validated.
+- **SocialComparison integration:** Use `SocialComparison.compare()` with results from `CognitiveProfile.compare()` to render inter-character perception divergence (PAD distance, trajectory alignment) in observation sections. Natural extension after basic CognitiveProfile queries are validated.
+- **DomainActivation:** Cross-domain DTW correlation — not relevant to current room-based model but could track cross-room emotional patterns if rooms become affect-tracked subgraphs.
 - **Blocks scoring integration:** SurpriseScorer/ArousalScorer for consolidation importance scoring — wire after basic consolidation works.
 - **ExperienceConsolidationPhase:** The Tier 2 → Tier 3 graduation phase is a neocortex contribution, not a wacky-manor task. Filed as a gap in the spec; implementation belongs in a neocortex issue.
 
@@ -898,10 +913,13 @@ git -C /Users/mdproctor/claude/casehub/examples commit -m "feat(#52): wire conso
 - [ObservationBuilder.java:1-88] — observation rendering
 - [AgentExperienceService.java:41-91] — telescoping constructors
 - [descriptors-composite.yaml] — Eidos character descriptors
-- [CognitiveProfile] (neocortex cognitive-index) — entity knowledge queries
+- [CognitiveProfile] (neocortex cognitive-index) — entity knowledge queries, perspectival resolve via `withAsSeenBy()`, batched `compare()`
+- [CognitiveDerivationEngine] (neocortex cognitive-index) — `deriveSocialCognition()` for personality-modulated trust formation
+- [SocialComparison] (neocortex cognitive-index) — PAD distance, pairwise differences, trajectory alignment (deferred)
+- [CognitiveIndexWalkthroughTest] (neocortex examples) — canonical consumer pattern: overlays, affect memories, perspectival resolve
 - [ConversationBridge] (neocortex mindmap-intelligence) — text → mindmap
 - [CognitiveObservationSections] (blocks) — observation section rendering
-- neocortex#322 — cognitive node types
-- neocortex#323 — consolidateNow trigger
+- neocortex#322 — cognitive node types (still open)
+- neocortex#323 — consolidateNow trigger (still open)
 - blocks#260 — cognitive observation renderers
 - GitHub #52 — focal issue
