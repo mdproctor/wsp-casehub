@@ -1,29 +1,20 @@
-# Handoff — 2026-07-30
+# HANDOFF — casehub-engine
 
-## What's Done
+## Session Summary (2026-09-06)
 
-- PR landed on upstream — multi-approver oversight gate (#810) + epic #820 (4/5 issues closed)
-- Work repo: createMultiInstance SPI, adapter bridge, cancellation cascade, approvedBy aggregation, resolutionTypeName threading
-- Design-reviewed spec (10 rounds, $30.80), 1 blog entry published
-- Slot 54 created for engine#813 (alternative scheduler SPI)
+Landed #1047 — generalized `CompensationGraphProjection` to `BindingGraphProjection` with three typed edges (COMPENSATION, DATA_FLOW, TRIGGER_DEPENDENCY). Added `requiredKeys: Set<String>` to `Binding` as symmetric counterpart to `producedKeys` for non-fragile trigger dependency inference. Old compensation-specific graph types deleted. Landed as `18ee47a9` on main. Filed #1053 (ctx.py parse_covers bug with fully qualified format).
 
-- **casehubio/engine#799** — engine-side: module rename (blackboard→planning), sealed PlanItemDefinition, Compound container (lifecycle, completion, gating), Stage retirement, DagPlan unification, HTN SPI promotion, DecompositionStrategy wiring
-- **casehubio/blocks#73** — blocks-side: migrate to engine-api types, GoalOrientedDecomposition (GOAP), DispositionAwareRouting, agent dispatch wiring, ExecutionBackend, PatternType
+IntelliJ MCP symlink issue discovered and triaged — absolute symlinks in slot clones (`.claude`, `.build`, `.worktrees`) caused IntelliJ to resolve to the original repo path. All three removed from slot 180. Garden entry GE-20260820-f45988 revised with variant.
 
-- Pick up #817 (YAML schema for QuorumConfig) — needs design brainstorm before implementation
+## Next Action
 
-## What's Left
+Advance .plan to #1048 — compensation GraphQL subscriptions + enriched timeline for ops dashboard. Branch is stamped closed; next session should `work next` or start fresh on a new branch for #1048.
 
-- engine#817: YAML schema for QuorumConfig — needs design brainstorm (Med complexity) · S · Med
-- engine#764: update architecture spec §5 Connectors · S · Low
-- scaffold#35: replace scaffold inline REST with engine-rest dependency · M · Med
-- Work repo DataRef support — follow-on from #740 (not yet filed) · M · Med
-- Real `WorkloadDataProvider` implementation (actor-state or work adapter) — not filed · M · Med
+## References
 
-## What's Next
-
-| # | Description | Scale | Complexity | Notes |
-|---|-------------|-------|------------|-------|
-| #813 | Alternative scheduler SPI | L | Med | Slot 54 created |
-| #817 | YAML schema for QuorumConfig | S | Med | Deferred from #820 epic |
-| #764 | Update architecture spec §5 Connectors | S | Low | |
+| Artifact | Path |
+|----------|------|
+| Spec | `wksp/specs/issue-1047-compensation-viz-follow-ups/2026-09-06-binding-graph-projection-design.md` |
+| Decisions | `wksp/specs/issue-1047-compensation-viz-follow-ups/decisions.md` |
+| Blog | `wksp/blog/2026-09-06-mdp01-the-missing-half-of-produced-keys.md` |
+| Plan | `wksp/plans/2026-09-06-binding-graph-projection.md` |
