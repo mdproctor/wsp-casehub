@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-52-social-cognition-layer
-state: scaffolded
+state: active
 project-sha: 9f9e26a011bab95877ea48c3e57a86f0a7e731d2
 date: 2026-09-11
 issue-repo: casehubio/examples
@@ -13,14 +13,14 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#52 — Issue #52 ← active
-  - [ ] Batch 1: Clean foundation
-    - [ ] Task 1: Config records
-    - [ ] Task 2: ObservationBuilder builder
-    - [ ] Task 3: AgentExperienceService constructors
-  - [ ] Batch 2: CharacterCognition
-    - [ ] Task 4: Extract CharacterCognition
+  - [x] Batch 1: Clean foundation
+    - [x] Task 1: Config records
+    - [x] Task 2: ObservationBuilder builder
+    - [x] Task 3: AgentExperienceService constructors
+  - [x] Batch 2: CharacterCognition
+    - [x] Task 4: Extract CharacterCognition
   - [ ] Batch 3: Mindmap wiring
-    - [ ] Task 5: Game-world types + CognitiveDerivationEngine + descriptors
+    - [x] Task 5: Game-world types + CognitiveDerivationEngine + descriptors
     - [ ] Task 6: CognitiveProfile + ConversationBridge + rendering
   - [ ] Batch 4: Consolidation
     - [ ] Task 7: Sleep mechanic + integration tests
