@@ -19,8 +19,8 @@ flyway-next-v: none
     - [x] Task 3: AgentExperienceService constructors
   - [x] Batch 2: CharacterCognition
     - [x] Task 4: Extract CharacterCognition
-  - [ ] Batch 3: Mindmap wiring
+  - [x] Batch 3: Mindmap wiring
     - [x] Task 5: Game-world types + CognitiveDerivationEngine + descriptors
-    - [ ] Task 6: CognitiveProfile + ConversationBridge + rendering
+    - [x] Task 6: CognitiveProfile + ConversationBridge + rendering
   - [ ] Batch 4: Consolidation
     - [ ] Task 7: Sleep mechanic + integration tests
