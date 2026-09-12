@@ -13,3 +13,14 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#52 — Issue #52 ← active
+  - [ ] Batch 1: Clean foundation
+    - [ ] Task 1: Config records
+    - [ ] Task 2: ObservationBuilder builder
+    - [ ] Task 3: AgentExperienceService constructors
+  - [ ] Batch 2: CharacterCognition
+    - [ ] Task 4: Extract CharacterCognition
+  - [ ] Batch 3: Mindmap wiring
+    - [ ] Task 5: Game-world types + CognitiveDerivationEngine + descriptors
+    - [ ] Task 6: CognitiveProfile + ConversationBridge + rendering
+  - [ ] Batch 4: Consolidation
+    - [ ] Task 7: Sleep mechanic + integration tests
