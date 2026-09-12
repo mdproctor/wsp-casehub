@@ -230,6 +230,18 @@ graph (neocortex mindmap). Consolidation bridges Tier 2 → 3 during
 sleep. Beliefs, trust, principles, judgments are mindmap queries, not
 separate stores.
 
+### D7: Storage model — Unified mindmap with Thing trait facades
+
+All consolidated cognitive state on the mindmap. Per-concept access via
+Thing trait projections: `node.as(Belieflike.class)`. Collection queries
+via CognitiveProfile filtered by type. No separate wrapper classes —
+the Thing API IS the facade pattern.
+
+Validated via multi-agent debate (unified vs separate stores). Soar/ACT-R
+research supports unified long-term storage with separate working buffers
+— which is the three-tier model. The separate advocate's strongest
+contribution (typed per-concept APIs) is incorporated via Thing traits.
+
 ### D6: Norms vs constraints — Principles + contextual norms (no duplication)
 
 Eidos constraints stay in system prompt (identity: "you ARE this way").
