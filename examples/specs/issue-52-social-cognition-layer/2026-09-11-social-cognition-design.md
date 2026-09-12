@@ -71,6 +71,37 @@ Consolidation processes each type differently:
 - JUDGMENT → strengthened/weakened by new data
 - Episodic events → abstracted into semantic knowledge via `CommunitySummaryPhase`
 
+### Thing Trait Facades (D7)
+
+Per-concept access uses neocortex's `Thing` API — no separate store
+classes needed. `MindMapNode` extends `Thing`. Typed access via trait
+projection:
+
+```java
+// Per-node typed access
+node.is("belief")                     // type check
+node.as(Belieflike.class)             // → subject(), revised(), priorValue()
+node.as(Intentional.class)            // → goal(), viable()
+node.as(Evaluative.class)             // → target(), valence()
+
+// Collection queries via CognitiveProfile
+var beliefs = cognitiveProfile.query(agentId, "belief")
+    .nodes().stream()
+    .map(n -> n.as(Belieflike.class))
+    .toList();
+```
+
+`CharacterCognition` is a thin composition over CognitiveProfile queries
+with Thing projections — not a separate storage layer. It composes
+queries across Tier 2 (episodic buffer) and Tier 3 (mindmap) to render
+the full cognitive state for observation building.
+
+Trust events, belief revision triggers, and experience ingestion are
+buffered in Tier 2 during awake gameplay. During consolidation (sleep),
+they graduate to Tier 3 mindmap: trust events become relationship edge
+updates, experiences become typed nodes, belief contradictions trigger
+revision.
+
 ### Consolidation as a Game Mechanic
 
 "Night falls on the mansion. Characters rest and reflect..."
@@ -146,21 +177,23 @@ events from Tier 2 episodic buffer → Tier 3 mindmap nodes. Adapts
 
 ### Wacky-Manor (app-specific)
 
-| What | Size |
-|------|------|
-| **Refactor: Extract `CharacterCognition`** from ScenarioOrchestrator — per-character object owning cognitive state, querying all three tiers | L |
-| **Refactor: ObservationBuilder → builder pattern** — growing parameter list, exchange path doesn't need full cognition | S |
-| **Refactor: Config records** — group 30+ config properties into typed records | S |
-| **Refactor: AgentExperienceService constructors** — telescoping 13-param constructors → builder/config record | S |
-| **Wire `CognitiveDerivationEngine`** — Eidos descriptors → cognitive defaults (trust formation, social cognition, curiosity) | S |
-| **Wire `ConversationBridge`** — dialogue events → mindmap knowledge extraction + contradiction detection | S |
-| **Wire `CognitiveProfile`/`PerspectivalResolver`** — query mindmap for cognitive observation sections | M |
-| **Wire consolidation** — sleep game mechanic triggering `consolidateNow()` per character | S |
-| **Register game-world types** — ITEM, LOCATION, CHARACTER via TypeRegistry | XS |
-| **`ManorNormFilter`** — context-filter norms by room, nearby characters, inventory | S |
-| **`ManorTrustEvents`** — map ActionType → TrustEvent for relationship trust recording | XS |
-| **Character descriptor extensions** — social config in Eidos extensionData for 5 core characters | S |
-| **Integration + LLM eval tests** | M |
+| What | Size | Notes |
+|------|------|-------|
+| **Refactor: Extract `CharacterCognition`** | L | Thin composition: CognitiveProfile queries + Thing trait projections + Tier 2 buffer. Per-character, created at scenario start. Replaces scattered cognitive logic in ScenarioOrchestrator. |
+| **Refactor: ObservationBuilder → builder pattern** | S | Growing parameter list → `new ObservationBuilder(worldProvider, pipeline).withCognition(cognition).build()` |
+| **Refactor: Config records** | S | Group 30+ config properties into `ReflectionConfig`, `GoalConfig`, etc. |
+| **Refactor: AgentExperienceService constructors** | S | 13-param telescoping → builder or config record |
+| **Wire `CognitiveDerivationEngine`** | S | Eidos descriptors → cognitive defaults (trust formation, curiosity, social cognition) |
+| **Wire `ConversationBridge`** | S | Dialogue events → mindmap entity extraction + contradiction detection + sharing |
+| **Wire `CognitiveProfile` + Thing traits** | M | Query mindmap via `node.as(Belieflike.class)` etc. → render via CognitiveObservationSections |
+| **Wire `PerspectivalResolver`** | S | Per-character overlay views on shared mindmap nodes |
+| **Wire consolidation** | S | Sleep game mechanic → `consolidateNow()` per character |
+| **Register game-world types** | XS | ITEM, LOCATION, CHARACTER via TypeRegistry at scenario start |
+| **`ManorNormFilter`** | S | Context-filter norms by room, nearby characters, inventory |
+| **`ManorTrustEvents`** | XS | Map ActionType → trust event for Tier 2 buffering |
+| **Character descriptor extensions** | S | Social config in Eidos extensionData for 5 core characters |
+| **Remove `ManorTrustProvider`, `ManorDispositionRecorder`, `ManorPersonalityEvolution`** | S | Replaced by mindmap edges (trust), blocks scoring (disposition), CognitiveDerivationEngine (evolution) |
+| **Integration + LLM eval tests** | M | Verify cognitive stack wiring end-to-end |
 
 ---
 
