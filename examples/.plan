@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-52-social-cognition-layer
-state: active
+state: closing:promoted
 project-sha: 17b72aed2b40ee9bcd4ebde656d5e62b66374251
 date: 2026-09-11
 issue-repo: casehubio/examples
@@ -11,6 +11,7 @@ design-repo: project
 design-section-hashes: 
 flyway-next-v: none
 
+evidence-era: true
 ## Queue
 - [ ] casehubio/examples#52 — Issue #52 ← active
   - [x] Batch 1: Clean foundation
