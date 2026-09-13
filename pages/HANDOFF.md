@@ -1,17 +1,17 @@
-# HANDOFF — casehub-pages (slot 112)
-
-Branch: `issue-408-scenario-engine`
-Epic: casehubio/parent#408
+# HANDOFF — casehub-pages
 
 ## Last Session
 
-Spec session — wrote the scenario format protocol document (`parent/docs/platform/scenario-format.md`) for #409 and the demo SPI convention (`parent/docs/platform/demo-spi-convention.md`) for #410. Amended the design spec with 9 review findings: ControlChannel resilience, DataTrigger as server-side polling, fill resolution, on-error policy, file distribution via bootstrap endpoint, shared DemoCurrentPrincipal.
+Designed the visual YAML builder — brainstormed the full scope (page builder Phase 1 + project-level agentic AI graph Phase 2), audited all six CaseHub YAML layers, wrote spec through 3-round Standard review, created implementation plan with 4 batches / 6 tasks. Completed Batch 1: `pages-document` package with PageDocument CST-backed facade, all node types, container descriptors, Zod→FieldSchema conversion — 58 tests passing.
 
 ## Immediate Next Step
 
-Queue is at position 2/7. Active issue: **#311 — Scenario executor backend (XL / High) [pages]**. This is the first implementation issue — TypeScript/Java code. Run `/work` to continue. Invoke brainstorming before implementation — #311 is XL scope.
+Execute Batch 2: create `pages-builder` package with component catalog (contextual filtering, categories, default props) and outline tree Lit component. Plan at `docs/plans/2026-09-12-visual-yaml-builder.md`, Task 3.
 
-## Cross-Module
+## References
 
-**Enabled** (delivered, downstream unblocked):
-- `parent` — scenario format spec (#409) and demo SPI convention (#410) are published; pages#311, connectors#93, connectors#94 can proceed
+- `docs/specs/issue-visual-yaml-builder/2026-09-12-visual-yaml-builder-design.md` — full design spec
+- `docs/specs/issue-visual-yaml-builder/decisions.md` — 10 design decisions
+- `docs/plans/2026-09-12-visual-yaml-builder.md` — implementation plan (Batch 1 done, 3 remaining)
+- `packages/pages-document/` — facade package (58 tests)
+- `blog/2026-09-12-mdp01-visual-yaml-builder-design.md` — diary entry

@@ -1,15 +1,25 @@
-# Work Plan — issue-395-scenario-tutorials
+# Work Plan — issue-428-visual-yaml-builder
 
 ## State
-branch: issue-395-scenario-tutorials
-state: scaffolded
-project-sha: dcdb97ebbc58a5c480ad1059b27f8624dacc9fae
-date: 2026-08-30
+branch: issue-428-visual-yaml-builder
+state: active
+project-sha: 569e91aea51f844b3ebb94b07f203a7550467847
+date: 2026-09-12
 issue-repo: casehubio/casehub-pages
-covers: 395
-design-repo: workspace
-design-section-hashes: 
+covers: 428
+design-repo: project
+design-section-hashes: 4d2cc5ab:##
 flyway-next-v: none
 
 ## Queue
-- [ ] casehubio/casehub-pages#395 — Issue #395 ← active
+- [ ] casehubio/casehub-pages#428 — Issue #428 ← active
+  - [x] Batch 1: Document Facade
+    - [x] Task 1: PageDocument Core + Node Types
+    - [x] Task 2: ComponentNode + Container Descriptors + Schema Bridge
+  - [ ] Batch 2: Builder UI Foundation
+    - [ ] Task 3: Package Scaffold + Component Catalog + Outline Tree
+  - [ ] Batch 3: Palette + Properties
+    - [ ] Task 4: Component Palette
+    - [ ] Task 5: Property Panel Integration + Builder Shell
+  - [ ] Batch 4: Integration
+    - [ ] Task 6: Runtime Integration + E2E Testing

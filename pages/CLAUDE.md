@@ -1,7 +1,7 @@
 # casehub-pages Workspace
 
 **Name:** casehub-pages
-**Project repo:** /Users/mdproctor/claude/casehub/pages
+**Project repo:** proj/
 **Workspace type:** public
 
 ## Git Remotes
@@ -11,7 +11,7 @@
 
 ## Session Start
 
-Run `add-dir /Users/mdproctor/claude/casehub/pages` and `add-dir /Users/mdproctor/claude/public/casehub/pages` before any other work.
+Run `# add-dir removed — use proj/ symlink instead and `# add-dir removed — use proj/ symlink instead before any other work.
 
 ## Artifact Locations
 
@@ -38,13 +38,13 @@ Run `add-dir /Users/mdproctor/claude/casehub/pages` and `add-dir /Users/mdprocto
 ## Git Discipline
 
 Two git repositories are active in every session:
-- **Workspace** (`/Users/mdproctor/claude/public/casehub/pages`) — plans, blog (staging), snapshots, handover
-- **Project repo** (`/Users/mdproctor/claude/casehub/pages`) — source code, ADRs (`docs/adr/`), specs
+- **Workspace** (wksp/) — plans, blog (staging), snapshots, handover
+- **Project repo** (proj/) — source code, ADRs (`docs/adr/`), specs
 
 Never rely on CWD for git operations — the session may have started in either repo. Always use explicit paths:
 ```bash
-git -C /Users/mdproctor/claude/public/casehub/pages add <file>    # workspace artifacts
-git -C /Users/mdproctor/claude/casehub/pages add <file>      # project artifacts
+git -C proj/ add <file>    # workspace artifacts
+git -C proj/ add <file>      # project artifacts
 ```
 The file path determines the repo: if the file lives under the workspace path, use the workspace; if under the project path, use the project.
 
@@ -190,7 +190,7 @@ yarn workspace @casehubio/pages-examples run dev
 - `@casehubio/pages-primitives` — Lit-dependent UI primitives: a11y mixins (LiveRegionMixin, FocusTrapMixin, RovingTabindexMixin, KeyboardShortcutMixin). Depends on `lit`. Migrated from blocks-ui-core in blocks-ui#48.
 - `@casehubio/pages-table` — `PagesDataTable` (`pages-data-table`, type `data-table`) — interactive data table: CSS Grid rendering, virtual scroll, sorting, filtering, column visibility (`hiddenColumns`), multi-mode selection, tree rows, row-detail expansion, CSV export, ARIA grid, keyboard navigation, native `groupBy` (interleaved group headers). Builder: `dataTable()`. Depends on `lit`. Migrated from blocks-ui in blocks-ui#48.
 - `@casehubio/pages-aria` — ARIA-based browser automation for scenario demos. Tree walker, command executor (`click`, `fill`, `select`, `assertState`, `waitFor`), scenario handler (push wire dispatch), visual feedback (highlights, typing animation), YAML viewer component with syntax highlighting and position tracking, scenario controller component (compact overlay, transport controls, dock/undock, detach). Depends on `lit`, `yaml`.
-- `@casehubio/pages-runtime` — Site orchestrator: `loadSite()` API, navigation, data pipeline, layout serialization (`LayoutStore`, `createLocalLayoutStore`)
+- `@casehubio/pages-runtime` — Site orchestrator: `loadSite()` API, navigation, data pipeline, layout serialization (`LayoutStore`, `createLocalLayoutStore`), programmatic dock panel activation (`LiveSite.activateDockPanel`), hash-based panel deep linking (`DeepLink.panel`)
 - `@casehubio/graph-core` — Directed graph model (`GraphModel`, `GraphNode`, `GraphEdge`), grammar-based connection rules (`StencilGrammar`), graph operations (add/remove node/edge, `nodeById`, `edgeById`). Pure TypeScript, no framework deps.
 - `@casehubio/graph-renderer` — React Flow bridge for rendering `GraphModel` via `<pages-graph-canvas>` Lit element. Stencil registry, ELK auto-layout, CSS style isolation, editing infrastructure (`EditPolicy` SPI, `GraphEdit` discriminated union, `applyGraphEdit`, `defaultEditPolicy`). Depends on `@xyflow/react`, `lit`.
 - `@casehubio/graph-work-registry` — Graph-aware work item registry for diagram-driven workflow nodes.

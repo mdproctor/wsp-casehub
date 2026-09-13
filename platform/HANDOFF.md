@@ -1,62 +1,41 @@
-# HANDOFF — Slot 30: Retire Reactive Tiers (#384)
+# HANDOFF — casehub-platform
 
-**Issue:** casehubio/parent#384
-**Slot:** `/Users/mdproctor/claude/casehub/worktrees/30/`
-**Branch:** `issue-384-retire-reactive` (all repos)
-**Cookbook:** `engine/docs/guides/virtual-thread-migration.md`
+## Last Session
 
-## What's Done
+Completed #288 (cloud model sources) end-to-end: brainstorm (8 decisions, light decision review with revisions), design spec (light spec review, 12 findings addressed — separate modules for Vertex/Bedrock, priority-sorted refresh, cache alignment, CloudModelSource interface), 7-task implementation plan, all 7 tasks implemented with TDD. Issue closed.
 
-| Repo | Status | Notes |
-|------|--------|-------|
-| **platform** | Merged | casehubio/platform#194 |
-| **ras** | Merged | casehubio/casehub-ras#54 |
-| **connectors** | Clean | Zero reactive code |
-| **claudony** | Clean | Zero reactive code |
-| **openclaw** | Clean | Zero reactive code |
-| **blocks** | Clean | Zero reactive code |
-| **ledger** | Committed | 40 files, 2329 lines deleted |
-| **eidos** | Committed | 50 files, 2245 lines deleted. Also fixed SettingsScope.root() (platform #193 API change) |
-| **qhorus** | Committed | 103 files, 9574 lines deleted. Dashboard service rewritten to blocking. Pre-existing connector-backend SRCFG00050 test failure (unrelated) |
-| **ops** | PR open | casehubio/casehub-ops#63 — different issue (#10,#21), not #384 |
-| **desiredstate** | PR open | casehubio/casehub-desiredstate#88 — CI failing: SettingsScope.root() API change |
-| **iot** | PR open | casehubio/iot#70 — CI failing: Worker.Builder.function() type mismatch |
+Key deliverables landed on branch:
+- `CloudModelSource` interface extending `ModelSource` with `status()` method
+- `CloudSourceStatus` record with `State` enum (ACTIVE/INACTIVE/ERROR) + factory methods
+- `AnthropicCloudModelSource` + `OpenAiCloudModelSource` — wrap existing VendorClients, priority 5, last-known-good caching
+- `VertexCloudModelSource` + `BedrockCloudModelSource` — inject via `Instance<VendorClient>`, graceful when module absent
+- New module `llm-config-vertex/` — `VertexClient` with Google ADC auth (`google-auth-library-oauth2-http`)
+- New module `llm-config-bedrock/` — `BedrockClient` with manual SigV4 signing (`software.amazon.awssdk:auth`)
+- `CloudSourceCredentialBootstrap` — env var detection (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`), `LlmCredentialStore` seeding at platform scope
+- `cloudSourceStatus()` query on `LlmConfigApi` for onboarding guidance
+- `ModelRegistryRefresher` — priority-sorted refresh (seed=0 before cloud=5 before configured=10)
+- HttpClient reuse fix in AnthropicClient, OpenAiClient, GoogleClient
+- 75+ tests across all modules, full build green
 
-## What's Left — Neocortex
+## Immediate Next Step
 
-**Architecture difference:** Neocortex is reactive-primary. Unlike every other repo where blocking owns the logic and reactive wraps it, neocortex's reactive implementations ARE the real code (Qdrant gRPC, Mem0 REST, Graphiti REST). Blocking classes are thin `.await().indefinitely()` wrappers.
+Brainstorm #289 (local model sources — Ollama + HuggingFace discovery and lifecycle). Queue advanced, #289 is active.
 
-**The cookbook doesn't apply.** Cannot "delete reactive, keep blocking." Must convert reactive → blocking in-place.
+## Queue
 
-### Conversion plan (3 categories)
+Branch `issue-288-cloud-model-sources` has 4 issues queued: #288 (done), #289 (active), #290, #292.
 
-**Category 1 — Straight deletion (~36 files):**
-Reactive SPI interfaces (10), bridges (6), InMemory reactive wrappers (2), parity tests (~18). Same mechanical pattern as other repos.
+## Key Design Decisions
 
-**Category 2 — Backend conversion (3 backends, ~1hr each):**
-- **Qdrant:** `ReactiveQdrantCbrCaseMemoryStore` → `QdrantCbrCaseMemoryStore`. Convert `QdrantFutures.toUni(future)` → `future.get()`. Delete thin blocking wrapper.
-- **Mem0:** `ReactiveMem0CaseMemoryStore` → `Mem0CaseMemoryStore`. Create blocking `Mem0Client` interface (drop `Uni<>` from return types). Delete thin blocking wrapper.
-- **Graphiti:** Same pattern as Mem0 — `ReactiveGraphitiClient` → blocking `GraphitiClient`.
+- Cloud sources use plain `apiModelId` (same as seed catalog) — priority resolution handles overlap
+- Vertex/Bedrock VendorClients in separate modules for classpath isolation (Quarkus build-time bean discovery + optional SDK deps = fragile)
+- Credential bootstrap seeds store from env vars but doesn't overwrite wizard-configured credentials
+- Discovery-invocation disconnect acknowledged: Vertex/Bedrock models route through Claude backend (direct API), not cloud platform endpoints — dedicated AgentBackends tracked as downstream
 
-**Category 3 — Decorator chain (4 decorators):**
-ReactiveTemporalDecay, ReactiveOutcomeWeighting, ReactiveScopeDecay, ReactiveTrendEnrichment. Check if blocking decorators exist — if yes, just delete reactive. If not, convert.
+## References
 
-### Execution order
-1. Category 1 first (mechanical deletion)
-2. Category 2 backend-by-backend (Qdrant → Mem0 → Graphiti)
-3. Category 3 last
-4. POM cleanup (11 mutiny deps already identified)
-5. Build and verify
-
-**Garden entry:** GE-20260724-115ce0 documents the gotcha.
-
-## Open PRs Needing Attention
-
-- **desiredstate #88** and **iot #70** — CI failing from upstream API changes (SettingsScope, WorkerFunction), not from #384 work. Need rebase onto latest main.
-- **Engine #381** — delivered locally, PR still open. Once merged, CI for all downstream repos will pass.
-
-## Artifacts
-
-- **Blog:** `2026-07-24-mdp01-twelve-out-of-thirteen.md` (workspace)
-- **Garden:** GE-20260724-115ce0 (neocortex reactive-primary gotcha), GE-20260724-c35265 (IntelliJ safe_delete line shift)
-- **Protocol:** `sse-endpoint-no-virtual-thread` (prior session, unchanged)
+- Spec: `specs/issue-288-cloud-model-sources/2026-09-12-cloud-model-sources-design.md`
+- Plan: `plans/2026-09-12-cloud-model-sources.md`
+- Decision review: `/Users/mdproctor/reviews/casehub-platform/issue-288-decision-20260912-143409/`
+- Spec review: `/Users/mdproctor/reviews/casehub-platform/issue-288-cloud-model-sources-20260912-151559/`
+- Epic #285: LLM model registry

@@ -1,20 +1,23 @@
-# Handoff — 2026-08-20 (issue-202-retrain-strategy-classifier)
+# HANDOFF — casehub-neocortex
 
 ## Last Session
 
-Replaced BatchNorm with LayerNorm. Fixed pipeline label mismatch bug (phantom output classes from consolidation). Built dual-encoder architecture with separate Conv stacks for player/opponent features, learned sigmoid gating, feature projection (119→64), residual 4-head attention. Added label smoothing (0.1) and calibrated modality dropout (20%→40%). Per-source diagnostic revealed MSC (player-only) at 42.3% is the structural bottleneck — player features are an indirect proxy for the opponent's strategy. Results: vs_terran 52.8% (from 51.4%), vs_zerg 70.2% (from 66.5%), vs_protoss 74.0% (from 69.9%).
+Completed #287 (Multi-Agent Social Cognition) — all 3 batches, 6 tasks. CognitiveProfile.compare() for multi-agent perspective resolution, SocialComparison divergence metrics (PAD distance, pairwise differences, 3D trajectory alignment), DomainActivation cross-domain DTW correlation, arousalSlope addition to AffectTrajectory. 221 cognitive-index tests green.
+
+Built 5 example walkthrough modules (#325-#330): example-cognitive-index (therapy session), example-agent-memory (AI tutor), example-cbr-advanced (clinical decision support), example-rag-analytics (compliance audit), example-mindmap-intelligence (research lab). 37 example tests, all green.
+
+Completed 3 small fixes (#331, #323, #294): betweennessCentrality NPE with cross-subgraph edges, consolidateNow(tenantId) on-demand trigger, MindMapQuery.withType() + migrated all callers to factory pattern.
+
+Updated consumer guide, contributor guide, CLAUDE.md. Filed #331 (bug found during examples). Diary entry written: "Perspective Is Constitutive."
 
 ## Immediate Next Step
 
-Batch 5 in the .plan: implement hierarchical classification head for vs_terran. If that doesn't break 65%, the bottleneck is temporal window length (strategy divergence happens at minute 5-7 but data only covers ~3-5 minutes). Extending windows requires re-extracting from raw replay archives with `max_windows > 10` in HyperParams — a significant effort (batch 4 tasks 9-10 are blocked on this).
+Execute Batch 1: #324 — MoodEvents + ExperienceEvents cross-domain correlation. Extends DomainActivation to handle mood and experience domains alongside affect. The social cognition spec (D3) explicitly scoped this out — the design notes explain why DomainActivation's aggregate pattern differs from CognitiveProfile's per-entity pattern.
 
-## Cross-Module
+## References
 
-*Unchanged — `git show HEAD~1:HANDOFF.md`*
-
-## Notes
-
-- Pipeline now saves `classes.json` per matchup in `data/combined/` — run_pipeline reads it automatically
-- `--min-samples 250` needed for normalize to trigger AIR_SUPERIORITY→MACRO_ECONOMY consolidation (243 samples)
-- vs_protoss has 3 near-zero classes (DT_RUSH 6.8%, BLINK_STALKER 4.5%, AIR_SUPERIORITY 8.9%) — may need similar consolidation
-- Garden push has unpushed commits — resolve on next garden maintenance
+- Spec: `wksp/specs/issue-287-social-cognition/2026-09-11-social-cognition-design.md` (§ Scope Notes for #324 context)
+- Plan: `.plan` (4 issues: #324, #322, #300, #298 across 3 batches)
+- Social cognition decisions: `wksp/specs/issue-287-social-cognition/decisions.md` (D1-D6)
+- Diary: `wksp/blog/2026-09-12-mdp01-perspective-is-constitutive.md`
+- Journal: `wksp/JOURNAL.md`
