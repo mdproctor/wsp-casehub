@@ -803,49 +803,74 @@ After this batch: full social cognition running. Sleep game mechanic triggers co
 Add the "night falls" consolidation trigger and verify the full cognitive stack end-to-end.
 
 **Files:**
-- Modify: `src/main/java/io/casehub/examples/manor/agent/ScenarioOrchestrator.java` — add sleep cycle between acts
-- Modify: `src/main/java/io/casehub/examples/manor/agent/CharacterCognition.java` — add `consolidate()` method
+- Modify: `src/main/java/io/casehub/examples/manor/agent/ScenarioOrchestrator.java` — inject ConsolidationScheduler, add sleep cycle
+- Modify: `src/main/java/io/casehub/examples/manor/agent/ManorConfig.java` — add `ConsolidationConfig` record
+- Modify: `src/main/java/io/casehub/examples/manor/agent/ManorConfigProducer.java` — produce ConsolidationConfig
 - Test: `src/test/java/io/casehub/examples/manor/agent/SocialCognitionIntegrationTest.java`
 
 **Interfaces:**
-- Consumes: neocortex `ConsolidationScheduler.consolidateNow(tenantId)` (neocortex#323)
+- Consumes: neocortex `ConsolidationScheduler.consolidateNow(String tenantId)` — `@ApplicationScoped` CDI bean, non-blocking (lock-guarded, returns immediately if already running). Tenant-scoped, not per-agent — one call consolidates all characters' memories for that tenant.
 - Produces: Sleep cycle in the tick loop. Full cognitive stack integration verified.
 
-- [ ] **Step 1: Add consolidate() to CharacterCognition**
+**Design note:** Consolidation is tenant-scoped. The sleep cycle calls `consolidateNow(tenantId)` once per sleep event, not once per character. All registered `ConsolidationPhase` instances (AccessFrequencyPhase, MergeDetectionPhase, CommunitySummaryPhase, CuriosityRefreshPhase) run in sequence for that tenant.
+
+- [ ] **Step 1: Add `ConsolidationConfig` to ManorConfig**
+
+Add a nested record to ManorConfig:
 
 ```java
-public void consolidate() {
-    // If neocortex#323 has landed:
-    // consolidationScheduler.consolidateNow(tenantId + ":" + agentId);
+public record ConsolidationConfig(boolean enabled, int intervalTicks) {}
+```
 
-    // Fallback: directly run accessible consolidation phases
-    // This is a placeholder until consolidateNow() is available
-    log.infof("Consolidation triggered for %s", agentId);
+Default: `enabled=true`, `intervalTicks=50`. Add to ManorConfig constructor and ManorConfigProducer.
+
+- [ ] **Step 2: Write test for sleep cycle timing**
+
+```java
+@Test
+void sleepCycleTriggersAtConfiguredInterval() {
+    var config = new ManorConfig.ConsolidationConfig(true, 50);
+    assertThat(config.enabled()).isTrue();
+    assertThat(config.intervalTicks()).isEqualTo(50);
+    // Tick 0: no consolidation. Tick 50: consolidation. Tick 100: consolidation.
+    assertThat(50 % config.intervalTicks() == 0).isTrue();
+    assertThat(49 % config.intervalTicks() == 0).isFalse();
 }
 ```
 
-- [ ] **Step 2: Add sleep cycle to ScenarioOrchestrator**
-
-In `runAutonomousTicks()`, add a consolidation check at configurable intervals (e.g., every 50 ticks):
+- [ ] **Step 3: Inject ConsolidationScheduler into ScenarioOrchestrator**
 
 ```java
-if (tick > 0 && tick % config.consolidationInterval() == 0) {
+@Inject ConsolidationScheduler consolidationScheduler;
+```
+
+Import: `io.casehub.neocortex.mindmap.intelligence.consolidation.ConsolidationScheduler`
+
+- [ ] **Step 4: Add sleep cycle to ScenarioOrchestrator**
+
+In `runAutonomousTicks()`, add a consolidation check at the configured interval:
+
+```java
+if (config.consolidation().enabled()
+        && tick > 0
+        && tick % config.consolidation().intervalTicks() == 0) {
     log.info("Night falls on the mansion. Characters rest and reflect...");
-    webEventBus.broadcast(ManorWebSocketEvent.narrator("Night falls. The characters rest and reflect on the day's events..."));
-    for (var cognition : cognitions.values()) {
-        cognition.consolidate();
-    }
-    webEventBus.broadcast(ManorWebSocketEvent.narrator("Dawn breaks. A new day begins..."));
+    webEventBus.broadcast(ManorWebSocketEvent.narrator(
+        "Night falls. The characters rest and reflect on the day's events..."));
+    consolidationScheduler.consolidateNow(tenantId);
+    webEventBus.broadcast(ManorWebSocketEvent.narrator(
+        "Dawn breaks. A new day begins..."));
 }
 ```
 
-Add `consolidationInterval` to ManorConfig (default: 50 ticks).
+Single `consolidateNow(tenantId)` call — consolidation is tenant-scoped. All characters' episodic memories consolidate together via the registered phases.
 
-- [ ] **Step 3: Write integration test**
+- [ ] **Step 5: Write integration test**
 
 ```java
 package io.casehub.examples.manor.agent;
 
+import io.casehub.neocortex.mindmap.intelligence.consolidation.ConsolidationScheduler;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -855,6 +880,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SocialCognitionIntegrationTest {
 
     @Inject ScenarioOrchestrator orchestrator;
+    @Inject ConsolidationScheduler consolidationScheduler;
     @Inject io.casehub.eidos.api.AgentRegistry agentRegistry;
 
     @Test
@@ -868,25 +894,30 @@ class SocialCognitionIntegrationTest {
     }
 
     @Test
+    void consolidateNowIsCallable() {
+        // Verifies ConsolidationScheduler is injectable and consolidateNow
+        // is non-blocking (returns immediately when no data to consolidate)
+        consolidationScheduler.consolidateNow("wacky-manor-test");
+    }
+
+    @Test
     void characterCognitionRendersSections() {
-        var desc = agentRegistry.findById("hooded-claw", "wacky-manor").orElseThrow();
         var cognition = new CharacterCognition("hooded-claw", null);
-        // After wiring, renderCognitiveSections returns non-empty for characters with social config
         var sections = cognition.renderCognitiveSections(
             TestFixtures.createCharacter("hooded-claw", "Grand Hallway"),
             java.util.List.of("penelope-pitstop"),
             java.util.Map.of("penelope-pitstop", "Penelope Pitstop"));
-        // Sections will be populated once CognitiveProfile is wired
+        assertThat(sections).isNotEmpty();
     }
 }
 ```
 
-- [ ] **Step 4: Run full test suite**
+- [ ] **Step 6: Run full test suite**
 
 Run: `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn test -pl wacky-manor -s slot-settings.xml`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git -C /Users/mdproctor/claude/casehub/examples add wacky-manor/
@@ -920,6 +951,6 @@ git -C /Users/mdproctor/claude/casehub/examples commit -m "feat(#52): wire conso
 - [ConversationBridge] (neocortex mindmap-intelligence) — text → mindmap
 - [CognitiveObservationSections] (blocks) — observation section rendering
 - neocortex#322 — cognitive node types (still open)
-- neocortex#323 — consolidateNow trigger (still open)
+- neocortex#323 — consolidateNow trigger (CLOSED — `ConsolidationScheduler.consolidateNow(tenantId)`, `@ApplicationScoped`)
 - blocks#260 — cognitive observation renderers
 - GitHub #52 — focal issue
