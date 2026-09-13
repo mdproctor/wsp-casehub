@@ -3,7 +3,7 @@
 ## State
 branch: issue-52-social-cognition-layer
 state: active
-project-sha: 9f9e26a011bab95877ea48c3e57a86f0a7e731d2
+project-sha: 17b72aed2b40ee9bcd4ebde656d5e62b66374251
 date: 2026-09-11
 issue-repo: casehubio/examples
 covers: 52
@@ -22,5 +22,5 @@ flyway-next-v: none
   - [x] Batch 3: Mindmap wiring
     - [x] Task 5: Game-world types + CognitiveDerivationEngine + descriptors
     - [x] Task 6: CognitiveProfile + ConversationBridge + rendering
-  - [ ] Batch 4: Consolidation
-    - [ ] Task 7: Sleep mechanic + integration tests
+  - [x] Batch 4: Consolidation
+    - [x] Task 7: Sleep mechanic + integration tests
