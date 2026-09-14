@@ -52,7 +52,7 @@ For each acting character per tick:
 5. **TemporalFocus.focus(entries, now, trajectories, config)** — ranks all entries by salience (recency + affect trajectory + volatility), returns sorted `List<AttentionItem>`
 6. **Budget selection** — take top items per category within adaptive budget
 7. **Thing trait projection → blocks type mapping** — see §Mapping table below
-8. **Blocks#260 rendering** — `beliefsSection()`, `trustSection()`, `normsSection()`, `principlesSection()`, plus `CognitionCore.promptSections()` for motivation/mood
+8. **Blocks#260 rendering** — `beliefsSection()`, `trustSection()`, `normsSection()`, `principlesSection()`, plus `CognitionCore.promptSections()` for motivation/mood, plus "Social Awareness" section from compare() when budget-gated (step 3)
 9. **Post-action: cognitive signal dispatch** — replaces `recordTrustEvent()` with two paths:
    - **Dialogue exchanges** (PULL_ASIDE conversations, directed dialogue): `CognitionCore.recordInteraction(agentId, tenantId, targetId, dialogueText, thinkingText)` — the dialogue is natural language, so mood appraisal (~1 LLM call) and BDI extraction (~1 LLM call) produce semantically correct signals. ~0–2 LLM calls per tick (PULL_ASIDE is uncommon).
    - **Game actions** (STEAL, GIVE, USE, INTERACT): `ManorContextStrategy.recordAction(agentId, tenantId, targetId, actionType)` — maps directly to orchestrators, no LLM calls:
@@ -112,7 +112,7 @@ After seeding, CognitiveProfile queries are the sole source of truth for beliefs
 | Cognitive element | Source after seeding | Why |
 |-------------------|---------------------|-----|
 | **Beliefs** | Mindmap (CognitiveProfile) | Knowledge — evolves through experience and consolidation |
-| **Trust** | Mindmap edges (dynamic) | Accumulated from interactions, modulated by personality |
+| **Trust** | Mindmap edges (dynamic) | Accumulated from interactions, modulated by personality. **Note:** no edge write path exists in this issue's scope — trust edges arrive via ConversationBridge (#55) and ExperienceConsolidation (#336). The Edge → TrustSummary mapping is forward-looking infrastructure; `trustSection()` renders "No trust assessments." until those issues land. |
 | **Personality drives** | SocialConfig (rendered by CharacterCognition as "Your Drives") | Character personality — static per scenario |
 | **Motivation drives** | CognitionCore DriveOrchestrator (rendered as "Motivational State" via promptSections()) | SDT-based intrinsic motivation — dynamic, evaluated per tick |
 | **Norms** | SocialConfig → ManorContextStrategy filtering | Behavioral rules — static, context-filtered per tick |
