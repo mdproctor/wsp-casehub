@@ -38,14 +38,22 @@ When blocks#282 lands, ManorContextStrategy becomes the SPI implementation — z
 
 For each acting character per tick:
 
-1. **CognitionCore.tick()** — runs mood, drives, narrative orchestrators
+1. **CognitionCore.tick(agentId, tenantId, descriptor, activeSubjects)** — runs mood decay, drive evaluation, per-subject user/mental model ticking. `activeSubjects` = nearby agent IDs from world state, bridging room occupancy to the cognitive system's awareness model.
 2. **ManorContextStrategy resolves situation** — nearby agents from world state, arousal from CognitionCore mood, budget from heuristics
-3. **CognitiveProfile.resolve()** — queries mindmap per nearby entity and self-knowledge, using `query.withAsSeenBy(principalId)` for perspectival views
-4. **TemporalFocus.focus()** — ranks all cognitive entries by salience (recency + affect trajectory + volatility)
-5. **Budget selection** — take top items per category within adaptive budget
-6. **Thing trait projection → blocks type mapping** — `node.as(Belieflike.class)` → `Belief<String>`, edge weights → `TrustSummary`, etc.
-7. **Blocks#260 rendering** — `beliefsSection()`, `trustSection()`, `normsSection()`, `principlesSection()`, plus `CognitionCore.promptSections()` for drives/mood
-8. **ObservationBuilder.withCognitiveSections()** — unchanged interface
+3. **CognitiveProfile queries per entity:**
+   - `CognitiveProfile.resolve(query.withAsSeenBy(principalId))` for each nearby entity and self-knowledge — returns `Optional<EntityKnowledge>` (node + edges + memories + trajectory + unresolved refs)
+   - `CognitiveProfile.compare(query, nearbyAgentPrincipalIds)` for multi-agent perspectival views — returns `Map<PrincipalId, EntityKnowledge>` showing how different agents perceive the same entity. Used for theory-of-mind rendering (full social comparison UI deferred to #60).
+4. **EntityKnowledge → TemporalEntry conversion:**
+   - Each EntityKnowledge.node → `new TemporalEntry(node.updatedAt(), new FromMindMap(node), tenantId, node.confidence())`
+   - Each memory across all domains → `new TemporalEntry(memory.timestamp(), new FromMemory(memory), tenantId, null)`
+   - Each EntityKnowledge.trajectory → collected into `Map<String, AffectTrajectory>` keyed by node.id()
+   - All entries flattened into a single `List<TemporalEntry>`
+5. **TemporalFocus.focus(entries, now, trajectories, config)** — ranks all entries by salience (recency + affect trajectory + volatility), returns sorted `List<AttentionItem>`
+6. **Budget selection** — take top items per category within adaptive budget
+7. **Thing trait projection → blocks type mapping** — see §Mapping table below
+8. **Blocks#260 rendering** — `beliefsSection()`, `trustSection()`, `normsSection()`, `principlesSection()`, plus `CognitionCore.promptSections()` for motivation/mood
+9. **Post-action: InteractionSignal dispatch** — after action resolution, `CognitionCore.recordInteraction(agentId, tenantId, targetId, description, response)` replaces `recordTrustEvent()`. This is intentionally broader — handles mood appraisal, user model, mental model BDI extraction, not just trust. ActionType maps to `InteractionSignal.CustomSignal(description, quality)`: STEAL/USE → NEGATIVE, GIVE/INTERACT → POSITIVE, PULL_ASIDE → NEUTRAL.
+10. **ObservationBuilder.withCognitiveSections()** — unchanged interface
 
 ### Adaptive Attention via TemporalFocus
 
@@ -71,32 +79,80 @@ Configuration via `TemporalFocusConfig` knobs: `proximityScale`, `worseningBoost
 
 ## Seeding — Static to Dynamic Transition
 
-At scenario start, SocialConfig initial beliefs are written to the mindmap as COGNITIVE-typed nodes with the character's principalId. After seeding, CognitiveProfile queries are the sole source of truth for beliefs and trust.
+During scenario initialization (in `runScenario()`, before the tick loop), `ManorCognitiveSeeder` writes SocialConfig initial beliefs to the mindmap as COGNITIVE-typed nodes with the character's principalId. The seeder runs per-character in the character construction loop, after CharacterCognition creation. It receives `MindMapStore` via CDI injection (`@ApplicationScoped`, available in wacky-manor's Quarkus context).
+
+ManorCognitiveSeeder:
+1. Creates one MindMapNode per InitialBelief, with the character's principalId and Belieflike trait properties
+2. Records the set of seeded node IDs and their `updatedAt()` timestamps for later revised-belief detection
+3. Runs once per scenario — deterministic, in the pre-tick initialization phase, no re-seeding guard needed
+
+After seeding, CognitiveProfile queries are the sole source of truth for beliefs and trust.
 
 | Cognitive element | Source after seeding | Why |
 |-------------------|---------------------|-----|
 | **Beliefs** | Mindmap (CognitiveProfile) | Knowledge — evolves through experience and consolidation |
 | **Trust** | Mindmap edges (dynamic) | Accumulated from interactions, modulated by personality |
-| **Drives** | SocialConfig → CognitionCore DriveOrchestrator | Personality trait — static per scenario |
+| **Personality drives** | SocialConfig (rendered by CharacterCognition as "Your Drives") | Character personality — static per scenario |
+| **Motivation drives** | CognitionCore DriveOrchestrator (rendered as "Motivational State" via promptSections()) | SDT-based intrinsic motivation — dynamic, evaluated per tick |
 | **Norms** | SocialConfig → ManorContextStrategy filtering | Behavioral rules — static, context-filtered per tick |
 | **Principles** | Eidos constraints (AgentDescriptor) | Identity — stable, from system prompt |
 
-Beliefs seed to the mindmap because they're revisable knowledge ("Penelope is naive" can be contradicted by experience). Drives and norms stay in config because they're personality/behavioral rules that don't evolve through consolidation.
+Personality drives (SocialConfig: scheming, curiosity, gallantry) and motivation drives (CognitionCore: CURIOSITY, COMPETENCE, AFFILIATION, AUTONOMY) are semantically distinct systems. Personality drives are character-defining traits rendered as "Your Drives". Motivation drives are SDT-based intrinsic motivation axes computed from interaction data, rendered as "Motivational State". No duplication — different section titles, different semantics. CognitionConfig.drivesEnabled = true enables the motivation system alongside static personality drives.
+
+Beliefs seed to the mindmap because they're revisable knowledge ("Penelope is naive" can be contradicted by experience). Norms stay in config because they're behavioral rules that don't evolve through consolidation.
 
 ---
 
 ## Mapping: Thing Traits → Blocks Types
 
-CharacterCognition maps neocortex mindmap nodes to blocks renderer input types inline. ~4 conversions:
+CharacterCognition maps neocortex mindmap nodes to blocks renderer input types inline. Four conversions:
 
-| Thing trait | Blocks type | Mapping |
+| Thing trait | Blocks type | Details |
 |-------------|-------------|---------|
-| `node.as(Belieflike.class)` | `Belief<String>` | subject → key, node.summary() → value |
-| Edge trust weight | `TrustSummary` | target name + weight → TrustLevel (HIGH/MODERATE/LOW/UNKNOWN) + reason from edge label |
-| Norm (from SocialConfig) | `SocialNorm` | rule text + priority → SocialNorm with status ESTABLISHED |
-| Constraint (from Eidos) | `Principle` | description → text, optional category |
+| `node.as(Belieflike.class)` | `Belief<String>` | See §Belieflike mapping |
+| MindMapEdge | `TrustSummary` | See §Edge trust mapping |
+| SocialConfig.NormEntry | `SocialNorm` | See §Norm mapping |
+| AgentConstraint | `Principle` | `description` → `text`, category from constraint metadata |
 
-Revised beliefs tracked via node metadata — `revisedKeys` set passed to `beliefsSection()` for visual marking.
+### Belieflike → Belief\<String\>
+
+- **key**: `belieflike.subject().orElse(node.name())` — subject is the belief topic identifier; falls back to node name when absent (Belieflike.subject() returns `Optional<String>`, but Belief.key is `@NonNull`)
+- **value**: `node.name()` — the belief content as rendered text. When `belieflike.status()` is present, appended as `" [" + status + "]"` to preserve evidence provenance (e.g., "Penelope is naive [confirmed]")
+- **entrenchment**: `(int)(node.confidence().value() * 10)` — maps Confidence.value [0.0,1.0] to integer entrenchment [0,10]. Affects sort order in `beliefsSection()` (descending). Belieflike.basis() is not used for entrenchment — basis is provenance metadata, not conviction strength.
+
+### Edge → TrustSummary
+
+- **subjectName**: resolved from target node name via `mindMapStore.getNode(edge.targetNodeId(), tenantId).name()`
+- **level**: thresholded from `edge.confidence().value()` (Confidence is a record with double value in [0,1]):
+  - ≥ 0.7 → `TrustLevel.HIGH`
+  - ≥ 0.4 → `TrustLevel.MODERATE`
+  - ≥ 0.1 → `TrustLevel.LOW`
+  - < 0.1 → `TrustLevel.UNKNOWN`
+- **reason** (`@Nullable`): `edge.edgeType()` describes the relationship type (e.g., "trust", "suspicion"). Enriched by `edge.provenance()` when non-null: `edgeType + " — " + provenance`
+
+### SocialConfig.NormEntry → SocialNorm
+
+SocialNorm requires 9 non-null fields. For statically-configured norms from SocialConfig:
+
+| SocialNorm field | Source | Value |
+|-----------------|--------|-------|
+| normId | deterministic | `agentId + ":" + normEntry.rule().hashCode()` |
+| description | NormEntry.rule() | e.g., "Never help Penelope directly" |
+| behavioralPattern | NormEntry.rule() | same as description (static norms are their own pattern) |
+| adherenceRate | constant | `1.0` (pre-configured norms assumed followed) |
+| observationCount | constant | `0` (pre-configured, not dynamically observed) |
+| participatingAgents | agentId | `Set.of(agentId)` (personal behavioral norm) |
+| firstObserved | scenario start | `Instant.now()` at initialization |
+| lastObserved | scenario start | same as firstObserved |
+| strength | constant | `NormStrength.ESTABLISHED` |
+
+### Revised belief detection
+
+ManorCognitiveSeeder records the initial seeded node IDs and their `updatedAt()` timestamps per character. On each tick, when mapping beliefs from CognitiveProfile results:
+
+- If a belief node's `updatedAt()` differs from the timestamp recorded at seeding → key added to `revisedKeys`
+- New nodes not in the seeded set are also marked as revised (beliefs accumulated through consolidation)
+- The `revisedKeys` set is passed to `beliefsSection()` which renders `[REVISED]` prefix per belief
 
 ---
 
@@ -114,9 +170,32 @@ Revised beliefs tracked via node metadata — `revisedKeys` set passed to `belie
 
 | Type | Change |
 |------|--------|
-| `CharacterCognition` | Compose CognitionCore + CognitiveProfile + TemporalFocus; replace renderCognitiveSections() internals; replace recordTrustEvent() with InteractionSignal dispatch |
-| `ScenarioOrchestrator` | Inject CognitiveProfile; construct CognitionCore per character; call seeder at scenario start; pass AffectTrajectory to TemporalFocus |
-| `ManorConfig` | No changes — consolidation config already present |
+| `CharacterCognition` | Compose CognitionCore + CognitiveProfile + TemporalFocus; replace renderCognitiveSections() internals; replace recordTrustEvent() with CognitionCore.recordInteraction() |
+| `ScenarioOrchestrator` | Inject CognitiveProfile + CDI orchestrators; construct single shared CognitionCore; call seeder at scenario start; pass AffectTrajectory to TemporalFocus |
+| `ManorConfig` | No changes — TemporalFocusConfig uses hardcoded defaults in ManorContextStrategy (see below) |
+
+#### CognitionCore construction
+
+CognitionCore is a **single shared instance** constructed in ScenarioOrchestrator during initialization. The orchestrators it composes (MoodOrchestrator, DriveOrchestrator, UserModelOrchestrator, MentalModelOrchestrator) are `@ApplicationScoped` CDI beans that key internally by `agentId:tenantId` — one CognitionCore serves all characters.
+
+```java
+new CognitionCore(
+    moodOrchestrator,          // CDI @ApplicationScoped
+    driveOrchestrator,         // CDI @ApplicationScoped — SDT motivation
+    userModelOrchestrator,     // CDI @ApplicationScoped — social modeling
+    mentalModelOrchestrator,   // CDI @ApplicationScoped — BDI extraction
+    null,                      // strategy — not needed for manor
+    null,                      // narrative — not needed for manor
+    null,                      // goals — managed by ManorGoalEvaluator
+    null,                      // memoryHygiene — not needed for manor
+    agentProvider,             // for mood appraisal LLM calls
+    CognitionConfig.all().without("strategy", "narrative", "goals", "memoryHygiene")
+)
+```
+
+#### TemporalFocusConfig defaults
+
+TemporalFocusConfig knobs use hardcoded defaults in ManorContextStrategy — no ManorConfig section needed for the initial implementation. Values: `proximityScale=7.0`, `worseningBoostCap=0.5`, `improvingDampenFactor=0.7`, `volatilityBoostCap=0.3`. These can be promoted to ManorConfig if tuning reveals the need.
 
 ### Dependencies
 
