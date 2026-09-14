@@ -1,0 +1,23 @@
+# Work Plan — issue-54-cognitive-profile-queries
+
+## State
+branch: issue-54-cognitive-profile-queries
+state: scaffolded
+project-sha: 99316ab80133aa3b124e1896214422ccf602f751
+date: 2026-09-14
+issue-repo: casehubio/examples
+covers: 54,55,56,57,58,59,60
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#54 — Issue #54 ← active
+- [ ] casehubio/examples#55 — Wire ConversationBridge for dialogue knowledge extraction
+- [ ] casehubio/examples#56 — Move SocialConfig to Eidos extensionData
+- [ ] casehubio/examples#57 — Context-based ManorNormFilter
+- [ ] casehubio/examples#59 — LLM eval tests for cognitive stack
+- [ ] casehubio/examples#60 — SocialComparison integration
+
+## Deferred
+- [ ] Blocks scoring integration (S / Med) [] — Gated by neocortex#336 (ExperienceConsolidationPhase) — add to queue when it lands
