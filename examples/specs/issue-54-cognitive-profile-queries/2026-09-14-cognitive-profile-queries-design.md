@@ -23,10 +23,11 @@ CharacterCognition becomes a thin adapter over CognitionCore (blocks#261). Cogni
 ScenarioOrchestrator
   └── CharacterCognition (per character)
         ├── CognitionCore — tick orchestration, mood, drives, prompt sections
-        ├── ManorContextStrategy — game-world context adapter
+        ├── ManorContextStrategy — game-world context adapter (CognitionContextStrategy SPI)
         │     ├── norm filtering by room/nearby/inventory
         │     ├── trust scoping by proximity
-        │     ├── ActionType → InteractionSignal mapping
+        │     ├── recordAction() — ActionType → MoodSignal + InteractionSignal dispatch
+        │     ├── compare() budget gating (theory-of-mind relevance)
         │     └── attention budget sizing
         ├── CognitiveProfile — mindmap queries (Tier 3 read path)
         └── TemporalFocus — attention-based item ranking
@@ -42,7 +43,7 @@ For each acting character per tick:
 2. **ManorContextStrategy resolves situation** — nearby agents from world state, arousal from CognitionCore mood, budget from heuristics
 3. **CognitiveProfile queries per entity:**
    - `CognitiveProfile.resolve(query.withAsSeenBy(principalId))` for each nearby entity and self-knowledge — returns `Optional<EntityKnowledge>` (node + edges + memories + trajectory + unresolved refs)
-   - `CognitiveProfile.compare(query, nearbyAgentPrincipalIds)` for multi-agent perspectival views — returns `Map<PrincipalId, EntityKnowledge>` showing how different agents perceive the same entity. Used for theory-of-mind rendering (full social comparison UI deferred to #60).
+   - `CognitiveProfile.compare(query, nearbyAgentPrincipalIds)` — budget-gated, invoked only when ManorContextStrategy determines theory-of-mind is relevant (character has scheming/suspicion drives, or is planning a social interaction via PULL_ASIDE). Returns `Map<PrincipalId, EntityKnowledge>` showing how different agents perceive the same entity. Produces a minimal "Social Awareness" section with contrast lines (e.g., "You believe [X], but Peter may see it differently"). Full social comparison UI deferred to #60.
 4. **EntityKnowledge → TemporalEntry conversion:**
    - Each EntityKnowledge.node → `new TemporalEntry(node.updatedAt(), new FromMindMap(node), tenantId, node.confidence())`
    - Each memory across all domains → `new TemporalEntry(memory.timestamp(), new FromMemory(memory), tenantId, null)`
@@ -52,7 +53,14 @@ For each acting character per tick:
 6. **Budget selection** — take top items per category within adaptive budget
 7. **Thing trait projection → blocks type mapping** — see §Mapping table below
 8. **Blocks#260 rendering** — `beliefsSection()`, `trustSection()`, `normsSection()`, `principlesSection()`, plus `CognitionCore.promptSections()` for motivation/mood
-9. **Post-action: InteractionSignal dispatch** — after action resolution, `CognitionCore.recordInteraction(agentId, tenantId, targetId, description, response)` replaces `recordTrustEvent()`. This is intentionally broader — handles mood appraisal, user model, mental model BDI extraction, not just trust. ActionType maps to `InteractionSignal.CustomSignal(description, quality)`: STEAL/USE → NEGATIVE, GIVE/INTERACT → POSITIVE, PULL_ASIDE → NEUTRAL.
+9. **Post-action: cognitive signal dispatch** — replaces `recordTrustEvent()` with two paths:
+   - **Dialogue exchanges** (PULL_ASIDE conversations, directed dialogue): `CognitionCore.recordInteraction(agentId, tenantId, targetId, dialogueText, thinkingText)` — the dialogue is natural language, so mood appraisal (~1 LLM call) and BDI extraction (~1 LLM call) produce semantically correct signals. ~0–2 LLM calls per tick (PULL_ASIDE is uncommon).
+   - **Game actions** (STEAL, GIVE, USE, INTERACT): `ManorContextStrategy.recordAction(agentId, tenantId, targetId, actionType)` — maps directly to orchestrators, no LLM calls:
+     - `MoodOrchestrator.record(MoodSignal.InteractionAppraisal(p, a, d, cause))` — deterministic PAD deltas from ActionType (STEAL: +0.1 arousal, −0.1 pleasure; GIVE: +0.1 pleasure; etc.)
+     - `UserModelOrchestrator.record(InteractionSignal.CustomSignal(narration, quality))` — with correct QualitySignal: STEAL/USE → NEGATIVE, GIVE/INTERACT → POSITIVE
+     - BDI extraction skipped — game actions have no natural language utterance to parse
+
+   This split is architecturally correct: ManorContextStrategy IS the CognitionContextStrategy SPI (blocks#282) local implementation. The SPI's proposed `mapInteraction()` method handles exactly this — game-world to cognitive-signal translation. CognitionCore.recordInteraction() is dialogue-native and should only receive dialogue.
 10. **ObservationBuilder.withCognitiveSections()** — unchanged interface
 
 ### Adaptive Attention via TemporalFocus
@@ -82,9 +90,22 @@ Configuration via `TemporalFocusConfig` knobs: `proximityScale`, `worseningBoost
 During scenario initialization (in `runScenario()`, before the tick loop), `ManorCognitiveSeeder` writes SocialConfig initial beliefs to the mindmap as COGNITIVE-typed nodes with the character's principalId. The seeder runs per-character in the character construction loop, after CharacterCognition creation. It receives `MindMapStore` via CDI injection (`@ApplicationScoped`, available in wacky-manor's Quarkus context).
 
 ManorCognitiveSeeder:
-1. Creates one MindMapNode per InitialBelief, with the character's principalId and Belieflike trait properties
-2. Records the set of seeded node IDs and their `updatedAt()` timestamps for later revised-belief detection
-3. Runs once per scenario — deterministic, in the pre-tick initialization phase, no re-seeding guard needed
+1. Creates one COGNITIVE subgraph per character: `MindMapStore.createSubgraph(new SubgraphInput("beliefs-" + agentId, "cognitive", null), tenantId)` — returns subgraphId
+2. Creates one MindMapNode per InitialBelief via `MindMapStore.addNode(nodeInput, tenantId)`:
+
+```java
+NodeInput.of(initialBelief.value(), subgraphId)          // name = belief text, e.g., "Penelope is naive"
+    .withConfidence(Confidence.stated(0.8, Instant.now())) // high confidence for author-defined beliefs
+    .withProvenance("manor-seed")
+    .withTraits(Set.of("Belieflike"))                      // enables node.as(Belieflike.class)
+    .withProperties(Map.of("subject", initialBelief.key())) // belieflike.subject() → key
+    .withPrincipalId(PrincipalId.of(agentId))
+```
+
+   Forward/reverse mapping consistency: InitialBelief(key="penelope-awareness", value="Penelope is naive") → NodeInput(name="Penelope is naive", properties={"subject":"penelope-awareness"}) → on query: node.name()="Penelope is naive" (Belief.value), node.as(Belieflike.class).subject()="penelope-awareness" (Belief.key).
+
+3. Records the set of seeded node IDs and their `updatedAt()` timestamps for later revised-belief detection
+4. Runs once per scenario — deterministic, in the pre-tick initialization phase, no re-seeding guard needed
 
 After seeding, CognitiveProfile queries are the sole source of truth for beliefs and trust.
 
@@ -170,7 +191,7 @@ ManorCognitiveSeeder records the initial seeded node IDs and their `updatedAt()`
 
 | Type | Change |
 |------|--------|
-| `CharacterCognition` | Compose CognitionCore + CognitiveProfile + TemporalFocus; replace renderCognitiveSections() internals; replace recordTrustEvent() with CognitionCore.recordInteraction() |
+| `CharacterCognition` | Compose CognitionCore + CognitiveProfile + TemporalFocus; replace renderCognitiveSections() internals; replace recordTrustEvent() with dual-path dispatch (dialogue → CognitionCore.recordInteraction(), game actions → ManorContextStrategy.recordAction()) |
 | `ScenarioOrchestrator` | Inject CognitiveProfile + CDI orchestrators; construct single shared CognitionCore; call seeder at scenario start; pass AffectTrajectory to TemporalFocus |
 | `ManorConfig` | No changes — TemporalFocusConfig uses hardcoded defaults in ManorContextStrategy (see below) |
 
@@ -254,7 +275,7 @@ No blockers — all critical upstream work has landed.
 
 - D1: CognitionCore adoption — hybrid with local strategy adapter (blocks#282 contract)
 - D2: Mapping layer — adapter in CharacterCognition (~4 inline conversions)
-- D3: Static-to-dynamic transition — seed beliefs on first tick, mindmap authoritative after
+- D3: Static-to-dynamic transition — seed beliefs at scenario initialization, mindmap authoritative after
 - D4: Query scope — adaptive attention via TemporalFocus + situational budget
 
 Full decision records: `specs/issue-54-cognitive-profile-queries/decisions.md`
