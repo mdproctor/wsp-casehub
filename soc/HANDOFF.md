@@ -1,29 +1,25 @@
-# Session Handover — issue-33-demo-infrastructure
+# HANDOFF — casehub-soc
 
-## What happened
+## Last Session
 
-Built Phase 4 compliance views (#31, closed) and started demo infrastructure (#33). Alert injection endpoint + scenario scripts committed. Hit upstream API drift (#34) that blocks `@QuarkusTest` — filed as separate issue on same branch.
+Fixed #34 (upstream API drift) by excluding broken CDI beans: CaseMemoryObserver (removed MemoryEmitter type), IdentityBeans (unproxyable producer outputs), and ledger identity enrichers. Built #52 CrowdStrike Falcon connector — OAuth2 client, JAX-RS endpoint at `/crowdstrike/containment`, health check, 20 tests (unit + WireMock contract). Integration test re-enablement blocked by qhorus SNAPSHOT drift mid-session.
 
-## Decisions
+## Immediate Next Step
 
-- Alert injection role-gated (`soc-demo-admin`) in all profiles, not dev-only
-- Scenario YAML files bundled in `app/src/main/resources/scenarios/`
-- Upstream API breaks fixed at compilation level; Flyway V42 migration still blocks test runtime
+Wait for qhorus#438 fix, then re-enable `ConnectorContainmentIntegrationTest`. After that, `work next` advances to #53 (Palo Alto connector).
 
-## What's next
+## Cross-Module
 
-| # | Title | Scale | Complexity | Notes |
-|---|-------|-------|------------|-------|
-| 34 | Fix upstream API breaks | M | Med | **Do first** — Flyway V42, HumanTaskTarget sealed hierarchy, re-enable AnalystWorkItemIntegrationTest |
-| 33 | Demo infrastructure | M | Med | Verify endpoint tests pass after #34, then work-end closes both |
+- casehubio/engine#1094 — CaseMemoryObserver references removed MemoryEmitter
+- casehubio/parent#475 — IdentityBeans produces unproxyable @ApplicationScoped beans
+- casehubio/qhorus#438 — SNAPSHOT CDI deployment errors (blocks integration test re-enablement)
 
-## Branch state
+## Garden Entries Consulted
 
-- `.plan` covers: 33, 34
-- Queue: #33 (active) → #34
-- Commits: 2 feat + 1 wip on project, specs + diary on workspace
-- Production code compiles. Test infrastructure blocked by #34.
+GE-20260418-9b272f, GE-20260427-edbacd, GE-20260421-1192cd
 
-## Specs
+## References
 
-- `specs/issue-33-demo-infrastructure/2026-08-29-demo-infrastructure-design.md`
+- `specs/issue-34-fix-upstream-api-breaks/2026-09-14-crowdstrike-falcon-connector-design.md`
+- `plans/2026-09-14-crowdstrike-falcon-connector.md`
+- `blog/2026-09-14-mdp02-dependency-drift-archaeology.md`

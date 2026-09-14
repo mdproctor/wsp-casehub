@@ -1,17 +1,39 @@
-# HANDOFF — casehub-pages
+# Session Handover
 
-## Last Session
+**Branch:** `main` (issue-437-lsp4ij-completions closed)
+**Issue:** #437 — fix(intellij): LSP4IJ not delivering completions
+**Date:** 2026-09-14
 
-Designed the visual YAML builder — brainstormed the full scope (page builder Phase 1 + project-level agentic AI graph Phase 2), audited all six CaseHub YAML layers, wrote spec through 3-round Standard review, created implementation plan with 4 batches / 6 tasks. Completed Batch 1: `pages-document` package with PageDocument CST-backed facade, all node types, container descriptors, Zod→FieldSchema conversion — 58 tests passing.
+## What happened
 
-## Immediate Next Step
+Debugged and fixed LSP4IJ completion delivery for the IntelliJ plugin. Root cause was a dual-plugin conflict: `io.casehub.pages` (CaseHub Pages, from pages repo) and `io.casehub.yaml` (CaseHub YAML, from blocks-ui repo) were both installed, both registering LSP servers for the same YAML file patterns. LSP4IJ couldn't route documents with two competing servers.
 
-Execute Batch 2: create `pages-builder` package with component catalog (contextual filtering, categories, default props) and outline tree Lit component. Plan at `docs/plans/2026-09-12-visual-yaml-builder.md`, Task 3.
+Secondary issues fixed: stale bundle cache (extractServer never re-extracted), TextDocumentSync bare number form (LSP4IJ needs object form with `openClose: true`), missing Node.js macOS fallback paths in blocks-ui plugin, CompletionWeigher for YAML `{}` item deprioritization.
+
+Verified end-to-end: file-based logging at `/tmp/casehub-lsp.log` confirms initialize → didOpen → completion handshake completes. Page completions appear in IntelliJ.
+
+## Decisions / gotchas
+
+- **Two plugins must never coexist.** CaseHub Pages (`io.casehub.pages`) and CaseHub YAML (`io.casehub.yaml`) have different plugin IDs but claim the same files. IntelliJ treats them as independent plugins. The rename from `io.casehub.yaml` → `io.casehub.pages` left the old installation behind.
+- CaseHub YAML is the superset plugin (all 5 formats) but its bundle build fails — `.casehub-packages` in blocks-ui is stale (missing `lookupSchema`, `externalDataSetDefSchema` from pages-data).
+- Currently CaseHub YAML is installed (without CaseHub Pages). It uses a pages-lsp bundle with Page schemas only — SWF/Case/HTN/Org return empty completions.
+- Indentation bug: completion selection inserts text at column 0, losing YAML context indentation.
+- File-based diagnostic logging (`/tmp/casehub-lsp.log`) is committed to pages main — remove after debugging is complete.
+
+## Follow-up (3 items for next session)
+
+1. **Sync `.casehub-packages` in blocks-ui** — rebuild from current pages source so lsp-schemas bundle builds. Then rebuild + reinstall CaseHub YAML with domain schemas.
+2. **Fix indentation bug** — completion insertText doesn't preserve YAML indent context.
+3. **Apply pages fixes to blocks-ui plugin** — TextDocumentSync object form, serverInfo, CompletionWeigher, stale cache removal. The blocks-ui `CaseHubLspServerDescriptor.kt` already has Node.js fallback paths and stale cache fix from this session.
 
 ## References
 
-- `docs/specs/issue-visual-yaml-builder/2026-09-12-visual-yaml-builder-design.md` — full design spec
-- `docs/specs/issue-visual-yaml-builder/decisions.md` — 10 design decisions
-- `docs/plans/2026-09-12-visual-yaml-builder.md` — implementation plan (Batch 1 done, 3 remaining)
-- `packages/pages-document/` — facade package (58 tests)
-- `blog/2026-09-12-mdp01-visual-yaml-builder-design.md` — diary entry
+| Artifact | Path |
+|----------|------|
+| Diary | `blog/2026-09-14-mdp01-lsp4ij-silent-server.md` |
+| Garden: CompletionWeigher | `GE-20260914-54f581` |
+| Garden: TextDocumentSync | `GE-20260914-330473` |
+| Build integration issue | #438 |
+| Diagnostic log | `/tmp/casehub-lsp.log` |
+| blocks-ui plugin | `blocks-ui/plugins/intellij-casehub/` |
+| pages plugin | `pages/plugins/intellij/` |
