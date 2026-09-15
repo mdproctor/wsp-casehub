@@ -18,3 +18,6 @@ flyway-next-v: none
 - [x] casehubio/examples#57 — Context-based ManorNormFilter
 - [x] casehubio/examples#59 — LLM eval tests for cognitive stack
 - [ ] casehubio/examples#60 — SocialComparison integration ← active
+  - [ ] Batch 1: Perception+Wiring
+    - [ ] Task 1: PerceptionTranslator
+    - [ ] Task 2: CharacterCognition renderSocialAwareness wiring
