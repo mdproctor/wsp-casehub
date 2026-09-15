@@ -1,0 +1,21 @@
+# Work Plan — issue-58-content-scorer-refactoring
+
+## State
+branch: issue-58-content-scorer-refactoring
+state: active
+issue-repo: casehubio/examples
+covers: casehubio/examples#58
+Current: casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
+date: 2026-09-15
+
+## Queue
+- [ ] casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance ← active
+  - [ ] Batch 1: Foundation
+    - [ ] Task 1: ScoreableContent+ContentScorer+WeightedContentScorer
+  - [ ] Batch 2: Blocks refactor
+    - [ ] Task 2: SurpriseScorer+ArousalScorer dual-interface
+  - [ ] Batch 3: Game scoring
+    - [ ] Task 3: ActionImportanceScorer+ManorGraduationScorer
+- [ ] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path
+- [ ] casehubio/examples#62 — Move drive gate + PULL_ASIDE gate to ManorContextStrategy
+- [ ] casehubio/examples#63 — Fix PersonalityCompositionVerificationTest boot error
