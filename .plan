@@ -2,12 +2,13 @@
 
 ## State
 branch: issue-58-content-scorer-refactoring
-state: transitioning
+state: closing:promoted
 issue-repo: casehubio/examples
 covers: casehubio/examples#58
 Current: casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
 date: 2026-09-15
 
+evidence-era: true
 ## Queue
 - [x] casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
 - [x] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path
