@@ -14,6 +14,11 @@ flyway-next-v: none
 ## Queue
 - [x] casehubio/examples#54 — Issue #54
 - [ ] casehubio/examples#55 — Wire ConversationBridge for dialogue knowledge extraction ← active
+  - [ ] Batch 1: Extraction foundation
+    - [ ] Task 1: Listener determination + non-verbal filter
+  - [ ] Batch 2: MindMapExtractor wiring
+    - [ ] Task 2: Inject MindMapExtractor + extractDialogueKnowledge()
+    - [ ] Task 3: Wire tick loop + integration tests
 - [ ] casehubio/examples#56 — Move SocialConfig to Eidos extensionData
 - [ ] casehubio/examples#57 — Context-based ManorNormFilter
 - [ ] casehubio/examples#59 — LLM eval tests for cognitive stack
