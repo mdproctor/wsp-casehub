@@ -6,7 +6,7 @@ state: active
 project-sha: 99316ab80133aa3b124e1896214422ccf602f751
 date: 2026-09-14
 issue-repo: casehubio/examples
-covers: 54,55,56,57,58,59,60
+covers: 54,55,56,57,58,59,60,61,62,63
 design-repo: project
 design-section-hashes: 
 flyway-next-v: none
@@ -18,3 +18,7 @@ flyway-next-v: none
 - [x] casehubio/examples#57 — Context-based ManorNormFilter
 - [x] casehubio/examples#59 — LLM eval tests for cognitive stack
 - [x] casehubio/examples#60 — SocialComparison integration
+- [ ] casehubio/examples#58 — Wire blocks scoring into consolidation ← active
+- [ ] casehubio/examples#61 — Person-entity node seeding for SocialComparison
+- [ ] casehubio/examples#62 — Move drive gate to ManorContextStrategy
+- [ ] casehubio/examples#63 — Fix PersonalityCompositionVerificationTest boot error
