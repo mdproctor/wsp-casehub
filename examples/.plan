@@ -16,5 +16,8 @@ flyway-next-v: none
 - [x] casehubio/examples#55 — Wire ConversationBridge for dialogue knowledge extraction
 - [x] casehubio/examples#56 — Move SocialConfig to Eidos extensionData
 - [ ] casehubio/examples#57 — Context-based ManorNormFilter ← active
+  - [ ] Batch 1: Scoring+Wiring
+    - [ ] Task 1: ManorNormFilter scoring with cognitive context
+    - [ ] Task 2: ManorContextStrategy + CharacterCognition wiring
 - [ ] casehubio/examples#59 — LLM eval tests for cognitive stack
 - [ ] casehubio/examples#60 — SocialComparison integration
