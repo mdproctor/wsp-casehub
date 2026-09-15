@@ -1,1 +1,1 @@
-# Design Journal — issue-97-signal-chat-platform
+# Design Journal — issue-94-bankfeed-email-spis

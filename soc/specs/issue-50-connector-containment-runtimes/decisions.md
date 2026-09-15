@@ -1,16 +1,16 @@
 # Decisions — Connector-Based Containment Runtimes (#50)
 
-## D1: Full workers integration over bridge pattern
+## D1: Self-contained SOC endpoint resolver (no workers-http dependency)
 
-**Choice:** Wire SOC's containment execution through the workers repo WorkerRuntime/WorkerExecutionManager infrastructure. ContainmentExecutor impl delegates to external HTTP endpoints via the workers HTTP infrastructure.
+**Choice:** SOC owns its own `ContainmentEndpointResolver` — a simple `@ApplicationScoped` bean that reads `casehub.soc.containment.endpoints.*` config at `@PostConstruct`. No compile dependency on the workers repo. HTTP calls via Vert.x WebClient directly.
 **Alternatives:**
-- Bridge pattern — HttpContainmentExecutor calls external APIs directly via Vert.x WebClient without using the workers repo. Simpler but reinvents retry, circuit-breaking, and fault handling.
-- Thin adapter — Compile dependency on workers-http to use HttpEndpointResolver, but bypass the dispatch pipeline. Gets config resolution for free, loses retry/fault infrastructure.
-**Rationale:** The workers repo already has production-grade HTTP dispatch with retry (429 handling), async callbacks, idempotency headers, URI templating, timeout management, and fault publishing. Reinventing this in SOC creates a maintenance burden and diverges from platform patterns.
-**Trade-offs:** Compile dependency on workers-http module. SOC's ContainmentExecutor call path now depends on the workers infrastructure being available.
-**Sources:** `HttpWorkerExecutionManager.java` (retry, fault handling), `HttpEndpointResolver.java` (3-tier endpoint resolution), `HttpWorkerRoute.java` (SPI route interface)
+- Workers HTTP config infrastructure — inject `HttpEndpointResolver` for endpoint resolution. Incompatible: `initialize()` is package-private, called by `HttpWorkerRuntime` during the worker runtime lifecycle, not at `@PostConstruct`. Injecting from SOC gives an empty endpoint map.
+- Full dispatch pipeline — route through `HttpWorkerExecutionManager.submit()`. Incompatible: fire-and-forget async, cannot return synchronous `ContainmentResult`.
+**Rationale:** SOC's containment endpoints are static config — a simple config reader is sufficient. The workers repo's 3-tier resolution (SPI routes → config → EndpointRegistry) is more infrastructure than SOC needs, and the lifecycle coupling makes it impractical to use as a library. Self-contained means no cross-repo dependency and no initialization order concerns.
+**Trade-offs:** Config loading logic (~30 lines) is duplicated from `HttpEndpointResolver.loadConfigEndpoints()` pattern. Acceptable — the pattern is trivial, and the alternative (depending on a module with lifecycle coupling) is worse.
+**Sources:** `HttpEndpointResolver.java` (reference for config pattern, not a dependency), `HttpWorkerExecutionManager.submitSync()` (reference for HTTP call pattern, not a dependency)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (post-spec review: HttpEndpointResolver lifecycle incompatibility)
 
 ## D2: Local orchestrator with external execution
 
@@ -55,10 +55,10 @@
 - Convention-based — derive endpoint tag from action type (isolate.host → containment-isolate-host). Zero config but less flexible.
 - SocActionType enum carries it — add `integrationTag()` to the enum. Compile-time mapping, requires code changes to add integrations.
 **Rationale:** Config-driven mapping allows per-deployment customization. Different deployments may use different EDR vendors for the same action type (CrowdStrike vs SentinelOne for host isolation). Config changes don't require code changes or recompilation.
-**Trade-offs:** Requires config entries per action type. Acceptable — there are only 9 action types, and not all need to be mapped (unmapped actions fall back to LoggingContainmentExecutor).
-**Sources:** `SocActionType.java` (action types), `HttpEndpointResolver.loadConfigEndpoints()` (config pattern)
+**Trade-offs:** Two config layers: (1) action type → endpoint tag (`casehub.soc.containment.routing.isolate-host=crowdstrike`), (2) endpoint tag → URL (`casehub.workers.http.endpoints.crowdstrike.url=https://...`). Layer 1 is SOC-specific config. Layer 2 reuses the workers HTTP endpoint config system. Both must be present for an action to route to an external connector. Unmapped action types in layer 1 fall through to LoggingContainmentExecutor.
+**Sources:** `SocActionType.java` (action types), `HttpEndpointResolver.loadConfigEndpoints()` (config pattern for layer 2)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (decision review: clarified two-layer config)
 
 ## D6: Keep ContainmentExecutor SPI unchanged
 
@@ -108,4 +108,31 @@
 **Sources:** `SocDemoResource.java` (existing dev-mode pattern in SOC)
 **Exploration:** quick
 **Depends on:** D3 (sidecar deployment model), D4 (API contract)
+**Status:** captured
+
+## D10: Action type to integration mapping
+
+**Choice:** The 9 `SocActionType` values map to 3 integrations plus 1 internal:
+
+| Action type | Integration | Batch |
+|---|---|---|
+| `ENABLE_ENHANCED_LOGGING` | Internal (no external connector — logging config change) | 1 (simulated) |
+| `ROTATE_API_KEY` | Okta/Azure AD | 4 |
+| `BLOCK_IP` | Palo Alto | 3 |
+| `BLOCK_DOMAIN` | Palo Alto | 3 |
+| `DISABLE_USER_ACCOUNT` | Okta/Azure AD | 4 |
+| `ISOLATE_HOST` | CrowdStrike Falcon | 2 |
+| `REVOKE_CREDENTIALS` | Okta/Azure AD | 4 |
+| `NETWORK_SEGMENTATION` | Palo Alto | 3 |
+| `WIPE_ENDPOINT` | CrowdStrike Falcon | 2 |
+
+Three connectors total: CrowdStrike (2 actions), Palo Alto (3 actions), Okta (3 actions). `ENABLE_ENHANCED_LOGGING` is fully reversible, no gate, and can remain internal (LoggingContainmentExecutor handles it correctly since it's a logging config change, not an external API call).
+**Alternatives:**
+- Fewer integrations — merge Palo Alto network actions into CrowdStrike (some EDR platforms handle both). Less realistic but fewer connectors.
+- More integrations — separate DNS blocking (BLOCK_DOMAIN) from firewall blocking (BLOCK_IP). More granular but premature.
+**Rationale:** Groups by external system responsibility. CrowdStrike handles endpoint actions (isolate, wipe). Palo Alto handles network actions (block IP, block domain, segment). Okta/Azure AD handles identity actions (disable account, revoke credentials, rotate keys). This matches how real SOC deployments are typically structured.
+**Trade-offs:** `ENABLE_ENHANCED_LOGGING` not going through a connector means it can't be externally managed. Acceptable — it's the only fully reversible, never-gated action.
+**Sources:** `SocActionType.java` (9 action types with gate policies and reversibility)
+**Exploration:** quick
+**Depends on:** D4 (per-integration endpoints), D8 (batch ordering)
 **Status:** captured

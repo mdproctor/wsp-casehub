@@ -1,0 +1,14 @@
+format_version: 1
+state: SPEC_REVIEWED
+entered: 2026-09-15T10:16:00Z
+decision_count: 3
+dimensions_completed: 4
+dimensions_total: 4
+ordered: false
+dimensions_done: coherence,structure,robustness,crosscutting
+current_dimension:
+workspace_structure: /Users/mdproctor/reviews/casehub-soc/attck-stix-ingestion-structure-20260915-080721
+workspace_coherence: /Users/mdproctor/reviews/casehub-soc/attck-stix-ingestion-coherence-20260915-080719
+workspace_robustness: /Users/mdproctor/reviews/casehub-soc/attck-stix-ingestion-robustness-20260915-080722
+workspace_crosscutting: /Users/mdproctor/reviews/casehub-soc/attck-stix-ingestion-crosscutting-20260915-094901
+workspace_decision:

@@ -1,1 +1,1 @@
-# Design Journal — issue-50-connector-containment-runtimes
+# Design Journal — issue-51-rag-investigation-enrichment
