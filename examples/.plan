@@ -15,9 +15,9 @@ flyway-next-v: none
 - [x] casehubio/examples#54 — Issue #54
 - [x] casehubio/examples#55 — Wire ConversationBridge for dialogue knowledge extraction
 - [ ] casehubio/examples#56 — Move SocialConfig to Eidos extensionData ← active
-  - [ ] Batch 1: YAML + loader
-    - [ ] Task 1: ManorSocialConfigLoader + social-config.yaml
-    - [ ] Task 2: Wire loader + remove hardcoded map
+  - [x] Batch 1: YAML + loader
+    - [x] Task 1: ManorSocialConfigLoader + social-config.yaml
+    - [x] Task 2: Wire loader + remove hardcoded map
 - [ ] casehubio/examples#57 — Context-based ManorNormFilter
 - [ ] casehubio/examples#59 — LLM eval tests for cognitive stack
 - [ ] casehubio/examples#60 — SocialComparison integration
