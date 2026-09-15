@@ -11,9 +11,9 @@ date: 2026-09-15
 ## Queue
 - [x] casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
 - [ ] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path ← active
-  - [ ] Batch 1: Config extension
-    - [ ] Task 1: SocialConfig.Relationship+YAML data
-  - [ ] Batch 2: Seeder
-    - [ ] Task 2: seedPeople shared nodes+overlays
+  - [x] Batch 1: Config extension
+    - [x] Task 1: SocialConfig.Relationship+YAML data
+  - [x] Batch 2: Seeder
+    - [x] Task 2: seedPeople shared nodes+overlays
 - [ ] casehubio/examples#62 — Move drive gate + PULL_ASIDE gate to ManorContextStrategy
 - [ ] casehubio/examples#63 — Fix PersonalityCompositionVerificationTest boot error
