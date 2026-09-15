@@ -33,3 +33,26 @@
 **Sources:** io.casehub.neocortex.memory.Memory, io.casehub.neocortex.memory.cbr.ScoredCbrCase, io.casehub.neocortex.memory.cbr.CbrCase
 **Exploration:** quick
 **Status:** captured
+
+## D4: Extend SocialConfig with relationships for initial PAD values (issue #61)
+
+**Choice:** Add `List<Relationship> relationships` to SocialConfig, where `Relationship(String targetAgentId, double pleasure, double arousal, double dominance)`. YAML config specifies initial PAD values per observer→observed pair. ManorCognitiveSeeder reads these to create perspectival overlay nodes.
+**Alternatives:**
+- Derive PAD from personality traits/drives — conflates self-perception with relational perception; imprecise mapping
+- Neutral defaults (0.5/0.5/0.5) for all relationships — defeats the purpose; pipeline produces no meaningful divergent output until interactions accumulate
+**Rationale:** The point of seeding is to produce meaningful social comparison output from the start. Explicit PAD per relationship makes initial social dynamics tunable and keeps all character config in one place (social-config.yaml).
+**Trade-offs:** More YAML config to maintain per character. Acceptable — character config is already rich.
+**Sources:** io.casehub.examples.manor.agent.SocialConfig, io.casehub.examples.manor.agent.ManorSocialConfigLoader, social-config.yaml
+**Exploration:** quick
+**Status:** captured
+
+## D5: Single shared "people" subgraph with per-agent overlay nodes (issue #61)
+
+**Choice:** Create one shared "people" subgraph with shared person nodes. Each observer gets a separate overlay node linked via `OverlayRef.of(sharedNodeId)` with `"overlay"` trait and `OverlayRef.AGENT_ID` property. Initial PAD values from SocialConfig.Relationship go on the overlay nodes.
+**Alternatives:**
+- Per-agent "people-{agentId}" subgraphs — duplicates person data, doesn't match CognitiveProfile.compare()'s shared-node-with-overlays model
+**Rationale:** Aligns with the existing perspectival architecture. CognitiveProfile.compare() resolves a shared node and merges agent-specific overlays via PerspectivalResolver. This is exactly that pattern.
+**Trade-offs:** Shared subgraph creation must be idempotent (first call creates, subsequent calls reuse).
+**Sources:** io.casehub.neocortex.mindmap.OverlayRef, io.casehub.neocortex.cognitive.index.PerspectivalResolver, io.casehub.neocortex.cognitive.index.CognitiveProfile#compare
+**Exploration:** quick
+**Status:** captured
