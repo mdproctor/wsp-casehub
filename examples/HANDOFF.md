@@ -1,38 +1,42 @@
-# HANDOFF — 2026-09-14
+# HANDOFF — 2026-09-15
 
 ## Last Session
 
-Phase A (#52) closed and merged to main — consolidation sleep mechanic, all 7 tasks across 4 batches. Phase B epic (#53) filed with 7 child issues (#54-#60) plus upstream neocortex#336 (ExperienceConsolidationPhase) and blocks#282 (CognitionContextStrategy SPI).
+Issue #55 (dialogue knowledge extraction) designed and implemented — 3 tasks across 2 batches. Characters now learn structured knowledge from conversations via MindMapExtractor. Key pivot: decision review found ConversationBridge.process() ignores principalId and hardcodes confidence — switched to MindMapExtractor.extract() directly with manual node creation per listener (same pattern as ManorCognitiveSeeder). 450 tests, 12 new unit tests + 2 integration tests, 1 pre-existing @QuarkusTest boot error (AgentLangchain4jProperties).
 
-Issue #54 (CognitiveProfile queries) designed and implemented — 5 tasks across 3 batches. CharacterCognition now composes CognitionCore + CognitiveProfile + TemporalFocus. CognitiveBudget provides adaptive attention heuristics. ManorCognitiveSeeder writes initial beliefs to mindmap. ScenarioOrchestrator injects CognitiveProfile and MindMapStore via `Instance<>` (optional — CDI beans not discoverable in current Quarkus context). 436 tests passing.
+**What was built:**
+- `determineListeners()` — listener determination for all 4 dialogue types (directed, PULL_ASIDE, room, aside) with `perception` tag gating for overhearing
+- `isExtractableDialogue()` — non-verbal character filter (skips "Hehehehe!" etc.)
+- `extractDialogueKnowledge()` — calls MindMapExtractor.extract() once per dialogue event, creates per-listener nodes with principalId and ConfidenceOrigin (STATED 0.8 direct / INFERRED 0.7 overheard)
+- Tick loop wiring — extraction runs after all dialogue publication, before action resolution. PULL_ASIDE exchange text collected separately.
 
 ## Immediate Next Step
 
-Issue #55: Wire ConversationBridge for dialogue → knowledge extraction. Queue advanced — #55 is active in `.plan`.
+Issue #56: Move SocialConfig to Eidos extensionData. Queue at position 1/6 — advance with `work next`.
 
 ## Decisions This Session
 
-- D1: CognitionCore adoption — hybrid with local ManorContextStrategy adapter (blocks#282 SPI contract)
-- D2: Mapping layer — Thing traits → blocks types inline in CharacterCognition
-- D3: Seed beliefs at scenario start, mindmap authoritative after
-- D4: Adaptive attention via TemporalFocus (not custom heuristics) — wired from the start
+- D1: Learner scope — target + perception-gated overhearing (reuses existing `perception` tag from issue-38)
+- D2: Confidence model — ConfidenceOrigin (STATED 0.8 / INFERRED 0.7), not trustFormationRate (conflates trust speed with belief confidence)
+- D3: Wiring in ScenarioOrchestrator — private method, not dispatcher (blocking LLM call)
+- D4: PULL_ASIDE — extract once, scope to both participants (no doubled LLM cost)
+- D5: MindMapExtractor.extract() instead of ConversationBridge.process() — principalId/confidence control
+- D6: Three-tier deviation — dialogue knowledge writes directly to Tier 3 (immediate recall, not deferred to consolidation)
 
 ## Cross-Module
 
-**Upstream issues filed:**
-- neocortex#336 — ExperienceConsolidationPhase (Tier 2 → Tier 3 graduation)
-- blocks#282 — CognitionContextStrategy SPI (situational context filtering for CognitionCore)
+**Upstream issues to file:**
+- neocortex: MindMapExtractor.parseOnly() — extract without persisting (eliminates orphaned global nodes)
+- neocortex: ConversationBridge.process() — add principalId and custom confidence parameters
 
-**Upstream landed (verified this session):**
-- neocortex#322 — cognitive node types + traits (CLOSED)
-- blocks#260 — cognitive observation renderers (CLOSED)
-- blocks#261 — CognitionCore (CLOSED)
+**CDI gap (unchanged):** MindMapExtractor, CognitiveProfile, and MindMapStore are not CDI-discoverable in wacky-manor's Quarkus context. All wired via `Instance<>` with graceful degradation.
 
-**CDI gap:** CognitiveProfile and MindMapStore are not CDI-discoverable in wacky-manor's Quarkus context. Wired via `Instance<>` with graceful degradation. Dynamic queries activate when these beans become available (likely requires neocortex Quarkus extension or explicit producers).
+**Pre-existing test failure:** PersonalityCompositionVerificationTest fails with AgentLangchain4jProperties boot error — all @QuarkusTest tests affected. Not related to this branch's work.
 
 ## References
 
-- Plan: `plans/2026-09-14-cognitive-profile-queries.md`
-- Spec: `specs/issue-54-cognitive-profile-queries/2026-09-14-cognitive-profile-queries-design.md`
-- Decisions: `specs/issue-54-cognitive-profile-queries/decisions.md` (D1-D4)
-- Blog: `blog/2026-09-13-mdp01-the-mansion-learns-to-sleep.md`
+- Plan: `plans/2026-09-15-dialogue-knowledge-extraction.md`
+- Spec: `specs/issue-55-conversation-bridge/2026-09-15-conversation-bridge-design.md`
+- Decisions: `specs/issue-55-conversation-bridge/decisions.md` (D1-D6)
+- Decision review: `/Users/mdproctor/reviews/casehub-examples/issue-55-conversation-bridge-decision-20260915-010958/`
+- Spec review: `/Users/mdproctor/reviews/casehub-examples/issue-55-dialogue-extraction-20260915-021007/`
