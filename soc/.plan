@@ -1,0 +1,25 @@
+# Work Plan — issue-51-rag-investigation-enrichment
+
+## State
+branch: issue-51-rag-investigation-enrichment
+state: active
+project-sha: 45766a720f19e608eb79babb8971ca54d360067b
+date: 2026-09-15
+issue-repo: casehubio/soc
+covers: 51
+design-repo: workspace
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/soc#51 — Issue #51 ← active
+  - [x] Batch 1: Foundation
+    - [x] Task 1: Records constants parser
+  - [x] Batch 2: Pipeline
+    - [x] Task 2: Enrichment service
+    - [x] Task 3: Ingestion service
+  - [x] Batch 3: Wiring
+    - [x] Task 4: Worker enhancement
+
+## Deferred
+- [ ] Download ATT&CK Enterprise STIX bundle (#61) (XS / Low) [] — not needed for development — tests use fixture; needed before deployment

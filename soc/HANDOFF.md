@@ -1,25 +1,43 @@
 # HANDOFF — casehub-soc
 
+**Date:** 2026-09-15
+**Branch:** `issue-51-rag-investigation-enrichment`
+**Epic:** #51 — RAG-powered investigation enrichment
+
+---
+
 ## Last Session
 
-Fixed #34 (upstream API drift) by excluding broken CDI beans: CaseMemoryObserver (removed MemoryEmitter type), IdentityBeans (unproxyable producer outputs), and ledger identity enrichers. Built #52 CrowdStrike Falcon connector — OAuth2 client, JAX-RS endpoint at `/crowdstrike/containment`, health check, 20 tests (unit + WireMock contract). Integration test re-enablement blocked by qhorus SNAPSHOT drift mid-session.
+Implemented #56 (ATT&CK STIX ingestion) end-to-end:
+
+1. **Design review** — standard depth, 4 dimensions (coherence, structure, robustness, cross-cutting). 52 findings raised, 37 verified, 5 accepted, 0 unresolved. Major improvements: replaced volatile cache with MindMap alias system, explicit root node for version storage, crash recovery algorithm, error boundary on @Startup, RAG failure isolation. $50 total.
+
+2. **Implementation** — 4 tasks across 3 batches, all complete:
+   - `AttckStixParser` — pure-Java STIX 2.1 parser, filters deprecated/revoked objects (10 unit tests)
+   - `AttckEnrichmentService` — stateless graph queries via MindMap aliases, no custom cache (6 unit tests)
+   - `AttckIngestionService` — @Startup service populating MindMap subgraph + RAG corpus with version-stamped crash recovery (8 unit tests)
+   - `RuleAttckMappingWorker` enhancement — enriched output with related groups, mitigations, sub-techniques. `AttckLookupTable` moved to `threatintel.attck` package. Wired through `SocInvestigationCaseDescriptor` and `SocCaseHub`.
+
+3. **41 tests total** — all green. Used `InMemoryMindMapStore` + `InMemoryEmbeddingIngestor` (not @QuarkusTest — blocked by qhorus#438).
 
 ## Immediate Next Step
 
-Wait for qhorus#438 fix, then re-enable `ConnectorContainmentIntegrationTest`. After that, `work next` advances to #53 (Palo Alto connector).
+Run `work next` to advance the queue. #56 is complete — next child issue in epic #51 is ready.
+
+## Deferred Items (in .plan)
+
+- #60 — @QuarkusTest integration tests for ATT&CK ingestion (S / Med) — blocked by casehubio/qhorus#438
+- #61 — Download ATT&CK Enterprise STIX bundle (XS / Low) — needed for deployment, not development
 
 ## Cross-Module
 
-- casehubio/engine#1094 — CaseMemoryObserver references removed MemoryEmitter
-- casehubio/parent#475 — IdentityBeans produces unproxyable @ApplicationScoped beans
-- casehubio/qhorus#438 — SNAPSHOT CDI deployment errors (blocks integration test re-enablement)
-
-## Garden Entries Consulted
-
-GE-20260418-9b272f, GE-20260427-edbacd, GE-20260421-1192cd
+- casehubio/qhorus#438 — SNAPSHOT CDI deployment errors (blocks @QuarkusTest integration tests)
+- casehubio/parent#470 — CBR-driven case definition selection (blocks playbook selection, not this epic)
 
 ## References
 
-- `specs/issue-34-fix-upstream-api-breaks/2026-09-14-crowdstrike-falcon-connector-design.md`
-- `plans/2026-09-14-crowdstrike-falcon-connector.md`
-- `blog/2026-09-14-mdp02-dependency-drift-archaeology.md`
+- `specs/issue-51-rag-investigation-enrichment/2026-09-15-attck-stix-ingestion-design.md`
+- `specs/issue-51-rag-investigation-enrichment/decisions.md`
+- `plans/2026-09-15-attck-stix-ingestion.md`
+- `app/src/main/java/io/casehub/soc/threatintel/attck/` — all new ATT&CK classes
+- `app/src/test/java/io/casehub/soc/threatintel/attck/` — all ATT&CK tests
