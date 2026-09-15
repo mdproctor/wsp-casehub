@@ -9,13 +9,11 @@ Current: casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalSc
 date: 2026-09-15
 
 ## Queue
-- [ ] casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance ← active
-  - [x] Batch 1: Foundation
-    - [x] Task 1: ScoreableContent+ContentScorer+WeightedContentScorer
-  - [x] Batch 2: Blocks refactor
-    - [x] Task 2: SurpriseScorer+ArousalScorer dual-interface
-  - [x] Batch 3: Game scoring
-    - [x] Task 3: ActionImportanceScorer+ManorGraduationScorer
-- [ ] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path
+- [x] casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
+- [ ] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path ← active
+  - [ ] Batch 1: Config extension
+    - [ ] Task 1: SocialConfig.Relationship+YAML data
+  - [ ] Batch 2: Seeder
+    - [ ] Task 2: seedPeople shared nodes+overlays
 - [ ] casehubio/examples#62 — Move drive gate + PULL_ASIDE gate to ManorContextStrategy
 - [ ] casehubio/examples#63 — Fix PersonalityCompositionVerificationTest boot error
