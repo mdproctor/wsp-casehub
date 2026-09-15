@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-58-content-scorer-refactoring
-state: active
+state: transitioning
 issue-repo: casehubio/examples
 covers: casehubio/examples#58
 Current: casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
@@ -10,10 +10,6 @@ date: 2026-09-15
 
 ## Queue
 - [x] casehubio/examples#58 — Wire blocks scoring (SurpriseScorer/ArousalScorer) into consolidation importance
-- [ ] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path ← active
-  - [x] Batch 1: Config extension
-    - [x] Task 1: SocialConfig.Relationship+YAML data
-  - [x] Batch 2: Seeder
-    - [x] Task 2: seedPeople shared nodes+overlays
-- [ ] casehubio/examples#62 — Move drive gate + PULL_ASIDE gate to ManorContextStrategy
-- [ ] casehubio/examples#63 — Fix PersonalityCompositionVerificationTest boot error
+- [x] casehubio/examples#61 — Person-entity node seeding — SocialComparison data path
+- [x] casehubio/examples#62 — Move drive gate + PULL_ASIDE gate to ManorContextStrategy
+- [x] casehubio/examples#63 — Fix PersonalityCompositionVerificationTest boot error
