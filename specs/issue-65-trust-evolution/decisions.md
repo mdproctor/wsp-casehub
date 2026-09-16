@@ -93,3 +93,15 @@
 **Sources:** io.casehub.examples.manor.agent.PerceptionTranslator (existing distance threshold pattern at 0.4)
 **Exploration:** quick
 **Status:** captured
+
+## D9: Persistence agnostic — SPI-driven, durable stores configurable
+
+**Choice:** All blocks framework classes depend on `LedgerEntryRepository` (SPI interface), not on any specific implementation. In-memory vs JPA-backed persistence is a deployment-time choice via Quarkus `selected-alternatives`. The framework works identically with both — wacky-manor uses in-memory for game sessions, but a production cognitive agent configures JPA-backed stores for durable trust history.
+**Alternatives:**
+- Hardcode in-memory assumption — locks the framework to ephemeral use cases; production agents can't persist trust history across restarts
+- Require JPA — forces a database even for lightweight/demo scenarios
+**Rationale:** The ledger already has this duality (`InMemoryLedgerEntryRepository` at @Priority(1) vs `JpaLedgerEntryRepository` as default). The trust framework simply inherits it by depending on the SPI, not the implementation. Zero additional work — just don't break the abstraction.
+**Trade-offs:** None. This is the existing ledger pattern; the only cost is discipline (no implementation-specific casts or assumptions in framework code).
+**Sources:** io.casehub.ledger.api.spi.LedgerEntryRepository, io.casehub.ledger.memory.InMemoryLedgerEntryRepository, io.casehub.ledger.runtime.repository.jpa.JpaActorTrustScoreRepository
+**Exploration:** quick
+**Status:** captured
