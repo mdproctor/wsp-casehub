@@ -23,9 +23,9 @@ flyway-next-v: none
   - [x] Batch 3: YAML + Seeding
     - [x] Task 5: Descriptor YAML rewrite
     - [x] Task 6: Goal seeding in ManorCognitiveSeeder
-  - [ ] Batch 4: CharacterCognition + Integration
-    - [ ] Task 7: CharacterCognition dedup
-    - [ ] Task 8: Integration verification
+  - [x] Batch 4: CharacterCognition + Integration
+    - [x] Task 7: CharacterCognition dedup
+    - [x] Task 8: Integration verification
 - [ ] casehubio/examples#66 — Drive adaptation from reward signals
 - [ ] casehubio/examples#70 — Relationship stage thresholds
 - [ ] casehubio/examples#67 — Belief revision from contradicting evidence
