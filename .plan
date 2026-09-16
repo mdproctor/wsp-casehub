@@ -1,0 +1,21 @@
+# Work Plan — issue-63-fix-cdi-config-beans
+
+## State
+branch: issue-63-fix-cdi-config-beans
+state: scaffolded
+project-sha: 8a1fcbcec4f0232e1d340f6cfaefa844a0a46ea9
+date: 2026-09-16
+issue-repo: casehubio/examples
+covers: 63
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#63 — Issue #63 ← active
+- [ ] casehubio/blocks#283 — Directive-minimal architecture
+- [ ] casehubio/examples#66 — Drive adaptation from reward signals
+- [ ] casehubio/examples#70 — Relationship stage thresholds
+- [ ] casehubio/examples#67 — Belief revision from contradicting evidence
+- [ ] casehubio/examples#68 — Needs pyramid
+- [ ] casehubio/examples#69 — Goal prioritization from unmet needs
