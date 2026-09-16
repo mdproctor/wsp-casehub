@@ -8,3 +8,6 @@
 {"ts": "2026-09-16T12:04:28.848180+00:00", "mode": "wrap", "action": "user_input", "step": "garden_feedback", "steps_executed": [], "error": ""}
 {"ts": "2026-09-16T12:04:34.232182+00:00", "mode": "wrap", "action": "user_input", "step": "notes", "steps_executed": [], "error": ""}
 {"ts": "2026-09-16T12:04:39.324290+00:00", "mode": "wrap", "action": "user_input", "step": "handoff_write", "steps_executed": [], "error": ""}
+{"ts": "2026-09-16T12:05:31.948304+00:00", "mode": "wrap", "action": "complete", "step": "", "steps_executed": ["wip_commit"], "error": ""}
+{"ts": "2026-09-16T12:29:37.006766+00:00", "mode": "wrap", "action": "complete", "step": "", "steps_executed": [], "error": ""}
+{"ts": "2026-09-16T12:59:48.578798+00:00", "mode": "wrap", "action": "complete", "step": "", "steps_executed": [], "error": ""}

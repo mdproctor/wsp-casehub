@@ -13,20 +13,8 @@ flyway-next-v: none
 
 ## Queue
 - [x] casehubio/examples#63 — Issue #63
-- [ ] casehubio/blocks#283 — Directive-minimal architecture ← active
-  - [x] Batch 1: Renderer Foundation
-    - [x] Task 1: CognitivePreambleGenerator
-    - [x] Task 2: CognitiveSystemPromptRenderer
-    - [x] Task 3: Constraint severity filtering
-  - [x] Batch 2: Deduplication
-    - [x] Task 4: PersonalityPromptSection dedup + DirectiveSection toggle
-  - [x] Batch 3: YAML + Seeding
-    - [x] Task 5: Descriptor YAML rewrite
-    - [x] Task 6: Goal seeding in ManorCognitiveSeeder
-  - [x] Batch 4: CharacterCognition + Integration
-    - [x] Task 7: CharacterCognition dedup
-    - [x] Task 8: Integration verification
-- [ ] casehubio/examples#66 — Drive adaptation from reward signals
+- [x] casehubio/blocks#283 — Directive-minimal architecture
+- [ ] casehubio/examples#66 — Drive adaptation from reward signals ← active
 - [ ] casehubio/examples#70 — Relationship stage thresholds
 - [ ] casehubio/examples#67 — Belief revision from contradicting evidence
 - [ ] casehubio/examples#68 — Needs pyramid
