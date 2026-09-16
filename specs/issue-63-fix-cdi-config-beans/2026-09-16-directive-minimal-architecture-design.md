@@ -35,8 +35,8 @@ User prompt (observations):
   │     ├── Personality (disposition)         ← DUPLICATE
   │     └── Constraints                       ← DUPLICATE
   ├── CharacterCognition sections
-  │     ├── Drives (from social-config.yaml)  ← DUPLICATE of DriveOrchestrator
-  │     ├── Beliefs (from social-config.yaml) ← DUPLICATE of MentalModelOrchestrator
+  │     ├── Drives (from social-config.yaml)
+  │     ├── Beliefs (from social-config.yaml)
   │     ├── Norms (from social-config.yaml)
   │     ├── Trust perceptions (from mindmap overlay)
   │     └── Social awareness (CognitiveProfile.compare())
@@ -59,7 +59,9 @@ User prompt (observations — sole source of cognitive state):
   │     ├── Mood, Drives, Narrative, Mental model, User model, Strategy, Goals
   │     ├── Personality
   │     └── Soft constraints
-  ├── CharacterCognition sections (deduplicated)
+  ├── CharacterCognition sections (application-specific, no CognitionCore equivalent)
+  │     ├── Character motivations (from social-config drives — free-form)
+  │     ├── Initial beliefs (from social-config — authored knowledge)
   │     ├── Trust perceptions
   │     ├── Social awareness
   │     └── Norms
@@ -77,19 +79,25 @@ User prompt (observations — sole source of cognitive state):
 A `@Alternative @Priority(1)` CDI bean implementing `SystemPromptRenderer`. When present on the classpath, it overrides `EidosSystemPromptRenderer`. The eidos renderer stays untouched — no eidos changes.
 
 **Renders:**
-1. **Identity block:** Agent name + role sentence. Extracted from `AgentDescriptor.briefing()` — the spec defines a new `identity` field in the descriptor YAML (see §4 below), or the renderer extracts the first sentence(s) of the briefing that establish identity.
-2. **Voice block:** Speaking style, mannerisms, catchphrases. From descriptor `briefing` field (stripped of behavioral instructions and character knowledge) plus template content (templates are pure voice/style).
+1. **Identity block:** Agent name + role sentence. Extracted from `AgentDescriptor.briefing()` — the briefing field is rewritten by content authors to contain only identity and voice content (see §4). The renderer uses it as-is.
+2. **Voice block:** Speaking style, mannerisms, catchphrases. From descriptor `briefing` field plus template content (templates are pure voice/style).
 3. **Hard constraints:** Only constraints with `severity: HARD` from `AgentDescriptor.constraints()`.
 4. **Cognitive preamble:** Auto-generated paragraph from active subsystems (see §2 below).
 
 **Does NOT render:** goals, soft constraints, disposition, drives, beliefs, strategies, narrative, or any dynamic cognitive data.
 
-**RenderedPrompt compatibility:** Returns a `RenderedPrompt` with `format: MARKDOWN`, `enriched: false` (no semantic enrichment — that's an eidos feature), and a valid `descriptorHash`/`contextHash` for caching.
+**Render format handling:** The renderer handles `RenderFormat.MARKDOWN` only. For `A2A_CARD` and `PROSE` formats, it delegates to a constructor-injected `EidosSystemPromptRenderer` instance, preserving A2A card generation and alternative format support.
+
+**RenderedPrompt compatibility:** Returns a `RenderedPrompt` with `format: MARKDOWN`, `enriched: false` (no semantic enrichment — the minimal directive is authored text, not prose requiring LLM analysis), and a valid `descriptorHash`/`contextHash` for caching via `RenderedPromptCache`.
+
+**Coherence validation:** The `CognitiveSystemPromptRenderer` returns `null` for `coherenceReport()`. The structural coherence checks in `EidosSystemPromptRenderer` (MBTI/Enneagram consistency, trait alignment) are designed for rich prose briefings and don't apply to the minimal directive format. Consumers that log coherence violations (e.g., `ScenarioOrchestrator.renderPrompt()`) will see null reports and skip logging — this is intentional.
 
 ### 2. Cognitive Preamble Generator
 
 **Location:** `blocks-core`, same package as `CognitiveSystemPromptRenderer`
 **Class:** `CognitivePreambleGenerator`
+
+**CognitionConfig injection:** `CognitionConfig` is a plain record, not a CDI-managed bean. It is discovered at build time via `CognitionConfigBuildItem` (already implemented in `AgenticYamlProcessor.discoverCognitionConfig()`). The spec requires registering `CognitionConfig` as a CDI synthetic bean via `SyntheticBeanBuildItem` with `@DefaultBean` scope — this aligns with the existing build-time pipeline. `CognitiveSystemPromptRenderer` receives `CognitionConfig` via CDI constructor injection and passes it to `CognitivePreambleGenerator`.
 
 Inspects which `CognitionCore` subsystems are active (via config flags: `config.moodEnabled()`, `config.drivesEnabled()`, etc.) and composes a single coherent paragraph that tells the agent how to use its cognitive faculties.
 
@@ -115,23 +123,48 @@ The seeder reads seed data from character YAML and pushes initial state into cog
 |--------|-----------------|----------------|
 | `initial-beliefs` | MindMapStore (belief nodes) | Yes — ManorCognitiveSeeder |
 | `relationships` | MindMapStore (person-entity overlays with PAD) | Yes — ManorCognitiveSeeder.seedPeople() |
-| `drives` | DriveOrchestrator / DriveProfile | No — currently read from social-config at render time |
-| `norms` | Norms rendering | No — currently read from social-config at render time |
-| `goals` | GoalProposalOrchestrator | No — currently from descriptor YAML |
+| `drives` (character motivations) | N/A — stays rendered by CharacterCognition from SocialConfig | N/A — already observation-side |
+| `norms` | Norms rendering (see GitHub issue below) | No — currently read from social-config at render time |
+| `goals` | GoalProposalOrchestrator (via DriveGoalProposal) | No — currently from descriptor YAML |
 
-**Key change for drives and norms:** Currently `CharacterCognition.renderCognitiveSections()` reads drives and norms from `SocialConfig` at render time and produces observation text directly. In the new model, drives and norms are seeded into their respective subsystems at boot, and `CognitionCore.promptSections()` renders them — the same path as mood, strategy, and mental model.
+**Drives — taxonomy clarification:** The platform's `DriveOrchestrator` uses a fixed four-axis SDT-derived model: `DriveAxis` = {CURIOSITY, COMPETENCE, AFFILIATION, AUTONOMY}. Each axis maps to a specific `DriveSource` implementation with its own calculation logic (`CuriosityDrive`, `CompetenceDrive`, `AffiliationDrive`, `AutonomyDrive`). Wacky-manor's `social-config.yaml` drives are free-form character motivations ("scheming", "gallantry", "social-harmony", etc.) — these are NOT the same concept. They describe the character's motivational identity, not SDT psychological needs.
+
+Character motivations from `social-config.yaml` remain rendered by `CharacterCognition` from `SocialConfig`. They are already on the observation side — the architectural target. There is no CognitionCore equivalent for free-form character motivations: `DrivePromptSection` renders the four-axis SDT model (dynamically computed by `DriveOrchestrator`), and `MentalModelPromptSection` renders BDI Theory of Mind (per-subject beliefs/desires/intentions about OTHER agents) — neither handles authored motivational identity. The four-axis `DriveOrchestrator` continues unchanged.
+
+**Goals — seeding mechanism:** Static goals move from `descriptors-composite.yaml` to `social-config.yaml` with explicit `DriveAxis` annotations. The seeder constructs `DriveGoalProposal` records from the goal config:
+
+```yaml
+penelope-pitstop:
+  goals:
+    - name: solve-mystery
+      description: "Uncover the secrets of Doily Manor"
+      axis: CURIOSITY
+      intensity: 0.8
+      formation-reason: "character-definition"
+    - name: maintain-harmony
+      description: "Keep everyone getting along"
+      axis: AFFILIATION
+      intensity: 0.7
+      formation-reason: "character-definition"
+```
+
+The seeder calls `GoalProposalOrchestrator.registerGoals()` with the constructed `DriveGoalProposal` list. `GoalPromptSection` becomes the sole goal renderer, replacing both `CognitiveObservationSections.goalsSection()` and descriptor-side goal rendering.
+
+**Norms — deferred to GitHub issue:** A `NormsPromptSection` in `CognitionCore.promptSections()` is required for norms to follow the same observation-side rendering path as other cognitive data. This is NOT in scope for this spec. **GitHub issue to be filed on casehubio/blocks** to track: "Add NormsPromptSection to CognitionCore for observation-side norms rendering." Until implemented, norms remain rendered by `CharacterCognition` from `SocialConfig`.
+
+**Key change — constraints:** Currently `CharacterCognition.renderCognitiveSections()` reads constraints from `SocialConfig` at render time and produces observation text directly. In the new model, constraints are split: HARD in system prompt, SOFT in `ConstraintPromptSection` (CognitionCore observation sections). Initial beliefs stay rendered by `CharacterCognition` from `SocialConfig` — they are already seeded into MindMapStore (for cognitive comparison via `CognitiveProfile.compare()`) but rendered directly from `SocialConfig`, not via `MentalModelPromptSection` (which serves BDI Theory of Mind, a different concept).
 
 This requires:
-- `DriveOrchestrator` (or a new `DriveProfile` store) accepts seeded drive state
-- A norms section in `CognitionCore.promptSections()` (currently missing — norms only come from `CharacterCognition`)
-- `CharacterCognition.renderCognitiveSections()` stops rendering drives, norms, beliefs, and constraints directly — these come from CognitionCore
+- `ManorCognitiveSeeder` enhanced to construct and register `DriveGoalProposal` goals
+- `CharacterCognition.renderCognitiveSections()` stops rendering constraints directly — SOFT constraints come from `ConstraintPromptSection` (CognitionCore)
+- `CharacterCognition.renderCognitiveSections()` retains: character motivations (from social-config drives), initial beliefs (from social-config), trust perceptions, social awareness, and norms (pending norms issue)
 
 **Seeder lifecycle:** Called once per agent at scenario bootstrap (same point where `ManorCognitiveSeeder.seed()` and `seedPeople()` are called today). Idempotent — if subsystem state already exists, seeding is skipped.
 
 **Architecture question — seeder location:**
 - The seeder SPI/interface belongs in `blocks-core` (alongside CognitionCore)
 - The implementation that reads from `SocialConfig` + `AgentDescriptor` stays in wacky-manor (application-specific YAML formats)
-- ManorCognitiveSeeder is enhanced rather than replaced — it already handles beliefs and relationships, it gains drives, norms, and goals
+- ManorCognitiveSeeder is enhanced rather than replaced — it already handles beliefs and relationships, it gains goal seeding (DriveGoalProposal construction and registration)
 
 ### 4. Descriptor YAML Changes
 
@@ -174,16 +207,31 @@ Remove all observation-side content that duplicates what CognitionCore already r
 
 | Currently duplicated | Remove from | Keep in |
 |---------------------|-------------|---------|
-| Goals | System prompt (descriptor) + `CognitiveObservationSections.goalsSection()` | `GoalPromptSection` (CognitionCore) |
-| Constraints | System prompt + `CharacterCognition` | System prompt (HARD only) + `ConstraintPromptSection` (SOFT, via CognitionCore) |
-| Drives | `CharacterCognition` direct render | `DrivePromptSection` (CognitionCore) |
-| Beliefs | `CharacterCognition` direct render from social-config | `MentalModelPromptSection` (CognitionCore) |
-| Personality/disposition | System prompt | `PersonalityPromptSection` (CognitionCore) |
+| Goals | System prompt (descriptor) + `CognitiveObservationSections.goalsSection()` | `GoalPromptSection` (CognitionCore) — seeded via `registerGoals()` |
+| Constraints | System prompt (all severities) + `CharacterCognition` direct render | System prompt (HARD only) + `ConstraintPromptSection` (SOFT only, via CognitionCore) |
+| Personality/disposition | System prompt + `SocialAvatarCognition.buildSections()` | `PersonalityPromptSection` (CognitionCore) |
 
-After deduplication, `CharacterCognition.renderCognitiveSections()` is significantly slimmed — it retains only:
+**Not duplicated — stays in CharacterCognition:** Character motivations (from social-config drives — free-form, no CognitionCore equivalent), initial beliefs (authored knowledge — distinct from `MentalModelPromptSection`'s BDI Theory of Mind), trust perceptions, social awareness, norms. These are application-specific content already on the observation side.
+
+**Constraint severity filtering:** `CognitionCore.promptSections()` currently passes ALL constraints from `lastDescriptor.constraints()` to `ConstraintPromptSection` without filtering. This spec requires `CognitionCore.promptSections()` to filter for `severity != HARD` before constructing `ConstraintPromptSection`. HARD constraints are rendered by `CognitiveSystemPromptRenderer` in the system prompt. Without this filtering, HARD constraints would appear in BOTH channels.
+
+**PersonalityPromptSection deduplication:** `SocialAvatarCognition.buildSections()` (line 112) adds `PersonalityPromptSection` from the descriptor, then `core.promptSections()` (line 115) adds another `PersonalityPromptSection` from `CognitionCore` (line 347). This is an existing duplication within the observation pipeline. Fix: remove the explicit `PersonalityPromptSection` from `SocialAvatarCognition.buildSections()` — CognitionCore already provides it.
+
+**CognitiveObservationSections callers:** Production code callers of `CognitiveObservationSections`:
+- `DrivePromptSection` → `motivationalStateSection(DriveProfile)` — CognitionCore prompt section, unchanged
+- `NarrativePromptSection` → `narrativeSection(NarrativeState)` — CognitionCore prompt section, unchanged
+- `CharacterCognition.renderTrustSections()` → `trustSection(List<TrustSummary>)` — retained in CharacterCognition
+- `goalsSection(List<AgentGoal>)` — called only from tests; safe to deprecate
+
+The `CognitiveObservationSections` class is NOT removed — it remains as a rendering utility used by CognitionCore's prompt sections. Only `goalsSection()` is deprecated as goals move to `GoalPromptSection` via seeded `DriveGoalProposal` objects.
+
+After deduplication, `CharacterCognition.renderCognitiveSections()` retains:
+- Character motivations (from social-config drives — free-form, no CognitionCore equivalent)
+- Initial beliefs (from social-config — authored knowledge, distinct from `MentalModelPromptSection`'s BDI Theory of Mind)
 - Trust perceptions (from mindmap overlay — no CognitionCore equivalent)
 - Social awareness (perspectival comparison — no CognitionCore equivalent)
-- Norms (until a `NormsPromptSection` is added to CognitionCore)
+- Norms (until `NormsPromptSection` is added — tracked by GitHub issue)
+- Constraints removed: HARD → system prompt, SOFT → `ConstraintPromptSection`
 
 ### 6. DirectiveSection Deprecation
 
@@ -199,7 +247,7 @@ The `DirectiveSection` class is not deleted — it remains available for non-cog
 | Repo | Changes | Issue |
 |------|---------|-------|
 | **blocks** | `CognitiveSystemPromptRenderer`, `CognitivePreambleGenerator`, seeder SPI, `CognitionCore` config changes, norms prompt section | casehubio/blocks#283 |
-| **examples/wacky-manor** | Descriptor YAML restructure, `ManorCognitiveSeeder` enhancement, `CharacterCognition` deduplication, `ScenarioOrchestrator` wiring | New issue on casehubio/examples |
+| **examples/wacky-manor** | Descriptor YAML restructure, `ManorCognitiveSeeder` enhancement (motivational beliefs + goal seeding), `CharacterCognition` deduplication, `ScenarioOrchestrator` wiring | **TODO:** File issue on casehubio/examples before implementation begins |
 | **neocortex** | No changes expected — consolidation pipeline already observation-side | None |
 
 ## Empirical Validation
