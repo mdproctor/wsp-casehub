@@ -253,70 +253,77 @@
 
 ## examples#70 — Relationship Stage Thresholds
 
-## D19: Configuration location — per-character in social-config.yaml
+## D19: Configuration location — per-character in social-config.yaml, using existing 5-tier model
 
-**Choice:** Add a `familiarity-thresholds` section per character in social-config.yaml. Each character can declare custom stage boundaries (stranger→acquaintance→friend→confidant). Characters without explicit thresholds use application-level defaults.
+**Choice:** Add a `familiarity-thresholds` section per character in social-config.yaml. Uses the existing 5-tier model from `RelationshipStageConfig.defaults()`: stranger (0.0) → acquaintance (0.2) → familiar (0.4) → friend (0.6) → confidant (0.8). Characters without explicit thresholds use the application-level `RelationshipStageConfig` defaults. Per-character overrides are parsed as `RelationshipStageConfigSpec` (already exists in agentic-yaml) and compiled via `CognitionCompiler.compileRelationshipStage()`.
 **Alternatives:**
 - Separate familiarity.yaml — cleaner separation but scatters character definition across more files, diverging from the pattern where drives, norms, beliefs, and relationships all live in social-config.yaml.
 - Application-level defaults only — simpler but loses per-character variation. A suspicious character like Hooded Claw should require more interactions to reach "friend" than sociable Penelope.
-**Rationale:** social-config.yaml already defines per-character drives, goals, norms, beliefs, and relationships. Familiarity thresholds are character-specific social configuration — they belong with the rest. The per-character pattern is established by D9 (reinforcement mappings).
+**Rationale:** social-config.yaml already defines per-character drives, goals, norms, beliefs, and relationships. Familiarity thresholds are character-specific social configuration — they belong with the rest. The per-character pattern is established by D9 (reinforcement mappings). Using the existing `RelationshipStageConfig` and `StageTier` types — already in blocks-core — avoids creating redundant types.
 **Trade-offs:** social-config.yaml grows slightly larger. Marginal — it already handles six configuration categories per character.
-**Sources:** SocialConfig.java, social-config.yaml, issue #70
+**Sources:** RelationshipStageConfig.java, StageTier.java, RelationshipStageConfigSpec.java, CognitionCompiler.compileRelationshipStage(), SocialConfig.java, social-config.yaml, issue #70
 **Exploration:** quick
-**Status:** captured
+**Revised by:** R1-02 (decision review) — original choice described only 4 stages (missing "familiar" tier). Existing `RelationshipStageConfig.defaults()` in blocks-core already defines 5 tiers. Adopted the existing model.
+**Status:** revised
 
-## D20: Code location — blocks-core
+## D20: Code location — blocks-core (existing infrastructure)
 
-**Choice:** RelationshipStage enum and familiarity computation logic live in blocks-core, alongside trust and drive adaptation. Wacky-manor provides only YAML configuration (thresholds) and rendering integration.
+**Choice:** Relationship stage computation reuses existing blocks-core infrastructure: `RelationshipStageConfig`, `StageTier`, `RelationshipStageConfigSpec`, `CognitionCompiler.compileRelationshipStage()`, and `UserModelOrchestrator.computeFamiliarity()`. The new `RelationshipStagePhase` (consolidation) and `OverlayFamiliarityPropertyModel` (property constants) are added to blocks-core alongside the existing types. Wacky-manor provides YAML configuration and rendering integration.
 **Alternatives:**
-- Wacky-manor only — keeps it application-level but misses the platform reuse opportunity. Relationship stages are a general social cognition concept, not wacky-manor-specific.
-- New blocks-relationship module — maximum isolation but heavy for an enum, a formula, and a consolidation phase.
-**Rationale:** blocks-core already hosts OverlayTrustPropertyModel (trust overlay properties) and DriveAdaptationPhase (drive consolidation). Relationship stage computation follows the same architectural pattern — platform provides the engine, application provides configuration. Consistent with D13 (drive adaptation in blocks-core).
-**Trade-offs:** blocks-core gains a new consolidation phase. Acceptable — it already has drive adaptation and trust in the same layer.
-**Sources:** OverlayTrustPropertyModel, DriveAdaptationPhase, issue #70
+- Wacky-manor only — keeps it application-level but duplicates the familiarity computation already in blocks-core.
+- New blocks-relationship module — maximum isolation but unnecessary when the types and formula already exist in blocks-core.
+**Rationale:** `UserModelOrchestrator.computeFamiliarity()` already implements the exact formula: volume factor + positive/negative weighting + time decay. `RelationshipStageConfig.resolveStage()` already maps familiarity score to stage name. No new computation logic is needed — only a consolidation phase that calls the existing function and persists results to overlay nodes. This is a wiring task, not an algorithm task.
+**Trade-offs:** `computeFamiliarity()` is currently a static method inside `UserModelOrchestrator`. It may need to be extracted to a utility class if we want to avoid a dependency on UserModelOrchestrator from the consolidation phase. Alternatively, the consolidation phase can call it directly since it's static and side-effect-free.
+**Sources:** UserModelOrchestrator.computeFamiliarity(), RelationshipStageConfig, StageTier, OverlayTrustPropertyModel, issue #70
 **Exploration:** quick
+**Revised by:** R1-02, R1-03 (decision review) — original choice proposed creating new familiarity computation logic. Reviewer identified that `RelationshipStageConfig`, `StageTier`, and `computeFamiliarity()` already exist in blocks-core with decay and sentiment weighting.
 **Depends on:** D19 (per-character config)
-**Status:** captured
+**Status:** revised
 
 ## D21: Computation and persistence — RelationshipStagePhase consolidation
 
-**Choice:** New `RelationshipStagePhase` (ConsolidationPhase implementation) in blocks-core. Runs during sleep consolidation alongside trust and drive adaptation. Scans CaseMemoryStore for interaction volume per agent pair, computes familiarity score using volume factor formula (`1.0 - 1.0 / (1.0 + total * 0.1)`), maps to relationship stage via configurable thresholds, persists stage and familiarity score as properties on the per-observer overlay node in the `people` subgraph.
+**Choice:** New `RelationshipStagePhase` (ConsolidationPhase implementation) in blocks-core. Runs during sleep consolidation. For each agent, scans the `people` subgraph for overlay nodes owned by that agent, queries CaseMemoryStore for relationship memories per pair using `RelationshipQuery.forPair()`, classifies interactions as positive/negative/neutral from Memory PAD pleasure values, calls `UserModelOrchestrator.computeFamiliarity(positive, negative, neutral, stageConfig, ticksSinceLastInteraction)`, maps result via `stageConfig.resolveStage(score)`, persists on overlay nodes.
 **Alternatives:**
-- On-demand in rendering — compute familiarity by counting memories at render time. Simpler but queries CaseMemoryStore on every prompt construction, scaling poorly with memory volume. Trust avoids this by persisting on overlay properties.
-- Event-driven on ingest — update familiarity every time a memory is ingested. Real-time updates but couples memory recording to stage computation, adding latency to every interaction.
-**Rationale:** Follows the established consolidation pattern. Trust score is computed during consolidation and persisted on overlay nodes — relationship stage does the same. The sleep cycle is the natural point to recompute derived social state. Consolidation runs periodically with bounded cost, not per-interaction.
-**Overlay property model:** `familiarity-score` (double, 0.0–1.0), `familiarity-stage` (string: STRANGER/ACQUAINTANCE/FRIEND/CONFIDANT), `familiarity-interaction-count` (int, raw count for diagnostics).
-**Priority ordering:** After DriveAdaptationPhase (~17) — relationship stage depends on accumulated interactions, not on drive state. Priority ~18.
+- On-demand in rendering — compute familiarity by counting memories at render time. Simpler but queries CaseMemoryStore on every prompt construction, scaling poorly with memory volume.
+- Event-driven on ingest — update familiarity every time a memory is ingested. Real-time but couples memory recording to stage computation.
+**Rationale:** Follows the established consolidation pattern. The formula already exists in `UserModelOrchestrator.computeFamiliarity()` — it uses volume factor (`1.0 - 1.0 / (1.0 + total * 0.1)`), positive/negative weighting from `RelationshipStageConfig`, and time-based decay. No new algorithm needed.
+**Interaction classification:** Memories with `pleasure > 0.1` → positive. `pleasure < -0.1` → negative. Otherwise → neutral. Thresholds from Memory's existing PAD values (the same pleasure dimension the system already uses for emotional state).
+**Overlay property model:** `familiarity-score` (double, 0.0–1.0), `familiarity-stage` (string: stranger/acquaintance/familiar/friend/confidant — 5 tiers matching `RelationshipStageConfig.defaults()`), `familiarity-interaction-count` (int, raw count for diagnostics).
+**Priority ordering:** After DriveAdaptationPhase (~17) — relationship stage depends on accumulated interactions, not on drive state. Priority ~18. Verified: clean gap between Experience@15 and Merge@20.
 **Trade-offs:** Stage updates are not real-time — a character who has many interactions in one turn won't see their stage change until the next consolidation cycle. Acceptable — relationship evolution should feel gradual, not instantaneous.
-**Sources:** TrustConsolidationPhase pattern, DriveAdaptationPhase (priority ordering), OverlayTrustPropertyModel, CaseMemoryStore, issue #70, GE-20260820-d9129a (volume factor)
+**Sources:** UserModelOrchestrator.computeFamiliarity(), RelationshipStageConfig, TrustConsolidationPhase pattern, DriveAdaptationPhase (priority ordering), OverlayTrustPropertyModel, CaseMemoryStore, RelationshipQuery, issue #70, GE-20260820-d9129a (volume factor)
 **Exploration:** quick
-**Depends on:** D20 (blocks-core location), D19 (configurable thresholds)
-**Status:** captured
+**Revised by:** R1-03 (decision review) — original choice proposed a standalone volume-only formula ignoring existing decay and sentiment parameters. `computeFamiliarity()` already implements volume factor + positive/negative weighting + decay. Adopted the existing implementation.
+**Depends on:** D20 (blocks-core location, existing computeFamiliarity), D19 (configurable thresholds)
+**Status:** revised
 
-## D22: Behavioral gating — extend ManorContextStrategy
+## D22: Behavioral gating — trust-unlocked behaviors only; adversarial behaviors stay drive-gated
 
-**Choice:** Add stage-aware gating methods to ManorContextStrategy: `shouldDisclose(RelationshipStage stage)`, `shouldCooperate(RelationshipStage stage)`, `shouldScheme(RelationshipStage stage)`. Each method checks the target's stage against a minimum required stage for that behavior. ManorContextStrategy already gates by drive intensity — adding stage gating keeps all social behavior decisions in one place.
+**Choice:** Add stage-aware gating to ManorContextStrategy for trust-unlocked behaviors only: `shouldDisclose(String stage)` (requires ≥ friend), `shouldCooperate(String stage)` (requires ≥ acquaintance). Adversarial behaviors (scheming, suspicion) remain gated by drive intensity via the existing `shouldCompareSocially()` — they are NOT stage-gated. The stage influences *how* a character schemes (crude against strangers, sophisticated against confidants), but not *whether* they scheme.
 **Alternatives:**
-- Separate StageGate utility — new RelationshipStageGate class with static gating methods. Cleaner separation but splits social behavior gating across two classes, making it harder to reason about when a behavior is allowed.
-**Rationale:** ManorContextStrategy is the single point of social behavior gating. `shouldCompareSocially` already gates by drive intensity. Adding stage-based gating methods follows the same pattern — the strategy answers "should this character do X in this social context?"
-**Stage-to-behavior mapping:** Stranger → surface interactions only, no trust disclosure, high suspicion. Acquaintance → basic cooperation, limited trust, norm-gated disclosure. Friend → trust disclosure, cooperation preference, reduced suspicion. Confidant → full disclosure, alliance formation, strong loyalty bias.
-**Trade-offs:** ManorContextStrategy grows. Acceptable — it's the designated home for social behavior gating decisions.
+- Stage-gate all behaviors including adversarial — treats scheming as a skill tree unlock. Semantically wrong: a villain schemes *more* against unknown threats, not less. Stage and motivation are orthogonal dimensions.
+- Separate StageGate utility — cleaner separation but splits social behavior gating across two classes.
+**Rationale:** Familiarity and behavioral motivation are orthogonal dimensions. Disclosure and cooperation are familiarity-gated — trust must be earned. Scheming and suspicion are drive-gated — character motivation determines whether the character acts adversarially at all. The existing `shouldCompareSocially()` already handles the motivation dimension via D9's drive intensity mechanism. Adding stage-gating only for trust-unlocked behaviors preserves this clean separation.
+**Stage-to-behavior mapping (trust-unlocked only):** Stranger → surface interactions only, no disclosure. Acquaintance → basic cooperation, norm-gated disclosure. Familiar → cooperation preference, limited trust disclosure. Friend → trust disclosure, alliance formation. Confidant → full disclosure, strong loyalty bias.
+**Trade-offs:** ManorContextStrategy grows moderately. The adversarial behavior gating is already handled by `shouldCompareSocially` — no new code needed for that dimension.
 **Sources:** ManorContextStrategy.shouldCompareSocially(), issue #70 behavioral gates table
 **Exploration:** quick
-**Depends on:** D20 (blocks-core provides RelationshipStage enum)
-**Status:** captured
+**Revised by:** R1-01 (decision review) — original choice included `shouldScheme` as a stage-gated method. Reviewer demonstrated that adversarial behaviors are drive-motivated, not familiarity-gated: Hooded Claw should scheme against strangers (high suspicion), not be prevented from scheming by low familiarity.
+**Depends on:** D19 (5-tier stage model), D21 (stage persisted on overlay)
+**Status:** revised
 
-## D23: Perception rendering — stage-gated in Social Awareness
+## D23: Perception rendering — stage-gated in Social Awareness (5 tiers)
 
-**Choice:** Stage-gate PerceptionTranslator output and integrate stage context into the existing `renderSocialAwareness` section. Strangers get no perception text. Acquaintances get surface-level observations. Friends get emotional detail. Confidants get full existing output including trajectory annotations. Stage label prefixes each character entry: "Peter Perfect (friend): seems more positive than you."
+**Choice:** Stage-gate PerceptionTranslator output and integrate stage context into the existing `renderSocialAwareness` section. Stage label prefixes each character entry: "Peter Perfect (friend): seems more positive than you."
 **Alternatives:**
 - Always render, add stage context — keep existing perception output for all stages, prepend relationship framing. Simpler change but unrealistic — a stranger shouldn't have fine-grained emotional perception of someone they just met.
 - Separate "Relationship Context" observation section — clear separation but adds yet another section to an already-rich prompt.
 - RelationshipStagePromptSection in blocks-core — maximum platform reuse but heavy for rendering stage labels.
 **Rationale:** Social Awareness is already where relationship perceptions are rendered. Adding stage context to existing entries is natural — the section answers "what do you notice about nearby characters?" The stage determines how much you notice. Avoiding a new section keeps prompt size bounded.
-**Rendering tiers:** STRANGER → skip (no perception for unknowns). ACQUAINTANCE → dominant dimension only, no trajectory. FRIEND → full dimension text, trajectory included. CONFIDANT → full output with trajectory and explicit stage note.
+**Rendering tiers (5 stages):** STRANGER → skip (no perception for unknowns). ACQUAINTANCE → dominant dimension only, no trajectory. FAMILIAR → dominant dimension + second dimension hint, no trajectory. FRIEND → full dimension text, trajectory included. CONFIDANT → full output with trajectory and explicit stage note.
 **Trade-offs:** PerceptionTranslator gains a stage parameter, changing its signature. Callers must supply stage. Acceptable — there's one caller (renderSocialAwareness).
 **Sources:** PerceptionTranslator.translate(), CharacterCognition.renderSocialAwareness(), issue #70
 **Exploration:** quick
-**Depends on:** D21 (stage persisted on overlay), D22 (behavioral gating)
-**Status:** captured
+**Revised by:** R1-02 (decision review) — original rendering tiers had 4 stages. Added "familiar" tier to match the 5-tier `RelationshipStageConfig.defaults()`.
+**Depends on:** D21 (stage persisted on overlay), D22 (behavioral gating), D19 (5-tier model)
+**Status:** revised
