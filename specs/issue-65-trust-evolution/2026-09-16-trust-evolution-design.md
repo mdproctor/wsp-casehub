@@ -63,7 +63,7 @@ The two systems are complementary:
 
 **`ManorTrustEvents`** (wacky-manor) is the existing weight-based trust model: STEAL=−0.4, GIVE=+0.15, with personality modifiers (`trustFormationRate`, `conflictInterpretation`). `CharacterCognition.recordTrustEvent()` calls it during action processing.
 
-This spec supersedes `ManorTrustEvents`. The CDI event mechanism (`TrustRelevantAction` → `TrustEventRecorder` → ledger) replaces the weight-based model with a Bayesian attestation model. `CharacterCognition.recordTrustEvent()` becomes the call site for firing `TrustRelevantAction` CDI events instead of calling `ManorTrustEvents.weightFor()`.
+This spec supersedes `ManorTrustEvents`. The CDI event mechanism (`TrustRelevantAction` → `TrustEventRecorder` → ledger) replaces the weight-based model with a Bayesian attestation model. `ScenarioOrchestrator` fires the CDI event directly (it is `@ApplicationScoped`); `CharacterCognition.recordTrustEvent()` is removed (it was a no-op — computed a weight but discarded the return value).
 
 **Personality modifiers**: The existing `ManorTrustEvents` applies `trustFormationRate` and `conflictInterpretation` to weight calculations. The new model does not apply personality modifiers to attestation confidence — all characters evaluate the same action identically. This is a deliberate scope decision: personality-driven trust interpretation is captured as a follow-up issue where `CognitiveDerivationEngine` modifies effective confidence weights during consolidation scoring based on character personality. Applying personality during consolidation (not at recording time) keeps ledger records personality-neutral, allowing personality changes to retroactively affect trust computation.
 
@@ -71,10 +71,16 @@ This spec supersedes `ManorTrustEvents`. The CDI event mechanism (`TrustRelevant
 
 ```
 TICK PROCESSING (per action):
-  Character A performs action (STEAL, GIVE, INTERACT, ...)
-    → CharacterCognition.recordTrustEvent(targetId, action)
-      → fires TrustRelevantAction CDI event (D10)
-        → TrustEventRecorder observes (D7):
+  Character A performs action (STEAL, GIVE, PULL_ASIDE)
+    → ScenarioOrchestrator:
+        1. extractTargetAgent(response) → trustTarget (non-null)
+        2. Determine witnesses: world.charactersInRoom(actor.currentRoom())
+           excluding actor and target, filtered by !concealed (D15)
+        3. Fire CDI event (ScenarioOrchestrator is @ApplicationScoped):
+           trustEvent.fire(new TrustRelevantAction(
+               actorId, trustTarget, action.name(), result,
+               witnessIds, tenantId))
+      → TrustEventRecorder observes (D7):
           1. Maps actionType to verdict+confidence via TrustEvolutionConfig
              (unmapped types silently ignored — no entry created)
           2. Creates PlainLedgerEntry (actorId=A, entryType=EVENT,
@@ -107,9 +113,10 @@ CONSOLIDATION ("sleep"):
 
 OBSERVATION RENDERING (next tick):
   CharacterCognition.renderCognitiveSections(...)
-    → queries "people" subgraph overlay nodes for this character
+    → queries "people" subgraph overlay nodes via MindMapStore
     → reads trust-score, trust-alpha, trust-beta from overlay properties
-    → maps to TrustLevel using config thresholds
+    → if alpha + beta ≤ 2 → TrustLevel.UNKNOWN (skip or minimal render)
+    → maps score to TrustLevel using config thresholds
     → constructs TrustSummary(subjectName, level, reason)
     → passes to CognitiveObservationSections.trustSection()
     → returns ObservationSection for the observation prompt
@@ -187,7 +194,7 @@ public class TrustEvolutionConfigSpec {
 
 #### TrustRelevantAction (CDI event)
 
-Fired by `CharacterCognition.recordTrustEvent()` after action resolution:
+Fired by `ScenarioOrchestrator` (CDI-managed `@ApplicationScoped` bean) after action resolution:
 
 ```java
 public record TrustRelevantAction(
@@ -269,21 +276,13 @@ events:
     verdict: SOUND
     confidence: 0.7
     witness-confidence: 0.3
-  - type: INTERACT
-    verdict: SOUND
-    confidence: 0.3
-    witness-confidence: 0.1
   - type: PULL_ASIDE
     verdict: SOUND
     confidence: 0.5
     witness-confidence: 0.2
-  - type: USE
-    verdict: FLAGGED
-    confidence: 0.4
-    witness-confidence: 0.2
 ```
 
-All action types map to existing `ActionType` enum values (STEAL, GIVE, INTERACT, PULL_ASIDE, USE). Unmapped types (MOVE, LOOK, WAIT, TAKE) are not trust-relevant and produce no ledger entries.
+Only action types where `extractTargetAgent()` returns a non-null agent target are mapped (STEAL, GIVE, PULL_ASIDE). INTERACT and USE are excluded — `extractTargetAgent()` returns null for these (they fall to the `default -> null` branch), so trust mappings would be dead config. Extending trust to INTERACT/USE is captured as part of the action model extension follow-up.
 
 #### ManorTrustEvolutionConfigLoader
 
@@ -291,31 +290,61 @@ New loader that parses `trust-evolution.yaml` into a `TrustEvolutionConfig` reco
 
 #### ScenarioOrchestrator wiring
 
-`CharacterCognition.recordTrustEvent()` fires the CDI event:
+`ScenarioOrchestrator` fires the CDI event directly — it is `@ApplicationScoped` and can inject `Event<TrustRelevantAction>`. `CharacterCognition` is a POJO (manually constructed, not CDI-managed) and cannot inject or fire CDI events.
+
+The existing call to `CharacterCognition.recordTrustEvent()` is replaced with CDI event firing in the orchestrator:
+
 ```java
-trustEvent.fire(new TrustRelevantAction(
-    actorId, targetId, action.name(), result, witnessIds, tenantId));
+// ScenarioOrchestrator (CDI-managed):
+@Inject Event<TrustRelevantAction> trustEvent;
+
+// In runAutonomousTicks(), after action resolution:
+String trustTarget = extractTargetAgent(response);
+if (trustTarget != null) {
+    List<String> witnessIds = world.charactersInRoom(c.currentRoom()).stream()
+        .map(CharacterState::agentId)
+        .filter(id -> !id.equals(c.agentId()) && !id.equals(trustTarget))
+        .toList();
+    // Skip witnesses for concealed actions (deception-capable characters)
+    List<String> effectiveWitnesses = concealed ? List.of() : witnessIds;
+    trustEvent.fire(new TrustRelevantAction(
+        c.agentId(), trustTarget, response.action().type().name(),
+        result.text(), effectiveWitnesses, ManorConstants.TENANCY_ID));
+}
 ```
 
-The existing `ManorTrustEvents` weight-based model is superseded. `CharacterCognition.recordTrustEvent()` replaces its `ManorTrustEvents.weightFor()` call with the CDI event fire above.
+Witness determination (D15):
+- **Base set**: all active characters in the same room (`world.charactersInRoom(actor.currentRoom())`)
+- **Exclusions**: the actor and the direct target
+- **Concealed actions**: if the action is `concealed` (deception-capable characters performing hidden actions), `witnessIds` is empty — no witnesses observe the action
+
+The existing `ManorTrustEvents` weight-based model is superseded. `CharacterCognition.recordTrustEvent()` is removed (it was a no-op — computed a weight but discarded the return value).
 
 ## Observation Rendering (D8)
 
-Trust changes integrate with the existing `TrustLevel` enum and `TrustSummary` record in blocks-core.
+Trust changes integrate with the existing `TrustLevel` enum (HIGH, MODERATE, LOW, UNKNOWN) and `TrustSummary` record in blocks-core.
 
-**Producer flow** (in `CharacterCognition.renderCognitiveSections()`):
-1. Query the "people" subgraph for overlay nodes where `agentId` matches this character (observer)
+### Dependencies for observation rendering
+
+`CharacterCognition` gains two new constructor parameters:
+- `MindMapStore mindMapStore` — for querying overlay nodes. `ScenarioOrchestrator` already has `Instance<MindMapStore> mindMapStoreInstance` and passes the resolved instance at construction time.
+- `TrustEvolutionConfig trustEvolutionConfig` — for trust level thresholds. `ScenarioOrchestrator` loads this via `ManorTrustEvolutionConfigLoader` during scenario setup.
+
+### Producer flow (in `CharacterCognition.renderCognitiveSections()`)
+
+1. Query the "people" subgraph via `mindMapStore` for overlay nodes where `agentId` matches this character (observer)
 2. For each overlay node with a `trust-score` property:
    a. Read `trust-score`, `trust-alpha`, `trust-beta`
-   b. Resolve subject name from the shared node
-   c. Map trust-score to `TrustLevel` using config thresholds:
-      - `trust-score ≥ 0.7` → `TrustLevel.HIGH` → "You've come to rely on {name}"
-      - `0.4 ≤ trust-score < 0.7` → `TrustLevel.MODERATE` → "You have mixed feelings about {name}"
-      - `trust-score < 0.4` → `TrustLevel.LOW` → "Something about {name} makes you uneasy"
-   d. Build reason string from evidence strength (alpha + beta):
-      - `alpha + beta > 10` → "You feel quite certain about this"
-      - `alpha + beta < 4` → "You're still forming an opinion"
-   e. Construct `TrustSummary(subjectName, level, reason)`
+   b. **Evidence gate**: if `alpha + beta ≤ 2` → `TrustLevel.UNKNOWN` — skip rendering (no `TrustSummary` emitted). This prevents newly seeded overlay nodes with no trust events from generating misleading "mixed feelings" observations. The Bayesian Beta prior (alpha=1, beta=1, score=0.5) is not an opinion — it is absence of evidence.
+   c. Resolve subject name from the shared node
+   d. Map trust-score to `TrustLevel` using config thresholds:
+      - `trust-score ≥ levels.high` → `TrustLevel.HIGH` → "You've come to rely on {name}"
+      - `levels.moderate ≤ trust-score < levels.high` → `TrustLevel.MODERATE` → "You have mixed feelings about {name}"
+      - `trust-score < levels.moderate` → `TrustLevel.LOW` → "Something about {name} makes you uneasy"
+   e. Build reason string from evidence strength (alpha + beta):
+      - `> 10` → "You feel quite certain about this"
+      - `< 4` → "You're still forming an opinion"
+   f. Construct `TrustSummary(subjectName, level, reason)`
 3. Pass `List<TrustSummary>` to `CognitiveObservationSections.trustSection()`
 4. Add the resulting `ObservationSection` to the observation prompt
 
