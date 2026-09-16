@@ -23,17 +23,18 @@
 **Exploration:** deep-analysis
 **Status:** revised (R1-02: three-module split replaces "all in blocks-core")
 
-## D3: Per-relationship trust via attestor-filtered scoring
+## D3: Per-relationship trust via attestor-filtered scoring with named capabilityTag
 
-**Choice:** Each observer creates attestations (with their agentId as attestorId) on the target's ledger entries. During consolidation, TrustScoreComputer is called with attestations filtered to a single attestorId, producing per-relationship Bayesian Beta scores.
+**Choice:** Each observer creates attestations (with their agentId as attestorId) on the target's ledger entries, using `capabilityTag="cognitive-trust"` instead of the default `"*"`. During consolidation, TrustScoreComputer is called with attestations filtered to a single attestorId, producing per-relationship Bayesian Beta scores.
 **Alternatives:**
+- Use `capabilityTag="*"` (the default) — contamines the engine's global trust score when JPA stores are shared (D9). `ExplicitGlobalAttestationsStrategy.selectAttestations()` explicitly includes `"*"` attestations in the global beta score computation via `TrustScoreCalculator.computeAll()`.
 - Capability-tag namespacing (e.g. "relationship:penelope") — works but overloads the capability concept for something that's really attestor identity
 - Global per-actor trust (no per-relationship) — loses the core insight: Penelope trusts HC differently than Muttley trusts HC
-**Rationale:** TrustScoreComputer already accepts filtered attestation lists. Filtering by attestorId is the natural way to partition trust — it's what attestorId semantically means.
+**Rationale:** TrustScoreComputer already accepts filtered attestation lists. Filtering by attestorId is the natural way to partition trust — it's what attestorId semantically means. Using a named capabilityTag ensures cognitive trust attestations are scoped as a distinct capability in `TrustScoreCalculator` — they appear in `capabilityScores["cognitive-trust"]` rather than polluting the global beta fallback. This is safe regardless of whether the backing store is in-memory or JPA.
 **Trade-offs:** Requires N×M scoring calls during consolidation (N observers × M targets). Acceptable for game-scale character counts (< 20).
-**Sources:** io.casehub.ledger.core.trust.TrustScoreComputer#compute, io.casehub.ledger.api.model.LedgerAttestation#attestorId
+**Sources:** io.casehub.ledger.core.trust.TrustScoreComputer#compute, io.casehub.ledger.api.model.LedgerAttestation#attestorId, ExplicitGlobalAttestationsStrategy (filters for `"*"` only), TrustScoreCalculator.computeAll() (groups non-`"*"` attestations into capability-scoped scores)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-04/R2: capabilityTag changed from `"*"` to `"cognitive-trust"` to prevent collision with engine global trust scoring when JPA stores are shared)
 
 ## D4: Wacky-manor YAML integration — hand-rolled loader for now, DSL migration follow-up
 
@@ -105,10 +106,10 @@
 - Hardcode in-memory assumption — locks the framework to ephemeral use cases; production agents can't persist trust history across restarts
 - Require JPA — forces a database even for lightweight/demo scenarios
 **Rationale:** The ledger already has this duality (`InMemoryLedgerEntryRepository` at @Priority(1) vs `JpaLedgerEntryRepository` as default). The trust framework simply inherits it by depending on the SPI, not the implementation. Zero additional work — just don't break the abstraction.
-**Trade-offs:** None. This is the existing ledger pattern; the only cost is discipline (no implementation-specific casts or assumptions in framework code).
-**Sources:** io.casehub.ledger.api.spi.LedgerEntryRepository, io.casehub.ledger.memory.InMemoryLedgerEntryRepository, io.casehub.ledger.runtime.repository.jpa.JpaActorTrustScoreRepository
+**Trade-offs:** When JPA stores are selected, the trust evolution framework and the engine share the same `LedgerEntryRepository` implementation. Trust evolution attestations become visible to `ComputedTrustScoreSource` and `TrustScoreCalculator`. D3 mitigates this by using `capabilityTag="cognitive-trust"` instead of `"*"` — `ExplicitGlobalAttestationsStrategy` only selects `"*"` attestations for the global beta score, so named-capability attestations are isolated into their own capability-scoped score and do not contaminate the engine's global trust computation.
+**Sources:** io.casehub.ledger.api.spi.LedgerEntryRepository, io.casehub.ledger.memory.InMemoryLedgerEntryRepository, io.casehub.ledger.runtime.repository.jpa.JpaActorTrustScoreRepository, ComputedTrustScoreSource.computeFresh(), ExplicitGlobalAttestationsStrategy.selectAttestations()
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R2-05: documented JPA store-sharing interaction and capabilityTag guard from D3)
 
 ## D10: Trust event trigger — TrustRelevantAction CDI event in blocks
 
@@ -119,9 +120,9 @@
 - Application-defined event — defeats framework reuse; every cognitive agent would define its own event type
 **Rationale:** Follows the established neocortex pattern: ConversationBridge fires ExtractionRequested CDI event, ExtractionRequestedObserver handles it asynchronously. The event type lives in blocks because it's part of the trust framework contract — orchestrators import it from blocks, not from the application. The ScenarioOrchestrator currently calls `recordTrustEvent()` directly (line 387); replacing this with `event.fire(new TrustRelevantAction(...))` is mechanical.
 **Trade-offs:** Introduces a new CDI event type that orchestrators must fire. Applications without CDI (pure Java orchestrators) would use the direct-call alternative.
-**Sources:** ExtractionRequested/ExtractionRequestedObserver pattern in neocortex, ScenarioOrchestrator line 387, D7
+**Sources:** ExtractionRequested/ExtractionRequestedObserver pattern in neocortex (see neocortex docs/specs/issue-295-knowledge-consolidation/2026-09-10-knowledge-consolidation-pipeline-design.md §3.4 for the event contract and observer implementation), ScenarioOrchestrator line 387, D7
 **Exploration:** quick (surfaced by R1-03)
-**Status:** captured
+**Status:** revised (R2-04: added spec reference for ExtractionRequested precedent)
 
 ## D11: Trust granularity — per-actor-pair, not per-capability
 
@@ -129,8 +130,8 @@
 **Alternatives:**
 - Per-capability-per-actor-pair — agent trusts X for code review but not for merge decisions. Richer model, matches engine-ledger's capability-scoped TrustWeightedAgentStrategy pattern
 - Global per-actor — loses the core insight that Penelope trusts HC differently than Muttley trusts HC
-**Rationale:** For the game context, per-actor-pair trust is sufficient and avoids the complexity of defining capability taxonomies for cognitive agents. The blocks framework uses in-memory ledger stores (D9) separate from engine's persistent stores, so there's no collision with engine-level capability-scoped trust routing. The attestation's `capabilityTag` defaults to `"*"` — a future enhancement could use it for trust dimensions (honesty, reliability, scheming) without breaking the current model.
-**Trade-offs:** Cognitive agents can't express differentiated trust ("I trust X for advice but not with my possessions"). Acceptable for game scope; the per-capability extension path is available via capabilityTag without redesign.
-**Sources:** D3 (attestor-filtered scoring), LedgerAttestation.capabilityTag (defaults to "*"), TrustWeightedAgentStrategy (engine-level capability-scoped trust — separate concern)
+**Rationale:** For the game context, per-actor-pair trust is sufficient and avoids the complexity of defining capability taxonomies for cognitive agents. All trust evolution attestations use `capabilityTag="cognitive-trust"` (D3), which scopes them as a distinct named capability in the ledger's `TrustScoreCalculator`. This prevents collision with engine-level global trust scoring regardless of whether in-memory or JPA stores are used (D9). A future enhancement could introduce multiple named capability tags (e.g., `"cognitive-trust:honesty"`, `"cognitive-trust:reliability"`) for per-capability cognitive trust without breaking the current model.
+**Trade-offs:** Cognitive agents can't express differentiated trust ("I trust X for advice but not with my possessions"). Acceptable for game scope; the per-capability extension path is available via additional capabilityTag values without redesign.
+**Sources:** D3 (attestor-filtered scoring, capabilityTag="cognitive-trust"), D9 (store-sharing guard), TrustScoreCalculator.computeAll() (capability-scoped scoring)
 **Exploration:** quick (surfaced by R1-10)
-**Status:** captured
+**Status:** revised (R1-04/R2: removed false store-isolation claim, referenced D3's capabilityTag fix)
