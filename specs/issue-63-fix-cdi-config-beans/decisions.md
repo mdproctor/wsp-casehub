@@ -14,15 +14,16 @@
 
 ## D2: System prompt content — what stays in the directive
 
-**Choice:** Name + role + voice only. Everything behavioral moves to observation sections.
+**Choice:** Name + role + voice + hard constraints. Dynamic cognitive data moves to observation sections.
 **Alternatives:**
-- Name + role + voice + hard constraints — keep safety-critical constraints in directive. Adds conditional logic for constraint severity.
+- Name + role + voice only — maximally minimal but moves safety-critical constraints to observations where LLM attention is weaker. Empirically risky.
 - Full character description stays — least disruptive but keeps behavioral instructions in directive, defeating the purpose.
-**Rationale:** Minimal directive surface maximizes the influence of dynamic cognitive sections. Hard constraints are not special — they're just high-priority observations.
-**Trade-offs:** Voice/style instructions in the system prompt may still influence behavior more than we want. Empirical testing needed.
+**Rationale:** Hard constraints (HARD severity) are safety-critical — "never reveal your true identity," "do not break character." LLM system prompts receive higher attention weight than user-turn content; moving must-not-violate rules to observation sections risks weaker adherence. Soft constraints and dynamic cognitive constraints belong in observations.
+**Trade-offs:** The directive is slightly larger than pure name+role+voice. Acceptable — hard constraints are few per character and structurally distinct.
 **Sources:** descriptors-composite.yaml briefing fields, SystemPromptRenderer.render()
 **Exploration:** quick
-**Status:** captured
+**Revised by:** R1-03 (decision review round 1) — original choice was "name + role + voice only" with hard constraints treated as observations. Reviewer correctly identified that LLM attention dynamics make system prompt placement important for safety-critical constraints.
+**Status:** revised
 
 ## D3: Cognitive preamble — auto-generated from active subsystems
 
@@ -31,23 +32,26 @@
 - YAML template per archetype — define cognitive instruction templates. Readable but drifts from actual wiring.
 - Inline in briefing YAML — per-character authored text. Maximum control, maximum maintenance.
 - Per-subsystem snippets — each subsystem contributes its own instruction text. Modular but fragmented prose.
-**Rationale:** Auto-generation eliminates drift between what's wired and what's described. Single renderer owns prose quality — reads as coherent instruction, not a list of disconnected sentences.
-**Trade-offs:** The renderer must be updated when new subsystem types are added. Acceptable — new subsystems are infrequent and the renderer is the natural place to document their cognitive role.
+**Rationale:** Auto-generation eliminates drift between what's wired and what's described. Single renderer owns prose quality — reads as coherent instruction, not a list of disconnected sentences. The cognitive preamble lives in the system prompt as part of the minimal directive — it tells the agent "you have a brain, here's how to use it" without duplicating the cognitive data itself. It replaces the per-section `DirectiveSection` wrapping (which prepends behavioral instructions to each observation section). With the preamble, each observation section presents raw cognitive state; the preamble provides the meta-instruction once.
+**Trade-offs:** The renderer must be updated when new subsystem types are added. Acceptable — new subsystems are infrequent and the renderer is the natural place to document their cognitive role. Losing per-section DirectiveSection instructions means each section must be self-explanatory via its heading and structure.
 **Sources:** CognitionCore.promptSections(), DirectiveSection wrapping pattern
 **Exploration:** quick
+**Clarified by:** R1-05 (decision review round 1) — added explicit relationship to DirectiveSection and placement in system prompt.
 **Status:** captured
 
-## D4: Templates — become cognitive seed defaults
+## D4: Templates — split into voice (directive) and behavioral seeds (neurocortex)
 
-**Choice:** Template content becomes seed data for cognitive subsystems (initial strategies, disposition biases, norms). Templates move from "prompt text injection" to "neurocortex seeding."
+**Choice:** Template content is split: voice/style elements (speaking patterns, catchphrases, comedic conventions) stay in the directive as part of the character's voice definition. Behavioral pattern elements (strategies, disposition biases, norms) become seed data for cognitive subsystems.
 **Alternatives:**
-- Templates stay in system prompt — treat as structural style guides. Keeps behavioral instructions in directive.
-- Remove templates entirely — per-character seed data replaces them. Loses shared archetype reuse.
-**Rationale:** Templates are behavioral patterns (villain archetype, hero archetype). These are exactly the kind of cognitive defaults that subsystems should own. Shared archetypes become shared seed profiles.
-**Trade-offs:** Template YAML format changes. Existing templates.yaml needs migration.
-**Sources:** templates.yaml (cartoon-villain, cartoon-hero, protector archetypes)
+- All template content becomes cognitive seeds — but voice/style has no natural home in CognitionCore subsystems (no "speaking style orchestrator" exists).
+- Templates stay entirely in system prompt — keeps behavioral instructions in the directive, defeating the purpose.
+- Remove templates entirely — loses shared archetype reuse.
+**Rationale:** Templates contain two distinct categories: voice/style ("expository soliloquy," "catchphrase repetition") and behavioral patterns ("scheme obsessively," "protect allies"). Voice/style is identity (stays in directive per D2). Behavioral patterns are cognitive state (moves to seeding per D5). Clean separation along the same boundary D2 establishes.
+**Trade-offs:** Templates must be manually classified into voice vs behavioral. One-time effort for 4 templates.
+**Sources:** templates.yaml (cartoon-villain, cartoon-hero, protector archetypes, hanna-barbera-cartoon-style)
 **Exploration:** quick
-**Status:** captured
+**Revised by:** R1-08 (decision review round 1) — original choice moved all template content to seeding. Reviewer identified that voice/style content has no CognitionCore subsystem home and conflicts with D2's "voice stays in directive."
+**Status:** revised
 
 ## D5: Neurocortex seeding — dual-layer with existing YAML
 
@@ -73,18 +77,20 @@
 **Exploration:** quick
 **Status:** captured
 
-## D7: Implementation approach — rewrite SystemPromptRenderer
+## D7: Implementation approach — custom renderer override, not eidos modification
 
-**Choice:** Approach A — rewrite SystemPromptRenderer.render() to produce minimal directive. Existing CognitionCore.promptSections() pipeline handles observation sections. New NeurocortexSeeder reads seed data from YAML and pushes into subsystems on first boot.
+**Choice:** Provide a custom `SystemPromptRenderer` implementation in blocks (or wacky-manor) that overrides the eidos `@DefaultBean`. The eidos `EidosSystemPromptRenderer` stays untouched. The custom renderer produces the minimal directive (name + role + voice + hard constraints + cognitive preamble). Existing `CognitionCore.promptSections()` pipeline handles observation sections. NeurocortexSeeder (in blocks) generalizes `ManorCognitiveSeeder` to read seed data from YAML and push into subsystems on first boot.
 **Alternatives:**
-- New CognitivePromptComposer alongside existing renderer — unnecessary indirection for single consumer.
+- Modify EidosSystemPromptRenderer directly — eidos has 113+ references to SystemPromptRenderer across eval framework, A2A card generation, and eidos-examples. Changing the eidos renderer would invalidate eval baselines and impact non-cognitive consumers.
+- New CognitivePromptComposer alongside existing renderer — unnecessary indirection.
 - Invert pipeline (observation sections own everything including voice/style) — too risky without empirical evidence.
-**Rationale:** Most direct path. CognitionCore already does the observation-side heavy lifting. We're removing competing directive content and ensuring subsystems are seeded so observations are never empty.
-**Trade-offs:** SystemPromptRenderer changes affect all BriefingModes. Acceptable — pre-release, single consumer.
-**Sources:** SystemPromptRenderer, CognitionCore.promptSections(), ConsolidationScheduler
+**Rationale:** `@DefaultBean` override is the standard blocks pattern for specializing eidos behavior without modifying the platform. CognitionCore already does the observation-side heavy lifting. NeurocortexSeeder generalizes the existing ManorCognitiveSeeder pattern rather than introducing a parallel seeder.
+**Trade-offs:** Two SystemPromptRenderer implementations exist (eidos default + cognitive override). Acceptable — the override is the intended extension point.
+**Sources:** EidosSystemPromptRenderer, SystemPromptRenderer SPI, ManorCognitiveSeeder, CognitionCore.promptSections()
 **Exploration:** quick
+**Revised by:** R1-02 (decision review round 1) — original choice was "rewrite SystemPromptRenderer.render()" which would modify the eidos platform renderer. Reviewer identified that SystemPromptRenderer lives in eidos-api/eidos, has 113+ consumers, and should not be modified.
 **Depends on:** D1 (full rewrite scope), D2 (minimal directive), D5 (seeding mechanism)
-**Status:** captured
+**Status:** revised
 
 ## D8: Full stack scope — no issue split
 
