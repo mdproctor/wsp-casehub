@@ -166,7 +166,7 @@ Observes `TrustRelevantAction` events asynchronously. Maps action type to verdic
 - Creates one `LedgerEntry` with `actorId = action actor`, `entryType = EVENT`
 - Creates one `LedgerAttestation` per affected character with verdict from config, confidence from config
 - Creates one `LedgerAttestation` per witness with same verdict, `witnessConfidence` from config
-- Uses `subjectId` derived from the actor-pair to partition ledger entries per relationship
+- Uses `subjectId = UUID.nameUUIDFromBytes((targetId + "→" + observerId).getBytes())` to partition ledger entries per relationship — deterministic UUID from the directed pair ensures efficient querying via `findBySubjectId()`
 
 ### neocortex-mindmap-intelligence
 
