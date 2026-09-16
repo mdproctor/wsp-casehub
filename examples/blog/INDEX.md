@@ -8,3 +8,4 @@
 | [2026-08-14-mdp03-goals-think-plans-act.md](2026-08-14-mdp03-goals-think-plans-act.md) | 2026-08-14 | Three-layer cognitive model (goals/plans/thinking), System 1/System 2 mapping, sealed SPI workarounds |
 | [2026-08-14-mdp04-resolver-that-isnt-mavens.md](2026-08-14-mdp04-resolver-that-isnt-mavens.md) | 2026-08-14 | Quarkus bootstrap resolver diverges from Maven — diagnosed and fixed a test failure caused by resolver policy, not missing artifacts |
 | [2026-09-13-mdp01-the-mansion-learns-to-sleep.md](2026-09-13-mdp01-the-mansion-learns-to-sleep.md) | 2026-09-13 | Three-tier memory model, consolidation as a game mechanic, personality-modulated trust, cognitive observation sections |
+| [2026-09-16-mdp03-when-trust-learns-to-decay.md](2026-09-16-mdp03-when-trust-learns-to-decay.md) | 2026-09-16 | Trust evolution wired via ledger Bayesian Beta scoring — per-relationship trust through attestor filtering, all framework code in blocks, wacky-manor is YAML-only |
