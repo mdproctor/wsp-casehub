@@ -16,6 +16,12 @@ flyway-next-v: none
 - [x] casehubio/blocks#283 — Directive-minimal architecture
 - [x] casehubio/examples#66 — Drive adaptation from reward signals
 - [ ] casehubio/examples#70 — Relationship stage thresholds ← active
+  - [ ] Batch 1: Platform infrastructure
+    - [ ] Task 1: OverlayFamiliarityPropertyModel + RelationshipStageConfigProvider
+    - [ ] Task 2: RelationshipStagePhase consolidation
+  - [ ] Batch 2: Config + gating
+    - [ ] Task 3: SocialConfig stageConfig + YAML parsing
+    - [ ] Task 4: Stage gating + perception rendering
 - [ ] casehubio/examples#67 — Belief revision from contradicting evidence
 - [ ] casehubio/examples#68 — Needs pyramid
 - [ ] casehubio/examples#69 — Goal prioritization from unmet needs
