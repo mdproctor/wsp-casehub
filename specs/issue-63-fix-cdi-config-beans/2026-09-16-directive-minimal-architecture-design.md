@@ -50,7 +50,7 @@ User prompt (observations):
 System prompt (minimal directive):
   ├── Identity: name, role, voice
   ├── Hard constraints (HARD severity only)
-  ├── Templates (voice/style — unchanged)
+  ├── Templates (voice/style only — behavioral content seeded per D4)
   └── Cognitive preamble (auto-generated: "you have a brain, here's how to use it")
 
 User prompt (observations — sole source of cognitive state):
@@ -80,7 +80,7 @@ A `@Alternative @Priority(1)` CDI bean implementing `SystemPromptRenderer`. When
 
 **Renders:**
 1. **Identity block:** Agent name + role sentence. Extracted from `AgentDescriptor.briefing()` — the briefing field is rewritten by content authors to contain only identity and voice content (see §4). The renderer uses it as-is.
-2. **Voice block:** Speaking style, mannerisms, catchphrases. From descriptor `briefing` field plus template content (templates are pure voice/style).
+2. **Voice block:** Speaking style, mannerisms, catchphrases. From descriptor `briefing` field plus template voice/style content. Templates are split per D4: behavioral patterns (strategies, archetype norms, disposition biases) are removed from templates and moved to seed data — see §4 Template Splitting.
 3. **Hard constraints:** Only constraints with `severity: HARD` from `AgentDescriptor.constraints()`.
 4. **Cognitive preamble:** Auto-generated paragraph from active subsystems (see §2 below).
 
@@ -187,7 +187,7 @@ In the new model, the `briefing` field is rewritten to contain only identity and
   constraints:
     - {name: never-break-cover, description: "...", severity: HARD}  # rendered in system prompt
     - {name: stay-in-character, description: "...", severity: SOFT}  # rendered in ConstraintPromptSection (observations)
-  templates: [{ref: hanna-barbera-cartoon-style}]  # voice/style — stays
+  templates: [{ref: hanna-barbera-cartoon-style}]  # voice/style only post-D4 split
   disposition:  # kept in YAML but NOT rendered in directive — seeded into subsystems
     mbtiType: ESFJ
     enneagramType: helper
@@ -200,6 +200,37 @@ penelope-pitstop:
   initial-beliefs:
     - {key: sneekly-identity, value: "Sylvester Sneekly is a helpful and charming estate manager"}
 ```
+
+**Template splitting (D4):**
+
+Templates currently contain two categories of content:
+1. **Voice/style** — speaking patterns, performance conventions, catchphrases, comedic timing. Stays in the template (system prompt). Example: catchphrase delivery, theatrical outrage.
+2. **Behavioral patterns** — strategies, goals, beliefs, constraints, archetype norms. Moves to seed data in `social-config.yaml` or descriptor `constraints`. Example: "scheme step by step" (cartoon-villain), "protect at all costs" (cartoon-protector).
+
+Classification routing for behavioral content removed from templates:
+
+| Behavioral type | Seed location | Rendering path |
+|---|---|---|
+| Goals/missions ("protect X at all costs") | `social-config.yaml` goals | GoalProposalOrchestrator → GoalPromptSection |
+| Beliefs/suspicions ("suspicious of anyone too helpful") | `social-config.yaml` initial-beliefs | CharacterCognition (already observation-side) |
+| Behavioral constraints ("never give up", "never confront directly") | descriptor `constraints` (SOFT severity) | ConstraintPromptSection |
+| Archetype norms, genre conventions, behavioral tendencies | `social-config.yaml` norms | Pending NormsPromptSection (see GitHub issue) |
+
+**Example — cartoon-villain post-split:**
+
+Voice/style (stays in template):
+- Theatrical outrage when foiled — performance style
+- Catchphrase delivery (`${catchphrase}`) — speaking pattern
+
+Behavioral (moves to `social-config.yaml` norms for characters referencing this template):
+- "Monologue plans, explaining scheme step by step" → archetype norm
+- "Gloat prematurely" → archetype norm
+- "Plans always elaborate when simple would work" → archetype norm
+- "Immediately planning next scheme" → archetype norm
+
+Post-split, templates contain ONLY voice/style lines. Behavioral content from templates becomes archetype-level seed data in `social-config.yaml`: when a character references a template, the character's `social-config.yaml` entry includes the archetype's behavioral seeds (norms, goals, beliefs, constraints) alongside per-character seeds.
+
+**Gap:** Most behavioral template content classifies as archetype norms. Until `NormsPromptSection` is implemented (tracked by the norms GitHub issue — see §3), behavioral template content classified as norms remains in templates. The norms GitHub issue scope now covers both social-config norms AND behavioral template norms. Goals, beliefs, and SOFT constraints from templates can be seeded immediately using existing subsystems.
 
 ### 5. Deduplication
 
