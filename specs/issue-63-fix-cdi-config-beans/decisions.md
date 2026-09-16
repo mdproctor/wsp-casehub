@@ -1,4 +1,6 @@
-# Decisions — blocks#283 Directive-Minimal Architecture
+# Decisions — issue-63-fix-cdi-config-beans
+
+## blocks#283 — Directive-Minimal Architecture
 
 ## D1: Scope — full rewrite vs incremental patching
 
@@ -102,4 +104,94 @@
 **Sources:** .plan queue (6 remaining issues depend on this architectural change)
 **Exploration:** quick
 **Depends on:** D1 (full rewrite scope)
+**Status:** captured
+
+---
+
+## examples#66 — Drive Adaptation from Reward Signals
+
+## D9: Action-type to drive mapping — per-character YAML
+
+**Choice:** Per-character mapping in social-config.yaml. Each character declares which of its drives are reinforced by which event types.
+**Alternatives:**
+- Global mapping — single config maps event types to drive categories. Simpler but characters lose individual response profiles; every character with a "scheming" drive is reinforced identically.
+- Hybrid (global defaults + per-character overrides) — more configuration complexity for marginal benefit at this stage.
+**Rationale:** Characters should respond differently to the same event type. Hooded Claw's "scheming" is reinforced by conflict_resolution; Penelope's "social-harmony" is reinforced by social_interaction. The mapping is inherently per-character because it expresses motivational identity — what this character finds rewarding.
+**Trade-offs:** More YAML per character. Acceptable — social-config.yaml already defines per-character drives, goals, norms, beliefs, and relationships.
+**Sources:** SocialConfig.Drive, ActionImportanceScorer event types, issue #66
+**Exploration:** quick
+**Status:** captured
+
+## D10: Persistence — MindMap nodes in COGNITIVE subgraph
+
+**Choice:** Store adapted drive intensities as properties on drive-specific MindMap nodes in the COGNITIVE subgraph.
+**Alternatives:**
+- Extend CaseMemoryStore — designed for episodic memories with cursor-based scanning, not mutable state documents.
+- New dedicated DriveStateStore — clean interface but introduces a new persistence layer that nothing else uses.
+**Rationale:** Consistent with how trust (TrustConsolidationPhase), experience (ExperienceConsolidationPhase), and other cognitive state is already stored. MindMapStore is available in both consolidation and rendering paths. Nodes support properties, confidence, and PAD values — all useful for drive state.
+**Trade-offs:** MindMap nodes are a general-purpose knowledge graph mechanism, not a purpose-built drive store. Querying requires filtering by properties rather than typed queries. Acceptable — the same pattern works well for trust and experience.
+**Sources:** MindMapStore, ExperienceConsolidationPhase, TrustConsolidationPhase
+**Exploration:** quick
+**Depends on:** D9 (per-character mapping determines what's stored per drive)
+**Status:** captured
+
+## D11: Phase design — new DriveAdaptationPhase
+
+**Choice:** New ConsolidationPhase implementation (`DriveAdaptationPhase`) running after ExperienceConsolidationPhase (priority ~17).
+**Alternatives:**
+- Extend ExperienceConsolidationPhase — couples experience graduation and drive adaptation. ExperienceConsolidationPhase is in neocortex (platform), while drive adaptation needs application-level config, creating a dependency direction problem.
+- Event-driven via ConsolidationCompleted CDI event — decoupled but loses access to per-tenant consolidation context and can't participate in phase ordering.
+**Rationale:** Clean SRP — experience graduation and drive adaptation are separate concerns. The phase reads graduated mindmap nodes that ExperienceConsolidationPhase just created, aggregates reward signals per action-type, and updates drive intensity nodes. Runs in the existing pipeline with proper ordering.
+**Trade-offs:** Second pass over data (reads nodes that ExperienceConsolidationPhase just wrote). Acceptable — the node set is small (maxPerPass=20) and the read is by subgraph, not a full scan.
+**Sources:** ConsolidationPhase SPI, ConsolidationScheduler phase ordering, ExperienceConsolidationPhase
+**Exploration:** quick
+**Status:** captured
+
+## D12: Reward signal — pleasure delta with arousal modulation
+
+**Choice:** Use the memory's pleasure value as the primary reward signal. Positive pleasure = rewarding outcome (strengthens associated drive), negative = punishing (weakens it). Arousal modulates the magnitude of the adaptation effect — high-arousal experiences produce stronger updates.
+**Alternatives:**
+- Composite PAD reward (weighted combination of all three dimensions) — harder to reason about; high dominance is rewarding for scheming but punishing for social-harmony.
+- Per-drive PAD weighting (each drive specifies which PAD dimension it responds to) — maximum fidelity but adds per-drive configuration overhead.
+**Rationale:** Pleasure directly maps to "did this action produce a good outcome." It's the PAD dimension most aligned with reinforcement learning's reward concept. Arousal as a modulator captures intensity without changing direction — a calm positive experience adapts less than an exciting one. Dominance is too character-dependent to be a universal signal.
+**Trade-offs:** Loses nuance from dominance dimension. Acceptable for initial implementation; per-drive PAD weighting can be added later if empirical testing shows pleasure alone is insufficient.
+**Sources:** Memory.pleasure(), Memory.arousal(), issue #66, GE-20260714-439924 (multiplicative dampening)
+**Exploration:** quick
+**Status:** captured
+
+## D13: Code location — reusable phase in blocks-core
+
+**Choice:** DriveAdaptationPhase lives in blocks-core with a simple map config SPI (`Map<String, List<String>>` — event-type → drive-types). Wacky-manor provides only the YAML configuration.
+**Alternatives:**
+- Wacky-manor only — inherently application-specific. But the adaptation mechanics (multiplicative update, clamping, arousal modulation) are generic and reusable. Only the mapping is application-specific.
+- Neocortex — alongside other consolidation phases. But creates a neocortex dependency on drive concepts which are blocks-level.
+**Rationale:** The adaptation algorithm is domain-agnostic: read reward signals from graduated nodes, map to drives, apply multiplicative updates. Any application with character drives and event types can reuse it. Wacky-manor stays thin — just YAML config. Follows the blocks pattern where platform provides the engine and applications provide configuration.
+**Trade-offs:** Blocks-core gains a new consolidation phase dependency on MindMapStore (neocortex). This dependency already exists via DriveOrchestrator → MemoryHygieneOrchestrator path.
+**Sources:** blocks-core existing patterns (DriveOrchestrator, CognitionCore), ManorGraduationScorer, ActionImportanceScorer
+**Exploration:** quick
+**Depends on:** D11 (new phase), D9 (mapping SPI)
+**Status:** captured
+
+## D14: Bootstrapping — seeder writes drive nodes
+
+**Choice:** ManorCognitiveSeeder (already enhanced in #283 for goal seeding) also seeds drive nodes into the COGNITIVE subgraph with initial intensities from social-config.yaml. DriveAdaptationPhase only reads/updates these nodes — never touches SocialConfig directly.
+**Alternatives:**
+- DriveConfigProvider SPI — blocks-core defines interface, wacky-manor implements to return initial intensities. Adds an SPI but avoids seeder dependency.
+**Rationale:** Clean dependency direction. The seeder already runs at scenario bootstrap and handles beliefs, relationships, and goals. Adding drive seeding is natural. DriveAdaptationPhase in blocks-core has no dependency on SocialConfig — it works purely with MindMap nodes.
+**Trade-offs:** Drive adaptation won't work without seeded nodes (no automatic fallback to static config). Acceptable — the seeder is mandatory for all cognitive features.
+**Sources:** ManorCognitiveSeeder, D5 (neurocortex seeding from #283)
+**Exploration:** quick
+**Depends on:** D10 (MindMap persistence), D13 (blocks-core location)
+**Status:** captured
+
+## D15: Rendering — CharacterDrivePromptSection in blocks-core
+
+**Choice:** Create a `CharacterDrivePromptSection` (blocks-core PromptSection) that reads adapted drive nodes from MindMapStore and renders them in the observation section pipeline. CharacterCognition stops rendering drives directly.
+**Alternatives:**
+- CharacterCognition reads MindMapStore — keeps rendering in wacky-manor but adds MindMapStore dependency to CharacterCognition rendering, and misaligns with #283's directive-minimal architecture.
+**Rationale:** Consistent with how platform SDT drives are rendered via DrivePromptSection. Aligns with #283's architecture where all cognitive state flows through CognitionCore observation sections. CharacterCognition's drive rendering (lines 106-111) is removed — one fewer concern in the application layer.
+**Trade-offs:** Two drive prompt sections exist in the observation pipeline (platform SDT DrivePromptSection + character CharacterDrivePromptSection). They render different concepts — SDT psychological needs vs character motivational identity — under separate headings. Clear enough for the LLM to distinguish.
+**Sources:** DrivePromptSection, CharacterCognition.renderCognitiveSections(), D7 (CognitiveSystemPromptRenderer from #283)
+**Exploration:** quick
+**Depends on:** D10 (MindMap persistence), D13 (blocks-core location)
 **Status:** captured
