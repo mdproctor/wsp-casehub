@@ -185,8 +185,8 @@ In the new model, the `briefing` field is rewritten to contain only identity and
     "Why, how delightful!" and "Oh my stars!"
   # goals: REMOVED — seeded into GoalProposalOrchestrator via social-config.yaml
   constraints:
-    - {name: never-break-cover, description: "...", severity: HARD}  # stays in directive
-    # SOFT constraints move to social-config.yaml as norms or seeded constraints
+    - {name: never-break-cover, description: "...", severity: HARD}  # rendered in system prompt
+    - {name: stay-in-character, description: "...", severity: SOFT}  # rendered in ConstraintPromptSection (observations)
   templates: [{ref: hanna-barbera-cartoon-style}]  # voice/style — stays
   disposition:  # kept in YAML but NOT rendered in directive — seeded into subsystems
     mbtiType: ESFJ
