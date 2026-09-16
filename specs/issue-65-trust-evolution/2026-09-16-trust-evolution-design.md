@@ -76,11 +76,11 @@ TICK PROCESSING (per action):
         1. extractTargetAgent(response) → trustTarget (non-null)
         2. Determine witnesses: world.charactersInRoom(actor.currentRoom())
            excluding actor and target, filtered by !concealed (D15)
-        3. Fire CDI event (ScenarioOrchestrator is @ApplicationScoped):
-           trustEvent.fire(new TrustRelevantAction(
+        3. Fire async CDI event (ScenarioOrchestrator is @ApplicationScoped):
+           trustEvent.fireAsync(new TrustRelevantAction(
                actorId, trustTarget, action.name(), result,
                witnessIds, tenantId))
-      → TrustEventRecorder observes (D7):
+      → TrustEventRecorder @ObservesAsync (D7):
           1. Maps actionType to verdict+confidence via TrustEvolutionConfig
              (unmapped types silently ignored — no entry created)
           2. Creates PlainLedgerEntry (actorId=A, entryType=EVENT,
@@ -209,7 +209,9 @@ public record TrustRelevantAction(
 
 #### TrustEventRecorder (CDI observer)
 
-Observes `TrustRelevantAction` events asynchronously. Maps action type to verdict using `TrustEvolutionConfig`, creates `PlainLedgerEntry` + `LedgerAttestation` records via `LedgerEntryRepository`:
+Observes `TrustRelevantAction` events via `@ObservesAsync` (matching the `fireAsync()` fire site in ScenarioOrchestrator). This follows the platform convention: domain/audit event observers use `@ObservesAsync` with `fireAsync()` for fire-and-forget semantics (per `engine-worker-event-observer-async.md` protocol and the `WorkerDecisionEventCaptureAdapter` reference implementation).
+
+Maps action type to verdict using `TrustEvolutionConfig` (injected via CDI — see §TrustEvolutionConfigProducer), creates `PlainLedgerEntry` + `LedgerAttestation` records via `LedgerEntryRepository`:
 
 - Creates one `PlainLedgerEntry` per action with `actorId = action actor`, `entryType = EVENT`, `subjectId = UUID.nameUUIDFromBytes(targetId.getBytes())` — deterministic UUID from target character ID for queryability via `findBySubjectId()`
 - Creates one `LedgerAttestation` per affected character (target + involved parties) with verdict from config, confidence from config
@@ -286,7 +288,26 @@ Only action types where `extractTargetAgent()` returns a non-null agent target a
 
 #### ManorTrustEvolutionConfigLoader
 
-New loader that parses `trust-evolution.yaml` into a `TrustEvolutionConfig` record. Separate from `ManorSocialConfigLoader` which handles per-character social config with character-keyed structure.
+New static utility that parses `trust-evolution.yaml` into a `TrustEvolutionConfig` record. Separate from `ManorSocialConfigLoader` which handles per-character social config with character-keyed structure.
+
+#### TrustEvolutionConfigProducer
+
+CDI producer bean that makes `TrustEvolutionConfig` injectable across all modules. Lives in wacky-manor alongside the loader and YAML file:
+
+```java
+@ApplicationScoped
+public class TrustEvolutionConfigProducer {
+    @Produces @ApplicationScoped
+    TrustEvolutionConfig produce() {
+        return ManorTrustEvolutionConfigLoader.load();
+    }
+}
+```
+
+This enables `@Inject TrustEvolutionConfig` in:
+- **`TrustEventRecorder`** (blocks) — for action type → verdict+confidence mapping
+- **`TrustConsolidationPhase`** (neocortex) — for `DecayFunction` construction, trust level thresholds, and significant change threshold
+- **`CharacterCognition`** — receives via constructor parameter from ScenarioOrchestrator (which can also inject it, but passes it manually to the POJO)
 
 #### ScenarioOrchestrator wiring
 
@@ -307,7 +328,7 @@ if (trustTarget != null) {
         .toList();
     // Skip witnesses for concealed actions (deception-capable characters)
     List<String> effectiveWitnesses = concealed ? List.of() : witnessIds;
-    trustEvent.fire(new TrustRelevantAction(
+    trustEvent.fireAsync(new TrustRelevantAction(
         c.agentId(), trustTarget, response.action().type().name(),
         result.text(), effectiveWitnesses, ManorConstants.TENANCY_ID));
 }
@@ -387,11 +408,11 @@ Trust is per-actor-pair (observer→subject), not per-capability. A character's 
 
 ## Follow-up Issues
 
-- **Remove `ManorTrustEvents`**: After trust evolution is validated, remove the superseded weight-based trust model and its callers.
-- **Personality-driven trust interpretation**: `CognitiveDerivationEngine` modifies effective confidence weights during consolidation scoring based on character personality (`trustFormationRate`, `conflictInterpretation`). Applying personality during consolidation keeps ledger records personality-neutral.
-- **Per-capability trust dimensions**: Use `capabilityTag` for dimensions like honesty, reliability, scheming.
-- **YAML DSL migration**: Port all of wacky-manor's social-config.yaml to blocks' agentic-yaml pipeline (drives, norms, beliefs, relationships, trust). Validates the DSL works end-to-end for cognitive agents.
-- **Action model extension**: Add BETRAY, LIE, HELP, PROTECT to `ActionType` enum and wire into action resolution pipeline for richer trust events.
+- **casehubio/examples#71 — Remove `ManorTrustEvents`**: After trust evolution is validated, remove the superseded weight-based trust model and its callers.
+- **casehubio/examples#72 — Personality-driven trust interpretation**: `CognitiveDerivationEngine` modifies effective confidence weights during consolidation scoring based on character personality (`trustFormationRate`, `conflictInterpretation`). Applying personality during consolidation keeps ledger records personality-neutral.
+- **casehubio/examples#73 — Per-capability trust dimensions**: Use `capabilityTag` for dimensions like honesty, reliability, scheming.
+- **casehubio/examples#74 — YAML DSL migration**: Port all of wacky-manor's social-config.yaml to blocks' agentic-yaml pipeline (drives, norms, beliefs, relationships, trust). Validates the DSL works end-to-end for cognitive agents.
+- **casehubio/examples#75 — Action model extension**: Add BETRAY, LIE, HELP, PROTECT to `ActionType` enum and wire into action resolution pipeline for richer trust events. Also extend `extractTargetAgent()` for INTERACT and USE.
 
 ## References
 
