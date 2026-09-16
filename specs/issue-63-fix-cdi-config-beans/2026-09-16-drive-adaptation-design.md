@@ -56,7 +56,7 @@ Rendering (every prompt):
 
 1. **Load drive nodes** — query MindMapStore for nodes in the COGNITIVE subgraph with `cognitiveKind: "drive-intensity"` and matching `agent-id`. If no drive nodes found, emit WARNING log and skip (D14).
 
-2. **Load new experience nodes** — query for nodes with `provenance: "experience-consolidation"` created since the phase's last cursor position. These are the graduated experience nodes from ExperienceConsolidationPhase.
+2. **Load new experience nodes** — query for nodes with `provenance: "experience-consolidation"` that have not yet been processed by this phase. DriveAdaptationPhase maintains its own sentinel node (name: `drive-adaptation-cursor`, in the COGNITIVE subgraph) with a `last-processed-node-id` property. On each pass, it loads experience nodes by subgraph and filters out nodes whose IDs are lexicographically ≤ the cursor. After processing, it updates the cursor to the last processed node's ID. This mirrors ExperienceConsolidationPhase's cursor pattern but operates on mindmap nodes rather than memory store entries.
 
 3. **Aggregate reward per action-type** — for each experience node:
    - Read `event-type` property
