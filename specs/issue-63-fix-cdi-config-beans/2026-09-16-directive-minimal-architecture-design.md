@@ -141,22 +141,21 @@ Current briefing text mixes identity, voice, behavioral instructions, and charac
 
 > You are Penelope Pitstop — a glamorous, sweet-natured Southern belle... You speak with a Southern drawl and use phrases like "Why, how delightful!"... You know Sylvester Sneekly as a helpful and charming estate manager.
 
-In the new model, the briefing is restructured into two fields:
+In the new model, the `briefing` field is rewritten to contain only identity and voice. The eidos `AgentDescriptor` model is unchanged — `briefing` remains a single string field. The `CognitiveSystemPromptRenderer` consumes the same `AgentDescriptor`; the change is in what content authors put in the `briefing` field and how the renderer uses it.
 
 ```yaml
 - agentId: penelope-pitstop
   name: Penelope Pitstop
-  identity: >-
+  briefing: >-
     A glamorous, sweet-natured Southern belle and heiress.
-  voice: >-
     You speak with a Southern drawl and use phrases like
     "Why, how delightful!" and "Oh my stars!"
-  # goals: REMOVED — seeded into GoalProposalOrchestrator
+  # goals: REMOVED — seeded into GoalProposalOrchestrator via social-config.yaml
   constraints:
     - {name: never-break-cover, description: "...", severity: HARD}  # stays in directive
     # SOFT constraints move to social-config.yaml as norms or seeded constraints
   templates: [{ref: hanna-barbera-cartoon-style}]  # voice/style — stays
-  disposition:  # REMOVED from directive rendering, seeded into subsystems
+  disposition:  # kept in YAML but NOT rendered in directive — seeded into subsystems
     mbtiType: ESFJ
     enneagramType: helper
 ```
