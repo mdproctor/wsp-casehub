@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-63-fix-cdi-config-beans
-state: scaffolded
+state: active
 project-sha: 8a1fcbcec4f0232e1d340f6cfaefa844a0a46ea9
 date: 2026-09-16
 issue-repo: casehubio/examples
@@ -12,8 +12,20 @@ design-section-hashes:
 flyway-next-v: none
 
 ## Queue
-- [ ] casehubio/examples#63 — Issue #63 ← active
-- [ ] casehubio/blocks#283 — Directive-minimal architecture
+- [x] casehubio/examples#63 — Issue #63
+- [ ] casehubio/blocks#283 — Directive-minimal architecture ← active
+  - [x] Batch 1: Renderer Foundation
+    - [x] Task 1: CognitivePreambleGenerator
+    - [x] Task 2: CognitiveSystemPromptRenderer
+    - [x] Task 3: Constraint severity filtering
+  - [x] Batch 2: Deduplication
+    - [x] Task 4: PersonalityPromptSection dedup + DirectiveSection toggle
+  - [x] Batch 3: YAML + Seeding
+    - [x] Task 5: Descriptor YAML rewrite
+    - [x] Task 6: Goal seeding in ManorCognitiveSeeder
+  - [ ] Batch 4: CharacterCognition + Integration
+    - [ ] Task 7: CharacterCognition dedup
+    - [ ] Task 8: Integration verification
 - [ ] casehubio/examples#66 — Drive adaptation from reward signals
 - [ ] casehubio/examples#70 — Relationship stage thresholds
 - [ ] casehubio/examples#67 — Belief revision from contradicting evidence
