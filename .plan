@@ -13,3 +13,13 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#65 — Issue #65 ← active
+  - [ ] Batch 1: Foundation
+    - [ ] Task 1: TrustEvolutionConfig+OverlayTrustPropertyModel
+  - [ ] Batch 2: CDI+YAML
+    - [ ] Task 2: TrustRelevantAction+TrustEventRecorder
+    - [ ] Task 3: TrustEvolutionConfigSpec
+  - [ ] Batch 3: Consolidation
+    - [ ] Task 4: TrustConsolidationPhase+deps
+  - [ ] Batch 4: Integration
+    - [ ] Task 5: trust-evolution.yaml+loader+producer
+    - [ ] Task 6: ScenarioOrchestrator wiring+observation rendering
