@@ -10,17 +10,18 @@
 **Exploration:** quick
 **Status:** captured
 
-## D2: Boundary — reusable framework in blocks, YAML-configurable
+## D2: Boundary — reusable framework split across three modules, YAML-configurable
 
-**Choice:** All trust evolution framework classes go in blocks-core. Trust event classification, scoring parameters, and thresholds are YAML-configurable via a `TrustEvolutionConfigSpec` in `blocks/agentic-yaml/spec/cognition/`. Wacky-manor writes zero trust-specific Java — only YAML configuration.
+**Choice:** Trust evolution framework classes split across three modules following existing architectural boundaries: (1) blocks-core — pure computation helpers (trust score computation wrapper, config spec types, overlay property model). Zero CDI. (2) blocks — CDI wiring (TrustEventRecorder observer, any CDI beans). Depends on quarkus-arc. (3) casehub-neocortex-mindmap-intelligence — TrustConsolidationPhase (implements ConsolidationPhase SPI, runs during consolidation, uses blocks-core computation, writes to overlay nodes). Trust event classification, scoring parameters, and thresholds remain YAML-configurable via a `TrustEvolutionConfigSpec` in `blocks/agentic-yaml/spec/cognition/`. Wacky-manor writes zero trust-specific Java — only YAML configuration.
 **Alternatives:**
+- All in blocks-core — violates blocks-core's "zero CDI, zero Spring" charter (CDI observer can't go there; ConsolidationPhase SPI is in neocortex)
 - All in wacky-manor — not reusable; next cognitive agent rebuilds the same pipeline
-- Split: framework in blocks, app-specific recorder in wacky-manor — the recorder logic (create entry + attestation for action type) is generic when parameterised by config; no app-specific Java needed
-**Rationale:** The action→verdict mapping is a configuration table, not application logic. blocks already has cognition spec types (DriveConfigSpec, RetentionConfigSpec, etc.) — trust fits the same pattern. Any cognitive agent gets trust evolution by adding YAML config.
-**Trade-offs:** blocks-core gains new dependencies on casehub-neocortex-mindmap-api and casehub-ledger-core. Acceptable — blocks is already the integration layer between ledger and neocortex.
-**Sources:** blocks/agentic-yaml/spec/cognition/ (existing cognitive spec pattern), DSL Style Guide §YAML/Java Parity Principle
+- Split: framework in blocks, app-specific recorder in wacky-manor — the recorder logic is generic when parameterised by config; no app-specific Java needed
+**Rationale:** blocks-core's pom.xml declares "Framework-neutral blocks POJOs — zero CDI, zero Spring." CDI observers (D7) require quarkus-arc → they go in blocks. The ConsolidationPhase SPI lives in casehub-neocortex-mindmap-intelligence → the trust consolidation phase goes there, following the pattern of all existing phases (AccessFrequencyPhase, ExperienceConsolidationPhase, MergeDetectionPhase, etc.). Pure computation in blocks-core, CDI wiring in blocks, consolidation in neocortex — each module does what it already does.
+**Trade-offs:** blocks-core gains casehub-ledger-core as a provided dependency (pure Java, no CDI — consistent with its charter). neocortex-mindmap-intelligence gains a dependency on blocks-core for trust computation helpers.
+**Sources:** blocks-core/pom.xml ("zero CDI, zero Spring"), blocks/pom.xml (quarkus-arc dependency), ConsolidationPhase SPI in neocortex, DSL Style Guide §YAML/Java Parity Principle
 **Exploration:** deep-analysis
-**Status:** captured
+**Status:** revised (R1-02: three-module split replaces "all in blocks-core")
 
 ## D3: Per-relationship trust via attestor-filtered scoring
 
@@ -41,58 +42,61 @@
 - Bundle the full DSL migration into #65 — correct end state but doubles the scope; the migration touches drives, norms, beliefs, relationships, orchestrator wiring
 - Skip the blocks spec type, only build for hand-rolled consumption — loses the DSL-first design; the spec type costs nothing to build alongside the framework classes
 **Rationale:** Wacky-manor's config pipeline predates the blocks YAML work. The port is valuable (proves the DSL works end-to-end for cognitive agents) but orthogonal to trust evolution. Building the spec type now means the follow-up migration picks it up automatically.
-**Trade-offs:** Short-term duplication — ManorSocialConfigLoader parses trust config into a record that parallels TrustEvolutionConfigSpec. Eliminated when the DSL migration lands.
-**Sources:** io.casehub.examples.manor.agent.ManorSocialConfigLoader, social-config.yaml
+**Trade-offs:** Short-term duplication — ManorSocialConfigLoader parses trust config into a new field on SocialConfig that parallels TrustEvolutionConfigSpec. The migration scope is larger than just trust: SocialConfig currently has drives, norms, beliefs, and relationships — all of these would also migrate to the blocks YAML DSL. The follow-up issue covers the full ManorSocialConfigLoader replacement, not just the trust config portion.
+**Sources:** io.casehub.examples.manor.agent.ManorSocialConfigLoader, SocialConfig (drives/norms/beliefs/relationships — no trust field yet), social-config.yaml
 **Exploration:** deep-analysis
-**Status:** captured
+**Status:** revised (R1-08: trade-off description corrected to reflect full migration scope)
 
 ## D5: Overlay property model — trust-score + alpha/beta posterior
 
-**Choice:** Write three properties on person-entity overlay nodes during consolidation: `trust-score` (Bayesian Beta mean, 0.0-1.0), `trust-alpha`, and `trust-beta` (posterior parameters). The posterior parameters allow subsequent consolidation cycles to continue the Bayesian update without recomputing from the full attestation history.
+**Choice:** Write three properties on person-entity overlay nodes during consolidation: `trust-score` (Bayesian Beta mean, 0.0-1.0), `trust-alpha`, and `trust-beta` (posterior parameters). Alpha and beta are stored for observability and evidence-strength rendering — knowing whether a score is based on strong evidence (high alpha+beta) vs weak evidence (low alpha+beta) enables richer observation text. Trust is always recomputed from the full attestation history via TrustScoreComputer on each consolidation cycle.
 **Alternatives:**
-- trust-score only — loses the posterior; every consolidation cycle must recompute from all attestations
+- trust-score only — loses evidence-strength information; a score of 0.7 from 2 observations looks identical to 0.7 from 20 observations
 - Encode trust in PAD dimensions (e.g. dominance = trust) — conflates two different concepts; PAD is affective perception, trust is epistemic
-**Rationale:** Carrying alpha/beta forward is O(1) per cycle vs O(N) for full recomputation. The properties are cheap (string key-value on existing overlay nodes).
-**Trade-offs:** Three properties per overlay node instead of one. Negligible cost.
-**Sources:** io.casehub.neocortex.mindmap.NodeUpdate#withPropertiesToSet, io.casehub.ledger.core.trust.TrustScoreComputer.ActorScore (alpha, beta fields)
+- O(1) continuation via stored alpha/beta as priors — rejected because TrustScoreComputer's temporal decay recomputes based on `now`, meaning old attestations' weights change over time; carrying forward alpha/beta freezes stale decay. Full recomputation is both correct and trivial at game scale (< 20 characters).
+**Rationale:** Three properties cost nothing on overlay nodes. Alpha/beta expose the shape of the posterior for observation rendering ("You feel quite certain about X" vs "You're still forming an opinion"). Full recomputation via TrustScoreComputer preserves temporal decay correctness and keeps the API unmodified (D1).
+**Trade-offs:** O(N) per consolidation cycle instead of O(1), where N is attestations per relationship. At game scale (< 20 characters, ~100s of attestations total), this is negligible.
+**Sources:** io.casehub.neocortex.mindmap.NodeUpdate#withPropertiesToSet, io.casehub.ledger.core.trust.TrustScoreComputer.ActorScore (alpha, beta fields), TrustScoreComputer.compute() (always initialises alpha=1.0, beta=1.0)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-01: removed O(1) continuation claim; alpha/beta retained for observability, not continuation)
 
-## D6: Consolidation ordering — @Priority(16), after experience graduation
+## D6: Consolidation ordering — @Priority(22), after merge detection
 
-**Choice:** TrustConsolidationPhase runs at @Priority(16), immediately after ExperienceConsolidationPhase (15).
+**Choice:** TrustConsolidationPhase runs at @Priority(22), after MergeDetectionPhase (20), before SchemaDiscoveryPhase (25). The phase lives in casehub-neocortex-mindmap-intelligence (per D2's three-module split).
 **Alternatives:**
-- Same priority (15) — non-deterministic ordering between phases
-- Much later (e.g. 50) — unnecessary gap; trust scoring logically follows experience graduation
-**Rationale:** Trust scoring reads from ledger entries (not episodic buffer), so it doesn't strictly depend on experience graduation. But running after it keeps the ordering intuitive: events graduate, then trust is computed.
+- @Priority(16) after ExperienceConsolidationPhase — false coupling; trust scoring reads from ledger entries, not from experience graduation output
+- Same priority as another phase — non-deterministic ordering
+- After CommunitySummaryPhase (30+) — unnecessarily late; community summaries could benefit from trust context
+**Rationale:** Trust scoring reads from ledger entries created during tick processing. The only consolidation-phase dependency is MergeDetectionPhase — entity deduplication must complete before scoring so trust computations reference canonical entities, not duplicates that are about to be merged. Existing phase ordering: AccessFrequency(10), Experience(15), MergeDetection(20), TrustConsolidation(22), SchemaDiscovery(25), CommunitySummary(30), CuriosityRefresh(40).
 **Trade-offs:** None significant.
-**Sources:** io.casehub.neocortex.mindmap.intelligence.consolidation.ExperienceConsolidationPhase (@Priority(15))
+**Sources:** MergeDetectionPhase (@Priority(20)), SchemaDiscoveryPhase (@Priority(25)), ConsolidationPhase SPI in neocortex
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-07: corrected priority from 16 to 22 with proper dependency rationale)
 
 ## D7: Trust event recording — CDI event observer on action completion
 
-**Choice:** The TrustEventRecorder in blocks observes a CDI event fired on action completion. It maps the action type to a verdict using the YAML-configured trust event table, creates a LedgerEntry for the acting character, and creates LedgerAttestations for affected and witnessing characters.
+**Choice:** The TrustEventRecorder in blocks observes a CDI event fired on action completion (see D10 for event design). It maps the action type to a verdict using the YAML-configured trust event table, creates a LedgerEntry for the acting character, and creates LedgerAttestations for affected and witnessing characters. TrustEventRecorder lives in the blocks module (CDI layer), not blocks-core (per D2's three-module split).
 **Alternatives:**
 - Direct call in the tick loop — couples the orchestrator to trust recording; every cognitive agent would need to add the call manually
 - Post-action interceptor/decorator — more complex wiring for the same effect
-**Rationale:** CDI observer is the established blocks pattern for cross-cutting concerns. The orchestrator fires the event; the recorder is a zero-touch add-on activated by YAML config presence.
-**Trade-offs:** Requires a CDI action-completed event to exist (may need to be added to the orchestrator if not present).
-**Sources:** blocks CDI observer patterns (existing), ScenarioOrchestrator tick loop
+- Direct service call (TrustEventService.record()) — simpler but loses the decoupling benefit; app must inject and call explicitly
+**Rationale:** CDI observer is the established blocks/neocortex pattern for cross-cutting concerns (cf. ExtractionRequestedObserver in neocortex, which observes ExtractionRequested CDI events fired by ConversationBridge). The orchestrator fires the event; the recorder is a zero-touch add-on activated by YAML config presence.
+**Trade-offs:** Requires a CDI action-completed event (D10). The event definition is a new blocks type that orchestrators must fire — but the alternative (direct calls in every orchestrator) is the current anti-pattern that D7 exists to eliminate.
+**Sources:** blocks CDI observer patterns, ExtractionRequested/ExtractionRequestedObserver pattern in neocortex, ScenarioOrchestrator tick loop (line 387)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-03: acknowledged CDI event as explicit prerequisite, cross-referenced D10)
 
-## D8: Observation threshold — configurable delta gating
+## D8: Observation threshold — configurable delta gating with TrustLevel/TrustSummary integration
 
-**Choice:** Trust changes only surface in observations when the absolute delta since the last rendered trust observation exceeds a configurable threshold (default 0.15). Below that, the score updates on the overlay node but no observation text is generated.
+**Choice:** Trust changes only surface in observations when the absolute delta since the last rendered trust observation exceeds a configurable threshold (default 0.15). Below that, the score updates on the overlay node but no observation text is generated. Observation rendering integrates with the existing TrustLevel enum and TrustSummary record in blocks-core, and feeds into CognitiveObservationSections.trustSection() for consistent rendering. Score-to-level mapping: score ≥ 0.7 → HIGH, 0.4 ≤ score < 0.7 → MODERATE, score < 0.4 → LOW. These thresholds are configurable in TrustEvolutionConfigSpec.
 **Alternatives:**
 - Always render — noisy; small fluctuations produce meaningless observations
 - Fixed threshold levels only (HIGH/MODERATE/LOW transitions) — loses granularity; a 0.69→0.71 transition across the MODERATE→HIGH boundary fires but a 0.3→0.5 change within MODERATE doesn't
-**Rationale:** Delta-based gating captures significant trust shifts regardless of which level band they fall in. Combined with TrustLevel thresholds for the observation text ("You've come to rely on..." vs "Something makes you uneasy..."), this gives both sensitivity and meaningful rendering.
-**Trade-offs:** Requires tracking "last rendered trust score" per relationship — one additional property on the overlay node (`trust-last-rendered`).
-**Sources:** io.casehub.examples.manor.agent.PerceptionTranslator (existing distance threshold pattern at 0.4)
+**Rationale:** Delta-based gating captures significant trust shifts regardless of which level band they fall in. TrustSummary(subjectName, level, reason) is the existing type for trust observations — the trust framework produces these during consolidation, and CognitiveObservationSections.trustSection() renders them. The evidence strength from D5's alpha/beta shapes the reason text ("You feel quite certain..." vs "Your initial impression...").
+**Trade-offs:** Requires tracking "last rendered trust score" per relationship — one additional property on the overlay node (`trust-last-rendered`). Level boundary thresholds in TrustEvolutionConfigSpec must produce TrustSummary objects compatible with the existing trustSection() renderer.
+**Sources:** io.casehub.blocks.summarisation.observation.affordance.TrustLevel, TrustSummary, CognitiveObservationSections.trustSection(), PerceptionTranslator (existing distance threshold pattern at 0.4)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-06: explicit TrustLevel/TrustSummary integration and score-to-level mapping)
 
 ## D9: Persistence agnostic — SPI-driven, durable stores configurable
 
@@ -104,4 +108,29 @@
 **Trade-offs:** None. This is the existing ledger pattern; the only cost is discipline (no implementation-specific casts or assumptions in framework code).
 **Sources:** io.casehub.ledger.api.spi.LedgerEntryRepository, io.casehub.ledger.memory.InMemoryLedgerEntryRepository, io.casehub.ledger.runtime.repository.jpa.JpaActorTrustScoreRepository
 **Exploration:** quick
+**Status:** captured
+
+## D10: Trust event trigger — TrustRelevantAction CDI event in blocks
+
+**Choice:** Define a `TrustRelevantAction` CDI event type in the blocks module. The event carries actor ID, target ID, action type, and action result. Application orchestrators fire this event after action resolution; TrustEventRecorder (D7) observes it asynchronously.
+**Alternatives:**
+- Direct service call (TrustEventService.record()) — simpler API but requires every orchestrator to explicitly inject and call the service; loses cross-cutting decoupling
+- Extend an existing engine lifecycle event — no existing event carries cognitive action context; engine events are work/case lifecycle, not agent-action-level
+- Application-defined event — defeats framework reuse; every cognitive agent would define its own event type
+**Rationale:** Follows the established neocortex pattern: ConversationBridge fires ExtractionRequested CDI event, ExtractionRequestedObserver handles it asynchronously. The event type lives in blocks because it's part of the trust framework contract — orchestrators import it from blocks, not from the application. The ScenarioOrchestrator currently calls `recordTrustEvent()` directly (line 387); replacing this with `event.fire(new TrustRelevantAction(...))` is mechanical.
+**Trade-offs:** Introduces a new CDI event type that orchestrators must fire. Applications without CDI (pure Java orchestrators) would use the direct-call alternative.
+**Sources:** ExtractionRequested/ExtractionRequestedObserver pattern in neocortex, ScenarioOrchestrator line 387, D7
+**Exploration:** quick (surfaced by R1-03)
+**Status:** captured
+
+## D11: Trust granularity — per-actor-pair, not per-capability
+
+**Choice:** Trust is computed per actor-pair (observer→subject). An agent's trust in another agent is a single scalar, not differentiated by action type or capability domain.
+**Alternatives:**
+- Per-capability-per-actor-pair — agent trusts X for code review but not for merge decisions. Richer model, matches engine-ledger's capability-scoped TrustWeightedAgentStrategy pattern
+- Global per-actor — loses the core insight that Penelope trusts HC differently than Muttley trusts HC
+**Rationale:** For the game context, per-actor-pair trust is sufficient and avoids the complexity of defining capability taxonomies for cognitive agents. The blocks framework uses in-memory ledger stores (D9) separate from engine's persistent stores, so there's no collision with engine-level capability-scoped trust routing. The attestation's `capabilityTag` defaults to `"*"` — a future enhancement could use it for trust dimensions (honesty, reliability, scheming) without breaking the current model.
+**Trade-offs:** Cognitive agents can't express differentiated trust ("I trust X for advice but not with my possessions"). Acceptable for game scope; the per-capability extension path is available via capabilityTag without redesign.
+**Sources:** D3 (attestor-filtered scoring), LedgerAttestation.capabilityTag (defaults to "*"), TrustWeightedAgentStrategy (engine-level capability-scoped trust — separate concern)
+**Exploration:** quick (surfaced by R1-10)
 **Status:** captured
