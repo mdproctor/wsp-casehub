@@ -49,7 +49,7 @@ User prompt (observations):
 ```
 System prompt (minimal directive):
   ├── Identity: name, role, voice
-  ├── Hard constraints (HARD severity only)
+  ├── Prime Directives (HARD severity constraints only)
   ├── Templates (voice/style only — behavioral content seeded per D4)
   └── Cognitive preamble (auto-generated: "you have a brain, here's how to use it")
 
@@ -81,7 +81,7 @@ A `@Alternative @Priority(1)` CDI bean implementing `SystemPromptRenderer`. When
 **Renders:**
 1. **Identity block:** Agent name + role sentence. Extracted from `AgentDescriptor.briefing()` — the briefing field is rewritten by content authors to contain only identity and voice content (see §4). The renderer uses it as-is.
 2. **Voice block:** Speaking style, mannerisms, catchphrases. From descriptor `briefing` field plus template voice/style content. Templates are split per D4: behavioral patterns (strategies, archetype norms, disposition biases) are removed from templates and moved to seed data — see §4 Template Splitting.
-3. **Hard constraints:** Only constraints with `severity: HARD` from `AgentDescriptor.constraints()`.
+3. **Prime Directives:** Only constraints with `severity: HARD` from `AgentDescriptor.constraints()`. Rendered under a "Prime Directives" heading in the system prompt — the naming signals their non-negotiable weight to the LLM.
 4. **Cognitive preamble:** Auto-generated paragraph from active subsystems (see §2 below).
 
 **Does NOT render:** goals, soft constraints, disposition, drives, beliefs, strategies, narrative, or any dynamic cognitive data.
@@ -239,12 +239,12 @@ Remove all observation-side content that duplicates what CognitionCore already r
 | Currently duplicated | Remove from | Keep in |
 |---------------------|-------------|---------|
 | Goals | System prompt (descriptor) + `CognitiveObservationSections.goalsSection()` | `GoalPromptSection` (CognitionCore) — seeded via `registerGoals()` |
-| Constraints | System prompt (all severities) + `CharacterCognition` direct render | System prompt (HARD only) + `ConstraintPromptSection` (SOFT only, via CognitionCore) |
+| Constraints | System prompt (all severities) + `CharacterCognition` direct render | System prompt as Prime Directives (HARD only) + `ConstraintPromptSection` (SOFT only, via CognitionCore) |
 | Personality/disposition | System prompt + `SocialAvatarCognition.buildSections()` | `PersonalityPromptSection` (CognitionCore) |
 
 **Not duplicated — stays in CharacterCognition:** Character motivations (from social-config drives — free-form, no CognitionCore equivalent), initial beliefs (authored knowledge — distinct from `MentalModelPromptSection`'s BDI Theory of Mind), trust perceptions, social awareness, norms. These are application-specific content already on the observation side.
 
-**Constraint severity filtering:** `CognitionCore.promptSections()` currently passes ALL constraints from `lastDescriptor.constraints()` to `ConstraintPromptSection` without filtering. This spec requires `CognitionCore.promptSections()` to filter for `severity != HARD` before constructing `ConstraintPromptSection`. HARD constraints are rendered by `CognitiveSystemPromptRenderer` in the system prompt. Without this filtering, HARD constraints would appear in BOTH channels.
+**Constraint severity filtering:** `CognitionCore.promptSections()` currently passes ALL constraints from `lastDescriptor.constraints()` to `ConstraintPromptSection` without filtering. This spec requires `CognitionCore.promptSections()` to filter for `severity != HARD` before constructing `ConstraintPromptSection`. HARD constraints are rendered as Prime Directives by `CognitiveSystemPromptRenderer` in the system prompt. Without this filtering, HARD constraints would appear in BOTH channels.
 
 **PersonalityPromptSection deduplication:** `SocialAvatarCognition.buildSections()` (line 112) adds `PersonalityPromptSection` from the descriptor, then `core.promptSections()` (line 115) adds another `PersonalityPromptSection` from `CognitionCore` (line 347). This is an existing duplication within the observation pipeline. Fix: remove the explicit `PersonalityPromptSection` from `SocialAvatarCognition.buildSections()` — CognitionCore already provides it.
 
@@ -262,7 +262,7 @@ After deduplication, `CharacterCognition.renderCognitiveSections()` retains:
 - Trust perceptions (from mindmap overlay — no CognitionCore equivalent)
 - Social awareness (perspectival comparison — no CognitionCore equivalent)
 - Norms (until `NormsPromptSection` is added — tracked by GitHub issue)
-- Constraints removed: HARD → system prompt, SOFT → `ConstraintPromptSection`
+- Constraints removed: HARD → Prime Directives (system prompt), SOFT → `ConstraintPromptSection`
 
 ### 6. DirectiveSection Deprecation
 
