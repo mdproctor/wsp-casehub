@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-65-trust-evolution
-state: active
+state: closing:promoted
 project-sha: a79c81149821b2712b3026e8836b066bee00f880
 date: 2026-09-16
 issue-repo: casehubio/examples
@@ -11,6 +11,7 @@ design-repo: project
 design-section-hashes: 
 flyway-next-v: none
 
+evidence-era: true
 ## Queue
 - [ ] casehubio/examples#65 — Issue #65 ← active
   - [x] Batch 1: Foundation
