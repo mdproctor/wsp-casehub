@@ -14,17 +14,8 @@ flyway-next-v: none
 ## Queue
 - [x] casehubio/examples#63 — Issue #63
 - [x] casehubio/blocks#283 — Directive-minimal architecture
-- [ ] casehubio/examples#66 — Drive adaptation from reward signals ← active
-  - [x] Batch 1: Foundation
-    - [x] Task 1: DriveReinforcementEntry records + config
-    - [x] Task 2: DriveAdaptationPhase
-  - [x] Batch 2: Rendering
-    - [x] Task 3: CharacterDrivePromptSection + CognitionConfig
-  - [x] Batch 3: Wiring
-    - [x] Task 4: YAML reinforcement + seeding + dedup
-  - [x] Batch 4: Integration
-    - [x] Task 5: End-to-end test
-- [ ] casehubio/examples#70 — Relationship stage thresholds
+- [x] casehubio/examples#66 — Drive adaptation from reward signals
+- [ ] casehubio/examples#70 — Relationship stage thresholds ← active
 - [ ] casehubio/examples#67 — Belief revision from contradicting evidence
 - [ ] casehubio/examples#68 — Needs pyramid
 - [ ] casehubio/examples#69 — Goal prioritization from unmet needs
