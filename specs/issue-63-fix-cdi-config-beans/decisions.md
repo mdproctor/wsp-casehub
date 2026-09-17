@@ -327,3 +327,71 @@
 **Revised by:** R1-02 (decision review) — original rendering tiers had 4 stages. Added "familiar" tier to match the 5-tier `RelationshipStageConfig.defaults()`.
 **Depends on:** D21 (stage persisted on overlay), D22 (behavioral gating), D19 (5-tier model)
 **Status:** revised
+
+---
+
+## examples#67 — Belief Revision from Contradicting Evidence
+
+## D24: Pipeline slot — new BeliefRevisionPhase
+
+**Choice:** New `BeliefRevisionPhase` (ConsolidationPhase implementation) at `@Priority(16)` — after ExperienceConsolidation@15 (which graduates events into cognitive nodes), before DriveAdaptation@17. Runs as a separate phase in the consolidation pipeline.
+**Alternatives:**
+- Inside ExperienceConsolidationPhase — inline contradiction check after each graduation. Tighter coupling, and ExperienceConsolidationPhase is in neocortex (platform) — adding LLM calls there creates a platform dependency on AgentProvider.
+- Event-driven via CDI event — ExperienceConsolidationPhase fires GraduationCompleted, listener handles contradiction. Decoupled but loses consolidation context and phase ordering.
+**Rationale:** Clean SRP — experience graduation and belief revision are separate concerns. The phase reads newly graduated nodes (created by ExperienceConsolidation@15) and checks them against existing Belieflike nodes. Follows the same pattern as DriveAdaptationPhase (reads graduated nodes, performs domain-specific analysis).
+**Trade-offs:** Second pass over the subgraph's nodes. Acceptable — Belieflike nodes are few per agent (4-6 seeded beliefs) and the scan is by trait, not a full search.
+**Sources:** ExperienceConsolidationPhase (@Priority 15), DriveAdaptationPhase (@Priority 17), ConsolidationPhase SPI, issue #67
+**Exploration:** quick
+**Status:** captured
+
+## D25: LLM strategy — batch per agent
+
+**Choice:** One LLM call per agent per consolidation cycle. The prompt presents all current beliefs and all newly graduated evidence nodes, asking: "Does any of this evidence contradict any of these beliefs? For each contradiction, explain which belief and why." The LLM returns structured JSON identifying contradicted beliefs and reasoning.
+**Alternatives:**
+- Pairwise per (belief, evidence) — one LLM call per pair. More precise but O(beliefs × evidence) calls per cycle. Expensive for characters with many beliefs.
+- Pre-filter via embedding similarity, then LLM — reduces calls but adds embedding dependency and complexity.
+**Rationale:** Amortizes LLM cost — one call checks all beliefs against all evidence for an agent. Characters have 4-6 beliefs and consolidation graduates ~5-20 nodes per cycle, so the prompt is bounded and fits in a single context window. The batch approach also gives the LLM cross-belief context — it can assess whether evidence contradicts one belief while reinforcing another.
+**Trade-offs:** If a character accumulates many beliefs over time (dozens), the prompt may grow. Mitigated by only including active (non-superseded) beliefs. Also, the LLM may miss subtle contradictions when processing in batch. Acceptable at this stage — can switch to pairwise for high-value beliefs later.
+**Sources:** UserModelOrchestrator LLM synthesis pattern, AgentProvider SPI, issue #67
+**Exploration:** quick
+**Status:** captured
+
+## D26: Revision model — gradual confidence decay then supersede
+
+**Choice:** Each contradicting event reduces the belief's confidence by a configurable amount (default: 0.15 per contradiction). When confidence drops below a configurable threshold (default: 0.3), the LLM generates a revised belief text, a new Belieflike node is created in the same subgraph, and the old one is superseded via `MindMapStore.supersede()`. The superseded belief remains in the mindmap — characters can "remember what they used to believe."
+**Alternatives:**
+- Immediate supersede on contradiction — any contradiction triggers immediate supersession. Dramatic but unrealistic — one contradicting event shouldn't overturn a long-held belief.
+- Accumulate count then batch-revise — track contradiction count on the belief node. Simpler than confidence decay but loses the nuance of varying contradiction strength.
+**Rationale:** Gradual decay models how real belief revision works — repeated contradicting evidence erodes confidence until a tipping point. The confidence model already exists (`Confidence.withValue()`) and beliefs are seeded at 0.8 confidence, giving room for ~3-4 contradictions before reaching the 0.3 threshold. `MindMapStore.supersede()` already tracks supersession history via `SupersessionStatus`.
+**Decay config:** `beliefDecayPerContradiction` (default: 0.15), `beliefSupersessionThreshold` (default: 0.3). Configurable per application via a `BeliefRevisionConfig` record.
+**Trade-offs:** The decay amount is uniform — a strong contradiction and a weak one both reduce confidence by the same amount. Acceptable for v1; a future enhancement could use the LLM's confidence in the contradiction to modulate decay strength.
+**Sources:** Confidence.withValue(), MindMapStore.supersede(), SupersessionStatus, issue #67
+**Exploration:** quick
+**Depends on:** D24 (separate phase)
+**Status:** captured
+
+## D27: Code location — blocks-core
+
+**Choice:** `BeliefRevisionPhase` lives in blocks-core alongside DriveAdaptationPhase and RelationshipStagePhase. A `BeliefRevisionConfig` record provides configurable decay and threshold parameters. Wacky-manor provides only the `AgentProvider` wiring (already available via CDI).
+**Alternatives:**
+- Wacky-manor only — application-level. But belief revision is a generic social cognition concept — any agent with seeded beliefs should support revision.
+- New blocks-belief module — maximum isolation but heavy for one phase and one config record.
+**Rationale:** blocks-core already depends on AgentProvider (via UserModelOrchestrator). Adding an LLM-calling consolidation phase follows the same dependency pattern. The belief revision algorithm is domain-agnostic — it works with any Belieflike nodes regardless of how they were seeded.
+**Trade-offs:** blocks-core gains another consolidation phase and an LLM dependency in its consolidation pipeline. Acceptable — the LLM call is bounded (one per agent per cycle) and fails gracefully (no revision on failure, logged as warning).
+**Sources:** DriveAdaptationPhase, UserModelOrchestrator (AgentProvider usage), blocks-core pom.xml, issue #67
+**Exploration:** quick
+**Depends on:** D24 (phase design), D25 (LLM strategy)
+**Status:** captured
+
+## D28: Revised belief text — LLM-generated
+
+**Choice:** When confidence drops below threshold, the same LLM call that detected the final contradiction generates the revised belief text. Prompt: "Given that [character] believed '[old belief]' but evidence shows [contradicting evidence], what should they now believe? Write a single sentence from their perspective." The revised text becomes the name of the new Belieflike node.
+**Alternatives:**
+- Template-based — "[Old belief] is no longer certain — evidence suggests [summary]." Predictable but mechanical, doesn't capture character voice.
+- No revised text — just supersede the old belief with no replacement. Simplest but the character loses the positive knowledge gained from the contradiction.
+**Rationale:** LLM-generated text reads as something the character would think. The LLM already has the context (beliefs + evidence) from the contradiction detection call. Generating the revised text in the same call (or a follow-up) adds minimal cost. The revised belief inherits INFERRED confidence origin (vs STATED for seeded beliefs) — distinguishing authored from evolved beliefs.
+**Trade-offs:** LLM-generated text is non-deterministic — the same contradiction may produce different revised beliefs on different runs. Acceptable — belief revision is inherently subjective, and the text is for cognitive rendering, not a deterministic data pipeline.
+**Sources:** AgentProvider, Confidence (INFERRED origin), MindMapStore.addNode(), issue #67
+**Exploration:** quick
+**Depends on:** D26 (gradual decay triggers revision), D25 (LLM strategy)
+**Status:** captured
