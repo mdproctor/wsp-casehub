@@ -37,9 +37,10 @@
 **Rationale:** Auto-generation eliminates drift between what's wired and what's described. Single renderer owns prose quality — reads as coherent instruction, not a list of disconnected sentences. The cognitive preamble lives in the system prompt as part of the minimal directive — it tells the agent "you have a brain, here's how to use it" without duplicating the cognitive data itself. It replaces the per-section `DirectiveSection` wrapping (which prepends behavioral instructions to each observation section). With the preamble, each observation section presents raw cognitive state; the preamble provides the meta-instruction once.
 **Trade-offs:** The renderer must be updated when new subsystem types are added. Acceptable — new subsystems are infrequent and the renderer is the natural place to document their cognitive role. Losing per-section DirectiveSection instructions means each section must be self-explanatory via its heading and structure.
 **Preamble wording constraint:** The preamble describes cognitive architecture ("You have motivational drives that influence your priorities"), NOT current state ("some are stronger than others right now"). State-dependent claims conflict with the system prompt caching strategy — the preamble is part of the cached RenderedPrompt, and state-dependent text would require per-turn cache invalidation. Actual cognitive state is conveyed by observation sections, which are rebuilt every turn. The preamble should also disambiguate the two drive systems (see D16): "Your psychological needs — curiosity, competence, affiliation, autonomy — shift based on your interactions. Separately, your character motivations — the drives that define who you are — evolve based on your experiences."
+**Implementation gaps (required changes):** (1) `CognitivePreambleGenerator.generate()` currently appends "some are stronger than others right now" when `drivesEnabled` is true — a state-dependent phrase that violates the caching constraint above. Must be reworded to architecture-only language (e.g., "You have motivational drives that influence your priorities"). (2) The generator does not check `config.characterDrivesEnabled()` and produces no drive disambiguation text. When character drives are enabled, the preamble must include the two-system disambiguation specified above.
 **Sources:** CognitionCore.promptSections(), DirectiveSection wrapping pattern, RenderedPromptCache
 **Exploration:** quick
-**Clarified by:** R1-05 (decision review round 1) — added explicit relationship to DirectiveSection and placement in system prompt. R1-06 + R1-07 (decision review round 2) — preamble must describe architecture not current state (caching constraint); added drive disambiguation text for D16.
+**Clarified by:** R1-05 (decision review round 1) — added explicit relationship to DirectiveSection and placement in system prompt. R1-06 + R1-07 (decision review round 2) — preamble must describe architecture not current state (caching constraint); added drive disambiguation text for D16. Adversarial review R1-03 — flagged two implementation gaps in CognitivePreambleGenerator.
 **Status:** captured
 
 ## D4: Templates — split into voice (directive) and behavioral seeds (neurocortex)
@@ -133,9 +134,10 @@
 **Rationale:** Consistent with how trust (TrustConsolidationPhase), experience (ExperienceConsolidationPhase), and other cognitive state is already stored. MindMapStore is available in both consolidation and rendering paths. Nodes support properties, confidence, and PAD values — all useful for drive state.
 **Node discrimination:** Drive nodes share the `cognitive` type subgraph used by ExperienceConsolidationPhase. They are distinguished from graduated experience nodes by: (1) `cognitiveKind: "drive-intensity"` (experience nodes use classifier-assigned `cognitiveKind` from `GraduationResult`); (2) `provenance: "drive-adaptation"` (experience nodes use `provenance: "experience-consolidation"`). Drive nodes carry: `agent-id` (agent scoping, same pattern as experience nodes), `drive-type` (e.g., "scheming", "social-harmony"), `intensity` (current adapted value, 0.0–1.0), `initial-intensity` (from seed data). DriveAdaptationPhase queries by `cognitiveKind: "drive-intensity"` + `agent-id` to locate drive nodes.
 **Trade-offs:** MindMap nodes are a general-purpose knowledge graph mechanism, not a purpose-built drive store. Querying requires filtering by properties rather than typed queries. Acceptable — the same pattern works well for trust and experience.
+**Subgraph location strategy:** ManorCognitiveSeeder creates per-agent subgraphs (`"beliefs-{agentId}"`, type `"cognitive"`). ExperienceConsolidationPhase's `findOrCreateCognitiveSubgraph()` uses `findFirst()` on cognitive-type subgraphs — in multi-agent scenarios, all graduated experience nodes land in whichever cognitive subgraph is enumerated first. This is a pre-existing platform behavior, not introduced by D10. DriveAdaptationPhase is insulated from this ambiguity: it locates drive nodes via `MindMapQuery` with property filters (`cognitiveKind: "drive-intensity"` + `agent-id`) across all cognitive subgraphs in the tenant, not by subgraph ownership. Each drive node carries its own `agent-id`, making the query agent-scoped regardless of which subgraph hosts the node. The `findFirst()` behavior in ExperienceConsolidationPhase should be addressed independently — it is not a D10 concern.
 **Sources:** MindMapStore, ExperienceConsolidationPhase (cognitiveKind property, agent-id property), TrustConsolidationPhase
 **Exploration:** quick
-**Clarified by:** R1-08 (decision review round 2) — added subgraph selection, node discrimination mechanism, and property model for drive nodes.
+**Clarified by:** R1-08 (decision review round 2) — added subgraph selection, node discrimination mechanism, and property model for drive nodes. Adversarial review R1-06 — added subgraph location strategy clarifying how DriveAdaptationPhase queries across subgraphs.
 **Depends on:** D9 (per-character mapping determines what's stored per drive)
 **Status:** captured
 
@@ -237,17 +239,19 @@
 **Exploration:** quick (surfaced by R1-09, decision review round 2)
 **Status:** captured
 
-## D18: CharacterCognition deduplication — remove CognitionCore sections
+## D18: CharacterCognition deduplication — CognitionCore sections separate from application sections
 
-**Choice:** `CharacterCognition.renderCognitiveSections()` stops calling `cognitionCore.promptSections()`. CognitionCore sections are wired into the observation pipeline at the `ObservationBuilder` level, separate from CharacterCognition's application-specific sections.
+**Choice:** `CharacterCognition.renderCognitiveSections()` provides only application-specific content (beliefs, norms, social awareness, trust perceptions). CognitionCore sections are wired into the observation pipeline at the `ObservationBuilder` level, separate from CharacterCognition's sections.
 **Alternatives:**
-- Keep CognitionCore call in CharacterCognition — simplest but creates a second path for CognitionCore sections alongside SocialAvatarCognition's `buildSections()`. In rendering paths where both contribute, CognitionCore sections would be duplicated.
+- CharacterCognition calls CognitionCore.promptSections() and aggregates both — creates a second path for CognitionCore sections alongside SocialAvatarCognition's `buildSections()`. In rendering paths where both contribute, CognitionCore sections would be duplicated.
 - Remove from both CharacterCognition and SocialAvatarCognition, wire at a higher level — cleanest but requires both paths to be refactored simultaneously.
-**Rationale:** The spec's "After" architecture shows CognitionCore sections and CharacterCognition sections as independent items in the observation pipeline. CharacterCognition should provide only application-specific content that has no CognitionCore equivalent: character motivations, initial beliefs, trust perceptions, social awareness, norms. CognitionCore sections (mood, SDT drives, narrative, mental model, user model, strategy, goals, personality, soft constraints) are provided by CognitionCore through the observation pipeline wiring, not aggregated by CharacterCognition. In the ScenarioOrchestrator path, ObservationBuilder receives CognitionCore sections as a separate input alongside CharacterCognition sections.
-**Sources:** CharacterCognition.renderCognitiveSections() (lines 141-148), SocialAvatarCognition.buildSections(), spec §5 (deduplication)
+**Rationale:** The spec's "After" architecture shows CognitionCore sections and CharacterCognition sections as independent items in the observation pipeline. CharacterCognition should provide only application-specific content that has no CognitionCore equivalent: character motivations, initial beliefs, trust perceptions, social awareness, norms. CognitionCore sections (mood, SDT drives, narrative, mental model, user model, strategy, goals, personality, soft constraints) are provided by CognitionCore through the observation pipeline wiring, not aggregated by CharacterCognition.
+**Current code state:** Verified — `CharacterCognition.renderCognitiveSections()` does not call `cognitionCore.promptSections()` in the current code. The `cognitionCore` field exists in CharacterCognition (assigned in constructor) but is unused — dead code to be removed. The separation described by this decision is already the implemented state. No code change is required for the deduplication itself.
+**Sources:** CharacterCognition.renderCognitiveSections(), SocialAvatarCognition.buildSections(), spec §5 (deduplication)
 **Exploration:** quick (surfaced by R1-15, decision review round 2)
+**Revised by:** Adversarial review R1-07 — corrected to reflect current code state. The original text described "stops calling cognitionCore.promptSections()" but this call does not exist in current code.
 **Depends on:** D7 (CognitiveSystemPromptRenderer), D15 (CharacterDrivePromptSection)
-**Status:** captured
+**Status:** revised
 
 ---
 
@@ -306,10 +310,11 @@
 **Rationale:** Familiarity and behavioral motivation are orthogonal dimensions. Disclosure and cooperation are familiarity-gated — trust must be earned. Scheming and suspicion are drive-gated — character motivation determines whether the character acts adversarially at all. The existing `shouldCompareSocially()` already handles the motivation dimension via D9's drive intensity mechanism. Adding stage-gating only for trust-unlocked behaviors preserves this clean separation.
 **Stage-to-behavior mapping (trust-unlocked only):** Stranger → surface interactions only, no disclosure. Acquaintance → basic cooperation, norm-gated disclosure. Familiar → cooperation preference, limited trust disclosure. Friend → trust disclosure, alliance formation. Confidant → full disclosure, strong loyalty bias.
 **Trade-offs:** ManorContextStrategy grows moderately. The adversarial behavior gating is already handled by `shouldCompareSocially` — no new code needed for that dimension.
+**Adapted intensity requirement:** Once D14's seeder populates drive nodes in the COGNITIVE subgraph, `shouldCompareSocially()` must read adapted drive intensities from MindMap nodes (queried by `cognitiveKind: "drive-intensity"` + `agent-id` + drive-type ∈ SOCIAL_AWARENESS_DRIVES), not from static `SocialConfig.Drive` records. The static config serves as fallback only when no seeded drive nodes exist. Without this change, drive adaptation (D11) modifies intensities that are rendered (D15) but never influence behavioral gating — making adaptation functionally inert for behavioral decisions. CharacterCognition already has access to `mindMapStore`, `agentId`, and `tenantId` — the call site in `renderSocialAwareness` can query adapted intensities and pass them to `shouldCompareSocially()`.
 **Sources:** ManorContextStrategy.shouldCompareSocially(), issue #70 behavioral gates table
 **Exploration:** quick
-**Revised by:** R1-01 (decision review) — original choice included `shouldScheme` as a stage-gated method. Reviewer demonstrated that adversarial behaviors are drive-motivated, not familiarity-gated: Hooded Claw should scheme against strangers (high suspicion), not be prevented from scheming by low familiarity.
-**Depends on:** D19 (5-tier stage model), D21 (stage persisted on overlay)
+**Revised by:** R1-01 (decision review) — original choice included `shouldScheme` as a stage-gated method. Reviewer demonstrated that adversarial behaviors are drive-motivated, not familiarity-gated. Adversarial review R1-02 — added adapted intensity requirement; `shouldCompareSocially()` must read from MindMap nodes, not static SocialConfig.
+**Depends on:** D19 (5-tier stage model), D21 (stage persisted on overlay), D11 (drive adaptation writes adapted intensities), D14 (seeder writes drive nodes)
 **Status:** revised
 
 ## D23: Perception rendering — stage-gated in Social Awareness (5 tiers)
@@ -356,19 +361,21 @@
 **Exploration:** quick
 **Status:** captured
 
-## D26: Revision model — gradual confidence decay then supersede
+## D26: Revision model — gradual confidence decay with variable strength, then supersede
 
-**Choice:** Each contradicting event reduces the belief's confidence by a configurable amount (default: 0.15 per contradiction). When confidence drops below a configurable threshold (default: 0.3), the LLM generates a revised belief text, a new Belieflike node is created in the same subgraph, and the old one is superseded via `MindMapStore.supersede()`. The superseded belief remains in the mindmap — characters can "remember what they used to believe."
+**Choice:** Each contradicting event reduces the belief's confidence by `baseDecay × contradictionStrength`, where `baseDecay` is configurable (default: 0.15) and `contradictionStrength` (0.0–1.0) is provided by the LLM's structured JSON output (D25). When confidence drops below a configurable threshold (default: 0.3), the LLM generates a revised belief text, a new Belieflike node is created in the same subgraph, and the old one is superseded via `MindMapStore.supersede()`. The superseded belief remains in the mindmap — characters can "remember what they used to believe."
 **Alternatives:**
 - Immediate supersede on contradiction — any contradiction triggers immediate supersession. Dramatic but unrealistic — one contradicting event shouldn't overturn a long-held belief.
+- Uniform decay (original choice) — every contradiction applies the same `baseDecay` regardless of strength. Mismodels: 3 weak contradictions ("mildly inconsistent") would supersede a belief that was never strongly contradicted.
 - Accumulate count then batch-revise — track contradiction count on the belief node. Simpler than confidence decay but loses the nuance of varying contradiction strength.
-**Rationale:** Gradual decay models how real belief revision works — repeated contradicting evidence erodes confidence until a tipping point. The confidence model already exists (`Confidence.withValue()`) and beliefs are seeded at 0.8 confidence, giving room for ~3-4 contradictions before reaching the 0.3 threshold. `MindMapStore.supersede()` already tracks supersession history via `SupersessionStatus`.
-**Decay config:** `beliefDecayPerContradiction` (default: 0.15), `beliefSupersessionThreshold` (default: 0.3). Configurable per application via a `BeliefRevisionConfig` record.
-**Trade-offs:** The decay amount is uniform — a strong contradiction and a weak one both reduce confidence by the same amount. Acceptable for v1; a future enhancement could use the LLM's confidence in the contradiction to modulate decay strength.
+**Rationale:** Variable-strength decay models how real belief revision works — a strong contradiction ("directly disproven by event X") erodes confidence more than a weak one ("mildly inconsistent with event Y"). The LLM already outputs structured JSON with reasoning per contradiction (D25); adding `contradictionStrength: 0.0–1.0` to the schema is a single field. The multiplication `baseDecay × contradictionStrength` is a single line. The confidence model already exists (`Confidence.withValue()`) and beliefs are seeded at 0.8 confidence. `MindMapStore.supersede()` already tracks supersession history via `SupersessionStatus`.
+**Decay config:** `beliefDecayPerContradiction` (base decay, default: 0.15), `beliefSupersessionThreshold` (default: 0.3). The LLM output schema includes `contradictionStrength: 0.0–1.0` per identified contradiction; effective decay = `beliefDecayPerContradiction × contradictionStrength`. Configurable per application via a `BeliefRevisionConfig` record.
+**Trade-offs:** The LLM-generated `contradictionStrength` is non-deterministic — the same contradiction may receive slightly different strength scores across runs. Acceptable — belief revision is inherently subjective, and the strength score modulates a configurable base decay, so extreme variation is bounded by the base value.
 **Sources:** Confidence.withValue(), MindMapStore.supersede(), SupersessionStatus, issue #67
 **Exploration:** quick
-**Depends on:** D24 (separate phase)
-**Status:** captured
+**Revised by:** Adversarial review R1-08 — original uniform decay treated all contradictions equally. Variable strength adds near-zero implementation cost (one schema field, one multiplication) while preventing incorrect supersession from accumulated weak contradictions.
+**Depends on:** D24 (separate phase), D25 (LLM structured JSON output)
+**Status:** revised
 
 ## D27: Code location — blocks-core
 
@@ -394,4 +401,17 @@
 **Sources:** AgentProvider, Confidence (INFERRED origin), MindMapStore.addNode(), issue #67
 **Exploration:** quick
 **Depends on:** D26 (gradual decay triggers revision), D25 (LLM strategy)
+**Status:** captured
+
+## D29: Consolidation phases may include LLM calls
+
+**Choice:** BeliefRevisionPhase (D24/D25) introduces LLM calls into the consolidation pipeline. This is explicitly permitted under the following constraints: (1) failure isolation — ConsolidationScheduler's per-phase try-catch catches exceptions, logs failures as WARNING, and subsequent phases (DriveAdaptation@17, RelationshipStage@18) proceed normally; (2) latency — consolidation runs asynchronously on a daemon thread with IdleTracker gating (`isIdle(Duration.ofMinutes(1))`), so LLM latency (2–30s) does not block user interactions; (3) cost — bounded to one LLM call per agent per consolidation cycle; (4) non-determinism — intentional for belief revision (the LLM judges what contradicts what); deterministic phases remain deterministic.
+**Alternatives:**
+- Deterministic-only consolidation — restrict all phases to synchronous, bounded-time operations. Precludes belief revision and any future LLM-powered cognitive processing in the consolidation pipeline.
+- Separate LLM pipeline — run LLM-calling phases in a different scheduler with independent failure/timeout handling. Clean isolation but unnecessary indirection when ConsolidationScheduler already provides per-phase exception handling and idle-time gating.
+**Rationale:** ConsolidationScheduler's existing architecture handles the key concerns: phases run sequentially with per-phase try-catch (verified in decompiled bytecode), failures are logged as WARNING and do not cascade, and the scheduler runs on a single daemon thread gated by `IdleTracker.isIdle()`. The qualitative difference (deterministic → LLM-calling) is real but the infrastructure already supports it. Making this an explicit decision surfaces the architectural shift for future phases that may also require LLM calls.
+**Trade-offs:** Future consolidation phases that add LLM calls must respect the same constraints: bounded calls per cycle, graceful failure (skip on error, log WARNING), and no blocking of subsequent phases. No per-phase timeout enforcement exists in ConsolidationScheduler — phases are trusted to return. An LLM call that hangs indefinitely would block subsequent phases until the scheduler's next tick. Mitigation: AgentProvider implementations should enforce their own call timeouts.
+**Sources:** ConsolidationScheduler (per-phase try-catch, IdleTracker gating, daemon thread), BeliefRevisionPhase (D24/D25), AgentProvider SPI
+**Exploration:** quick (surfaced by adversarial review R1-04)
+**Depends on:** D24 (BeliefRevisionPhase), D25 (LLM strategy)
 **Status:** captured
