@@ -109,8 +109,19 @@ class BeliefRevisionIntegrationTest {
         var config = new BeliefRevisionConfig(0.15, 0.3, 0.6);
         var phase = new BeliefRevisionPhase(store, stubProvider, config);
 
-        // Run multiple times to accumulate decay past threshold
-        for (int i = 0; i < 5; i++) {
+        // Run multiple times — add new evidence before each run so the cursor
+        // doesn't filter them out (cursor advances past processed nodes)
+        phase.run(TENANT, List.of()); // processes the initial 5 nodes
+        for (int i = 1; i <= 4; i++) {
+            store.addNode(
+                NodeInput.of("Penelope outsmarts attempt round " + i, seedResult.subgraphId())
+                    .withProvenance("experience-consolidation")
+                    .withProperties(Map.of(
+                        "cognitiveKind", "experience",
+                        "agent-id", AGENT,
+                        "event-type", "social_interaction"))
+                    .withConfidence(io.casehub.neocortex.cognitive.Confidence.inferred(0.7, Instant.now())),
+                TENANT);
             phase.run(TENANT, List.of());
         }
 
@@ -579,8 +590,6 @@ Run: `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn install -pl blocks-core -s .
 Run: `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn test -pl wacky-manor -s .mvn/slot-settings.xml -Dtest=BeliefRevisionIntegrationTest`
 Expected: PASS — all 3 tests green
 
-If the `fullLifecycle` test fails because the cursor prevents re-processing across multiple `run()` calls, adjust: either add new graduated nodes before each run, or reset the cursor between runs by clearing cursor node property. The stub returns the same JSON each time, but the cursor filtering means only the first run processes evidence. Fix by adding new evidence nodes with incrementing IDs before each subsequent run.
-
 - [ ] **Step 7: Run full test suite**
 
 Run: `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn test -pl wacky-manor -s .mvn/slot-settings.xml`
@@ -643,14 +652,14 @@ void beliefRenderingFromMindMapStore() {
         tenant, store, null);
 
     var sections = cognition.renderCognitiveSections(
-        new CharacterState(agent, "library", List.of(), List.of()),
+        new CharacterState(agent, "HC", "library", 0.0, List.of()),
         List.of(), Map.of());
 
     var beliefSection = sections.stream()
-        .filter(s -> "Your Beliefs".equals(s.heading()))
+        .filter(s -> "Your Beliefs".equals(s.header()))
         .findFirst().orElseThrow();
 
-    assertThat(beliefSection.items())
+    assertThat(((ObservationSection.ItemList) beliefSection).items())
         .anyMatch(item -> item.contains("naive"));
 }
 
@@ -697,18 +706,18 @@ void revisedBeliefShowsRevisedMarker() {
         tenant, store, null);
 
     var sections = cognition.renderCognitiveSections(
-        new CharacterState(agent, "library", List.of(), List.of()),
+        new CharacterState(agent, "HC", "library", 0.0, List.of()),
         List.of(), Map.of());
 
     var beliefSection = sections.stream()
-        .filter(s -> "Your Beliefs".equals(s.heading()))
+        .filter(s -> "Your Beliefs".equals(s.header()))
         .findFirst().orElseThrow();
 
     // Revised belief should be present with [REVISED] marker
-    assertThat(beliefSection.items())
+    assertThat(((ObservationSection.ItemList) beliefSection).items())
         .anyMatch(item -> item.contains("[REVISED]") && item.contains("penelope-awareness"));
     // Original "naive" text should NOT appear
-    assertThat(beliefSection.items())
+    assertThat(((ObservationSection.ItemList) beliefSection).items())
         .noneMatch(item -> item.contains("naive"));
 }
 ```
