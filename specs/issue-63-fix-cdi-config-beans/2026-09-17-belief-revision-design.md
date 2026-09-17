@@ -20,7 +20,14 @@ Characters have seeded beliefs (e.g. "Penelope is naive and trusts too easily") 
 - `DriveAdaptationPhase` (@Priority 17) — consolidation phase pattern to follow
 
 **Already in wacky-manor:**
-- `ManorCognitiveSeeder.seed()` — seeds Belieflike nodes in per-agent `cognitive-{agentId}` subgraphs with `Confidence.stated(0.8, now)`, trait `Belieflike`, property `subject`, provenance `manor-seed`
+- `ManorCognitiveSeeder.seed()` — seeds Belieflike nodes in per-agent `beliefs-{agentId}` subgraphs with `Confidence.stated(0.8, now)`, trait `Belieflike`, property `subject`, provenance `manor-seed`
+- `CharacterCognition.renderCognitiveSections()` — currently reads beliefs from `socialConfig.initialBeliefs()` (static YAML), not from MindMapStore
+
+**Already in blocks-core (AGM framework):**
+- `Belief<T>` record — `(String key, T value, int entrenchment)` — formal belief representation with epistemic ordering
+- `BeliefSet<T>` — immutable keyed collection with AGM operations: `expand()`, `contract()`, `revise(belief, checker)`
+- `ConsistencyChecker<T>` — `@FunctionalInterface boolean isConsistent(BeliefSet<T>)` — consistency hook
+- `CognitiveObservationSections.beliefsSection(List<Belief<?>>, Set<String> revisedKeys)` — renders beliefs sorted by entrenchment, marks revised beliefs with `[REVISED]` prefix
 - Initial beliefs in `social-config.yaml`: hooded-claw ("Penelope is naive and trusts too easily", "Peter Perfect is protective but predictable"), penelope-pitstop ("Sylvester Sneekly is a helpful estate manager", "Everyone here means well"), etc.
 
 ## Architecture
@@ -33,13 +40,15 @@ New `BeliefRevisionPhase` in blocks-core, `@Priority(16)` — after ExperienceCo
 
 **Algorithm per consolidation cycle:**
 1. List all `cognitive`-type subgraphs in the tenant
-2. For each subgraph, collect Belieflike nodes (trait `Belieflike`, not superseded) and newly graduated experience nodes (provenance `experience-consolidation`)
+2. Scan ALL cognitive-type subgraphs, collecting: (a) Belieflike nodes from `beliefs-{agentId}` subgraphs (trait `Belieflike`, not superseded), and (b) newly graduated experience nodes from any cognitive subgraph (provenance `experience-consolidation`)
 3. Use a cursor node (same pattern as `DriveAdaptationPhase`) to track which graduated nodes have already been processed — only process nodes newer than the cursor
-4. Group beliefs and new evidence by agent (using `agent-id` property on nodes and `principalId` on beliefs)
-5. If an agent has both active beliefs and new evidence, invoke LLM contradiction detection (§2)
+4. Group by agent: beliefs via `node.principalId().id()` (returns agentId from `PrincipalId.agent(agentId)`), evidence via `node.properties().get("agent-id")` (string property). These are two different access paths that resolve to the same agentId string.
+5. Per agent: if the agent has both active beliefs and new evidence, invoke LLM contradiction detection (§2)
 6. Apply confidence decay for detected contradictions (§3)
 7. If any belief's confidence drops below threshold, supersede it (§4)
 8. Update cursor
+
+**Cross-subgraph note:** Beliefs and graduated evidence typically live in different subgraphs — beliefs in `beliefs-{agentId}`, evidence in whichever cognitive subgraph `ExperienceConsolidationPhase.findOrCreateCognitiveSubgraph()` selects. The algorithm scans all cognitive subgraphs and groups by agent to bridge this split.
 
 **Failure handling (D29):** LLM call failures are caught, logged as WARNING, and the phase returns without modifying beliefs. ConsolidationScheduler's per-phase try-catch ensures subsequent phases (DriveAdaptation@17, RelationshipStage@18) proceed normally.
 
@@ -106,7 +115,14 @@ newConfidence = currentConfidence - effectiveDecay
 - `contradictionStrength` (0.0–1.0) — from LLM output
 - Confidence is clamped to [0.0, 1.0]
 
-The decay is applied via `Confidence.withValue(newConfidence)` and persisted by updating the node's confidence in MindMapStore.
+The decay creates a new `Confidence` with INFERRED origin and reset decay reference:
+
+```java
+new Confidence(ConfidenceOrigin.INFERRED, newConfidence, Instant.now())
+```
+
+- **Origin transition:** A seeded belief starts as STATED. After the first contradiction decay, its origin becomes INFERRED — the confidence is no longer author-stated, it has been computationally modified. This prevents `MindMapQuery.withConfidenceOrigin(STATED)` from returning machine-adjusted beliefs.
+- **Decay reference reset:** Setting `decayReference` to `Instant.now()` prevents `ConfidenceDecayDecorator` (which applies exponential time-based decay using `decayReference` as the base timestamp) from compounding with contradiction-based decay. Without this reset, a belief decayed to 0.68 would be further reduced by time-based decay calculated from the original seed timestamp.
 
 **Example progression** (default config, starting at 0.8):
 - Strong contradiction (0.8): `0.8 - (0.15 × 0.8) = 0.68`
@@ -148,14 +164,38 @@ public record BeliefRevisionConfig(
 }
 ```
 
-The `AgentProvider` for LLM calls is injected via CDI — wacky-manor already wires this. No application-level configuration needed beyond providing `BeliefRevisionConfig` (defaults are sufficient for v1).
+**CDI wiring:** `BeliefRevisionPhase` is NOT a CDI bean. Like `DriveAdaptationPhase`, it is instantiated via constructor by the application. Wacky-manor wires it in its CDI producer method alongside the other consolidation phases, passing `MindMapStore`, `AgentProvider`, and `BeliefRevisionConfig` as constructor arguments. The only annotation is `@Priority(16)` for phase ordering. No `@ApplicationScoped`, no `@Inject`.
+
+### 6. Rendering Transition
+
+`CharacterCognition.renderCognitiveSections()` currently reads beliefs from `socialConfig.initialBeliefs()` — static YAML parsed at boot. Without modifying this, the entire belief revision mechanism is invisible to the character's behavior: the LLM prompt continues showing original beliefs regardless of supersession.
+
+**Required change:** Replace the static belief rendering with MindMapStore-sourced rendering:
+
+1. Query `beliefs-{agentId}` subgraph for Belieflike nodes (non-superseded)
+2. Map each `MindMapNode` to `Belief<String>` using: `key = node.property("subject")`, `value = node.name()`, `entrenchment = (int)(node.confidence().value() * 10)` (maps Confidence 0.0–1.0 to entrenchment 0–10, per the #54 design bridge)
+3. Collect keys of recently superseded beliefs into a `Set<String> revisedKeys`
+4. Render via `CognitiveObservationSections.beliefsSection(beliefs, revisedKeys)` — this already sorts by entrenchment (descending) and marks revised beliefs with `[REVISED]` prefix
+
+This transitions CharacterCognition from Phase A (static config) to Phase B (MindMapStore-sourced), as planned in issue #52's design.
+
+### Relationship to AGM Framework
+
+blocks-core contains a formal AGM belief revision framework: `Belief<T>` (key, value, entrenchment), `BeliefSet<T>` (immutable set with `expand()`, `contract()`, `revise()`), and `ConsistencyChecker<T>` (boolean consistency check).
+
+These two models serve different purposes and coexist:
+
+- **AGM contraction** is binary — a belief is in the set or it isn't. Entrenchment determines which beliefs survive when consistency is violated. This is appropriate for logical consistency operations.
+- **Confidence decay** is gradual epistemic erosion — continuous, per-contradiction, with variable strength. A belief doesn't disappear on the first contradiction; it weakens over time until superseded.
+
+`ConsistencyChecker.isConsistent(BeliefSet)` is boolean — it cannot return *which* belief is contradicted or *how strongly*. The LLM batch assessment (D25) provides richer output: specific belief identification, reasoning, and contradiction strength. The AGM framework is not a substitute for the LLM assessment, but the rendering layer bridges both models: `CognitiveObservationSections.beliefsSection(List<Belief<?>>, Set<String> revisedKeys)` renders from `Belief<T>`, and the MindMapNode → Belief mapping (§6) feeds this rendering path regardless of whether the confidence change came from AGM contraction or gradual decay.
 
 ## Data Flow
 
 ```
 scenario bootstrap
   └─ ManorCognitiveSeeder.seed()
-       └─ Belieflike nodes created in cognitive-{agentId} subgraph
+       └─ Belieflike nodes created in beliefs-{agentId} subgraph
           confidence: 0.8, origin: STATED, provenance: manor-seed
 
 interaction loop
@@ -166,22 +206,25 @@ consolidation (sleep cycle)
   │    └─ graduates memories → cognitive nodes (provenance: experience-consolidation)
   │
   ├─ BeliefRevisionPhase (@Priority 16)
-  │    ├─ scans cognitive subgraphs for Belieflike + new graduated nodes
-  │    ├─ groups by agent
+  │    ├─ scans ALL cognitive subgraphs for Belieflike + new graduated nodes
+  │    ├─ groups by agent (principalId for beliefs, agent-id property for evidence)
   │    ├─ LLM call: batch contradiction detection per agent
   │    │    └─ returns: [{beliefNodeId, contradictionStrength, revisedBelief}]
   │    ├─ for each contradiction:
   │    │    ├─ decay confidence: current - (baseDecay × strength)
+  │    │    ├─ transition origin STATED → INFERRED, reset decayReference
   │    │    └─ if below threshold → supersede + create revised belief
   │    └─ update cursor
   │
   ├─ DriveAdaptationPhase (@Priority 17)
-  └─ RelationshipStagePhase (@Priority 18)
+  ├─ RelationshipStagePhase (@Priority 18)
+  ├─ MergeDetectionPhase (@Priority 20)
+  └─ TrustConsolidationPhase (@Priority 22)
 
 rendering (prompt construction)
   └─ CharacterCognition.renderCognitiveSections()
-       └─ reads Belieflike nodes → renders active beliefs
-          (superseded beliefs are filtered out by SupersessionStatus)
+       └─ queries beliefs-{agentId} subgraph for non-superseded Belieflike nodes
+          maps to Belief<T>, renders via CognitiveObservationSections.beliefsSection()
 ```
 
 ## Files Changed
@@ -191,6 +234,11 @@ rendering (prompt construction)
 |------|--------|
 | `BeliefRevisionPhase.java` | New ConsolidationPhase, @Priority(16) — LLM contradiction detection, confidence decay, supersession |
 | `BeliefRevisionConfig.java` | Configuration record: decay, threshold, initial revised confidence |
+
+### wacky-manor (modified)
+| File | Change |
+|------|--------|
+| `CharacterCognition.java` | Replace static `socialConfig.initialBeliefs()` rendering with MindMapStore-sourced Belieflike node query + `CognitiveObservationSections.beliefsSection()` |
 
 ### wacky-manor (tests)
 | File | Change |
@@ -219,4 +267,7 @@ rendering (prompt construction)
 - `ManorCognitiveSeeder.seed()` (wacky-manor:100-109) — belief seeding with Belieflike trait
 - `AgentProvider.java` (platform-agent-api) — LLM invocation SPI
 - `UserModelOrchestrator.java` (blocks-core) — LLM synthesis pattern in blocks-core
-- Issue #67, #52
+- `Belief.java`, `BeliefSet.java`, `ConsistencyChecker.java` (blocks-core, `io.casehub.blocks.agentic.belief`) — AGM framework
+- `CognitiveObservationSections.beliefsSection()` (blocks-core) — belief rendering with revised marking
+- `CharacterCognition.renderCognitiveSections()` (wacky-manor:99-129) — current static belief rendering (to be modified)
+- Issue #67, #52, #54
