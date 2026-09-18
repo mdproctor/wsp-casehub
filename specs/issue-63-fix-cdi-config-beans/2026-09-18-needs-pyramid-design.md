@@ -82,24 +82,11 @@ TASKS replaces Maslow's "esteem" (obligation/duty in a game context). UNDERSTAND
 
 ```java
 public enum NeedTier {
-    SAFETY(0.15, 0.6),
-    TASKS(0.10, 0.3),
-    SOCIAL(0.08, 0.4),
-    SELF_EXPRESSION(0.05, 0.4),
-    UNDERSTANDING(0.03, 0.4);
-
-    private final double defaultDecayRate;
-    private final double defaultRestingLevel;
-
-    NeedTier(double defaultDecayRate, double defaultRestingLevel) {
-        this.defaultDecayRate = defaultDecayRate;
-        this.defaultRestingLevel = defaultRestingLevel;
-    }
-
-    public double defaultDecayRate() { return defaultDecayRate; }
-    public double defaultRestingLevel() { return defaultRestingLevel; }
+    SAFETY, TASKS, SOCIAL, SELF_EXPRESSION, UNDERSTANDING;
 }
 ```
+
+Decay rates and resting levels are purely configuration concerns (§7 NeedSatisfactionConfig).
 
 **Decay rates** reflect urgency hierarchy: Safety (0.15) decays fastest — immediate threats demand fast response. Understanding (0.03) decays slowest — curiosity is patient.
 
@@ -134,22 +121,38 @@ Need satisfaction tracking is integrated into DriveAdaptationPhase (D33) rather 
 
 Steps 1–4 are unchanged from the #66 spec (load drive nodes, load experience nodes, aggregate reward per action-type, map to drives).
 
-5. **Accumulate tier satisfaction** — after mapping events to drives (step 4), for each positively-reinforced drive, look up its tier mapping and accumulate satisfaction. Drives not present in the tier mapping are silently skipped (no satisfaction update, no constraint):
+5. **Accumulate tier satisfaction** — after mapping events to drives (step 4), accumulate satisfaction from raw experience node PAD values (not from the already-dampened `DriveReward.effectiveReward()`, to avoid double dampening). Drives not present in the tier mapping are silently skipped. This requires DriveAdaptationPhase to track per-tier accumulation from raw event data alongside its per-drive reward accumulation.
+
+   For each experience node, extract the raw PAD value for the drive's configured reward axis (D12), then route through the drive→tier mapping:
+
    ```
-   for each (driveType, reward) in driveRewards:
-       tiers = tierMapping.get(driveType)
-       if tiers == null: continue  // unmapped drive, skip
-       if reward.effectiveReward() > 0:
-           for tier in tiers:
-               tierSatisfaction[tier] += satisfactionIncrement × |reward.effectiveReward()|
+   // Per-tier accumulators (raw, not dampened)
+   tierRawSatisfaction = {}   // tier → cumulative raw satisfaction
+   tierCount = {}             // tier → event count
+
+   for each experienceNode:
+       eventType = experienceNode.property("event-type")
+       for each reinforcementEntry in reinforcementConfig.get(eventType):
+           tiers = tierMapping.get(reinforcementEntry.driveType)
+           if tiers == null: continue  // unmapped drive, skip
+           padValue = extractPadValue(experienceNode, reinforcementEntry.rewardAxis)
+           if padValue > 0:
+               for tier in tiers:
+                   tierRawSatisfaction[tier] += satisfactionIncrement × padValue
+                   tierCount[tier] += 1
+           elif padValue < 0:
+               for tier in tiers:
+                   tierRawSatisfaction[tier] -= dissatisfactionIncrement × |padValue|
+                   tierCount[tier] += 1
+
+   // Volume dampening applied once at the tier level (GE-20260820-d9129a)
+   for each tier in tierRawSatisfaction:
+       effectiveDelta = tierRawSatisfaction[tier] / (1 + log(tierCount[tier]))
+       currentSatisfaction[tier] += effectiveDelta
+       clamp(currentSatisfaction[tier], 0.0, 1.0)
    ```
 
-   Volume dampening per tier (same as drive adaptation, GE-20260820-d9129a):
-   ```
-   effectiveSatisfaction = totalSatisfaction / (1 + log(count))
-   ```
-
-   Only positive reward signals produce satisfaction — negative outcomes (bad experiences) don't satisfy the need (D36).
+   **Bidirectional model:** Positive events (positive PAD on the drive's reward axis) increase satisfaction above resting level. Negative events (negative PAD) actively decrease satisfaction below resting level — a character in danger feels less safe, not just "not more safe." The decay-toward-resting-level model (step 8) then restores equilibrium: a character whose Safety drops to 0.2 from a threat recovers toward 0.6 as the threat fades.
 
 6. **Apply saturation constraint** — before applying drive intensity updates (step 5 in the original spec), scale the learning rate by tier satisfaction (D31). Drives without a tier mapping use the full learning rate (unconstrained):
    ```
@@ -165,6 +168,8 @@ Steps 1–4 are unchanged from the #66 spec (load drive nodes, load experience n
    ```
 
    At 100% average tier satisfaction, drive strengthening stops entirely. At 0%, full learning rate applies. Smooth, cliff-free, self-balancing.
+
+   **Timing:** `currentSatisfaction` includes step 5's increments — this is the current-cycle satisfaction, not stale data from the previous cycle. The satisfaction computed in step 5 is threaded to step 6 as an in-memory running total before being persisted in step 9.
 
 7. **Apply multiplicative drive update** — unchanged from #66 spec (using `effectiveLR` from step 6).
 
@@ -217,7 +222,9 @@ Your curiosity feels neglected — there's much you don't understand yet.
 | SELF_EXPRESSION | "self-expression" | "you haven't been true to yourself" | "you've been true to yourself lately" |
 | UNDERSTANDING | "curiosity" | "there's much you don't understand yet" | "the world around you makes sense" |
 
-**Registration:** Added to `CognitionCore.promptSections()` when needs pyramid is enabled (new `CognitionConfig` flag: `needsPyramidEnabled`).
+**Reachable-tier filtering:** The section only renders tiers reachable through the character's drives. It checks for `cognitiveKind: "drive-intensity"` nodes in the COGNITIVE subgraph — if none exist for the agent, the entire "Inner Needs" section is suppressed. For agents with drives, tiers not reachable through any of the agent's drive→tier mappings are omitted. This prevents character-incoherent rendering (e.g., a villain seeing "obligations are piling up" when they have no task-oriented drives).
+
+**Registration:** Added to `CognitionCore.promptSections()` when needs pyramid is enabled (new `CognitionConfig` flag: `needsPyramidEnabled`). Guarded by `config.needsPyramidEnabled() && mindMapStore != null`, following the same pattern as `CharacterDrivePromptSection`.
 
 ### 5. ManorCognitiveSeeder Extension (wacky-manor)
 
@@ -238,7 +245,7 @@ for (NeedTier tier : NeedTier.values()) {
             "agent-id", agentId,
             "tier", tier.name(),
             "satisfaction", String.valueOf(config.initialSatisfaction()),
-            "resting-level", String.valueOf(tier.defaultRestingLevel())));
+            "resting-level", String.valueOf(config.restingLevel(tier))));
     mindMapStore.addNode(needNode, tenantId);
 }
 ```
@@ -299,6 +306,9 @@ public interface NeedSatisfactionConfig {
     @WithDefault("0.05")
     double satisfactionIncrement();
 
+    @WithDefault("0.05")
+    double dissatisfactionIncrement();
+
     @WithDefault("0.5")
     double initialSatisfaction();
 
@@ -345,6 +355,7 @@ public interface NeedSatisfactionConfig {
 | Property | Default | Description |
 |----------|---------|-------------|
 | `satisfaction-increment` | 0.05 | Base satisfaction bump per positively-reinforced event |
+| `dissatisfaction-increment` | 0.05 | Base satisfaction decrement per negatively-reinforced event |
 | `initial-satisfaction` | 0.5 | Starting satisfaction for all tiers at bootstrap |
 | `decay.safety` | 0.15 | Safety decay rate per cycle |
 | `decay.tasks` | 0.10 | Tasks decay rate per cycle |
@@ -415,6 +426,10 @@ Characters defined with only goals and no drives in social-config.yaml (e.g., La
 | **blocks** | `NeedTier` enum, `NeedTierMappingProvider` SPI, `NeedSatisfactionConfig`, `NeedsPyramidPromptSection`, `DriveAdaptationPhase` extension (satisfaction tracking, decay, constraint), `CognitionConfig` new flag | Existing casehubio/blocks branch extends |
 | **examples/wacky-manor** | `ManorNeedTierMappingProvider` CDI bean, `ManorCognitiveSeeder` need-tier seeding | casehubio/examples#68 |
 | **neocortex** | No changes — MindMapStore API is sufficient | None |
+
+### CognitionConfig Changes (blocks)
+
+`CognitionConfig` gains a new `needsPyramidEnabled` boolean. This requires updating: the record definition, `all()` and `none()` factories, the `with()` switch, and `AgenticYamlProcessor.discoverCognitionConfig()`. All constructors of `CognitionCore` that create `CognitionConfig` instances need the new field threaded through.
 
 ## Empirical Validation
 
