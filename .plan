@@ -17,10 +17,10 @@ flyway-next-v: none
 - [x] casehubio/examples#66 — Drive adaptation from reward signals
 - [x] casehubio/examples#70 — Relationship stage thresholds
 - [ ] casehubio/examples#67 — Belief revision from contradicting evidence ← active
-  - [ ] Batch 1: Phase + config
-    - [ ] Task 1: BeliefRevisionConfig + BeliefRevisionPhase
-    - [ ] Task 2: Integration test
-  - [ ] Batch 2: Rendering
-    - [ ] Task 3: CharacterCognition rendering transition
+  - [x] Batch 1: Phase + config
+    - [x] Task 1: BeliefRevisionConfig + BeliefRevisionPhase
+    - [x] Task 2: Integration test
+  - [x] Batch 2: Rendering
+    - [x] Task 3: CharacterCognition rendering transition
 - [ ] casehubio/examples#68 — Needs pyramid
 - [ ] casehubio/examples#69 — Goal prioritization from unmet needs
