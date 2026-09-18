@@ -134,11 +134,13 @@ Need satisfaction tracking is integrated into DriveAdaptationPhase (D33) rather 
 
 Steps 1–4 are unchanged from the #66 spec (load drive nodes, load experience nodes, aggregate reward per action-type, map to drives).
 
-5. **Accumulate tier satisfaction** — after mapping events to drives (step 4), for each positively-reinforced drive, look up its tier mapping and accumulate satisfaction:
+5. **Accumulate tier satisfaction** — after mapping events to drives (step 4), for each positively-reinforced drive, look up its tier mapping and accumulate satisfaction. Drives not present in the tier mapping are silently skipped (no satisfaction update, no constraint):
    ```
    for each (driveType, reward) in driveRewards:
+       tiers = tierMapping.get(driveType)
+       if tiers == null: continue  // unmapped drive, skip
        if reward.effectiveReward() > 0:
-           for tier in tierMapping.get(driveType):
+           for tier in tiers:
                tierSatisfaction[tier] += satisfactionIncrement × |reward.effectiveReward()|
    ```
 
@@ -149,12 +151,15 @@ Steps 1–4 are unchanged from the #66 spec (load drive nodes, load experience n
 
    Only positive reward signals produce satisfaction — negative outcomes (bad experiences) don't satisfy the need (D36).
 
-6. **Apply saturation constraint** — before applying drive intensity updates (step 5 in the original spec), scale the learning rate by tier satisfaction (D31):
+6. **Apply saturation constraint** — before applying drive intensity updates (step 5 in the original spec), scale the learning rate by tier satisfaction (D31). Drives without a tier mapping use the full learning rate (unconstrained):
    ```
    for each (driveType, reward) in driveRewards:
        tiers = tierMapping.get(driveType)
-       avgSatisfaction = average(currentSatisfaction[tier] for tier in tiers)
-       effectiveLR = learningRate × (1 - avgSatisfaction)
+       if tiers != null:
+           avgSatisfaction = average(currentSatisfaction[tier] for tier in tiers)
+           effectiveLR = learningRate × (1 - avgSatisfaction)
+       else:
+           effectiveLR = learningRate  // unmapped drive, no constraint
        delta = reward.effectiveReward() × effectiveLR
        // ... rest of multiplicative update unchanged
    ```
@@ -297,9 +302,6 @@ public interface NeedSatisfactionConfig {
     @WithDefault("0.5")
     double initialSatisfaction();
 
-    @WithDefault("20")
-    int maxPerPass();
-
     NeedSatisfactionConfig.DecayConfig decay();
 
     interface DecayConfig {
@@ -344,7 +346,6 @@ public interface NeedSatisfactionConfig {
 |----------|---------|-------------|
 | `satisfaction-increment` | 0.05 | Base satisfaction bump per positively-reinforced event |
 | `initial-satisfaction` | 0.5 | Starting satisfaction for all tiers at bootstrap |
-| `max-per-pass` | 20 | Maximum experience nodes to process per pass |
 | `decay.safety` | 0.15 | Safety decay rate per cycle |
 | `decay.tasks` | 0.10 | Tasks decay rate per cycle |
 | `decay.social` | 0.08 | Social decay rate per cycle |
