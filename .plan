@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-63-fix-cdi-config-beans
-state: active
+state: transitioning
 project-sha: 8a1fcbcec4f0232e1d340f6cfaefa844a0a46ea9
 date: 2026-09-16
 issue-repo: casehubio/examples
@@ -16,11 +16,6 @@ flyway-next-v: none
 - [x] casehubio/blocks#283 — Directive-minimal architecture
 - [x] casehubio/examples#66 — Drive adaptation from reward signals
 - [x] casehubio/examples#70 — Relationship stage thresholds
-- [ ] casehubio/examples#67 — Belief revision from contradicting evidence ← active
-  - [x] Batch 1: Phase + config
-    - [x] Task 1: BeliefRevisionConfig + BeliefRevisionPhase
-    - [x] Task 2: Integration test
-  - [x] Batch 2: Rendering
-    - [x] Task 3: CharacterCognition rendering transition
-- [ ] casehubio/examples#68 — Needs pyramid
+- [x] casehubio/examples#67 — Belief revision from contradicting evidence
+- [ ] casehubio/examples#68 — Needs pyramid ← active
 - [ ] casehubio/examples#69 — Goal prioritization from unmet needs
