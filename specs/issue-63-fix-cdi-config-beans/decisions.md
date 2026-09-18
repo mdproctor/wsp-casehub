@@ -481,3 +481,55 @@
 **Exploration:** quick
 **Depends on:** D33 (phase persists satisfaction state that the section reads)
 **Status:** captured
+
+## D35: Persistence and bootstrapping — MindMap nodes, initial 0.5
+
+**Choice:** Satisfaction state stored as MindMap nodes in the COGNITIVE subgraph, one node per tier per agent. Properties: `cognitiveKind: "need-satisfaction"`, `agent-id`, `tier` (enum name), `satisfaction` (0.0–1.0), `provenance: "need-satisfaction"`. ManorCognitiveSeeder creates all 5 tier nodes per agent at bootstrap with `satisfaction: 0.5` (configurable default). Follows the same node discrimination pattern as drive nodes (D10).
+**Alternatives:**
+- Extend drive nodes with satisfaction properties — couples drive and need state on the same node. Clean SRP violation.
+- New dedicated store — unnecessary when MindMapStore already handles all cognitive state.
+**Rationale:** Identical pattern to drive intensity nodes (D10): property-based discrimination in the shared COGNITIVE subgraph, queried by `cognitiveKind` + `agent-id`. Initial 0.5 means characters start with moderate satisfaction — enough that no tier is in urgent neglect, but low enough that the first few events create visible satisfaction changes. The seeder already handles drives, beliefs, and goals — adding need tiers is natural.
+**Trade-offs:** 5 additional MindMap nodes per agent (85 total for 17 characters). Negligible.
+**Sources:** D10 (drive node pattern), ManorCognitiveSeeder, MindMapStore
+**Exploration:** quick
+**Depends on:** D33 (NeedSatisfactionPhase reads/writes these nodes)
+**Status:** captured
+
+## D36: Satisfaction magnitude — small increment with volume dampening
+
+**Choice:** Base satisfaction increment per event: configurable `satisfaction-increment` (default: 0.05). Scaled by the reward magnitude: `effectiveSatisfaction = satisfactionIncrement × |rewardSignal|`, where `rewardSignal` is the PAD value from the experience node (same axis as the drive's reward axis per D12). Volume dampening applied when multiple events address the same tier in one pass: `effectiveSatisfaction = totalSatisfaction / (1 + log(count))` — same formula as DriveAdaptation (GE-20260820-d9129a). Only positive reward signals produce satisfaction — negative outcomes (bad experiences) don't satisfy the need.
+**Alternatives:**
+- Fixed increment regardless of reward magnitude — simpler but a barely-positive conflict resolution produces the same satisfaction as a triumphant one.
+- No volume dampening — many small events in one cycle could spike satisfaction. Contradicts GE-20260820-d9129a.
+**Rationale:** The issue says "Satisfaction from a single action should be small (volume factor, not single-event jumps)." Scaling by reward magnitude means strong positive outcomes (high pleasure/dominance) produce more satisfaction than ambiguous ones. Volume dampening ensures a consolidation pass with many observations doesn't dominate tier satisfaction.
+**Trade-offs:** Non-deterministic effective satisfaction (depends on PAD values, which are LLM-generated). Acceptable — same non-determinism as drive adaptation.
+**Sources:** GE-20260820-d9129a (volume factor), D12 (PAD reward axis), DriveAdaptationPhase volume dampening
+**Exploration:** quick
+**Depends on:** D30 (drive→tier mapping), D33 (NeedSatisfactionPhase)
+**Status:** captured
+
+## D37: Rendering format — qualitative prose per tier
+
+**Choice:** `NeedsPyramidPromptSection` renders satisfaction as qualitative natural language under an "Inner Needs" heading. Each tier maps satisfaction to a band with tier-specific prose: Safety→"sense of safety", Tasks→"task commitments", Social→"social bonds", Self-expression→"self-expression", Understanding→"curiosity." Bands: 0.0–0.2 (critically neglected, strong urgency language), 0.2–0.4 (neglected), 0.4–0.6 (adequate), 0.6–0.8 (well-met), 0.8–1.0 (fulfilled). Neglected tiers include a brief contextual note (e.g., "there's much you don't understand yet").
+**Alternatives:**
+- Quantitative ("Safety: 0.35") — precise but mechanical, breaks character immersion.
+- Hybrid ("Safety: neglected (0.35)") — maximum information but mixes game mechanics with narrative voice.
+**Rationale:** Consistent with how mood, drives, and beliefs are rendered as prose the character can internalize. Qualitative labels let the LLM interpret needs as psychological states rather than game metrics, producing more natural dialogue and decision-making.
+**Trade-offs:** Loss of numeric precision. Acceptable — the LLM should respond to "neglected" vs "well-met" rather than 0.35 vs 0.72. The bands provide sufficient granularity.
+**Sources:** DrivePromptSection rendering style, MoodPromptSection, CharacterDrivePromptSection (D15)
+**Exploration:** quick
+**Depends on:** D34 (rendering in prompt), D35 (persistence provides data)
+**Status:** captured
+
+## D38: Drive→tier mapping location — application-level config
+
+**Choice:** The drive→tier mapping is provided as application-level configuration. Wacky-manor declares the mapping via a `NeedTierMappingProvider` CDI bean (or Smallrye config map). The mapping is a `Map<String, Set<NeedTier>>` — drive-type string → set of tiers. ~15 entries for wacky-manor's drive types. blocks-core defines the `NeedTier` enum and the SPI; applications provide the mapping.
+**Alternatives:**
+- Hardcoded in blocks-core — locks the drive→tier vocabulary to one application's drive types.
+- YAML file — readable but introduces a new YAML schema for a small lookup table.
+**Rationale:** Drive types are free-form strings defined per application ("scheming", "gallantry", "social-harmony"). The mapping from these application-specific strings to the universal NeedTier enum is inherently application-level. Follows the same pattern as DriveReinforcementConfig (D13) — blocks-core defines the SPI, applications provide configuration.
+**Trade-offs:** Each new drive type requires a mapping entry. Acceptable — new drives are infrequent and the mapping is self-documenting (the drive name implies the tier).
+**Sources:** D13 (DriveReinforcementConfig SPI pattern), NeedTier enum, SocialConfig.Drive
+**Exploration:** quick
+**Depends on:** D30 (drive→tier mapping architecture)
+**Status:** captured
