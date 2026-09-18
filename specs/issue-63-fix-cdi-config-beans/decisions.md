@@ -453,22 +453,25 @@
 - Additive decay — `satisfaction -= decayRate`. Linear, but doesn't self-dampen — low satisfaction drops at the same absolute rate as high satisfaction, creating faster urgency spiral than intended.
 **Rationale:** Multiplicative decay is self-dampening (same pattern as GE-20260714-439924 for drive adaptation): a tier at 0.8 satisfaction losing 15% drops to 0.68 (-0.12 absolute), while a tier at 0.2 drops to 0.17 (-0.03 absolute). High satisfaction decays faster in absolute terms, low satisfaction decays slower — creating smooth urgency curves rather than cliff drops. Per-tier rates model the urgency hierarchy from the issue: "Safety decays faster than Understanding."
 **Trade-offs:** More config knobs (5 decay rates). Acceptable — pre-release, single consumer, and the defaults should work without tuning.
+**Decay toward resting level (revised per R1-05):** Unconditional decay toward zero creates false urgency — a character in a peaceful scene reports "critically neglected" Safety after 50 minutes. Revised formula: `satisfaction = restingLevel + (satisfaction - restingLevel) × (1 - decayRate)`. Each tier has a configurable `restingLevel`: Safety=0.6, Tasks=0.3, Social=0.4, Self-expression=0.4, Understanding=0.4. Tiers naturally settle at their resting level without events. Events push satisfaction above baseline (addressed) or below (actively threatened). Safety's high resting level (0.6) models "no news is good news" — absence of threats means safety feels adequate. Tasks' low resting level (0.3) models "obligations accumulate" — even without events, task pressure builds.
 **Sources:** Issue #68 (per-tier decay rates), GE-20260714-439924 (multiplicative dampening), DriveAdaptationConfig pattern
 **Exploration:** quick
-**Status:** captured
+**Revised by:** R1-05 (decision review) — unconditional decay toward zero created false urgency in peaceful environments. Resting-level model replaces decay-toward-zero.
+**Status:** revised
 
-## D33: Phase architecture — separate NeedSatisfactionPhase at @Priority(19)
+## D33: Phase architecture — integrated into DriveAdaptationPhase
 
-**Choice:** New `NeedSatisfactionPhase` (ConsolidationPhase implementation) at `@Priority(19)` — after RelationshipStagePhase@18, before MergeDetectionPhase@20. Maintains its own cursor for experience node tracking. Re-reads graduated experience nodes, maps event→drive→tier using the reinforcement config (D9) and drive→tier mapping (D30), updates tier satisfaction, applies per-tier decay (D32).
+**Choice:** Need satisfaction updates are integrated into DriveAdaptationPhase rather than a separate ConsolidationPhase. After computing per-drive rewards (which it already does), DriveAdaptationPhase maps drive→tier (D30) and accumulates tier satisfaction in the same pass. Decay is applied at the end of the phase. The D31 saturation constraint reads current-cycle satisfaction (no stale data).
 **Alternatives:**
-- Integrated into DriveAdaptationPhase — avoids re-reading 20 experience nodes but couples drive adaptation and need satisfaction in the same class, violating the SRP pattern established by BeliefRevision@16, DriveAdaptation@17, and RelationshipStage@18.
-- CDI event hybrid — DriveAdaptationPhase fires events, NeedSatisfactionPhase listens. Clean decoupling but CDI events don't participate in consolidation phase ordering, losing the sequential guarantee.
-**Rationale:** Follows the established consolidation pipeline pattern: each phase is an independent ConsolidationPhase implementation with its own cursor, its own concern, and its own priority. The re-read cost is trivial (maxPerPass=20 nodes, read by subgraph). The one-cycle delay for the D31 constraint is acceptable. @Priority(19) slots cleanly into the existing gap between RelationshipStage@18 and MergeDetection@20.
-**Trade-offs:** Second pass over experience nodes (same data DriveAdaptation already processed). Negligible cost for clean separation.
-**Sources:** ConsolidationPhase SPI, DriveAdaptationPhase cursor pattern, pipeline ordering (@15→@16→@17→@18→@19→@20)
+- Separate NeedSatisfactionPhase@19 (original choice) — clean SRP but D31's saturation constraint already creates a bidirectional data dependency between the phases. DriveAdaptationPhase would need the drive→tier mapping AND tier satisfaction state to implement D31, meaning it already does most of the need-satisfaction work. A separate phase would re-read the same experience nodes, maintain a duplicate cursor, and operate on one-cycle-stale satisfaction for the constraint — duplication masquerading as separation.
+- CDI event hybrid — loses consolidation phase ordering.
+**Rationale:** D31's scaling factor requires DriveAdaptationPhase to read tier satisfaction AND know the drive→tier mapping. At that point, the phase already has: (a) which drives were reinforced, (b) by how much, (c) which tiers those drives map to. Computing tier satisfaction is a single accumulation step after the existing drive reward computation. Merging eliminates: the duplicate cursor, the re-read of 20 experience nodes, and the one-cycle delay for the saturation constraint. DriveAdaptationPhase gains a cohesive extended responsibility: "adapt drives and track their need satisfaction."
+**Trade-offs:** DriveAdaptationPhase grows in scope. Acceptable — the addition is a small accumulation step after the existing drive reward computation, and the responsibility remains cohesive (drive adaptation and its need-satisfaction feedback loop).
+**Sources:** DriveAdaptationPhase.accumulateRewards(), D31 (saturation constraint creates bidirectional dependency), D30 (drive→tier mapping)
 **Exploration:** quick
-**Depends on:** D30 (drive→tier mapping), D32 (decay model)
-**Status:** captured
+**Revised by:** R1-04 (decision review) — bidirectional data dependency from D31 invalidated SRP justification for separation. Also resolves R1-06 (undisclosed dependency) and R1-09 (dual cursor debugging).
+**Depends on:** D30 (drive→tier mapping), D31 (saturation constraint), D32 (decay model)
+**Status:** revised
 
 ## D34: Rendering — NeedsPyramidPromptSection in observation pipeline
 
@@ -532,4 +535,28 @@
 **Sources:** D13 (DriveReinforcementConfig SPI pattern), NeedTier enum, SocialConfig.Drive
 **Exploration:** quick
 **Depends on:** D30 (drive→tier mapping architecture)
+**Status:** captured
+
+## D39: Tier taxonomy — simulation-pragmatic, not psychologically grounded
+
+**Choice:** The 5 tiers (SAFETY, TASKS, SOCIAL, SELF_EXPRESSION, UNDERSTANDING) are simulation-pragmatic categories chosen for the wacky-manor game context, not a direct mapping of Maslow's hierarchy. TASKS replaces Maslow's "esteem" (which splits into TASKS for obligation/duty and SELF_EXPRESSION for identity/values). UNDERSTANDING replaces "self-actualization" (which in a game context is curiosity and sense-making, not transcendence).
+**Alternatives:**
+- Maslow-faithful tiers (physiological, safety, belongingness, esteem, self-actualization) — psychologically grounded but "physiological" and "self-actualization" have no meaningful game semantics. Simulated agents don't have metabolisms or transcendent experiences.
+- Configurable tier list (application defines its own tiers) — maximum flexibility but over-engineering for pre-release. The enum can be extended later if needed.
+**Rationale:** The pyramid serves the simulation, not psychology. TASKS creates pressure for obligation fulfillment (game-relevant). UNDERSTANDING creates pressure for exploration and mystery-solving (game-relevant). Future applications can extend the enum or define application-specific tier sets if the 5-tier model doesn't fit.
+**Trade-offs:** The NeedTier enum in blocks-core is wacky-manor-pragmatic, not universal. If a future clinical or devtown application adopts it, TASKS as a fundamental need tier may feel domain-specific. Acceptable — the enum can be extended, and the resting-level model (D32) makes unused tiers inert.
+**Sources:** Issue #68 (tier definition), Maslow's hierarchy of needs
+**Exploration:** quick (surfaced by R1-07, decision review)
+**Status:** captured
+
+## D40: Hierarchy model — non-strict (priority weighting, not blocking)
+
+**Choice:** The pyramid uses non-strict hierarchy: neglected tiers increase goal priority weighting but do not block pursuit of higher tiers. A character with critically neglected Safety can still pursue Understanding goals — Safety-related goals just receive stronger priority weighting.
+**Alternatives:**
+- Strict Maslow hierarchy — lower tiers must be satisfied before higher tiers can be pursued. Creates dramatic survival-focused behavior but makes characters monotonically fixated on their lowest-satisfied tier, reducing behavioral diversity.
+- Threshold-gated — higher tiers suppressed only when lower tiers drop below a critical threshold (e.g., Safety < 0.2 blocks Understanding). Compromise but introduces cliff behavior and arbitrary thresholds.
+**Rationale:** Issue #68 specifies: "The pyramid is not strict Maslow — lower tiers don't completely block higher ones; they increase priority weighting." Non-strict hierarchy produces richer character behavior — a character can feel unsafe AND curious simultaneously, with the relative urgency influencing but not dictating action. This is consumed by GoalRevisionStrategy (#69) which uses satisfaction levels as priority weights in goal reordering.
+**Trade-offs:** The pyramid's effect on behavior is subtle (weighting) rather than dramatic (blocking). This means the pyramid primarily influences goal ordering rather than creating visible behavioral shifts. Acceptable — dramatic shifts should come from events and drive changes, not from a background needs mechanic.
+**Sources:** Issue #68 (non-strict specification), GoalRevisionStrategy (#69), D31 (scaling factor is the primary behavioral constraint)
+**Exploration:** quick (surfaced by R1-08, decision review)
 **Status:** captured
