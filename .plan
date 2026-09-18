@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-63-fix-cdi-config-beans
-state: transitioning
+state: active
 project-sha: 8a1fcbcec4f0232e1d340f6cfaefa844a0a46ea9
 date: 2026-09-16
 issue-repo: casehubio/examples
@@ -18,4 +18,12 @@ flyway-next-v: none
 - [x] casehubio/examples#70 — Relationship stage thresholds
 - [x] casehubio/examples#67 — Belief revision from contradicting evidence
 - [ ] casehubio/examples#68 — Needs pyramid ← active
+  - [ ] Batch 1: Foundation
+    - [ ] Task 1: NeedTier enum + SPI + config
+    - [ ] Task 2: CognitionConfig + CognitionCore extension
+  - [ ] Batch 2: Core logic
+    - [ ] Task 3: DriveAdaptationPhase satisfaction tracking
+    - [ ] Task 4: NeedsPyramidPromptSection rendering
+  - [ ] Batch 3: Wiring
+    - [ ] Task 5: ManorNeedTierMappingProvider + seeder extension
 - [ ] casehubio/examples#69 — Goal prioritization from unmet needs
