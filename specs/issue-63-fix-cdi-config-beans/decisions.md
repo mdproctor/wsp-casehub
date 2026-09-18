@@ -495,7 +495,7 @@
 **Trade-offs:** 5 additional MindMap nodes per agent (85 total for 17 characters). Negligible.
 **Sources:** D10 (drive node pattern), ManorCognitiveSeeder, MindMapStore
 **Exploration:** quick
-**Depends on:** D33 (NeedSatisfactionPhase reads/writes these nodes)
+**Depends on:** D33 (DriveAdaptationPhase reads/writes these nodes as part of integrated satisfaction tracking)
 **Status:** captured
 
 ## D36: Satisfaction magnitude — small increment with volume dampening
