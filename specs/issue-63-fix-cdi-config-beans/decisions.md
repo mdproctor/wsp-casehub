@@ -431,3 +431,28 @@
 **Sources:** Issue #68 (drive-to-need mapping description), D9 (per-character reinforcement), D12 (PAD reward axis), ActionImportanceScorer event types, SocialConfig.Drive
 **Exploration:** deep-analysis (first-principles comparison of three architectures)
 **Status:** captured
+
+## D31: Saturation constraint — scaling factor on drive learning rate
+
+**Choice:** DriveAdaptationPhase reads current tier satisfaction for each drive's mapped tier and scales its learning rate: `effectiveLR = learningRate × (1 - tierSatisfaction)`. At 100% satisfaction, drive strengthening stops. At 0%, full learning rate. One-cycle delay (reads satisfaction from previous cycle).
+**Alternatives:**
+- Hard cap with threshold — drive strengthening blocked entirely above a configurable satisfaction threshold (e.g., 0.8). Simpler but creates sudden behavioral cliffs where drives oscillate around the threshold.
+- Diminishing returns curve — `effectiveLR = learningRate / (1 + satisfaction²)`. Non-linear, never fully stops. More organic but harder to reason about configuration and tune.
+**Rationale:** Linear scaling is smooth, self-balancing, and predictable. A drive with 80% tier satisfaction strengthens at 20% of normal rate — proportional response, no cliffs. The one-cycle delay between satisfaction update and constraint application is acceptable since consolidation runs many cycles over a game session. The formula is a single multiplication, zero overhead.
+**Trade-offs:** At very high satisfaction (0.95+), drives effectively freeze. This is by design — saturated needs don't need more reinforcement — but could feel unresponsive if satisfaction accumulates too quickly. Mitigated by tuning decay rate (D32) and satisfaction magnitude.
+**Sources:** Issue #68 (constraint loop), D30 (drive→tier mapping), DriveAdaptationPhase learning rate config
+**Exploration:** quick
+**Depends on:** D30 (drive→tier mapping provides the tier lookup)
+**Status:** captured
+
+## D32: Decay model — multiplicative per-tier with configurable defaults
+
+**Choice:** Each tier decays multiplicatively per consolidation cycle: `satisfaction *= (1 - decayRate)`. Per-tier rates with sensible defaults reflecting urgency: Safety=0.15, Tasks=0.10, Social=0.08, Self-expression=0.05, Understanding=0.03. Configurable via Smallrye properties (prefix `casehub.needs-pyramid.decay`) with per-tier overrides. Follows DriveAdaptationConfig pattern.
+**Alternatives:**
+- Uniform decay — same rate for all tiers. Simpler but loses the urgency hierarchy (Safety should decay faster than Understanding because immediate threats demand faster response).
+- Additive decay — `satisfaction -= decayRate`. Linear, but doesn't self-dampen — low satisfaction drops at the same absolute rate as high satisfaction, creating faster urgency spiral than intended.
+**Rationale:** Multiplicative decay is self-dampening (same pattern as GE-20260714-439924 for drive adaptation): a tier at 0.8 satisfaction losing 15% drops to 0.68 (-0.12 absolute), while a tier at 0.2 drops to 0.17 (-0.03 absolute). High satisfaction decays faster in absolute terms, low satisfaction decays slower — creating smooth urgency curves rather than cliff drops. Per-tier rates model the urgency hierarchy from the issue: "Safety decays faster than Understanding."
+**Trade-offs:** More config knobs (5 decay rates). Acceptable — pre-release, single consumer, and the defaults should work without tuning.
+**Sources:** Issue #68 (per-tier decay rates), GE-20260714-439924 (multiplicative dampening), DriveAdaptationConfig pattern
+**Exploration:** quick
+**Status:** captured
