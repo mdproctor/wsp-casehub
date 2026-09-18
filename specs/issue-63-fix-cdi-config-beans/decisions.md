@@ -415,3 +415,19 @@
 **Exploration:** quick (surfaced by adversarial review R1-04)
 **Depends on:** D24 (BeliefRevisionPhase), D25 (LLM strategy)
 **Status:** captured
+
+---
+
+## examples#68 — Needs Pyramid
+
+## D30: Satisfaction routing — drive→tier mapping, not event→tier
+
+**Choice:** Satisfaction flows through the existing drive reinforcement layer via a global drive→tier mapping table. When DriveAdaptationPhase reinforces a drive, the associated need tier receives a satisfaction bump. The per-character specificity is handled by the existing reinforcement config (D9) — no per-character need mapping required.
+**Alternatives:**
+- Global event→tier mapping — one table mapping event types directly to tiers. Fails psychological realism: conflict_resolution satisfies SELF_EXPRESSION for Hooded Claw (schemed successfully) but SOCIAL for Penelope (restored harmony). A global mapping can't express this.
+- Per-character event→tier mapping — maximum control but redundant with D9's reinforcement config. Two per-character configs describing "what events are meaningful to this character" in different vocabularies, creating configuration burden (17 × 5 × 5 entries) and drift risk.
+**Rationale:** The issue specification says "Drive-to-need mapping: each drive type maps to one or more need tiers (social-harmony → Social, scheming → Self-expression, self-preservation → Safety)." The mapping composes through existing infrastructure: event → per-character drive reinforcement (D9, exists) → drive→tier mapping (new, global) → tier satisfaction. This eliminates redundancy, enables the constraint loop ("a drive can't strengthen indefinitely if its need tier is saturated"), and achieves per-character behavior through ~15 drive-type entries instead of 425 per-character entries.
+**Trade-offs:** Tiers not reachable through any of a character's drives will only experience decay, never satisfaction. This is intentionally correct — neglected needs creating pressure is the pyramid's purpose — but means characters with few drives will have more tiers under pressure. Mitigated by the non-strict Maslow model (pressure is weighting, not blocking).
+**Sources:** Issue #68 (drive-to-need mapping description), D9 (per-character reinforcement), D12 (PAD reward axis), ActionImportanceScorer event types, SocialConfig.Drive
+**Exploration:** deep-analysis (first-principles comparison of three architectures)
+**Status:** captured
