@@ -456,3 +456,28 @@
 **Sources:** Issue #68 (per-tier decay rates), GE-20260714-439924 (multiplicative dampening), DriveAdaptationConfig pattern
 **Exploration:** quick
 **Status:** captured
+
+## D33: Phase architecture — separate NeedSatisfactionPhase at @Priority(19)
+
+**Choice:** New `NeedSatisfactionPhase` (ConsolidationPhase implementation) at `@Priority(19)` — after RelationshipStagePhase@18, before MergeDetectionPhase@20. Maintains its own cursor for experience node tracking. Re-reads graduated experience nodes, maps event→drive→tier using the reinforcement config (D9) and drive→tier mapping (D30), updates tier satisfaction, applies per-tier decay (D32).
+**Alternatives:**
+- Integrated into DriveAdaptationPhase — avoids re-reading 20 experience nodes but couples drive adaptation and need satisfaction in the same class, violating the SRP pattern established by BeliefRevision@16, DriveAdaptation@17, and RelationshipStage@18.
+- CDI event hybrid — DriveAdaptationPhase fires events, NeedSatisfactionPhase listens. Clean decoupling but CDI events don't participate in consolidation phase ordering, losing the sequential guarantee.
+**Rationale:** Follows the established consolidation pipeline pattern: each phase is an independent ConsolidationPhase implementation with its own cursor, its own concern, and its own priority. The re-read cost is trivial (maxPerPass=20 nodes, read by subgraph). The one-cycle delay for the D31 constraint is acceptable. @Priority(19) slots cleanly into the existing gap between RelationshipStage@18 and MergeDetection@20.
+**Trade-offs:** Second pass over experience nodes (same data DriveAdaptation already processed). Negligible cost for clean separation.
+**Sources:** ConsolidationPhase SPI, DriveAdaptationPhase cursor pattern, pipeline ordering (@15→@16→@17→@18→@19→@20)
+**Exploration:** quick
+**Depends on:** D30 (drive→tier mapping), D32 (decay model)
+**Status:** captured
+
+## D34: Rendering — NeedsPyramidPromptSection in observation pipeline
+
+**Choice:** New `NeedsPyramidPromptSection` (blocks-core PromptSection) reads satisfaction levels from MindMap and renders them as an observation section. Characters consciously "feel" their needs and can reason about them in dialogue.
+**Alternatives:**
+- Behind-the-scenes only — satisfaction levels consumed only by GoalRevisionStrategy (#69) for silent goal reordering. Simpler prompt but characters can't reference or reason about their needs.
+**Rationale:** Characters should be aware of their internal states — a character who "feels" their social needs are neglected will naturally seek out interaction, reference loneliness in dialogue, and make choices that address the gap. This is richer simulation and consistent with how drives (DrivePromptSection), mood (MoodPromptSection), and beliefs are already rendered as observable cognitive state.
+**Trade-offs:** Adds one more observation section to an already-rich prompt. Acceptable — the section is compact (5 tiers, one line each) and provides high narrative value per token.
+**Sources:** DrivePromptSection, CharacterDrivePromptSection (D15), MoodPromptSection, CognitionCore.promptSections()
+**Exploration:** quick
+**Depends on:** D33 (phase persists satisfaction state that the section reads)
+**Status:** captured
