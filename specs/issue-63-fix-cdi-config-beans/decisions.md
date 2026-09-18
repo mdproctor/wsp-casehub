@@ -560,3 +560,28 @@
 **Sources:** Issue #68 (non-strict specification), GoalRevisionStrategy (#69), D31 (scaling factor is the primary behavioral constraint)
 **Exploration:** quick (surfaced by R1-08, decision review)
 **Status:** captured
+
+## D41: Bidirectional satisfaction — negative events decrease tier satisfaction
+
+**Choice:** Extend the satisfaction model to handle negative events. When `effectiveReward < 0`, tier satisfaction is decremented by `dissatisfactionIncrement × |padValue|`. This makes the model bidirectional: positive events push satisfaction above resting level, negative events push it below, and decay restores equilibrium.
+**Alternatives:**
+- Positive-only model (original D36) — satisfaction can only increase from events, decay provides the only downward pressure. Fails for active threats: a character in danger reports "adequate" Safety because negative events are silently ignored.
+**Rationale:** The resting-level model (D32 revised) establishes an equilibrium that events should perturb in both directions. A character whose identity is blown should feel actively unsafe (Safety below resting level), not just "uneventful." The `dissatisfactionIncrement` config (default: 0.05, same as `satisfactionIncrement`) keeps the model symmetric and tunable.
+**Trade-offs:** One additional config knob. Marginal.
+**Sources:** Spec review R1-01 (concrete failure scenario with Hooded Claw's identity exposure)
+**Exploration:** quick (surfaced by spec review R1-01)
+**Depends on:** D36 (satisfaction magnitude), D32 (resting-level decay provides recovery path)
+**Status:** captured
+
+## D42: Rendering filter — only render reachable tiers, suppress for driveless characters
+
+**Choice:** NeedsPyramidPromptSection only renders tiers reachable through the character's drives. Characters with no drive nodes in the COGNITIVE subgraph have the entire "Inner Needs" section suppressed. For characters with drives, tiers not reachable through any drive→tier mapping are omitted.
+**Alternatives:**
+- Render all tiers for all characters — creates character-incoherent prompts. Hooded Claw sees "obligations are piling up" (TASKS at resting 0.3 = "neglected") despite having no task orientation.
+- Adjust resting levels to avoid "neglected" band — hides the problem without solving it. Unreachable tiers still provide static, meaningless prompt content.
+**Rationale:** The pyramid's model tracks all tiers (GoalRevisionStrategy needs them), but the character should only perceive tiers connected to their motivational system. A villain doesn't "feel" task obligation pressure. The filter checks for `cognitiveKind: "drive-intensity"` nodes and the drive→tier mapping at render time.
+**Trade-offs:** NeedsPyramidPromptSection gains a dependency on NeedTierMappingProvider and must query drive nodes. Acceptable — it already reads MindMapStore for satisfaction nodes.
+**Sources:** Spec review R1-02 and R1-07 (TASKS resting level renders "neglected" for characters without TASKS drives, 12 driveless characters get inert prompts)
+**Exploration:** quick (surfaced by spec review)
+**Depends on:** D34 (rendering), D38 (mapping provider)
+**Status:** captured
