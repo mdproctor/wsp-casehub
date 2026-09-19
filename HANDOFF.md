@@ -1,32 +1,41 @@
-# Session Handover — 2026-09-15
+# HANDOFF — casehub-examples
 
-## What happened
+## Last Session
 
-Phase B (#53) completed — all 4 remaining issues landed across 3 repos (neocortex, blocks, examples):
-- **#58** ContentScorer refactoring: domain-agnostic scoring abstraction in memory-api, dual-interface SurpriseScorer/ArousalScorer in blocks, ManorGraduationScorer in examples
-- **#61** Person-entity seeding: SocialConfig.Relationship + YAML PAD data, ManorCognitiveSeeder.seedPeople() with shared "people" subgraph and perspectival overlays
-- **#62** Drive gate + PULL_ASIDE gate moved to ManorContextStrategy
-- **#63** PersonalityCompositionVerificationTest disabled (18 unsatisfied blocks config beans — fix is in blocks, not examples)
+Completed two full design-to-implementation cycles: #70 (Relationship stage thresholds) and #67 (Belief revision from contradicting evidence). Rebased all three repos (examples, blocks, neocortex) against canonical mains mid-session — resolved merge conflicts in CognitionCore.java and CognitionConfig.java (blocks), pom.xml conflicts (neocortex). Fixed rebase casualties: TrustEvolutionConfig moved to engine, GraduationScorer SPI widened, removed broken tests. Queue advanced to #68. Issues #70 and #67 closed.
 
-Phase C epic (#64) created with 6 child issues (#65-#70): trust evolution, drive adaptation, belief revision, needs pyramid, goal prioritization, relationship stages.
+**Issue #70 — Relationship stage thresholds (S / Low):**
+- Design: 5 decisions (D19-D23), light decision review caught 3 major issues (existing 5-tier model, existing computeFamiliarity(), adversarial/trust gating split)
+- blocks-core: OverlayFamiliarityPropertyModel, RelationshipStageConfigProvider, RelationshipStagePhase (@Priority 18)
+- wacky-manor: SocialConfig.stageConfig field, ManorSocialConfigLoader familiarity-thresholds parsing, per-character YAML for hooded-claw and penelope-pitstop, ManorContextStrategy shouldDisclose/shouldCooperate, PerceptionTranslator stage-gated rendering, CharacterCognition overlay reading
 
-## Decisions
+**Issue #67 — Belief revision from contradicting evidence (M / Med):**
+- Design: 6 decisions (D24-D29), standard decision review (3 rounds, 9 issues), light spec review (10 issues — all addressed)
+- blocks-core: BeliefRevisionConfig, BeliefRevisionPhase (@Priority 16) — LLM-assessed contradiction detection via AgentProvider, variable confidence decay (baseDecay x contradictionStrength), belief supersession via MindMapStore.supersede()
+- wacky-manor: CharacterCognition Phase A→B rendering transition — reads Belieflike nodes from MindMapStore, maps to Belief<T>, renders via CognitiveObservationSections.beliefsSection() with [REVISED] marking
 
-- ContentScorer alongside (not replacing) ConfidenceScorer — dual-interface preserves backward compat
-- PAD range [-1,1] for relationships (standard PAD model)
-- Shared "people" subgraph with per-observer overlay nodes (not per-agent person copies)
-- ActionImportanceScorer is distinct from SurpriseScorer (action significance ≠ feature diversity)
+**Rebase (mid-session):**
+- blocks: 9 commits rebased onto 2 upstream (CognitionPhase model, trust types to engine). Conflicts in CognitionCore.java and CognitionConfig.java resolved — merged innerLifeEnabled (upstream) with characterDrivesEnabled + MindMapStore field (ours).
+- neocortex: 4 commits rebased onto 11 upstream. pom.xml conflicts resolved (cognitive-observability module rename).
+- examples: was already current. Fixed ManorTrustEvolutionConfigLoader, ScenarioOrchestrator, TrustEvolutionConfigProducer, ManorGraduationScorer for upstream API moves.
 
-## Next action
+## Immediate Next Step
 
-Create a branch for Phase C and start `work start` with the first issue. Slot 196 is rebased from local main and ready. Recommended queue: #65 (trust), #66 (drive adaptation), #70 (relationship stages), then #67-#69 (belief revision + needs pyramid + goal prioritization).
+Brainstorm #68 — Needs pyramid. Queue position 6/7. Start with brainstorming skill. Check the issue body on GitHub for requirements. The .plan state is `transitioning` — the next session should auto-resolve to `active` via `work continue`.
+
+## Cross-Module
+
+- **blocks** branch `issue-283-directive-minimal-architecture` has commits from #283, #66, #70, and #67 work. Not yet merged — needs work-end in a blocks session.
+- **neocortex** has rebased commits on main (cognitive-observability-spring pom.xml fixes). No feature branch — just main alignment.
 
 ## References
 
 | Artifact | Path |
 |----------|------|
-| Phase C epic | casehubio/examples#64 |
-| ContentScorer spec | specs/issue-58-content-scorer-refactoring/2026-09-15-content-scorer-refactoring-design.md |
-| Person seeding spec | specs/issue-58-content-scorer-refactoring/2026-09-15-person-entity-seeding-design.md |
-| Diary entry | examples/blog/2026-09-15-mdp02-when-scores-learn-to-compose.md |
-| Decisions | specs/issue-58-content-scorer-refactoring/decisions.md (D1-D5) |
+| Design spec (#70) | specs/issue-63-fix-cdi-config-beans/2026-09-16-relationship-stage-thresholds-design.md |
+| Implementation plan (#70) | plans/2026-09-16-relationship-stage-thresholds.md |
+| Design spec (#67) | specs/issue-63-fix-cdi-config-beans/2026-09-17-belief-revision-design.md |
+| Implementation plan (#67) | plans/2026-09-17-belief-revision.md |
+| Decisions (D1-D29) | specs/issue-63-fix-cdi-config-beans/decisions.md |
+| Design spec (#283) | specs/issue-63-fix-cdi-config-beans/2026-09-16-directive-minimal-architecture-design.md |
+| Design spec (#66) | specs/issue-63-fix-cdi-config-beans/2026-09-16-drive-adaptation-design.md |
