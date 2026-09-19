@@ -21,42 +21,7 @@ Real people don't work like this. A person who spends all day socialising eventu
 
 Maslow's hierarchy of needs is one of those ideas that everyone vaguely knows and almost nobody applies precisely. The pyramid, in its original form:
 
-<svg viewBox="0 0 760 440" xmlns="http://www.w3.org/2000/svg" style="max-width:760px">
-  <rect width="760" height="440" fill="#1a1b26" rx="8"/>
-
-  <!-- Pyramid tiers - bottom to top -->
-  <polygon points="380,40 700,380 60,380" fill="none" stroke="#565f89" stroke-width="1.5"/>
-
-  <!-- Tier fills -->
-  <polygon points="120,380 640,380 610,340 150,340" fill="#f7768e" fill-opacity="0.15" stroke="#f7768e" stroke-width="1.5"/>
-  <polygon points="150,340 610,340 540,280 220,280" fill="#ff9e64" fill-opacity="0.15" stroke="#ff9e64" stroke-width="1.5"/>
-  <polygon points="220,280 540,280 480,220 280,220" fill="#e0af68" fill-opacity="0.15" stroke="#e0af68" stroke-width="1.5"/>
-  <polygon points="280,220 480,220 430,160 330,160" fill="#9ece6a" fill-opacity="0.15" stroke="#9ece6a" stroke-width="1.5"/>
-  <polygon points="330,160 430,160 380,100" fill="#7aa2f7" fill-opacity="0.15" stroke="#7aa2f7" stroke-width="1.5"/>
-
-  <!-- Tier labels - inside pyramid -->
-  <text x="380" y="368" text-anchor="middle" fill="#f7768e" font-family="sans-serif" font-size="14" font-weight="bold">SAFETY</text>
-  <text x="380" y="318" text-anchor="middle" fill="#ff9e64" font-family="sans-serif" font-size="14" font-weight="bold">TASKS</text>
-  <text x="380" y="258" text-anchor="middle" fill="#e0af68" font-family="sans-serif" font-size="14" font-weight="bold">SOCIAL</text>
-  <text x="380" y="198" text-anchor="middle" fill="#9ece6a" font-family="sans-serif" font-size="14" font-weight="bold">SELF-EXPRESSION</text>
-  <text x="380" y="138" text-anchor="middle" fill="#7aa2f7" font-family="sans-serif" font-size="14" font-weight="bold">UNDERSTANDING</text>
-
-  <!-- Descriptions - right side -->
-  <text x="660" y="368" text-anchor="start" fill="#565f89" font-family="sans-serif" font-size="11">avoid threats</text>
-  <text x="570" y="318" text-anchor="start" fill="#565f89" font-family="sans-serif" font-size="11">duties, commitments</text>
-  <text x="510" y="258" text-anchor="start" fill="#565f89" font-family="sans-serif" font-size="11">trust, belonging</text>
-  <text x="455" y="198" text-anchor="start" fill="#565f89" font-family="sans-serif" font-size="11">identity, values</text>
-
-  <!-- Decay rate arrow - left side -->
-  <line x1="40" y1="140" x2="40" y2="370" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrowDown)"/>
-  <defs><marker id="arrowDown" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 5 10 L 10 0" fill="none" stroke="#565f89" stroke-width="1.5"/></marker></defs>
-  <text x="38" y="130" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">SLOW</text>
-  <text x="38" y="395" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">FAST</text>
-  <text x="38" y="260" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10" transform="rotate(-90, 38, 260)">DECAY RATE</text>
-
-  <!-- Title -->
-  <text x="380" y="425" text-anchor="middle" fill="#c0caf5" font-family="sans-serif" font-size="13">Agent Needs Pyramid — simulation-pragmatic tiers</text>
-</svg>
+![Agent Needs Pyramid — simulation-pragmatic tiers](images/needs-pyramid-tiers.svg)
 
 The core insight isn't the pyramid shape or the specific tiers. It's that **neglected needs create increasing urgency**. A person who hasn't eaten in 12 hours finds it hard to concentrate on philosophy. Someone whose safety is threatened can't focus on self-expression. The urgency gradient is real and observable.
 
@@ -84,64 +49,7 @@ When Hooded Claw resolves a conflict, he's enacted a scheme. His SELF_EXPRESSION
 
 The solution was to route satisfaction through the existing drive reinforcement layer:
 
-<svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" style="max-width:760px">
-  <rect width="760" height="340" fill="#1a1b26" rx="8"/>
-
-  <!-- Event box -->
-  <rect x="30" y="130" width="140" height="60" rx="6" fill="#1a1b26" stroke="#7aa2f7" stroke-width="1.5"/>
-  <text x="100" y="155" text-anchor="middle" fill="#7aa2f7" font-family="sans-serif" font-size="12" font-weight="bold">conflict_resolution</text>
-  <text x="100" y="172" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">pleasure: 0.6</text>
-
-  <!-- Arrow to split -->
-  <line x1="170" y1="160" x2="230" y2="160" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrowR)"/>
-  <defs><marker id="arrowR" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#565f89" stroke-width="1.5"/></marker></defs>
-
-  <!-- Split point -->
-  <circle cx="240" cy="160" r="6" fill="#565f89"/>
-
-  <!-- CLAW PATH (top) -->
-  <line x1="246" y1="156" x2="290" y2="80" stroke="#f7768e" stroke-width="1.5"/>
-  <rect x="290" y="55" width="130" height="50" rx="6" fill="#1a1b26" stroke="#f7768e" stroke-width="1.5"/>
-  <text x="355" y="75" text-anchor="middle" fill="#f7768e" font-family="sans-serif" font-size="11" font-weight="bold">Hooded Claw</text>
-  <text x="355" y="92" text-anchor="middle" fill="#c0caf5" font-family="sans-serif" font-size="10">→ scheming drive</text>
-
-  <line x1="420" y1="80" x2="490" y2="80" stroke="#f7768e" stroke-width="1.5" marker-end="url(#arrowR2)"/>
-  <defs><marker id="arrowR2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#f7768e" stroke-width="1.5"/></marker></defs>
-
-  <rect x="490" y="55" width="140" height="50" rx="6" fill="#1a1b26" stroke="#f7768e" stroke-width="1.5"/>
-  <text x="560" y="75" text-anchor="middle" fill="#f7768e" font-family="sans-serif" font-size="11" font-weight="bold">scheming → </text>
-  <text x="560" y="92" text-anchor="middle" fill="#9ece6a" font-family="sans-serif" font-size="11" font-weight="bold">SELF_EXPRESSION</text>
-
-  <line x1="630" y1="80" x2="690" y2="80" stroke="#9ece6a" stroke-width="1.5" marker-end="url(#arrowR3)"/>
-  <defs><marker id="arrowR3" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#9ece6a" stroke-width="1.5"/></marker></defs>
-  <text x="725" y="84" text-anchor="middle" fill="#9ece6a" font-family="sans-serif" font-size="11" font-weight="bold">↑ 0.5</text>
-
-  <!-- PENELOPE PATH (bottom) -->
-  <line x1="246" y1="164" x2="290" y2="240" stroke="#7aa2f7" stroke-width="1.5"/>
-  <rect x="290" y="215" width="130" height="50" rx="6" fill="#1a1b26" stroke="#7aa2f7" stroke-width="1.5"/>
-  <text x="355" y="235" text-anchor="middle" fill="#7aa2f7" font-family="sans-serif" font-size="11" font-weight="bold">Penelope</text>
-  <text x="355" y="252" text-anchor="middle" fill="#c0caf5" font-family="sans-serif" font-size="10">→ social-harmony drive</text>
-
-  <line x1="420" y1="240" x2="490" y2="240" stroke="#7aa2f7" stroke-width="1.5" marker-end="url(#arrowR4)"/>
-  <defs><marker id="arrowR4" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#7aa2f7" stroke-width="1.5"/></marker></defs>
-
-  <rect x="490" y="215" width="140" height="50" rx="6" fill="#1a1b26" stroke="#7aa2f7" stroke-width="1.5"/>
-  <text x="560" y="235" text-anchor="middle" fill="#7aa2f7" font-family="sans-serif" font-size="11" font-weight="bold">social-harmony →</text>
-  <text x="560" y="252" text-anchor="middle" fill="#e0af68" font-family="sans-serif" font-size="11" font-weight="bold">SOCIAL</text>
-
-  <line x1="630" y1="240" x2="690" y2="240" stroke="#e0af68" stroke-width="1.5" marker-end="url(#arrowR5)"/>
-  <defs><marker id="arrowR5" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#e0af68" stroke-width="1.5"/></marker></defs>
-  <text x="725" y="244" text-anchor="middle" fill="#e0af68" font-family="sans-serif" font-size="11" font-weight="bold">↑ 0.5</text>
-
-  <!-- Labels -->
-  <text x="100" y="30" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">EVENT</text>
-  <text x="355" y="30" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">DRIVE REINFORCEMENT</text>
-  <text x="560" y="30" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">DRIVE → TIER MAPPING</text>
-  <text x="725" y="30" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="10">SATISFACTION</text>
-
-  <!-- Title -->
-  <text x="380" y="325" text-anchor="middle" fill="#c0caf5" font-family="sans-serif" font-size="12">Same event, different satisfaction — routed through character drives</text>
-</svg>
+![Same event, different satisfaction — routed through character drives](images/needs-satisfaction-routing.svg)
 
 The key: per-character drive reinforcement mappings already exist. Each character declares which drives are reinforced by which event types. The needs pyramid adds one layer of indirection — a global lookup table mapping drive types to need tiers:
 
@@ -177,66 +85,7 @@ The fix: decay toward a resting level, not toward zero.
 double decayed = restingLevel + (satisfaction - restingLevel) * (1 - decayRate);
 ```
 
-<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" style="max-width:760px">
-  <rect width="760" height="360" fill="#1a1b26" rx="8"/>
-
-  <!-- Grid -->
-  <line x1="80" y1="30" x2="80" y2="300" stroke="#24283b" stroke-width="1"/>
-  <line x1="80" y1="300" x2="720" y2="300" stroke="#24283b" stroke-width="1"/>
-  <!-- Horizontal grid lines -->
-  <line x1="80" y1="60" x2="720" y2="60" stroke="#24283b" stroke-width="0.5" stroke-dasharray="4,4"/>
-  <line x1="80" y1="120" x2="720" y2="120" stroke="#24283b" stroke-width="0.5" stroke-dasharray="4,4"/>
-  <line x1="80" y1="180" x2="720" y2="180" stroke="#24283b" stroke-width="0.5" stroke-dasharray="4,4"/>
-  <line x1="80" y1="240" x2="720" y2="240" stroke="#24283b" stroke-width="0.5" stroke-dasharray="4,4"/>
-
-  <!-- Y axis labels -->
-  <text x="70" y="64" text-anchor="end" fill="#565f89" font-family="sans-serif" font-size="10">1.0</text>
-  <text x="70" y="124" text-anchor="end" fill="#565f89" font-family="sans-serif" font-size="10">0.8</text>
-  <text x="70" y="184" text-anchor="end" fill="#565f89" font-family="sans-serif" font-size="10">0.6</text>
-  <text x="70" y="244" text-anchor="end" fill="#565f89" font-family="sans-serif" font-size="10">0.4</text>
-  <text x="70" y="304" text-anchor="end" fill="#565f89" font-family="sans-serif" font-size="10">0.2</text>
-
-  <!-- X axis label -->
-  <text x="400" y="330" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="11">Consolidation cycles →</text>
-
-  <!-- Resting level lines (dashed) -->
-  <line x1="80" y1="156" x2="720" y2="156" stroke="#f7768e" stroke-width="1" stroke-dasharray="6,4" opacity="0.4"/>
-  <text x="725" y="152" text-anchor="start" fill="#f7768e" font-family="sans-serif" font-size="9" opacity="0.6">rest: 0.6</text>
-
-  <line x1="80" y1="252" x2="720" y2="252" stroke="#ff9e64" stroke-width="1" stroke-dasharray="6,4" opacity="0.4"/>
-  <text x="725" y="248" text-anchor="start" fill="#ff9e64" font-family="sans-serif" font-size="9" opacity="0.6">rest: 0.3</text>
-
-  <line x1="80" y1="228" x2="720" y2="228" stroke="#7aa2f7" stroke-width="1" stroke-dasharray="6,4" opacity="0.4"/>
-  <text x="725" y="224" text-anchor="start" fill="#7aa2f7" font-family="sans-serif" font-size="9" opacity="0.6">rest: 0.4</text>
-
-  <!-- Starting point: all at 0.5 -->
-  <!-- Safety (starts 0.5, rises to 0.6) - RED -->
-  <polyline points="80,180 140,172 200,165 260,160 320,158 380,157 440,156 500,156 560,156 620,156" fill="none" stroke="#f7768e" stroke-width="2"/>
-
-  <!-- Negative event drops Safety at cycle 8 -->
-  <polyline points="620,156 630,240" fill="none" stroke="#f7768e" stroke-width="2" stroke-dasharray="4,2"/>
-  <circle cx="630" cy="240" r="4" fill="#f7768e"/>
-  <text x="640" y="238" fill="#f7768e" font-family="sans-serif" font-size="9">threat!</text>
-
-  <!-- Recovery after threat -->
-  <polyline points="630,240 660,220 690,200 720,185" fill="none" stroke="#f7768e" stroke-width="2"/>
-
-  <!-- Tasks (starts 0.5, falls to 0.3) - ORANGE -->
-  <polyline points="80,180 140,190 200,200 260,210 280,215 320,225 380,235 440,242 500,247 560,250 620,251 680,251 720,252" fill="none" stroke="#ff9e64" stroke-width="2"/>
-
-  <!-- Understanding (starts 0.5, slowly falls to 0.4) - BLUE -->
-  <polyline points="80,180 140,181 200,183 260,186 320,190 380,196 440,202 500,208 560,214 620,218 680,222 720,225" fill="none" stroke="#7aa2f7" stroke-width="2"/>
-
-  <!-- Legend -->
-  <line x1="100" y1="345" x2="130" y2="345" stroke="#f7768e" stroke-width="2"/>
-  <text x="135" y="349" fill="#f7768e" font-family="sans-serif" font-size="10">Safety (rest: 0.6)</text>
-
-  <line x1="280" y1="345" x2="310" y2="345" stroke="#ff9e64" stroke-width="2"/>
-  <text x="315" y="349" fill="#ff9e64" font-family="sans-serif" font-size="10">Tasks (rest: 0.3)</text>
-
-  <line x1="460" y1="345" x2="490" y2="345" stroke="#7aa2f7" stroke-width="2"/>
-  <text x="495" y="349" fill="#7aa2f7" font-family="sans-serif" font-size="10">Understanding (rest: 0.4)</text>
-</svg>
+![Satisfaction decay toward resting levels over consolidation cycles](images/needs-decay-resting-level.svg)
 
 Each tier has a resting level — the satisfaction an agent settles at when nothing is happening. Safety rests at 0.6 because "no news is good news": the absence of threats should feel safe. Tasks rests at 0.3 because obligations accumulate even without events — a character who's been doing nothing should feel the pressure of unfinished duties. Social, Self-expression, and Understanding rest at 0.4 — moderate background pressure.
 
@@ -258,58 +107,7 @@ The pyramid adds a brake: when a tier becomes saturated, the learning rate for i
 double effectiveLR = config.learningRate() * (1 - avgSatisfaction);
 ```
 
-<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" style="max-width:760px">
-  <rect width="760" height="300" fill="#1a1b26" rx="8"/>
-
-  <!-- Circular flow -->
-  <!-- Box 1: Drive Reinforced -->
-  <rect x="275" y="20" width="210" height="40" rx="6" fill="#1a1b26" stroke="#7aa2f7" stroke-width="1.5"/>
-  <text x="380" y="45" text-anchor="middle" fill="#7aa2f7" font-family="sans-serif" font-size="12" font-weight="bold">Drive Reinforced</text>
-
-  <!-- Arrow down-right -->
-  <path d="M 485 40 Q 580 40 620 80" fill="none" stroke="#9ece6a" stroke-width="1.5" marker-end="url(#arrowG)"/>
-  <defs><marker id="arrowG" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#9ece6a" stroke-width="1.5"/></marker></defs>
-
-  <!-- Box 2: Tier Satisfaction ↑ -->
-  <rect x="550" y="80" width="180" height="40" rx="6" fill="#1a1b26" stroke="#9ece6a" stroke-width="1.5"/>
-  <text x="640" y="105" text-anchor="middle" fill="#9ece6a" font-family="sans-serif" font-size="12" font-weight="bold">Tier Satisfaction ↑</text>
-
-  <!-- Arrow down -->
-  <path d="M 640 120 Q 640 150 640 150" fill="none" stroke="#e0af68" stroke-width="1.5" marker-end="url(#arrowY)"/>
-  <defs><marker id="arrowY" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 5 10 L 10 0" fill="none" stroke="#e0af68" stroke-width="1.5"/></marker></defs>
-
-  <!-- Box 3: Learning Rate ↓ -->
-  <rect x="550" y="160" width="180" height="40" rx="6" fill="#1a1b26" stroke="#e0af68" stroke-width="1.5"/>
-  <text x="640" y="185" text-anchor="middle" fill="#e0af68" font-family="sans-serif" font-size="12" font-weight="bold">Learning Rate ↓</text>
-
-  <!-- Arrow down-left -->
-  <path d="M 550 180 Q 460 220 380 230" fill="none" stroke="#ff9e64" stroke-width="1.5" marker-end="url(#arrowO)"/>
-  <defs><marker id="arrowO" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#ff9e64" stroke-width="1.5"/></marker></defs>
-
-  <!-- Box 4: Drive Stabilises -->
-  <rect x="245" y="210" width="270" height="40" rx="6" fill="#1a1b26" stroke="#ff9e64" stroke-width="1.5"/>
-  <text x="380" y="235" text-anchor="middle" fill="#ff9e64" font-family="sans-serif" font-size="12" font-weight="bold">Drive Stabilises → Others Respond</text>
-
-  <!-- Arrow left then up -->
-  <path d="M 245 230 Q 160 230 120 180" fill="none" stroke="#f7768e" stroke-width="1.5" marker-end="url(#arrowP)"/>
-  <defs><marker id="arrowP" viewBox="0 0 10 10" refX="5" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 10 L 5 0 L 10 10" fill="none" stroke="#f7768e" stroke-width="1.5"/></marker></defs>
-
-  <!-- Box 5: Neglected Tiers Decay -->
-  <rect x="30" y="110" width="180" height="50" rx="6" fill="#1a1b26" stroke="#f7768e" stroke-width="1.5"/>
-  <text x="120" y="133" text-anchor="middle" fill="#f7768e" font-family="sans-serif" font-size="12" font-weight="bold">Neglected Tiers</text>
-  <text x="120" y="150" text-anchor="middle" fill="#f7768e" font-family="sans-serif" font-size="12" font-weight="bold">Decay → LR Recovers</text>
-
-  <!-- Arrow up-right back to start -->
-  <path d="M 120 110 Q 120 40 275 40" fill="none" stroke="#7aa2f7" stroke-width="1.5" marker-end="url(#arrowB)"/>
-  <defs><marker id="arrowB" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#7aa2f7" stroke-width="1.5"/></marker></defs>
-
-  <!-- Center label -->
-  <text x="380" y="150" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="11">self-regulating</text>
-  <text x="380" y="165" text-anchor="middle" fill="#565f89" font-family="sans-serif" font-size="11">feedback loop</text>
-
-  <!-- Title -->
-  <text x="380" y="285" text-anchor="middle" fill="#c0caf5" font-family="sans-serif" font-size="12">The saturation constraint prevents drive monopolisation</text>
-</svg>
+![The saturation constraint prevents drive monopolisation](images/needs-constraint-loop.svg)
 
 At 90% tier satisfaction, the effective learning rate is 10% of normal. The drive barely strengthens, even with strong positive reinforcement. Meanwhile, other drives — whose tiers are decaying from neglect — have full learning rates and respond normally to events. The system self-balances.
 
