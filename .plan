@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-63-fix-cdi-config-beans
-state: active
+state: closing:promoted
 project-sha: 8a1fcbcec4f0232e1d340f6cfaefa844a0a46ea9
 date: 2026-09-16
 issue-repo: casehubio/examples
@@ -11,6 +11,7 @@ design-repo: project
 design-section-hashes: 
 flyway-next-v: none
 
+evidence-era: true
 ## Queue
 - [x] casehubio/examples#63 — Issue #63
 - [x] casehubio/blocks#283 — Directive-minimal architecture
@@ -18,9 +19,4 @@ flyway-next-v: none
 - [x] casehubio/examples#70 — Relationship stage thresholds
 - [x] casehubio/examples#67 — Belief revision from contradicting evidence
 - [x] casehubio/examples#68 — Needs pyramid
-- [ ] casehubio/examples#69 — Goal prioritization from unmet needs ← active
-  - [x] Batch 1: Platform
-    - [x] Task 1: GoalRevisionAction REPRIORITIZE + RevisedGoal.newPriority
-  - [x] Batch 2: Wiring
-    - [x] Task 2: ManorGoalRevisionStrategy needs-aware prompt
-    - [x] Task 3: ManorGoalEvaluator REPRIORITIZE handling
+- [x] casehubio/examples#69 — Goal prioritization from unmet needs
