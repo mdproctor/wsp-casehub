@@ -17,13 +17,10 @@ flyway-next-v: none
 - [x] casehubio/examples#66 — Drive adaptation from reward signals
 - [x] casehubio/examples#70 — Relationship stage thresholds
 - [x] casehubio/examples#67 — Belief revision from contradicting evidence
-- [ ] casehubio/examples#68 — Needs pyramid ← active
-  - [ ] Batch 1: Foundation
-    - [ ] Task 1: NeedTier enum + SPI + config
-    - [ ] Task 2: CognitionConfig + CognitionCore extension
-  - [ ] Batch 2: Core logic
-    - [ ] Task 3: DriveAdaptationPhase satisfaction tracking
-    - [ ] Task 4: NeedsPyramidPromptSection rendering
-  - [ ] Batch 3: Wiring
-    - [ ] Task 5: ManorNeedTierMappingProvider + seeder extension
-- [ ] casehubio/examples#69 — Goal prioritization from unmet needs
+- [x] casehubio/examples#68 — Needs pyramid
+- [ ] casehubio/examples#69 — Goal prioritization from unmet needs ← active
+  - [x] Batch 1: Platform
+    - [x] Task 1: GoalRevisionAction REPRIORITIZE + RevisedGoal.newPriority
+  - [x] Batch 2: Wiring
+    - [x] Task 2: ManorGoalRevisionStrategy needs-aware prompt
+    - [x] Task 3: ManorGoalEvaluator REPRIORITIZE handling
