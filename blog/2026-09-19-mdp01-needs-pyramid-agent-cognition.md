@@ -147,6 +147,23 @@ There's a filtering step that matters: the prompt section only renders tiers rea
 
 Characters with no drives at all (Lazy Luke, Muttley) have the entire "Inner Needs" section suppressed. They don't participate in the cognitive simulation, and they shouldn't see needs they can't affect.
 
+## Numbers vs Words: The Fuzzy Logic Reversal
+
+There's an irony here worth calling out. In prior work on this platform, I dismissed fuzzy logic for LLM interactions — and correctly so. When an LLM is reasoning analytically about confidence levels or priority weights, raw numbers are strictly better. `0.73` gives the model information that "high confidence" throws away. The LLM can calibrate its response to `0.73` differently from `0.95`. Fuzzy labels lose precision where precision matters.
+
+The needs pyramid makes the exact opposite argument. `Safety: 0.35` is a metric. "Your sense of safety feels neglected — recent events have left you uneasy" is an experience. When the LLM reads the metric, it optimises. When it reads the experience, it *feels* — and the character's dialogue reflects that. The difference in output quality is immediate and obvious.
+
+The resolution is that these aren't contradictory positions. They're about different LLM consumption modes:
+
+| Mode | Format | Why |
+|------|--------|-----|
+| **LLM-as-reasoner** (goal prioritisation, confidence calibration) | Numeric | Precision matters — 0.35 ≠ 0.15, but both are "neglected" |
+| **LLM-as-character** (observation pipeline, inner monologue, dialogue) | Qualitative prose | The label changes the LLM's behavioural mode from analytical to experiential |
+
+The same data — `satisfaction = 0.35` — should be presented as `0.35` to the goal revision strategy and as "neglected" to the character's observation pipeline. This has a practical consequence for the next piece of work: when GoalRevisionStrategy (#69) consumes satisfaction levels, it should receive the raw numbers, not the qualitative labels. The analytical consumer needs the precision that the embodiment consumer needs to *not* see.
+
+`bandLabel()` isn't fuzzy logic. It's a cognitive mode switch. The five thresholds don't approximate reasoning — they shape behaviour.
+
 ## What This Opens Up
 
 The pyramid is infrastructure, not the end product. It exposes satisfaction levels that Goal Prioritization consumes. The next piece — wiring satisfaction into `GoalRevisionStrategy` — is where the pyramid's effect becomes visible in character behaviour.
