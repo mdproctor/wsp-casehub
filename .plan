@@ -1,0 +1,23 @@
+# Work Plan — issue-77-cognitive-wiring-audit
+
+## State
+branch: issue-77-cognitive-wiring-audit
+state: scaffolded
+project-sha: 6dade51300cc165d2e6441594168e32c8952bcee
+date: 2026-09-19
+issue-repo: casehubio/examples
+covers: 77
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#77 — Issue #77 ← active
+- [ ] casehubio/examples#78 — CDI registration for blocks consolidation phases
+- [ ] casehubio/examples#79 — Wire CognitionCore.promptSections into wacky-manor
+- [ ] casehubio/examples#84 — CognitionConfig.all defaults characterDrivesEnabled true
+- [ ] casehubio/examples#81 — shouldCompareSocially read adapted intensities
+- [ ] casehubio/examples#82 — Wire shouldDisclose shouldCooperate
+- [ ] casehubio/examples#83 — CognitivePreambleGenerator disambiguation
+- [ ] casehubio/examples#85 — Render goals in observation pipeline
+- [ ] casehubio/examples#86 — NeedTierMappingProvider DefaultBean
