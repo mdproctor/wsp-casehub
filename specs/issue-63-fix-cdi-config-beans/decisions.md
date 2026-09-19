@@ -585,3 +585,46 @@
 **Exploration:** quick (surfaced by spec review)
 **Depends on:** D34 (rendering), D38 (mapping provider)
 **Status:** captured
+
+---
+
+## examples#69 — Goal Prioritization from Unmet Needs
+
+## D43: LLM role — consume numeric satisfaction, not re-assess
+
+**Choice:** The LLM receives #68's computed numeric satisfaction levels directly and uses them to reorder goals. It does not independently re-assess satisfaction from cognitive context.
+**Alternatives:**
+- LLM re-assesses satisfaction from full cognitive state (beliefs, drives, norms, events) — richer but potentially contradicts #68's computed values, duplicates the satisfaction model, and adds LLM cost.
+- Hybrid (numbers + cognitive context, LLM adjusts) — maximum information but complex prompt and unclear which signal the LLM should trust when they disagree.
+**Rationale:** #68 already computes satisfaction per tier from drive reinforcement with decay and bidirectional events. Duplicating this assessment via LLM adds cost and non-determinism for no clear benefit. The LLM's value here is in *goal reordering* — judging which goals best address neglected needs given the character's personality — not in re-computing satisfaction. Per GE-20260919-3f610d: this is an LLM-as-reasoner consumer, so raw numeric satisfaction is the correct format.
+**Trade-offs:** The LLM sees only the satisfaction numbers, not the events that produced them. It can't reason about "why" a tier is neglected, only "that" it is. Acceptable — the character's drives and goals provide enough context for reordering.
+**Sources:** GE-20260919-3f610d (numeric vs qualitative), #68 (NeedSatisfactionPhase), ManorGoalRevisionStrategy, issue #69
+**Exploration:** quick
+**Depends on:** D30 (drive→tier mapping), D35 (satisfaction persistence)
+**Status:** captured
+
+## D44: Data access — inject MindMapStore into ManorGoalRevisionStrategy
+
+**Choice:** ManorGoalRevisionStrategy receives MindMapStore via CDI constructor injection. In `revise()`, it queries for `cognitiveKind: "need-satisfaction"` nodes matching the agent-id from GoalRevisionContext, extracts per-tier satisfaction values, and includes them in the LLM prompt.
+**Alternatives:**
+- Extend GoalRevisionContext in engine-api — clean API but requires modifying the platform jar for every consumer, coupling the platform to the needs pyramid concept.
+- Wrapper strategy pattern — NeedsAwareGoalRevisionStrategy wraps the existing strategy. Clean separation but unnecessary indirection for a single consumer.
+**Rationale:** Follows the same pattern as CharacterDrivePromptSection and NeedsPyramidPromptSection — CDI-injected MindMapStore, query by cognitiveKind + agent-id. No platform jar changes needed for data access. GoalRevisionContext provides `agentId()` and `tenancyId()` which are sufficient for the MindMapStore query.
+**Trade-offs:** ManorGoalRevisionStrategy gains a dependency on MindMapStore. Acceptable — this is an application-level strategy, not a platform SPI implementation.
+**Sources:** CharacterDrivePromptSection (MindMapStore injection pattern), ManorGoalRevisionStrategy.java, GoalRevisionContext
+**Exploration:** quick
+**Depends on:** D43 (numeric consumption requires reading satisfaction nodes)
+**Status:** captured
+
+## D45: Output model — REPRIORITIZE action in GoalRevisionAction
+
+**Choice:** Add `REPRIORITIZE` to the `GoalRevisionAction` enum in engine-api. Add an optional `Double newPriority` field to `GoalRevisionProposal.RevisedGoal`. ManorGoalEvaluator handles REPRIORITIZE by updating the goal's priority value.
+**Alternatives:**
+- Overload REVISE — when revisedDescription is null and newPriority is present, treat as reprioritization. No enum change but conflates two semantically distinct operations.
+- Separate NeedsGoalPrioritizer SPI — parallel pipeline for priority adjustments. Clean separation but unnecessary for a single consumer, and fragments the goal revision flow.
+**Rationale:** REVISE changes what a goal means. REPRIORITIZE changes how urgent it is. These are semantically distinct operations that the LLM should be able to recommend independently. Pre-release with a single consumer — extending the enum is the correct approach.
+**Trade-offs:** Requires modifying engine-api (cross-repo). Acceptable — pre-release, and ManorGoalEvaluator (the only consumer) is in this repo.
+**Sources:** GoalRevisionAction enum, GoalRevisionProposal.RevisedGoal, ManorGoalEvaluator.evaluate(), issue #69
+**Exploration:** quick
+**Depends on:** D43 (LLM needs an action to express priority changes)
+**Status:** captured
