@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-77-cognitive-wiring-audit
-state: scaffolded
+state: active
 project-sha: 6dade51300cc165d2e6441594168e32c8952bcee
 date: 2026-09-19
 issue-repo: casehubio/examples
