@@ -41,21 +41,27 @@ After Phase D:
 ### 3.1 Orchestrator Construction
 
 All orchestrators constructed in `ScenarioOrchestrator` with in-memory store
-implementations. Construction order respects dependencies:
+implementations (D10). In-memory stores are local package-private classes in
+`manor/agent/` — trivial ConcurrentHashMap wrappers following the pattern in
+CognitionStack. Construction order respects dependencies:
 
 ```
 Phase 1 (no dependencies):
   MoodOrchestrator(MoodConfig)
-  MemoryHygieneOrchestrator(...)
   NarrativeOrchestrator(InMemoryNarrativeStore)
+  MemoryHygieneOrchestrator(cbrStore, confidenceScorer, temporalDecay, scopeDecay, ...)
 
-Phase 2 (independent, may need AgentProvider):
+Phase 2 (independent, need AgentProvider):
   UserModelOrchestrator(InMemoryUserProfileStore, agentProvider, UserModelConfig)
   MentalModelOrchestrator(InMemoryMentalModelStore, agentProvider, MentalModelConfig)
   StrategyLearningOrchestrator(InMemoryStrategyStore, cbrStore, reflectionOrch, agentProvider, config)
 
-Phase 3 (depends on Phase 1 + 2):
-  DriveOrchestrator(mood, strategy, userModel, mentalModel, driveComposer, driveConfig, narrative)
+Phase 3 (depends on Phase 1 + 2 — explicit DriveSource pattern, D11):
+  CuriosityDrive(memoryHygiene)
+  CompetenceDrive(strategy)
+  AffiliationDrive(userModel, 0.3, Duration.ofHours(1))
+  AutonomyDrive(mentalModel, 0.5)
+  DriveOrchestrator(curiosity, competence, affiliation, autonomy, mood, DriveComposer(), driveConfig)
 
 Phase 4 (already wired):
   GoalProposalOrchestrator (existing — gains DriveOrchestrator dependency for tick-driven proposals)
@@ -67,10 +73,23 @@ In `ScenarioOrchestrator.runAutonomousTicks()`, at the start of each game
 tick cycle, before any character acts:
 
 ```java
-for (String agentId : activeAgents) {
-    cognitionCore.tick(agentId, tenantId, descriptors.get(agentId));
+SubjectResolver resolver = (agentId, tenantId) ->
+    world.charactersInRoom(world.character(agentId).currentRoom()).stream()
+         .map(CharacterState::agentId)
+         .filter(id -> !id.equals(agentId))
+         .collect(Collectors.toSet());
+
+for (var c : actingThisTick) {
+    var desc = agentRegistry.findById(c.agentId(), ManorConstants.TENANCY_ID).orElse(null);
+    cognitionCore.tick(c.agentId(), ManorConstants.TENANCY_ID, desc, resolver);
 }
 ```
+
+`SubjectResolver` (D9) is a `@FunctionalInterface` returning the set of
+relevant subject IDs for per-subject orchestrators (UserModel, MentalModel).
+In the manor, relevant subjects are characters in the same room — the same
+set already used for `nearbyIds` in the observation builder. The lambda
+captures `world` which is already in scope; no new class needed.
 
 All characters tick at cycle start for batch consistency. A character's
 cognitive state is fresh when their LLM call happens later in the cycle.
@@ -239,5 +258,8 @@ And gets:
 - Audit report: `wsp-casehub/audits/2026-09-19-cognitive-architecture-audit.md` §9g
 - CognitionCore: `blocks-core/.../CognitionCore.java` — tick() method, constructor
 - ScenarioOrchestrator: `wacky-manor/.../ScenarioOrchestrator.java` — current constructor call line 137
-- Decisions: `wsp-casehub/specs/phase-d-cognitive-activation/decisions.md` (D1-D8a)
+- Decisions: `wsp-casehub/specs/phase-d-cognitive-activation/decisions.md` (D1-D11)
 - Phase C decisions: `wsp-casehub/specs/issue-63-fix-cdi-config-beans/decisions.md` (D2, D3)
+- SubjectResolver: `blocks-core/.../SubjectResolver.java` — functional interface for per-subject tick resolution
+- CognitionStack: `blocks-core/src/test/.../CognitionStack.java` — reference wiring pattern, in-memory store implementations
+- DriveSource implementations: `blocks-core/.../drive/CuriosityDrive.java`, `CompetenceDrive.java`, `AffiliationDrive.java`, `AutonomyDrive.java`
