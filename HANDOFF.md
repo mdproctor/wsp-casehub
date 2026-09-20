@@ -2,40 +2,68 @@
 
 ## Last Session
 
-Completed two full design-to-implementation cycles: #70 (Relationship stage thresholds) and #67 (Belief revision from contradicting evidence). Rebased all three repos (examples, blocks, neocortex) against canonical mains mid-session — resolved merge conflicts in CognitionCore.java and CognitionConfig.java (blocks), pom.xml conflicts (neocortex). Fixed rebase casualties: TrustEvolutionConfig moved to engine, GraduationScorer SPI widened, removed broken tests. Queue advanced to #68. Issues #70 and #67 closed.
+Completed #79 (Wire CognitionCore.promptSections into wacky-manor) and #84 (CognitionConfig.all() defaults).
 
-**Issue #70 — Relationship stage thresholds (S / Low):**
-- Design: 5 decisions (D19-D23), light decision review caught 3 major issues (existing 5-tier model, existing computeFamiliarity(), adversarial/trust gating split)
-- blocks-core: OverlayFamiliarityPropertyModel, RelationshipStageConfigProvider, RelationshipStagePhase (@Priority 18)
-- wacky-manor: SocialConfig.stageConfig field, ManorSocialConfigLoader familiarity-thresholds parsing, per-character YAML for hooded-claw and penelope-pitstop, ManorContextStrategy shouldDisclose/shouldCooperate, PerceptionTranslator stage-gated rendering, CharacterCognition overlay reading
+### #79 — CognitionCore pipeline wiring
 
-**Issue #67 — Belief revision from contradicting evidence (M / Med):**
-- Design: 6 decisions (D24-D29), standard decision review (3 rounds, 9 issues), light spec review (10 issues — all addressed)
-- blocks-core: BeliefRevisionConfig, BeliefRevisionPhase (@Priority 16) — LLM-assessed contradiction detection via AgentProvider, variable confidence decay (baseDecay x contradictionStrength), belief supersession via MindMapStore.supersede()
-- wacky-manor: CharacterCognition Phase A→B rendering transition — reads Belieflike nodes from MindMapStore, maps to Belief<T>, renders via CognitiveObservationSections.beliefsSection() with [REVISED] marking
+CharacterCognition.renderCognitiveSections() now calls cognitionCore.promptSections() after building app-level sections (beliefs, norms, social awareness, trust). Each PromptSection is adapted to ObservationSection.TextBlock via adaptPromptSection() — extracts `## Header` from the contributed text as the TextBlock header, rest as content.
 
-**Rebase (mid-session):**
-- blocks: 9 commits rebased onto 2 upstream (CognitionPhase model, trust types to engine). Conflicts in CognitionCore.java and CognitionConfig.java resolved — merged innerLifeEnabled (upstream) with characterDrivesEnabled + MindMapStore field (ours).
-- neocortex: 4 commits rebased onto 11 upstream. pom.xml conflicts resolved (cognitive-observability module rename).
-- examples: was already current. Fixed ManorTrustEvolutionConfigLoader, ScenarioOrchestrator, TrustEvolutionConfigProducer, ManorGraduationScorer for upstream API moves.
+ScenarioOrchestrator passes mmStore and new ManorNeedTierMappingProvider() to CognitionCore constructor (positions 12-13), with characterDrives and needsPyramid enabled in config.
+
+Verified quantifiably: hooded-claw's scheming renders at 90%, self-preservation and dominance both appear, need tiers SELF_EXPRESSION and SAFETY computed from ManorNeedTierMappingProvider.
+
+3 new tests in CharacterCognitionTest: content assertions on drive intensities and need tiers, null-cognitionCore safety, driveless-character filtering.
+
+540 tests pass (1 pre-existing failure: SocialCognitionIntegrationTest expects "Your Drives" which moved to CognitionCore in Phase C).
+
+### #84 — CognitionConfig.all() default
+
+Fixed in blocks-core (slot clone at slots/196/blocks): changed characterDrivesEnabled from false to true in all(). One-line change + test assertion. Installed to local Maven repo.
+
+Note: wacky-manor doesn't use all() — it uses explicit CognitionConfig.none().with(...) from #79. The fix is for SocialAvatarCognition and any future callers of all().
 
 ## Immediate Next Step
 
-Brainstorm #68 — Needs pyramid. Queue position 6/7. Start with brainstorming skill. Check the issue body on GitHub for requirements. The .plan state is `transitioning` — the next session should auto-resolve to `active` via `work continue`.
+Start #81 — shouldCompareSocially read adapted intensities (S / Low). From audit §8: ManorContextStrategy.shouldCompareSocially() reads from static SocialConfig.Drive records, not from adapted drive intensities in MindMap nodes. D22 says it must read adapted intensities. A character whose scheming drive has decayed to 0.1 still gets social awareness based on the original 0.9. Adaptation is functionally inert for behavioral decisions.
+
+The fix: ManorContextStrategy needs access to MindMapStore and tenantId. Read drive-intensity nodes filtered by agent-id, use the adapted intensity instead of the static SocialConfig.Drive.intensity().
+
+## Key Discovery — blocks-core CDI (from prior session, still relevant)
+
+blocks-core jar has NO Jandex index. All CDI registration must be in the application (wacky-manor), not in blocks-core. ManorConsolidationBeans handles this with self-contained @Produces @Singleton methods.
+
+## Queue
+
+Position 4/9. All under epic #77.
+
+| # | Issue | Scale | Complexity | Blocked by | Status |
+|---|-------|-------|------------|------------|--------|
+| 78 | CDI registration for blocks consolidation phases | S | Med | — | Done |
+| 79 | Wire CognitionCore.promptSections into wacky-manor | M | Med | #78 | Done |
+| 84 | CognitionConfig.all() defaults | XS | Low | — | Done |
+| 81 | shouldCompareSocially adapted intensities | S | Low | — | Next |
+| 82 | Wire shouldDisclose/shouldCooperate | S | Low | — | — |
+| 83 | CognitivePreambleGenerator disambiguation | S | Low | — | — |
+| 85 | Render goals in observation pipeline | S | Low | #79 | — |
+| 86 | NeedTierMappingProvider @DefaultBean | XS | Low | — | — |
 
 ## Cross-Module
 
-- **blocks** branch `issue-283-directive-minimal-architecture` has commits from #283, #66, #70, and #67 work. Not yet merged — needs work-end in a blocks session.
-- **neocortex** has rebased commits on main (cognitive-observability-spring pom.xml fixes). No feature branch — just main alignment.
+- **blocks** branch `issue-283-directive-minimal-architecture` (slot clone at slots/196/blocks) — 1 new commit this session: CognitionConfig.all() characterDrivesEnabled fix. Installed to local Maven repo.
+- **neocortex** — no changes this session.
+
+## Test Suite Note
+
+Full wacky-manor suite (540 tests) hangs when run online due to GitHub Packages 401 on SNAPSHOT metadata resolution. Use `-o` (offline mode): `mvn test -pl wacky-manor -s slot-settings.xml -o`. Takes ~55 seconds offline.
+
+## Blog Guidance
+
+User wants blog entries to teach, advocate, and demonstrate practical relevance. Entries should be meaningful, engaging, and informative — show readers why this work matters to them, not just what was built.
 
 ## References
 
 | Artifact | Path |
 |----------|------|
-| Design spec (#70) | specs/issue-63-fix-cdi-config-beans/2026-09-16-relationship-stage-thresholds-design.md |
-| Implementation plan (#70) | plans/2026-09-16-relationship-stage-thresholds.md |
-| Design spec (#67) | specs/issue-63-fix-cdi-config-beans/2026-09-17-belief-revision-design.md |
-| Implementation plan (#67) | plans/2026-09-17-belief-revision.md |
-| Decisions (D1-D29) | specs/issue-63-fix-cdi-config-beans/decisions.md |
-| Design spec (#283) | specs/issue-63-fix-cdi-config-beans/2026-09-16-directive-minimal-architecture-design.md |
-| Design spec (#66) | specs/issue-63-fix-cdi-config-beans/2026-09-16-drive-adaptation-design.md |
+| Audit report | audits/2026-09-19-cognitive-architecture-audit.md |
+| Decisions (D1-D45) | specs/issue-63-fix-cdi-config-beans/decisions.md |
+| Previous blog | blog/2026-09-19-mdp01-needs-pyramid-agent-cognition.md |
