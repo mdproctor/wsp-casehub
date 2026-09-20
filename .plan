@@ -1,0 +1,15 @@
+# Work Plan — issue-80-activate-cognitioncore-tick
+
+## State
+branch: issue-80-activate-cognitioncore-tick
+state: scaffolded
+project-sha: 6b2df908c45f391d104be9ca0c9421b579098753
+date: 2026-09-20
+issue-repo: casehubio/examples
+covers: 80
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#80 — Issue #80 ← active
