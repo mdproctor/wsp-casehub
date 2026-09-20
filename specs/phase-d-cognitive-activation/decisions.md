@@ -107,3 +107,40 @@
 **Sources:** LLM non-determinism constraints
 **Exploration:** quick
 **Status:** captured
+
+## D9: SubjectResolver for tick()
+
+**Choice:** Inline lambda capturing WorldState — returns agentIds of characters in the same room as the ticking agent. No new class; defined at the tick call site in runAutonomousTicks().
+**Alternatives:**
+- Named class ManorSubjectResolver — unnecessary indirection for a one-liner
+- Static subjects (all active agents) — wrong semantics; per-subject orchestrators should only model characters the agent can actually perceive
+**Rationale:** CognitionCore.tick() takes 4 args (agentId, tenantId, descriptor, SubjectResolver). The spec originally showed 3. The manor's "relevant subjects" are characters in the same room — the same set already computed for nearbyIds in the observation builder. Lambda captures `world` which is already in scope.
+**Trade-offs:** Resolver is recreated each tick. Negligible cost — it's a lambda, not an object with state.
+**Sources:** CognitionCore.tick() line 130, SubjectResolver.java, ScenarioOrchestrator line 259 (nearbyIds)
+**Exploration:** quick
+**Status:** captured
+
+## D10: In-memory store implementations
+
+**Choice:** Create local in-memory store implementations in wacky-manor production code (package-private in manor/agent/). Four trivial classes: InMemoryNarrativeStore, InMemoryUserProfileStore, InMemoryMentalModelStore, InMemoryStrategyStore.
+**Alternatives:**
+- Reuse CognitionStack's inner classes — they're in blocks test code, can't be referenced from production code in another repo
+- Move stores to blocks production code — cross-repo change for a demo-only need
+- Make CognitionStack stores public — production depending on test code
+**Rationale:** Each store is 5–15 lines (ConcurrentHashMap + key-based lookup). Local copies avoid cross-repo dependencies and test-production coupling. Pre-release demo — no persistence needed (D5).
+**Trade-offs:** Minor duplication with CognitionStack's test copies. Acceptable — they're trivial and independently evolvable.
+**Sources:** CognitionStack.java lines 528–615 (reference implementations)
+**Exploration:** quick
+**Status:** captured
+
+## D11: DriveOrchestrator construction — explicit DriveSource pattern
+
+**Choice:** Construct the four DriveSource implementations explicitly (CuriosityDrive, CompetenceDrive, AffiliationDrive, AutonomyDrive), each wrapping its backing orchestrator, then pass to DriveOrchestrator's 7-arg constructor. Follow CognitionStack's proven pattern.
+**Alternatives:**
+- CDI-style constructor (takes orchestrators directly, creates drives internally) — designed for injection, not manual construction; loses control over per-axis thresholds and cooldowns
+**Rationale:** Explicit construction gives control over AffiliationDrive threshold (0.3), cooldown (1h), and AutonomyDrive threshold (0.5). These parameters matter for tuning character behaviour during eval runs. CognitionStack uses this pattern successfully.
+**Trade-offs:** More verbose construction. Worth it for tunability.
+**Sources:** CognitionStack.from() lines 150–157, DriveOrchestrator constructors lines 38–92
+**Exploration:** quick
+**Depends on:** D5 (in-memory stores), D10 (store visibility)
+**Status:** captured
