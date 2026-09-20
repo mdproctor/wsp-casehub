@@ -8,10 +8,11 @@
 
 ## 1. Problem
 
-CognitionCore has 8 orchestrators. Only GoalProposalOrchestrator is wired.
-The other 7 are passed as null. `tick()` is never called. Characters have
+CognitionCore has 9 orchestrators. Only GoalProposalOrchestrator is wired.
+The other 8 are passed as null. `tick()` is never called. Characters have
 cognitive infrastructure they can't use: no mood, no SDT drives, no personal
-narrative, no learned strategies, no mental models, no user models.
+narrative, no learned strategies, no mental models, no user models, no
+memory hygiene, no inner life.
 
 Separately, character briefings in `descriptors-composite.yaml` still contain
 behavioural instructions that duplicate (and will contradict) what the cognitive
@@ -21,7 +22,7 @@ pipeline now provides through observation sections.
 
 After Phase D:
 
-- **All 8 orchestrators active.** `tick()` called at the start of each game
+- **All 9 orchestrators active.** `tick()` called at the start of each game
   tick cycle. Characters have mood, SDT drives, narrative arc, learned
   strategies, mental models of others, user behaviour models, and memory
   hygiene — alongside the existing character drives, needs pyramid, beliefs,
@@ -63,7 +64,10 @@ Phase 3 (depends on Phase 1 + 2 — explicit DriveSource pattern, D11):
   AutonomyDrive(mentalModel, 0.5)
   DriveOrchestrator(curiosity, competence, affiliation, autonomy, mood, DriveComposer(), driveConfig)
 
-Phase 4 (already wired):
+Phase 4 (depends on Phase 3):
+  InnerLifeOrchestrator(reflectionOrch, agentProvider, civilityConstraints, innerLifeConfig, driveOrchestrator)
+
+Phase 5 (already wired):
   GoalProposalOrchestrator (existing — gains DriveOrchestrator dependency for tick-driven proposals)
 ```
 
@@ -245,7 +249,7 @@ And gets:
 
 ## 6. Implementation Order
 
-1. **Orchestrator construction** — wire all 8 into ScenarioOrchestrator
+1. **Orchestrator construction** — wire all 9 into ScenarioOrchestrator
 2. **Tick call site** — add tick() to the game loop
 3. **Eval infrastructure** — Maven profile, scenario, delta capture
 4. **Progressive eval runs** — run at each config level, verify structural assertions
