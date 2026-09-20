@@ -15,8 +15,8 @@ flyway-next-v: none
 - [x] casehubio/examples#77 — Issue #77
 - [x] casehubio/examples#78 — CDI registration for blocks consolidation phases
 - [x] casehubio/examples#79 — Wire CognitionCore.promptSections into wacky-manor
-- [ ] casehubio/examples#84 — CognitionConfig.all defaults characterDrivesEnabled true ← active
-- [ ] casehubio/examples#81 — shouldCompareSocially read adapted intensities
+- [x] casehubio/examples#84 — CognitionConfig.all defaults characterDrivesEnabled true
+- [ ] casehubio/examples#81 — shouldCompareSocially read adapted intensities ← active
 - [ ] casehubio/examples#82 — Wire shouldDisclose shouldCooperate
 - [ ] casehubio/examples#83 — CognitivePreambleGenerator disambiguation
 - [ ] casehubio/examples#85 — Render goals in observation pipeline
