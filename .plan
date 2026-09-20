@@ -13,3 +13,8 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#80 — Issue #80 ← active
+  - [ ] Batch 1: Wiring
+    - [ ] Task 1: In-memory stores
+    - [ ] Task 2: Wire orchestrators + tick + structural test
+  - [ ] Batch 2: Eval
+    - [ ] Task 3: Progressive eval infrastructure
