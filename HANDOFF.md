@@ -2,40 +2,42 @@
 
 ## Last Session
 
-Completed two full design-to-implementation cycles: #70 (Relationship stage thresholds) and #67 (Belief revision from contradicting evidence). Rebased all three repos (examples, blocks, neocortex) against canonical mains mid-session — resolved merge conflicts in CognitionCore.java and CognitionConfig.java (blocks), pom.xml conflicts (neocortex). Fixed rebase casualties: TrustEvolutionConfig moved to engine, GraduationScorer SPI widened, removed broken tests. Queue advanced to #68. Issues #70 and #67 closed.
+Completed #68 (Needs pyramid) and #69 (Goal prioritization) — the final two issues in the Phase C queue. Full design-to-implementation cycles for both. Ran a comprehensive cognitive architecture audit that surfaced 15 findings (2 critical, 3 high). Filed all findings as issues under new epic #77. Merged blocks feature branch to canonical local main (14 commits, blocks#289 closed). Reactivated slot with new branch `issue-77-cognitive-wiring-audit` and populated the queue with 8 child issues.
 
-**Issue #70 — Relationship stage thresholds (S / Low):**
-- Design: 5 decisions (D19-D23), light decision review caught 3 major issues (existing 5-tier model, existing computeFamiliarity(), adversarial/trust gating split)
-- blocks-core: OverlayFamiliarityPropertyModel, RelationshipStageConfigProvider, RelationshipStagePhase (@Priority 18)
-- wacky-manor: SocialConfig.stageConfig field, ManorSocialConfigLoader familiarity-thresholds parsing, per-character YAML for hooded-claw and penelope-pitstop, ManorContextStrategy shouldDisclose/shouldCooperate, PerceptionTranslator stage-gated rendering, CharacterCognition overlay reading
+**Key artifact:** Blog entry published — "Why Your AI Agent Fixates — And What Maslow Can Do About It" (3,400 words, 4 SVGs). Published to personal-articles and casehub-articles.
 
-**Issue #67 — Belief revision from contradicting evidence (M / Med):**
-- Design: 6 decisions (D24-D29), standard decision review (3 rounds, 9 issues), light spec review (10 issues — all addressed)
-- blocks-core: BeliefRevisionConfig, BeliefRevisionPhase (@Priority 16) — LLM-assessed contradiction detection via AgentProvider, variable confidence decay (baseDecay x contradictionStrength), belief supersession via MindMapStore.supersede()
-- wacky-manor: CharacterCognition Phase A→B rendering transition — reads Belieflike nodes from MindMapStore, maps to Belief<T>, renders via CognitiveObservationSections.beliefsSection() with [REVISED] marking
-
-**Rebase (mid-session):**
-- blocks: 9 commits rebased onto 2 upstream (CognitionPhase model, trust types to engine). Conflicts in CognitionCore.java and CognitionConfig.java resolved — merged innerLifeEnabled (upstream) with characterDrivesEnabled + MindMapStore field (ours).
-- neocortex: 4 commits rebased onto 11 upstream. pom.xml conflicts resolved (cognitive-observability module rename).
-- examples: was already current. Fixed ManorTrustEvolutionConfigLoader, ScenarioOrchestrator, TrustEvolutionConfigProducer, ManorGraduationScorer for upstream API moves.
+**Garden entry:** GE-20260919-3f610d — numeric values for LLM reasoning, qualitative labels for LLM embodiment. Practical design rule for #69's implementation.
 
 ## Immediate Next Step
 
-Brainstorm #68 — Needs pyramid. Queue position 6/7. Start with brainstorming skill. Check the issue body on GitHub for requirements. The .plan state is `transitioning` — the next session should auto-resolve to `active` via `work continue`.
+Start #78 — CDI registration for blocks consolidation phases (CRITICAL). DriveAdaptationPhase, BeliefRevisionPhase, and RelationshipStagePhase need `@ApplicationScoped` or CDI producers. Blocks branch is merged and jar installed — ready to implement.
+
+## Queue
+
+Position 1/8. All under epic #77.
+
+| # | Issue | Scale | Complexity | Blocked by |
+|---|-------|-------|------------|------------|
+| 78 | CDI registration for blocks consolidation phases | S | Med | — |
+| 79 | Wire CognitionCore.promptSections() into wacky-manor | M | Med | #78 |
+| 84 | CognitionConfig.all() defaults | XS | Low | — |
+| 81 | shouldCompareSocially adapted intensities | S | Low | — |
+| 82 | Wire shouldDisclose/shouldCooperate | S | Low | — |
+| 83 | CognitivePreambleGenerator disambiguation | S | Low | — |
+| 85 | Render goals in observation pipeline | S | Low | #79 |
+| 86 | NeedTierMappingProvider @DefaultBean | XS | Low | — |
 
 ## Cross-Module
 
-- **blocks** branch `issue-283-directive-minimal-architecture` has commits from #283, #66, #70, and #67 work. Not yet merged — needs work-end in a blocks session.
-- **neocortex** has rebased commits on main (cognitive-observability-spring pom.xml fixes). No feature branch — just main alignment.
+- **blocks** branch `issue-283-directive-minimal-architecture` merged to local main. 14 commits landed. Not yet pushed to origin — push at next work-end.
+- **neocortex** — no changes this session. neocortex#355 GA audit epic intersects (#362 orphaned SPIs, #367 SPI completeness).
 
 ## References
 
 | Artifact | Path |
 |----------|------|
-| Design spec (#70) | specs/issue-63-fix-cdi-config-beans/2026-09-16-relationship-stage-thresholds-design.md |
-| Implementation plan (#70) | plans/2026-09-16-relationship-stage-thresholds.md |
-| Design spec (#67) | specs/issue-63-fix-cdi-config-beans/2026-09-17-belief-revision-design.md |
-| Implementation plan (#67) | plans/2026-09-17-belief-revision.md |
-| Decisions (D1-D29) | specs/issue-63-fix-cdi-config-beans/decisions.md |
-| Design spec (#283) | specs/issue-63-fix-cdi-config-beans/2026-09-16-directive-minimal-architecture-design.md |
-| Design spec (#66) | specs/issue-63-fix-cdi-config-beans/2026-09-16-drive-adaptation-design.md |
+| Audit report | audits/2026-09-19-cognitive-architecture-audit.md |
+| Needs pyramid spec | specs/issue-63-fix-cdi-config-beans/2026-09-18-needs-pyramid-design.md |
+| Goal prioritization spec | specs/issue-63-fix-cdi-config-beans/2026-09-19-goal-prioritization-design.md |
+| Decisions (D1-D45) | specs/issue-63-fix-cdi-config-beans/decisions.md |
+| Blog entry | blog/2026-09-19-mdp01-needs-pyramid-agent-cognition.md |
