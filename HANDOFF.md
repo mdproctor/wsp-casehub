@@ -22,7 +22,7 @@ Verified slot 196 delivery — all work complete. 30 issues closed across 5 bran
 
 ## Immediate Next Step
 
-`work start blocks#294` — blocks-social-jpa implementation. Plan at `wsp-casehub-blocks/plans/2026-09-23-blocks-social-jpa.md`.
+Cognitive wiring follow-ups from Phase D — 6 issues queued in `.plan` (#87, #86, #85, #83, #82, #81). All S/Low except #87 (unlabeled, triage first — may be blocking Vertex AI). Batch into a single branch.
 
 ## Cross-Module
 
