@@ -2,33 +2,30 @@
 
 ## Last Session
 
-Completed cognitive wiring audit (#77) — 8 child issues closed across examples and blocks repos. Branch `issue-77-cognitive-wiring-audit` merged to main, squashed (9→6 commits), pushed. Blocks feature branch merged to main, 19 commits pushed to origin.
+Verified slot 196 delivery — all work complete. 30 issues closed across 5 branches in examples, ~19 commits in blocks, ~11 commits in neocortex. All branches stamped closed, main pushed to both origin and upstream with 0 commits ahead.
 
-Phase D spec, decisions (D1-D8a), and implementation plan written and committed to workspace.
+Investigated social cognition architecture for blocks-social-jpa planning. Mapped all 9 orchestrators, 4 stores, 4 drives, 11 prompt sections, 3 consolidation phases, and the full tick/consolidation feedback loops.
 
-### What was built
+### What was delivered (slot 196 total)
 
-- **#78** CDI registration for blocks consolidation phases (ManorConsolidationBeans)
-- **#79** CognitionCore.promptSections() wired into CharacterCognition via adaptPromptSection()
-- **#81** shouldCompareSocially reads adapted drive intensities from MindMap (resolveAdaptedDrives)
-- **#82** shouldDisclose/shouldCooperate wired into renderSocialAwareness as behavioural cues
-- **#83** CognitivePreambleGenerator: drive disambiguation + removed state-dependent language (blocks-core)
-- **#84** CognitionConfig.all() characterDrivesEnabled=true (blocks-core)
-- **#85** Goals render in observation pipeline (test proving #79 wiring works)
-- **#86** NeedTierMappingProvider.empty() static factory (blocks-core)
+- **Branch 1** (#58, #61, #62, #63): Content scorer refactoring, person-entity seeding, drive gate moves
+- **Branch 2** (#54-#60): Phase B cognitive integration — budget, norms, social comparison, LLM eval, conversation bridge, YAML config
+- **Branch 3** (#65): Trust evolution — ledger-backed Bayesian Beta trust
+- **Branch 4** (#66-#70, #76-#79, #81-#85): Cognitive wiring audit — drives, beliefs, needs, goals, relationship stages, directive architecture, CDI registration, prompt wiring
+- **Branch 5** (#80): Phase D — all 9 CognitionCore orchestrators wired, tick() in game loop, progressive eval suite
 
-### Key Discovery
+### Key Decision
 
-Two audit findings (#80 CognitionCore.tick, blocks#289 feature merge) were missing from the original queue. blocks#289 resolved this session (already closed, just needed merge+push). #80 is now the anchor for Phase D.
+`blocks-social-jpa` (blocks#294) — JPA persistence for the 4 social store SPIs. Three-tier module following neocortex `memory-cbr-jpa` pattern. Neocortex team considers this "memory" and expects it to migrate there eventually; implementing in blocks for now since domain types live there.
 
 ## Immediate Next Step
 
-`work start #80` — Phase D cognitive activation. Plan at `plans/2026-09-20-phase-d-cognitive-activation.md`. Spec at `specs/phase-d-cognitive-activation/`.
+`work start blocks#294` — blocks-social-jpa implementation. Plan at `wsp-casehub-blocks/plans/2026-09-23-blocks-social-jpa.md`.
 
 ## Cross-Module
 
-- **blocks** — `issue-283-directive-minimal-architecture` merged to main, pushed. 3 new commits this session (#83, #84, #86).
-- **neocortex** — no changes.
+- **blocks** — blocks#294 created, plan committed to wsp-casehub-blocks
+- **neocortex** — no changes this session
 
 ## Test Suite Note
 
@@ -38,9 +35,8 @@ Full wacky-manor suite hangs online due to GitHub Packages 401. Use `-o` (offlin
 
 | Artifact | Path |
 |----------|------|
+| blocks-social-jpa plan | wsp-casehub-blocks/plans/2026-09-23-blocks-social-jpa.md |
+| blocks#294 | https://github.com/casehubio/blocks/issues/294 |
 | Phase D spec | specs/phase-d-cognitive-activation/2026-09-20-phase-d-cognitive-activation-design.md |
-| Phase D decisions | specs/phase-d-cognitive-activation/decisions.md |
 | Phase D plan | plans/2026-09-20-phase-d-cognitive-activation.md |
 | Audit report | audits/2026-09-19-cognitive-architecture-audit.md |
-| Phase C decisions | specs/issue-63-fix-cdi-config-beans/decisions.md |
-| Blog entry | blog/2026-09-20-mdp01-wiring-problem-cognitive-architecture.md |
