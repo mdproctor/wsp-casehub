@@ -1,0 +1,17 @@
+{
+  "repo": "/Users/mdproctor/claude/casehub/slots/196/examples",
+  "branch": "examples",
+  "base": "main",
+  "strategy": "semantic",
+  "verified": true,
+  "groups": [
+    {
+      "message": "fix(#88): sync wacky-manor with upstream API changes\n\nCbrCaseMemoryStore → CbrRecordStore (neocortex rename), StrategyStore\ngained evidence methods (blocks#294), StrategyLearningOrchestrator\nconstructor dropped CbrRecordStore param, ledger-memory →\nledger-persistence-memory.\n\nCloses casehubio/examples#88\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+      "commits": ["d4e3322"]
+    },
+    {
+      "message": "fix(#87): resolve ClaudeVertexBackendFactory classloader visibility\n\nAdded quarkus.hibernate-orm.packages=io.casehub.eidos and extended\nquarkus.arc.exclude-types for JPA stores and eval beans.\nBackendFactoryDiscoveryTest verifies CDI discovery.\n\nCloses casehubio/examples#87\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+      "commits": ["ada3d5d", "8b3f862", "d0d8437"]
+    }
+  ]
+}
