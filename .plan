@@ -1,0 +1,15 @@
+# Work Plan — issue-90-hibernate-named-query-fix
+
+## State
+branch: issue-90-hibernate-named-query-fix
+state: scaffolded
+project-sha: 1f4a21ce611eaaff01337fa7214d95ff6b70cfba
+date: 2026-09-25
+issue-repo: casehubio/examples
+covers: 90
+design-repo: project
+design-section-hashes: 
+flyway-next-v: unknown
+
+## Queue
+- [ ] casehubio/examples#90 — Issue #90 ← active
