@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-90-hibernate-named-query-fix
-state: active
+state: closing:promoted
 project-sha: 1f4a21ce611eaaff01337fa7214d95ff6b70cfba
 date: 2026-09-25
 issue-repo: casehubio/examples
@@ -11,5 +11,6 @@ design-repo: project
 design-section-hashes: 
 flyway-next-v: unknown
 
+evidence-era: true
 ## Queue
 - [ ] casehubio/examples#90 — Issue #90 ← active
