@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-90-hibernate-named-query-fix
-state: scaffolded
+state: active
 project-sha: 1f4a21ce611eaaff01337fa7214d95ff6b70cfba
 date: 2026-09-25
 issue-repo: casehubio/examples
