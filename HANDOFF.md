@@ -56,6 +56,14 @@ All other repos install to `~/.m2/repository` normally.
 - `qhorus` (runtime, api, persistence-memory)
 - `work` (progress-api)
 
+## Cross-Slot Dependencies
+
+| Issue | Slot | Repo | Interaction with #89 | Status |
+|-------|------|------|---------------------|--------|
+| blocks#304 (CognitiveAttentionMediator) | 203 | blocks | Adds attention prompt section to `CognitionCore.promptSections()`. #89 redesigns the composition pipeline — must absorb #304's section. No conflict if #304 uses standard `promptSections()` pattern. | In progress — commented on #304 with guidance |
+
+**As #89 progresses:** After #304 lands on blocks main, rebase slot 196 blocks to pick it up. The unified pipeline spec must include the attention section as a registered participant. If #89's design changes how sections register (e.g., moves from list-based to SPI-based), update #304's comment with the new pattern.
+
 ## Known Issues
 
 1. **Eidos eval excluded** — `io.casehub.eidos.eval.**` in exclude-types prevents eval judge beans from loading; eval tests won't run until this is resolved
