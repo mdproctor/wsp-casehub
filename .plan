@@ -1,0 +1,11 @@
+# Work Plan — Work Plan —
+
+## State
+branch: main
+state: idle
+Current: none
+date: 2026-09-27
+issue-repo: casehubio/examples
+
+## Queue
+- [ ] casehubio/examples#89 — Redefine briefing as voice card
