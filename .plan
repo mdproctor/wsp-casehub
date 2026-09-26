@@ -1,11 +1,15 @@
-# Work Plan — Work Plan —
+# Work Plan — issue-89-briefing-voice-card
 
 ## State
-branch: main
-state: idle
-Current: none
+branch: issue-89-briefing-voice-card
+state: scaffolded
+project-sha: 6002a09a6dd664abdc605a67cead259d64cc1ea8
 date: 2026-09-27
 issue-repo: casehubio/examples
+covers: 89
+design-repo: project
+design-section-hashes: 
+flyway-next-v: none
 
 ## Queue
-- [ ] casehubio/examples#89 — Redefine briefing as voice card
+- [ ] casehubio/examples#89 — Issue #89 ← active
