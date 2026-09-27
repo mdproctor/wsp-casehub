@@ -2,79 +2,81 @@
 
 ## D1: Briefing field structure
 
-**Choice:** Structured sub-fields in the eidos descriptor — split the briefing into explicit voice profile fields with distinct YAML keys.
+**Choice:** Structured sub-fields in the eidos descriptor — a single `voice` field of type `AgentVoiceProfile` record (like `AgentDisposition` already is), not flat fields scattered on `AgentDescriptor`.
 **Alternatives:**
 - Single text field (rewrite content only) — simpler but the constraint is social (authoring convention) not structural; doesn't prevent behavioral instructions creeping back
 - Hybrid (voice field + briefing) — half-measure, two fields but no full separation
-**Rationale:** Pre-release platform — the right time to harden foundations. Structural separation enforces the voice/behavior boundary at the API level, not just by convention. Follows the same principle as the write-content skill's Form/Mode/Voice taxonomy: what the agent is, how it behaves, and how it sounds are different concerns that should be structurally distinct.
-**Trade-offs:** Requires eidos API changes (new record fields, renderer updates, vocabulary support). Every consuming app's descriptor YAML needs updating.
-**Sources:** write-content skill (Form/Mode/Voice taxonomy), mark-proctor-voice.md (voice fingerprint structure), descriptors-composite.yaml (current briefing content)
+- 8+ flat fields on AgentDescriptor — bloats the already 26-field record; rejected after decision review R1-02
+**Rationale:** Pre-release platform — the right time to harden foundations. Structural separation enforces the voice/behavior boundary at the API level, not just by convention. Follows the same principle as the write-content skill's Form/Mode/Voice taxonomy: what the agent is, how it behaves, and how it sounds are different concerns that should be structurally distinct. The `AgentVoiceProfile` record pattern matches `AgentDisposition` — a nested structured type rather than flat fields.
+**Trade-offs:** Requires eidos API changes (new record type, renderer updates, vocabulary support). Every consuming app's descriptor YAML needs updating.
+**Sources:** write-content skill (Form/Mode/Voice taxonomy), mark-proctor-voice.md (voice fingerprint structure), descriptors-composite.yaml (current briefing content), AgentDisposition (pattern for nested structured type)
 **Exploration:** quick
-**Status:** captured
+**Revision:** R1-02 — voice profile as nested record, not flat fields on AgentDescriptor
+**Status:** revised
 
 ## D2: Voice profile fields — pure structured, no freeform escape hatch
 
-**Choice:** Pure structured fields with no prose escape hatch. Fields: `register`, `accent`, `catchphrases`, `speech_patterns`, `vocabulary_uses`, `vocabulary_avoids`, `quirks`, `personas` (optional map of named voice variants).
+**Choice:** Pure structured fields with no prose escape hatch. `AgentVoiceProfile` record contains: `register` (vocabulary-resolved), `accent` (vocabulary-resolved), `catchphrases` (list), `speech_patterns` (list), `vocabulary_uses` (list), `vocabulary_avoids` (list), `quirks` (list), `personas` (optional map of named voice variants). Register and accent values are domain-agnostic through vocabulary resolution — domains define their own vocabularies.
 **Alternatives:**
 - Prose block (single text field named 'voice') — simpler authoring but no programmatic hooks, and authors will dump behavioral instructions into it
 - Hybrid (structured + freeform voice_notes) — escape hatch would be used to circumvent the separation, defeating the design
-**Rationale:** Every piece of voice content from the four analyzed briefings decomposed cleanly into structured dimensions. Nothing was genuinely irreducible to structure. Content that *feels* like it needs prose is either a structured voice dimension or a behavioral instruction that belongs in the cognitive layer. The structural constraint IS the design — it forces the separation.
-**Trade-offs:** Authors cannot write freeform voice descriptions. If a genuinely novel voice dimension is discovered, a new field must be added to the API rather than worked around in prose.
-**Sources:** Analysis of Hooded Claw (dual-persona decomposes into personas map + cognitive switching), Penelope (Southern drawl = accent + catchphrases), Ant Hill Mob (ensemble = quirks), Dick Dastardly (dramatic register + catchphrases)
+- Template-based voice (R1-02 alternative) — templates render to prose, not programmatically inspectable; can't support persona selection (D3)
+**Rationale:** Every piece of voice content from the four analyzed briefings decomposed cleanly into structured dimensions. Nothing was genuinely irreducible to structure. The structural constraint IS the design — it forces the separation. Domain extensibility achieved through vocabulary resolution (like disposition), not through field proliferation.
+**Trade-offs:** Authors cannot write freeform voice descriptions. If a genuinely novel voice dimension is discovered, a new field must be added to the record. Domain-specific register values require vocabulary definitions.
+**Sources:** Analysis of Hooded Claw (dual-persona), Penelope (Southern drawl), Ant Hill Mob (ensemble), Dick Dastardly (dramatic register). R1-03 (domain generality concern addressed via vocabulary resolution).
 **Exploration:** deep-analysis
-**Status:** captured
+**Revision:** R1-03 — vocabulary-resolved register/accent for domain extensibility
+**Status:** revised
 
 ## D3: Hooded Claw dual-voice — personas map with cognitive switching
 
-**Choice:** Multi-voice characters use a `personas` map in the voice profile (e.g., `sneekly: {register: obsequious, ...}`, `claw: {register: grandiose, ...}`). The switching logic ("Sneekly when others present, Claw when alone") lives in the cognitive layer via existing HARD constraints and goals.
+**Choice:** Multi-voice characters use a `personas` map in the voice profile (e.g., `sneekly: {register: obsequious, ...}`, `claw: {register: grandiose, ...}`). The switching logic lives in the cognitive layer via existing HARD constraints and goals. System prompt contains ALL personas; observation signals which is active. This preserves system prompt caching.
 **Alternatives:**
 - Single voice with prose instructions for switching — conflates voice and behavior
-- Separate descriptors per persona — over-engineers identity; the Hooded Claw is one agent with two modes, not two agents
-**Rationale:** The switching rule is cognitive behavior (driven by `never-break-cover` constraint and `maintain-disguise` goal). The two voices are independently structurable. Decomposing this way uses existing cognitive infrastructure rather than adding voice-layer complexity.
-**Trade-offs:** Requires the cognitive system to signal which persona is active so the renderer can select the right voice variant. This signal path doesn't exist yet.
-**Sources:** Hooded Claw briefing analysis, CognitionCore constraint handling, AgentConstraint.HARD severity
+- Separate descriptors per persona — over-engineers identity
+- Cache key includes active persona — loses caching benefit for persona-switching characters
+**Rationale:** The switching rule is cognitive behavior (driven by `never-break-cover` constraint and `maintain-disguise` goal). The two voices are independently structurable. All personas in the system prompt preserves caching; the observation layer signals the active persona.
+**Trade-offs:** System prompt is slightly larger (contains all persona variants). LLM must honour the persona selection signal from the observation layer.
+**Sources:** Hooded Claw briefing analysis, CognitionCore constraint handling
 **Depends on:** D2 (voice profile fields)
 **Exploration:** deep-analysis
-**Status:** captured
+**Revision:** R1-06 — resolved caching conflict by putting all personas in system prompt
+**Status:** revised
 
-## D4: Architecture — clean two-layer split, not a unified pipeline
+## D4: Architecture — clean two-layer split with correct renderer ownership
 
-**Choice:** No single composition pipeline. Clean the existing two-layer architecture (system prompt + observation) so each layer has clear, non-overlapping responsibilities. Eidos owns the system prompt (identity). Blocks/app owns the observation (cognitive state).
+**Choice:** Clean the existing two-layer architecture. `CognitiveSystemPromptRenderer` (blocks-core) owns the system prompt for cognitive apps — it already exists and was designed as part of the directive-minimal architecture (#63). Eidos provides identity data via `AgentDescriptor`. Blocks/app owns the observation (cognitive state). Non-cognitive apps continue using `EidosSystemPromptRenderer`.
 **Alternatives:**
-- Blocks owns unified pipeline — would need eidos runtime dependency, doing eidos's job
-- Eidos owns unified pipeline — would need to know about cognitive systems, inverts dependency direction
-- New composition module — adds complexity for something the app already does
-**Rationale:** The two-layer split maps to the LLM API contract: system prompt is cached by the provider, observation varies per tick. The problem isn't the absence of a unified pipeline — it's that the layers have unclear boundaries and duplicate content. Fix the boundaries, don't add a new abstraction.
-**Trade-offs:** No single place that "owns" the full prompt composition — the app remains the point where the two layers meet. But this is inherent to the architecture and trying to centralize it creates worse problems.
-**Sources:** LLM API caching contract, eidos/blocks dependency graph analysis, current duplication in PersonalityPromptSection/ConstraintPromptSection/goals
+- Eidos owns everything — inverts dependency direction
+- New composition module — adds complexity for something existing classes already handle
+- Pretend eidos owns the system prompt — contradicts the codebase; `CognitiveSystemPromptRenderer` already overrides eidos renderer via `@Alternative @Priority(1)` pattern
+**Rationale:** The two-layer split maps to the LLM API contract. `CognitiveSystemPromptRenderer` was explicitly designed to take over system prompt rendering for cognitive apps, producing a minimal directive (identity + voice + HARD constraints + preamble) while all dynamic cognitive data flows through the observation layer. This is the established design from #63.
+**Trade-offs:** Two renderer paths (cognitive vs eidos default). Cognitive renderer must be updated to handle new voice profile fields.
+**Sources:** CognitiveSystemPromptRenderer.java, directive-minimal architecture spec (#63), Phase D spec §4
 **Exploration:** deep-analysis
-**Status:** captured
+**Revision:** R1-04 — corrected renderer ownership from "eidos" to "CognitiveSystemPromptRenderer (blocks)"
+**Status:** revised
 
 ## D5: Remove duplication between layers
 
-**Choice:** Kill `PersonalityPromptSection` (eidos already renders vocabulary-resolved personality in system prompt). Kill `ConstraintPromptSection` (constraints are static identity, belong in system prompt). Distinguish authored goals (eidos descriptor) from emergent goals (GoalPromptSection) with clear naming.
+**Choice:** Kill `PersonalityPromptSection` — raw DispositionValue codes are a workaround; personality belongs in the system prompt rendered with vocabulary resolution. Keep `ConstraintPromptSection` for SOFT constraints — the HARD/SOFT split is intentional (#63 directive-minimal spec): HARD → system prompt as "Prime Directives", SOFT → observation (because soft constraints can be superseded by cognitive state). Distinguish authored goals (eidos descriptor) from emergent goals (GoalPromptSection).
 **Alternatives:**
-- Keep duplicates with deduplication logic — complexity without benefit, symptoms not cause
-- Move all to observation — loses system prompt caching benefit for static content
-**Rationale:** Each piece of content should have exactly one owner. Personality is identity (eidos). Constraints are identity (eidos). Emergent goals are cognitive state (blocks). Authored goals are identity (eidos). The raw-codes PersonalityPromptSection was always a workaround for blocks not having vocabulary resolution — the right fix is to let eidos handle personality in the system prompt.
-**Trade-offs:** Removing PersonalityPromptSection means blocks-core loses the ability to render personality independently. Apps that don't use eidos won't get personality in their prompt. Acceptable because personality IS an eidos concept.
-**Sources:** CognitionCore.promptSections() line 377-413, PersonalityPromptSection (raw DispositionValue codes), EidosRenderPipeline (vocabulary resolution)
-**Depends on:** D4 (two-layer split)
+- Kill both PersonalityPromptSection and ConstraintPromptSection — wrong; SOFT constraints are deliberately in the observation layer
+- Keep both — perpetuates raw-codes duplication for personality
+**Rationale:** Personality is identity (eidos concept, vocabulary-resolved). SOFT constraints are contextual guidance the cognitive system might override — they belong in the observation layer where other cognitive state lives. The HARD/SOFT split was an explicit design decision in #63.
+**Trade-offs:** Personality rendering moves to the system prompt renderer. Apps without `CognitiveSystemPromptRenderer` lose cognitive-context personality rendering.
+**Sources:** CognitionCore.promptSections() lines 383-389 (SOFT-only filtering), directive-minimal spec §4.3 (constraint severity split), PersonalityPromptSection (raw codes)
+**Depends on:** D4 (renderer ownership)
 **Exploration:** deep-analysis
-**Status:** captured
+**Revision:** R1-07 — kept ConstraintPromptSection for SOFT constraints
+**Status:** revised
 
-## D6: Cognitive preamble bridge
+## D6: ~~Cognitive preamble bridge~~
 
-**Choice:** CognitionCore exposes preamble text (from CognitivePreambleGenerator). The app passes it to eidos as extension data, and the eidos renderer includes it in the system prompt.
-**Alternatives:**
-- Preamble in observation — wrong layer; it's architecture framing, not per-tick state
-- Eidos generates preamble itself — eidos doesn't know what cognitive systems are enabled
-**Rationale:** The preamble describes what cognitive subsystems are active ("You have an inner life. Your emotional state colours how you respond..."). This is stable across a session (config-dependent, not tick-dependent) and belongs in the system prompt. But only blocks knows what's enabled. The bridge via extension data respects the dependency direction: blocks → eidos-api (which already exists).
-**Trade-offs:** Adds a coupling point where the app must wire preamble from CognitionCore into eidos's render call. But this is explicit and traceable, not hidden.
-**Sources:** CognitivePreambleGenerator.java (currently unused in rendering path), AgentDescriptor.extensionData() (existing extension mechanism)
-**Depends on:** D4 (two-layer split)
-**Exploration:** quick
-**Status:** captured
+**Choice:** WITHDRAWN. `CognitiveSystemPromptRenderer` already calls `CognitivePreambleGenerator.generate(config)` directly (line 46). No bridge needed. The preamble is already handled by the existing renderer.
+**Previous choice:** Extension data bridge from CognitionCore to eidos
+**Reason for withdrawal:** R1-05 identified that the bridge solves a non-problem. The decision was based on the incorrect assumption that eidos owned the system prompt (corrected in D4 revision).
+**Status:** withdrawn
 
 ## D7: Implementation scope — validate with 3-4 characters
 
@@ -88,15 +90,16 @@
 **Exploration:** quick
 **Status:** captured
 
-## D8: Emergence verification — baseline then compare
+## D8: Emergence verification — three-run experimental design
 
-**Choice:** Extend the Phase D eval infrastructure. Run 1: full briefings with full cognitive config → persist output to git. Run 2: voice-only briefings with same config → compare delta. This gives concrete evidence of what behavior was briefing-driven vs cognition-driven.
+**Choice:** Extend the Phase D eval infrastructure with three runs: (a) voice-only WITHOUT cognitive config — null hypothesis (does the LLM generate interesting behavior spontaneously?), (b) voice-only WITH full cognitive config — test (does the cognitive system drive behavior?), (c) compare b vs a. Persist output to a durable location (not target/). The comparison answers "does the cognitive system produce emergent behavior?" cleanly because it isolates the cognitive system's contribution.
 **Alternatives:**
-- Separate emergence eval suite — duplicates infrastructure
-- Manual verification only — no quantitative comparison, no reproducibility
-**Rationale:** The Phase D eval infrastructure (CognitiveEvalTest, progressive config levels, delta capture) already exists. No prior eval output was preserved (target/ is ephemeral). Establishing a baseline first, then comparing voice-only, directly answers the question "does the cognitive system produce distinct behavior without behavioral scripting?"
-**Trade-offs:** Two eval runs required (full-briefing baseline + voice-only). LLM eval output is non-deterministic, so the comparison is qualitative delta analysis, not exact diff.
-**Sources:** CognitiveEvalTest.java (existing infrastructure), Phase D spec §5 (eval suite design)
+- Two-run design (full-briefing baseline vs voice-only) — confounded; can't distinguish "loss of instruction" from "emergence"
+- Manual verification only — no reproducibility
+**Rationale:** The three-run design (R1-08) isolates the variable correctly. Run (a) establishes what the LLM does with just voice. Run (b) shows what cognitive systems add. The delta (b - a) is the emergence signal. Output persisted outside target/ for reproducibility without polluting git history.
+**Trade-offs:** Three eval runs instead of two. Non-deterministic LLM output means qualitative analysis, not exact diff.
+**Sources:** CognitiveEvalTest.java (existing infrastructure), Phase D spec §5, R1-08 (methodology improvement)
 **Depends on:** D7 (implementation scope — uses the same 3-4 characters)
 **Exploration:** quick
-**Status:** captured
+**Revision:** R1-08 — three-run design isolates emergence correctly
+**Status:** revised
