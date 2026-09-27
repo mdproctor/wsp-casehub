@@ -8,7 +8,7 @@
 
 The current system prompt places cognitive data (goals, beliefs, strategies, constraints, disposition) alongside identity in the agent's briefing directive. The LLM treats system prompt content as authoritative instruction, overpowering dynamic cognitive sections from neurocortex subsystems that appear in the user prompt. Mood shifts, drive intensities, learned strategies, and trust perceptions read as supplementary context rather than active cognitive state.
 
-The duplication compounds the problem: goals appear in both the system prompt (from eidos descriptor) and observation sections (from `CognitiveObservationSections.goalsSection()` and `GoalPromptSection`). Constraints appear in both channels. The directive version dominates, making the observation-side rendering decorative rather than functional.
+The duplication compounds the problem: goals appear in both the system prompt (from eidos descriptor) and observation sections (from `CognitiveObservationSections.goalsSection()` and `EmergentGoalPromptSection`). Constraints appear in both channels. The directive version dominates, making the observation-side rendering decorative rather than functional.
 
 ## Architecture
 
@@ -148,7 +148,7 @@ penelope-pitstop:
       formation-reason: "character-definition"
 ```
 
-The seeder calls `GoalProposalOrchestrator.registerGoals()` with the constructed `DriveGoalProposal` list. `GoalPromptSection` becomes the sole goal renderer, replacing both `CognitiveObservationSections.goalsSection()` and descriptor-side goal rendering.
+The seeder calls `GoalProposalOrchestrator.registerGoals()` with the constructed `DriveGoalProposal` list. `EmergentGoalPromptSection` becomes the sole goal renderer, replacing both `CognitiveObservationSections.goalsSection()` and descriptor-side goal rendering.
 
 **Norms — deferred to GitHub issue:** A `NormsPromptSection` in `CognitionCore.promptSections()` is required for norms to follow the same observation-side rendering path as other cognitive data. This is NOT in scope for this spec. **GitHub issue to be filed on casehubio/blocks** to track: "Add NormsPromptSection to CognitionCore for observation-side norms rendering." Until implemented, norms remain rendered by `CharacterCognition` from `SocialConfig`.
 
@@ -238,7 +238,7 @@ Remove all observation-side content that duplicates what CognitionCore already r
 
 | Currently duplicated | Remove from | Keep in |
 |---------------------|-------------|---------|
-| Goals | System prompt (descriptor) + `CognitiveObservationSections.goalsSection()` | `GoalPromptSection` (CognitionCore) — seeded via `registerGoals()` |
+| Goals | System prompt (descriptor) + `CognitiveObservationSections.goalsSection()` | `EmergentGoalPromptSection` (CognitionCore) — seeded via `registerGoals()` |
 | Constraints | System prompt (all severities) + `CharacterCognition` direct render | System prompt as Prime Directives (HARD only) + `ConstraintPromptSection` (SOFT only, via CognitionCore) |
 | Personality/disposition | System prompt + `SocialAvatarCognition.buildSections()` | `PersonalityPromptSection` (CognitionCore) |
 
@@ -254,7 +254,7 @@ Remove all observation-side content that duplicates what CognitionCore already r
 - `CharacterCognition.renderTrustSections()` → `trustSection(List<TrustSummary>)` — retained in CharacterCognition
 - `goalsSection(List<AgentGoal>)` — called only from tests; safe to deprecate
 
-The `CognitiveObservationSections` class is NOT removed — it remains as a rendering utility used by CognitionCore's prompt sections. Only `goalsSection()` is deprecated as goals move to `GoalPromptSection` via seeded `DriveGoalProposal` objects.
+The `CognitiveObservationSections` class is NOT removed — it remains as a rendering utility used by CognitionCore's prompt sections. Only `goalsSection()` is deprecated as goals move to `EmergentGoalPromptSection` via seeded `DriveGoalProposal` objects.
 
 After deduplication, `CharacterCognition.renderCognitiveSections()` retains:
 - Character motivations (from social-config drives — free-form, no CognitionCore equivalent)
