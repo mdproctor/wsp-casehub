@@ -13,9 +13,9 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#89 — Issue #89 ← active
-  - [ ] Batch 1: eidos-api
-    - [ ] Task 1: AgentVoiceProfile record
-    - [ ] Task 2: Add voice to AgentDescriptor
+  - [x] Batch 1: eidos-api
+    - [x] Task 1: AgentVoiceProfile record
+    - [x] Task 2: Add voice to AgentDescriptor
   - [ ] Batch 2: blocks-core
     - [ ] Task 3: Update CognitiveSystemPromptRenderer
     - [ ] Task 4: Remove PersonalityPromptSection and rename GoalPromptSection
