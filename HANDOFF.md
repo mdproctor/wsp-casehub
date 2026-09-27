@@ -1,26 +1,37 @@
 # HANDOFF — casehub-examples
 
-## Last Session (2026-09-27 — session 2)
+## Last Session (2026-09-27 — session 3)
 
-Updated implementation plan to account for prior session work (Batches 1-2 done). Filed soredium#383 (context budget guidance fix — total_tokens unreliable after compression). Commented on blocks#304 with cross-slot coordination guidance. Execution blocked by IntelliJ MCP — JVM heap critically low (8% free).
+Executed Batches 1-2 of the implementation plan. Rebased slot blocks onto canonical main (absorbed #304 CognitiveAttentionMediator). All 57 targeted tests green.
 
-### Prior session (session 1)
+### What was done
 
-Designed and began implementing #89. Full brainstorming → 8 decisions (6 revised after review) → design spec → implementation plan → Batches 1-2 executed. AgentVoiceProfile record created in eidos-api, CognitiveSystemPromptRenderer updated in blocks-core to render voice profiles and personality. The .m2 was nuked to fix cross-repo API mismatches and rebuilt from canonical sources. All 4 VoiceProfileRendererTest pass in wacky-manor.
+- **Batch 1 (blocks-core cleanup):** Removed PersonalityPromptSection from CognitionCore.promptSections() and deleted the class. Renamed GoalPromptSection → EmergentGoalPromptSection via ide_refactor_rename (93 references updated). Installed to .m2.
+- **Rebase:** Slot blocks rebased onto canonical main. Absorbed blocks#304 (CognitiveAttentionMediator). Resolved conflicts in CognitionCore.java (combined #304's isEnabled() pattern with our EmergentGoalPromptSection rename), CLAUDE.md, and consumer-guide.md.
+- **Batch 2 (voice card descriptors):** Wrote voice profiles for 4 characters — Penelope (southern-belle), Hooded Claw (dual-persona sneekly/claw), Ant Hill Mob (brooklyn-gangster), Dick Dastardly (dramatic-villain). Briefings thinned to role-only. Adapted CognitionCore constructor calls for #304's new CognitiveAttentionMediator parameter (null). Fixed DirectiveMinimalIntegrationTest assertion for #296 goal rendering format change.
+- **Cross-slot:** Filed comment on blocks#304 with integration guidance. Filed soredium#383 (context budget fix).
+
+### Prior sessions
+
+- **Session 1:** Design phase — brainstorming, 8 decisions, design spec, decision review, spec review, implementation plan. eidos-api AgentVoiceProfile + CognitiveSystemPromptRenderer updates committed.
+- **Session 2:** Updated plan, filed soredium#383, blocked on IntelliJ heap.
 
 ## Immediate Next Step
 
-**Prerequisite:** Ensure IntelliJ MCP is available (restart IntelliJ if needed, then `/mcp` to reconnect).
+Execute plan Batch 3 (persona activation + behavioral extraction) then Batch 4 (emergence eval).
 
-**Then:** Execute the updated plan at `plans/2026-09-27-briefing-voice-card.md` starting from Batch 1 Task 1 (blocks-core cleanup — remove PersonalityPromptSection, rename GoalPromptSection). The prior session's .plan marks Batches 1-2 as done but the PersonalityPromptSection removal was deferred due to a CbrRecordStore mismatch — verify that's resolved before proceeding.
+**Batch 3 tasks:**
+- Task 5: Create PersonaActivationSection — cognitive persona switching for Hooded Claw (sneekly/claw based on nearby agents + never-break-cover constraint). Add persona-constraint mapping to social-config.yaml. Wire into CharacterCognition.renderCognitiveSections().
+- Task 6: Extract behavioral template content to SocialConfig — gloating drives, theatrical-outrage norms, suspicion norms. Templates remain for non-cognitive apps.
 
-**Before starting Batch 2 (descriptors):** Add eidos to the slot (voice profile changes on canonical eidos `issue-89-voice-profile` branch, should be at `slots/196/eidos`).
+**Batch 4 tasks:**
+- Task 7: Three-run emergence eval — voice-only no cognition vs voice-only full cognition, delta comparison report.
 
 ## Cross-Slot Dependencies
 
 | Issue | Slot | Repo | Interaction with #89 | Status |
 |-------|------|------|---------------------|--------|
-| blocks#304 (CognitiveAttentionMediator) | 203 | blocks | Adds attention prompt section to `CognitionCore.promptSections()`. #89 redesigns observation layer — must absorb #304's section. No conflict if #304 uses standard `promptSections()` pattern. | In progress — commented on #304 with guidance |
+| blocks#304 (CognitiveAttentionMediator) | 203 | blocks | Absorbed — slot blocks rebased onto canonical main with #304. CognitionCore constructor adapted (null mediator). | Done — absorbed via rebase |
 
 ## Cross-Module
 
@@ -28,9 +39,9 @@ Designed and began implementing #89. Full brainstorming → 8 decisions (6 revis
 |------|--------|------|--------|
 | canonical eidos | `issue-89-voice-profile` | AgentVoiceProfile + AgentDescriptor.voice field | Needs to move into slot |
 | canonical blocks | `issue-89-voice-profile` | Renderer update (duplicate of slot blocks main commit) | Can delete after slot work lands |
-| slot blocks | main | CognitiveSystemPromptRenderer with voice rendering | Active |
+| slot blocks | main | Rebased on canonical main — includes #304, #296, #89 renderer + cleanup | Active, green |
 | slot neocortex | main | Behind canonical — has rebase conflicts (known issue) | Uses canonical via .m2 |
-| slot 203 blocks | main | #304 CognitiveAttentionMediator landed | Absorb into #89 pipeline when ready |
+| slot examples | `issue-89-briefing-voice-card` | Voice cards for 4 characters, constructor adaptation for #304 | Active, 57 tests green |
 
 ## References
 
