@@ -34,6 +34,12 @@ The template system also conflates voice and behavior:
 
 Templates need the same voice/behavior split as briefings.
 
+### 1.3 Why not a single composition pipeline? (Issue 89 R2)
+
+Issue 89 proposes "one renderer walks registered sections in priority order." D4 decided against this after first-principles analysis: the two-layer split (system prompt + observation) maps to the LLM API caching contract. System prompt content is cached by the provider; observation varies per tick. A single pipeline would fight this by merging stable identity with dynamic cognitive state.
+
+The answer to R2 is not a new pipeline abstraction — it's clean concern ownership so each piece of content has exactly one renderer. The three-concern separation table (§2.1) achieves this: each row has a single "Rendered by" owner. Ordering within the observation layer follows `ObservationBuilder`'s existing section sequence. Context budget allocation and cross-layer deduplication are not needed when each concern has a single owner and no content appears in both layers.
+
 ## 2. Design
 
 ### 2.1 Three-concern separation
@@ -117,7 +123,7 @@ Hooded Claw with personas:
           - explains schemes even when no one is listening
 ```
 
-When `personas` is present, the top-level voice fields are empty — each persona is a complete voice profile. The observation layer signals which persona is active (see §2.5).
+When `personas` is present, top-level voice fields serve as the **base voice** — shared defaults inherited by all personas. Each persona overrides only the fields that differ. Unset fields in a persona inherit from the base. This eliminates duplication for characters with minor persona variations (e.g., a character who shifts register with close friends but keeps the same accent and catchphrases). The observation layer signals which persona is active (see §2.5).
 
 **Vocabulary resolution:** `register` and `accent` are vocabulary-resolved via `VocabularyRegistry`, using a new `urn:casehub:vocab:voice` vocabulary. Domains define their own register/accent values and vocabulary entries. For example:
 - Wacky-manor: `southern-belle`, `grandiose`, `obsequious`, `brooklyn-gangster`
@@ -142,10 +148,32 @@ Role context (e.g., "You are the estate manager of Doily Manor") stays in the `b
 
 ### 2.4 Renderer changes (D4)
 
-`CognitiveSystemPromptRenderer` is updated to render the voice profile:
+`CognitiveSystemPromptRenderer` gains new constructor dependencies and rendering capabilities:
+
+**New constructor parameters:**
+- `VocabularyRegistry` — resolves `register` and `accent` vocabulary terms to human-readable text
+- `AgentVoiceProfile` support via `AgentDescriptor.voice()` field access
+
+**Rendering order (updated from current name → briefing → constraints → preamble):**
+1. **Name** — `# {name}` heading
+2. **Role line** — from `briefing` field (when voice is present, briefing contains only role context)
+3. **Personality** — vocabulary-resolved disposition profile from `AgentDescriptor.disposition()`. Uses `VocabularyRegistry` to resolve MBTI/Enneagram/Jungian codes to descriptive text. This replaces the raw-codes `PersonalityPromptSection` that was in the observation layer.
+4. **Voice** — from `AgentVoiceProfile`: register (vocabulary-resolved), accent (vocabulary-resolved), catchphrases, speech patterns, vocabulary preferences, quirks
+5. **Prime Directives** — HARD constraints (unchanged)
+6. **Cognitive preamble** — from `CognitivePreambleGenerator` (unchanged)
+
+**When voice is absent (backward compatibility):** Falls back to current behavior — renders `briefing` as prose, no personality section, no voice section. This ensures non-migrated descriptors continue working.
+
+**Output example (single voice):**
 
 ```
 # Penelope Pitstop
+
+You are a glamorous, resourceful Southern belle who keeps track of everyone's wellbeing.
+
+## Personality
+Extraverted Feeling dominant — warm, empathetic, socially attuned.
+Helper archetype — driven to support and nurture others.
 
 ## Voice
 Register: warm Southern belle
@@ -162,23 +190,35 @@ Quirks: exclaims when discovering something new
 You have an inner life. Your emotional state colours how you respond...
 ```
 
-For personas, all variants are rendered:
+**Output example (personas with base voice):**
 
 ```
 # The Hooded Claw
 
+You are Penelope Pitstop's secret nemesis, disguised as the estate manager Sylvester Sneekly.
+
+## Personality
+Extraverted Thinking dominant — strategic, decisive, commanding.
+Challenger archetype — driven to dominate and control.
+
+## Voice (base)
+Quirks: explains schemes even when no one is listening
+
 ## Voice: Sneekly
 Register: obsequious and unctuous
 Catchphrases: "Oh, my DEAR Miss Pitstop, allow me to assist!"
-...
+Speech patterns: overly helpful, excessively deferential
 
 ## Voice: Claw
 Register: grandiose and theatrical
 Catchphrases: "Nyah-ha-ha-HA!"
-...
+Speech patterns: dramatic monologues, theatrical third-person self-reference
 
 ## Prime Directives
 - Never reveal your true identity as The Hooded Claw when other characters are present
+
+## Your Mind
+You have an inner life. Your emotional state colours how you respond...
 ```
 
 The system prompt contains all personas. The observation layer tells the agent which persona is currently active (see §2.5). This preserves system prompt caching.
@@ -197,6 +237,10 @@ The switching logic is driven by existing cognitive infrastructure:
 - The observation layer's social awareness section reports who is nearby
 - A new `PersonaActivationSection` in `CharacterCognition` evaluates the constraint against nearby agents and emits the active persona signal
 
+**Constraint-to-persona mapping:** Characters with personas declare a `persona-constraint` mapping in their `SocialConfig` (or as extension data on the descriptor). For the Hooded Claw: `{constraint: "never-break-cover", when-active: "sneekly", when-inactive: "claw"}`. The `PersonaActivationSection` reads this mapping and evaluates the constraint against social awareness (nearby agents). This is configuration-driven, not hardcoded.
+
+**Default persona:** The first persona in the map is the default. When no activation signal fires (e.g., start of scenario), the default is used. For the Hooded Claw, `sneekly` is listed first and is the safe default (public-facing).
+
 This keeps switching logic in the cognitive layer where it belongs, while voice profiles remain stable identity data.
 
 ### 2.6 Duplication removal (D5)
@@ -207,13 +251,28 @@ This keeps switching logic in the cognitive layer where it belongs, while voice 
 
 **Distinguish authored vs emergent goals:** Rename `GoalPromptSection` to `EmergentGoalPromptSection`. Authored goals from the eidos descriptor are not rendered separately — they seed the cognitive goal system via `ManorCognitiveSeeder.seedGoals()` and are represented through the emergent goal mechanism.
 
-### 2.7 Template splitting
+### 2.7 Template subsumption
 
-Templates that mix voice and behavior are split:
-- **Voice content stays in templates:** Hanna-Barbera conventions (expository soliloquy, emotional telegraphing, catchphrase repetition) are voice — they define HOW the character presents.
-- **Behavioral content moves to SocialConfig seed data:** "Your plans are always elaborate" → `SocialConfig.norms`. "You gloat prematurely" → drive/strategy seeding. "Your mission is to protect" → goal seeding.
+`CognitiveSystemPromptRenderer` does not render templates — templates are rendered by `EidosRenderPipeline` inside `EidosSystemPromptRenderer`, which is bypassed for cognitive apps. Template voice content does not reach the prompt today.
 
-This follows the same pattern the directive-minimal spec (#63) designed for briefings — apply it to templates.
+For cognitive apps, `AgentVoiceProfile` subsumes template voice content:
+
+**Shared style conventions** (currently in `hanna-barbera-cartoon-style` template) move to voice profile `speechPatterns`:
+- "Expository soliloquy — narrate your situation aloud" → `speechPatterns` entry
+- "Emotional telegraphing — state emotions explicitly with exaggeration" → `speechPatterns` entry
+- "Catchphrase repetition — use signature phrases at emotional peaks" → `speechPatterns` entry
+- "Physical comedy narration — describe physical events with sound effects" → `speechPatterns` entry
+
+Since all 17 characters share these conventions, they are defined once in a shared YAML anchor and referenced by each character's voice profile (YAML `<<: *hanna-barbera-style` merge). No voice profile inheritance mechanism is needed — YAML anchors handle the sharing.
+
+**Per-archetype template content** (currently in `cartoon-villain`, `cartoon-hero`, `cartoon-protector`) is split:
+- Voice content (catchphrase, scheme_style rendering) → already captured in per-character voice profile fields
+- Behavioral content → `SocialConfig` seed data:
+  - "Your plans are always elaborate" → `SocialConfig.NormEntry(rule="Prefer elaborate schemes over simple ones", priority=5)`
+  - "You gloat prematurely" → `SocialConfig.Drive(type="gloating", intensity=0.7, description="Cannot resist celebrating before victory is secured")`
+  - "Your mission is to protect ${protected_character}" → `SocialConfig.GoalConfig(name="protect-penelope", description="Protect Penelope Pitstop at all costs", axis="AFFILIATION", intensity=0.9, formationReason="character-definition")`
+
+Templates remain available for non-cognitive apps using `EidosSystemPromptRenderer`. The template definitions are not deleted — they become dead code for cognitive apps only.
 
 ## 3. Implementation Scope (D7)
 
