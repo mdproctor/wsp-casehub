@@ -16,11 +16,14 @@ flyway-next-v: none
   - [x] Batch 1: eidos-api
     - [x] Task 1: AgentVoiceProfile record
     - [x] Task 2: Add voice to AgentDescriptor
-  - [ ] Batch 2: blocks-core
-    - [ ] Task 3: Update CognitiveSystemPromptRenderer
-    - [ ] Task 4: Remove PersonalityPromptSection and rename GoalPromptSection
+  - [x] Batch 2: blocks-core
+    - [x] Task 3: Update CognitiveSystemPromptRenderer
+    - [x] Task 4: Remove PersonalityPromptSection and rename GoalPromptSection
   - [ ] Batch 3: wacky-manor
     - [ ] Task 5: Rewrite 4 character descriptors
     - [ ] Task 6: PersonaActivationSection
     - [ ] Task 7: Template behavioral content to SocialConfig
     - [ ] Task 8: Three-run emergence eval
+
+## Deferred
+- [ ] Remove PersonalityPromptSection and rename GoalPromptSection (S / Low) [blocks] — Blocked by pre-existing neocortex API mismatch (CbrRecordStore renamed to CbrCaseMemoryStore). Fix the mismatch first, then this is a 5-minute change.
