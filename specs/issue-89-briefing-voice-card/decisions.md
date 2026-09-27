@@ -14,18 +14,18 @@
 **Revision:** R1-02 — voice profile as nested record, not flat fields on AgentDescriptor
 **Status:** revised
 
-## D2: Voice profile fields — pure structured, no freeform escape hatch
+## D2: Voice profile fields — layered voice authoring
 
-**Choice:** Pure structured fields with no prose escape hatch. `AgentVoiceProfile` record contains: `register` (vocabulary-resolved), `accent` (vocabulary-resolved), `catchphrases` (list), `speech_patterns` (list), `vocabulary_uses` (list), `vocabulary_avoids` (list), `quirks` (list), `personas` (optional map of named voice variants). Register and accent values are domain-agnostic through vocabulary resolution — domains define their own vocabularies.
+**Choice:** Layered voice authoring with a `description` field as the primary voice identity signal. `AgentVoiceProfile` record contains: `description` (natural language voice identity phrase), `register` (vocabulary-resolved), `accent` (vocabulary-resolved), `catchphrases` (list), `speech_patterns` (list), `vocabulary_uses` (list), `vocabulary_avoids` (list), `quirks` (list), `personas` (optional map of named voice variants). Layer 1 (`description`) lets the LLM draw from training data for well-known characters. Layer 2 (structured fields) provides optional fine-tuning where the LLM's default isn't quite right. Both layers render together — description first, structured fields as supplements.
 **Alternatives:**
-- Prose block (single text field named 'voice') — simpler authoring but no programmatic hooks, and authors will dump behavioral instructions into it
-- Hybrid (structured + freeform voice_notes) — escape hatch would be used to circumvent the separation, defeating the design
-- Template-based voice (R1-02 alternative) — templates render to prose, not programmatically inspectable; can't support persona selection (D3)
-**Rationale:** Every piece of voice content from the four analyzed briefings decomposed cleanly into structured dimensions. Nothing was genuinely irreducible to structure. The structural constraint IS the design — it forces the separation. Domain extensibility achieved through vocabulary resolution (like disposition), not through field proliferation.
-**Trade-offs:** Authors cannot write freeform voice descriptions. If a genuinely novel voice dimension is discovered, a new field must be added to the record. Domain-specific register values require vocabulary definitions.
-**Sources:** Analysis of Hooded Claw (dual-persona), Penelope (Southern drawl), Ant Hill Mob (ensemble), Dick Dastardly (dramatic register). R1-03 (domain generality concern addressed via vocabulary resolution).
+- Pure structured, no freeform (R1-03, original choice) — works for cartoon characters but doesn't generalise: clinical and AML agents don't have catchphrases or quirks. Enumerated fields over-constrain well-known characters and waste tokens restating what the LLM already knows.
+- Prose-only (single text field) — simpler but no programmatic hooks for persona selection, vocabulary resolution, or tooling.
+- Template-based voice (R1-02 alternative) — templates render to prose, not programmatically inspectable; can't support persona selection (D3).
+**Rationale:** For well-known characters (e.g., Wacky Races), the LLM's training data IS the voice definition — a brief description is sufficient. For original characters, structured fields add information the LLM doesn't have. The enumerated fields (catchphrases, vocabulary) were domain-specific to cartoon characters and didn't generalise to clinical, AML, or other domains. Layered authoring gives the best of both: token-efficient for known characters, precise for original ones.
+**Trade-offs:** Authors could put behavioral instructions in the description field. The separation relies on authoring discipline rather than structural enforcement. Mitigated by the cognitive system carrying behavior independently.
+**Sources:** Analysis of 4 Wacky Races characters, domain generality testing against clinical/AML use cases. R2-01 — revised after implementation showed enumerated fields redundant for well-known characters.
 **Exploration:** deep-analysis
-**Revision:** R1-03 — vocabulary-resolved register/accent for domain extensibility
+**Revision:** R2-01 — layered voice authoring (description as Layer 1, structured fields as optional Layer 2)
 **Status:** revised
 
 ## D3: Hooded Claw dual-voice — personas map with cognitive switching
