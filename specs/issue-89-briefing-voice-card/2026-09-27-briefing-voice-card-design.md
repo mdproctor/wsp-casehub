@@ -138,7 +138,7 @@ public record AgentDescriptor(
 
 The `briefing` field is retained for backward compatibility during migration but deprecated. When `voice` is present, `briefing` is ignored by `CognitiveSystemPromptRenderer`. Apps that still use `EidosSystemPromptRenderer` continue to use `briefing` — no breakage.
 
-The `briefing` field may retain a minimal role description (e.g., "You are the estate manager of Doily Manor") or this can move to a `role` field on the descriptor.
+Role context (e.g., "You are the estate manager of Doily Manor") stays in the `briefing` field during migration. When voice is present, `CognitiveSystemPromptRenderer` renders `briefing` as a role line above the voice section — it no longer contains behavioral instructions, just role framing. Whether to promote role to a dedicated descriptor field is a separate concern for Phase 3.
 
 ### 2.4 Renderer changes (D4)
 
