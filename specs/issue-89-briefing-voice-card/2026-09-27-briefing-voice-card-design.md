@@ -23,7 +23,7 @@ These are three different concerns. Voice is stable identity. Behavior should co
 The current architecture duplicates content across the system prompt and observation layers:
 
 - **Personality:** Eidos renders vocabulary-resolved disposition in the system prompt. `PersonalityPromptSection` in blocks renders raw `DispositionValue` codes (`se=0.45`) in the observation. The raw codes are less useful and duplicate the eidos rendering.
-- **Goals:** Eidos descriptor goals (authored) and `GoalPromptSection` goals (dynamically formed) are both named "goals" with no distinction.
+- **Goals:** Eidos descriptor goals (authored) and `EmergentGoalPromptSection` goals (dynamically formed) are both named "goals" with no distinction.
 - **Constraints:** Already correctly split by severity — HARD in system prompt, SOFT in observation — but this was an undocumented design decision.
 
 ### 1.2 Template behavioral leakage
@@ -249,7 +249,7 @@ This keeps switching logic in the cognitive layer where it belongs, while voice 
 
 **Keep `ConstraintPromptSection`:** The HARD/SOFT split is intentional (#63). HARD constraints are non-negotiable identity (Prime Directives in system prompt). SOFT constraints are contextual guidance that cognitive state can override — they belong in the observation layer.
 
-**Distinguish authored vs emergent goals:** Rename `GoalPromptSection` to `EmergentGoalPromptSection`. Authored goals from the eidos descriptor are not rendered separately — they seed the cognitive goal system via `ManorCognitiveSeeder.seedGoals()` and are represented through the emergent goal mechanism.
+**Distinguish authored vs emergent goals:** Rename `EmergentGoalPromptSection` to `EmergentGoalPromptSection`. Authored goals from the eidos descriptor are not rendered separately — they seed the cognitive goal system via `ManorCognitiveSeeder.seedGoals()` and are represented through the emergent goal mechanism.
 
 ### 2.7 Template subsumption
 
@@ -311,7 +311,7 @@ Three-run experimental design using Phase D eval infrastructure:
 |------|---------|
 | **eidos-api** | Add `AgentVoiceProfile` record. Add `voice` field to `AgentDescriptor`. Deprecate `briefing` field. Add `urn:casehub:vocab:voice` vocabulary definitions. |
 | **eidos** (runtime) | `EidosRenderPipeline` handles `voice` field in descriptor payload. Backward compatibility: `briefing` still rendered when `voice` is absent. |
-| **blocks-core** | Update `CognitiveSystemPromptRenderer` to render voice profiles. Kill `PersonalityPromptSection`. Rename `GoalPromptSection` → `EmergentGoalPromptSection`. |
+| **blocks-core** | Update `CognitiveSystemPromptRenderer` to render voice profiles. Kill `PersonalityPromptSection`. Rename `EmergentGoalPromptSection` → `EmergentGoalPromptSection`. |
 | **examples/wacky-manor** | Rewrite 4 character descriptors with voice profiles. Split 4 templates (voice vs behavior). Add `PersonaActivationSection` to `CharacterCognition`. Update eval test for three-run design. Persist eval output to `docs/eval/`. |
 
 ## 6. Migration Path

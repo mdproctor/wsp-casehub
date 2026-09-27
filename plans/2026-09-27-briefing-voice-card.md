@@ -39,11 +39,11 @@ Safe wrap point: blocks builds clean, PersonalityPromptSection removed, GoalProm
 - Delete: `blocks-core/src/main/java/io/casehub/blocks/agentic/social/prompt/PersonalityPromptSection.java` (use `ide_refactor_safe_delete`)
 - Delete: `blocks-core/src/test/java/io/casehub/blocks/agentic/social/prompt/PersonalityPromptSectionTest.java` (use `ide_refactor_safe_delete`)
 - Modify: `blocks-core/src/main/java/io/casehub/blocks/agentic/social/CognitionCore.java:377-413` — remove PersonalityPromptSection from promptSections()
-- Rename: `GoalPromptSection` → `EmergentGoalPromptSection` (use `ide_refactor_rename`)
+- Rename: `EmergentGoalPromptSection` → `EmergentGoalPromptSection` (use `ide_refactor_rename`)
 - Test: `blocks-core/src/test/java/io/casehub/blocks/agentic/social/CognitionCoreTest.java`
 
 **Interfaces:**
-- Consumes: `CognitionCore.promptSections()` (modifying), `PersonalityPromptSection` (removing), `GoalPromptSection` (renaming)
+- Consumes: `CognitionCore.promptSections()` (modifying), `PersonalityPromptSection` (removing), `EmergentGoalPromptSection` (renaming)
 - Produces: `EmergentGoalPromptSection` (renamed, same API), cleaned `promptSections()` without personality duplication
 
 - [ ] **Step 1: Verify blocks-core builds clean**
