@@ -1,12 +1,26 @@
 # HANDOFF — casehub-examples
 
-## Last Session
+## Last Session (2026-09-27 — session 2)
 
-Designed and began implementing #89 (redefine briefing as voice card). Full brainstorming → 8 decisions (6 revised after review) → design spec → implementation plan → Batches 1-2 executed. AgentVoiceProfile record created in eidos-api, CognitiveSystemPromptRenderer updated in blocks-core to render voice profiles and personality. The .m2 was nuked to fix cross-repo API mismatches and rebuilt from canonical sources — required creating CognitiveEmotion/PadProjection/AppraisalContext/GoalAppraisal stubs in neocortex (canonical main already has the real types, the slot neocortex is behind). All 4 VoiceProfileRendererTest pass in wacky-manor.
+Updated implementation plan to account for prior session work (Batches 1-2 done). Filed soredium#383 (context budget guidance fix — total_tokens unreliable after compression). Commented on blocks#304 with cross-slot coordination guidance. Execution blocked by IntelliJ MCP — JVM heap critically low (8% free).
+
+### Prior session (session 1)
+
+Designed and began implementing #89. Full brainstorming → 8 decisions (6 revised after review) → design spec → implementation plan → Batches 1-2 executed. AgentVoiceProfile record created in eidos-api, CognitiveSystemPromptRenderer updated in blocks-core to render voice profiles and personality. The .m2 was nuked to fix cross-repo API mismatches and rebuilt from canonical sources. All 4 VoiceProfileRendererTest pass in wacky-manor.
 
 ## Immediate Next Step
 
-**Before starting Batch 3:** Add eidos to the slot (it's missing — voice profile changes are on canonical eidos `issue-89-voice-profile` branch, should be in `slots/196/eidos`). Then continue with Task 5 (rewrite 4 character descriptors with voice profiles).
+**Prerequisite:** Ensure IntelliJ MCP is available (restart IntelliJ if needed, then `/mcp` to reconnect).
+
+**Then:** Execute the updated plan at `plans/2026-09-27-briefing-voice-card.md` starting from Batch 1 Task 1 (blocks-core cleanup — remove PersonalityPromptSection, rename GoalPromptSection). The prior session's .plan marks Batches 1-2 as done but the PersonalityPromptSection removal was deferred due to a CbrRecordStore mismatch — verify that's resolved before proceeding.
+
+**Before starting Batch 2 (descriptors):** Add eidos to the slot (voice profile changes on canonical eidos `issue-89-voice-profile` branch, should be at `slots/196/eidos`).
+
+## Cross-Slot Dependencies
+
+| Issue | Slot | Repo | Interaction with #89 | Status |
+|-------|------|------|---------------------|--------|
+| blocks#304 (CognitiveAttentionMediator) | 203 | blocks | Adds attention prompt section to `CognitionCore.promptSections()`. #89 redesigns observation layer — must absorb #304's section. No conflict if #304 uses standard `promptSections()` pattern. | In progress — commented on #304 with guidance |
 
 ## Cross-Module
 
