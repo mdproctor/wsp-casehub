@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-89-briefing-voice-card
-state: scaffolded
+state: active
 project-sha: 6002a09a6dd664abdc605a67cead259d64cc1ea8
 date: 2026-09-27
 issue-repo: casehubio/examples
@@ -13,3 +13,14 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#89 — Issue #89 ← active
+  - [ ] Batch 1: eidos-api
+    - [ ] Task 1: AgentVoiceProfile record
+    - [ ] Task 2: Add voice to AgentDescriptor
+  - [ ] Batch 2: blocks-core
+    - [ ] Task 3: Update CognitiveSystemPromptRenderer
+    - [ ] Task 4: Remove PersonalityPromptSection and rename GoalPromptSection
+  - [ ] Batch 3: wacky-manor
+    - [ ] Task 5: Rewrite 4 character descriptors
+    - [ ] Task 6: PersonaActivationSection
+    - [ ] Task 7: Template behavioral content to SocialConfig
+    - [ ] Task 8: Three-run emergence eval
