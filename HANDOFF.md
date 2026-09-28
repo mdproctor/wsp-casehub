@@ -1,73 +1,70 @@
 # HANDOFF — casehub-examples
 
-## Last Session
+## Last Session (2026-09-28 — session 4)
 
-Completed the cognitive architecture wiring audit (#77) — all 6 issues closed. Fixed the Hibernate JPA entity indexing failure (#90). Verified the cognitive architecture end-to-end with a live scenario run. Filed and refined #89 (redefine briefing as voice card).
+Executed Batch 3 (Tasks 6-8), evolved the voice profile design to layered authoring, fixed Quarkus test deadlock, and got the full suite green (577 tests, 0 failures, 0 errors).
 
 ### What was done
 
-- **#77 audit queue** (6/6 complete):
-  - #87 (classloader visibility) — was done prior session, closed
-  - #88 (upstream API sync) — was done prior session, closed
-  - #86 (NeedTierMappingProvider @DefaultBean) — added `@Produces @DefaultBean` in blocks `BlocksBeans`, commit 78289913 in slot blocks
-  - #85, #83, #82, #81 — verified already resolved by prior work, closed with evidence
+- **Task 6 (PersonaActivationSection):** Cognitive persona switching for Hooded Claw. `PersonaConstraintMapping` on `SocialConfig`, parsed from `social-config.yaml`. `PersonaActivationSection.resolve()` emits "Active Voice: **Sneekly/Claw**" based on nearby agents. Wired into `CharacterCognition.renderCognitiveSections()`. 8 new tests.
+- **Task 7 (Behavioral extraction):** Gloating drives for Hooded Claw and Dick Dastardly. Theatrical-outrage and elaborate-schemes norms from `cartoon-villain` template into `SocialConfig`. Templates remain for non-cognitive apps.
+- **Task 8 (Emergence eval):** `EmergenceVerificationTest` — standalone (no `@QuarkusTest`) comparison of `CognitionConfig.none()` vs `CognitionConfig.all()`. Run A produces 0 observation sections, Run B produces +1 (MoodPromptSection). Results persisted to `docs/eval/`.
+- **Voice description (D2 revision):** Added `description` field to `AgentVoiceProfile` across eidos (eidos#183), blocks (blocks#309), examples (examples#92). Layered voice authoring: description is Layer 1 (LLM training data), structured fields are optional Layer 2 fine-tuning. Slimmed 4 character descriptors from 83 to 19 lines of voice YAML. Renderer updated to render description first, structured fields as supplements.
+- **Quarkus deadlock fix (examples#93):** Root cause: Aether parallel metadata resolver + JDK 26 class-init deadlock in `SSLConnectionSocketFactory.<clinit>` vs `FacadeClassLoader`. Fix: `-Daether.metadataResolver.threads=1` in surefire argLine. Also added `TestCdiBeans` producing `SystemPromptRenderer` and `VocabularyRegistry` for `@QuarkusTest` augmentation.
+- **Pre-existing fixes:** `DescriptorForEachAdapter.getCondition()` renamed from `getWhen` (eidos-core). `DescriptorLoadTest` updated for cognitive renderer. Slot settings `updatePolicy` changed from `always` to `interval:60`.
+- **Issues filed:** eidos#183, blocks#309, examples#92, examples#93.
 
-- **#90** (Hibernate JPA entity indexing failure):
-  - Root cause: stale `casehub-ledger` jar in `~/.m2`. Ledger's `.mvn/maven.config` points `maven.repo.local` to `/Users/mdproctor/claude/casehub/worktrees/30/.m2` — so `mvn install` from ledger repo doesn't write to shared `~/.m2/repository`
-  - Fix: rebuilt ledger runtime+deployment with `-Dmaven.repo.local=~/.m2/repository`
-  - Removed `quarkus.hibernate-orm.packages=io.casehub.eidos` workaround (no longer needed)
-  - Updated `SocialCognitionIntegrationTest` — drives now flow through CognitionCore, not SocialConfig
-  - All tests green: SocialCognitionIntegrationTest (5/5), CharacterCognitionTest (18/18), CognitiveActivationTest (10/10), BackendFactoryDiscoveryTest (3/3)
+### Design evolution
 
-- **#89** filed and refined: "Redefine briefing as voice card — cognitive systems carry behavior"
+D2 revised from "pure structured, no freeform" to "layered voice authoring." Key insight: for well-known characters, the LLM's training data IS the voice definition — enumerated catchphrases/vocabulary are redundant. For original characters (clinical, AML), the enumerated fields ADD information the LLM doesn't have. The `description` field is the merge point.
 
-- **End-to-end scenario verification**: 51 events, characters with distinct personalities, internal reasoning (asides), social interactions, puzzle-solving. Quarkus starts clean with all extensions.
+Discussion identified that the cognitive system must not recreate a static brief by different means. The emergence eval proves structural emergence (sections exist) but not behavioral emergence (LLM responds differently). Event-driven scenarios needed to prove the cognitive system produces contextually adaptive behavior.
 
-- **Eidos personality rendering investigation**: eidos has a rich rendering pipeline (`assembleMarkdownCognitiveProfile`) that resolves Jungian codes to full descriptions. Wacky-manor bypasses it — uses blocks' `PersonalityPromptSection` which renders raw codes. No behavioral impact today since briefings dominate.
+### Prior sessions
 
-### Key insight from this session
-
-The scenario output looks good but is almost entirely the LLM following briefing instructions. The cognitive systems (drives, memory, strategy, mood, mental models) are wired but haven't been proven to produce emergent behavior. The briefings are behavioral scripts that should be thinned to voice cards (speech patterns, accent, quirks) with behavior coming from neocortex. This is #89.
+- **Session 1:** Design phase — brainstorming, 8 decisions, design spec, decision review, spec review, implementation plan. eidos-api AgentVoiceProfile + CognitiveSystemPromptRenderer updates committed.
+- **Session 2:** Updated plan, filed soredium#383, blocked on IntelliJ heap.
+- **Session 3:** Batches 1-2 — PersonalityPromptSection removed, GoalPromptSection renamed in blocks-core. Voice card descriptors for 4 characters. Slot blocks rebased onto canonical main (absorbed #304 CognitiveAttentionMediator).
 
 ## Immediate Next Step
 
-**#89 — design phase.** This is XL/High and needs a spec before implementation. The design must answer:
-1. What stays in the briefing (voice card) vs what comes from cognitive state
-2. How the single composition pipeline works across eidos, blocks, and neocortex
-3. How to verify emergence — run with voice-only briefs and measure whether cognitive systems produce distinct behavior
+Design an event-driven emergence eval that proves the cognitive system produces contextually adaptive behavior — not just observation sections, but measurably different LLM responses when cognitive state changes over time.
 
-Before starting #89, push the blocks @DefaultBean commit upstream (78289913 in slot blocks, not yet pushed).
+**Brainstorm first.** Key questions:
+1. What events trigger cognitive state changes? (scheme failure → drive drops, suspicion → belief revision, persona switch)
+2. How to measure behavioral difference? (response comparison at tick 1 vs tick 50)
+3. What's the null hypothesis? (character with same voice + no cognitive state produces same behavior every tick)
 
-## Critical: .m2 State
+**Then:**
+- Agent-config CDI integration — `LlmCredentialStore` ambiguity needs resolving before `agent-config` can be added as a compile dependency. Currently only works in dev mode.
+- Remaining 13 character voice profiles — mechanical follow-up (separate issue).
 
-The slot's `.m2` is a **symlink** to `~/.m2/repository`. Key gotcha:
+## Cross-Slot Dependencies
 
-**Ledger's `.mvn/maven.config`** points `maven.repo.local` to a worktree-specific path. When rebuilding ledger from source, always pass `-Dmaven.repo.local=~/.m2/repository` or the jar won't reach the shared .m2. This was the root cause of the Hibernate failure.
+| Issue | Slot | Repo | Interaction with #89 | Status |
+|-------|------|------|---------------------|--------|
+| blocks#304 (CognitiveAttentionMediator) | 203 | blocks | Absorbed — slot blocks rebased onto canonical main with #304. CognitionCore constructor adapted (null mediator). | Done — absorbed via rebase |
+| blocks#309 (voice description renderer) | 196 | blocks | Renders description as primary voice signal | Done — committed |
+| eidos#183 (voice description field) | canonical | eidos | description field on AgentVoiceProfile, persona inheritance, deserializer | Done — committed on issue-89-voice-profile branch |
 
-All other repos install to `~/.m2/repository` normally.
+## Cross-Module
 
-### repos installed from source to `~/.m2/repository`:
-- `platform` (agent-api, agent-claude, agent-router, agent-gate, agent-config, credentials, llm-config, identity + deps)
-- `engine` (from slot 204 — full install including runtime)
-- `blocks` (blocks + deps) — includes @DefaultBean for NeedTierMappingProvider (commit 78289913, not pushed upstream)
-- `neocortex` (memory-api, memory, memory-core, memory-cbr-inmem, mindmap-*, cognitive-index)
-- `eidos` (runtime, core, api, vocab, persistence-memory, eval + deployment)
-- `ledger` (runtime + deployment rebuilt Sep 25 with `-Dmaven.repo.local=~/.m2/repository`)
-- `qhorus` (runtime, api, persistence-memory)
-- `work` (progress-api)
-
-## Known Issues
-
-1. **Eidos eval excluded** — `io.casehub.eidos.eval.**` in exclude-types prevents eval judge beans from loading; eval tests won't run until this is resolved
-2. **Cross-repo API mismatches at HEAD** — qhorus references removed ledger types; engine references removed ledger field (`domainData`)
-3. **Neocortex rebase conflicts** — slot neocortex branch has conflicts with main, skipped during both work-end cycles
-4. **Blocks @DefaultBean not pushed upstream** — commit 78289913 in slot blocks main, needs `git push` to origin
+| Repo | Branch | What | Status |
+|------|--------|------|--------|
+| canonical eidos | `issue-89-voice-profile` | AgentVoiceProfile + description field + AgentDescriptor.voice field + DescriptorForEachAdapter fix | Active, 2 commits ahead |
+| slot blocks | main | Renderer update for voice description | Active, green |
+| slot examples | `issue-89-briefing-voice-card` | Voice cards, persona activation, behavioral extraction, emergence eval, deadlock fix | Active, 577 tests green |
 
 ## References
 
 | Artifact | Path |
 |----------|------|
-| Phase D spec | specs/phase-d-cognitive-activation/2026-09-20-phase-d-cognitive-activation-design.md |
-| Phase D plan | plans/2026-09-20-phase-d-cognitive-activation.md |
-| Audit report | audits/2026-09-19-cognitive-architecture-audit.md |
-| Prompt pipeline issue | casehubio/examples#89 |
+| Design spec | specs/issue-89-briefing-voice-card/2026-09-27-briefing-voice-card-design.md |
+| Decisions (D2 revised) | specs/issue-89-briefing-voice-card/decisions.md |
+| Implementation plan | plans/2026-09-27-briefing-voice-card.md |
+| Emergence eval results | docs/eval/emergence-20260927-232108/ |
+| Voice profile test | wacky-manor/src/test/.../agent/VoiceProfileRendererTest.java |
+| PersonaActivation test | wacky-manor/src/test/.../agent/PersonaActivationSectionTest.java |
+| Emergence test | wacky-manor/src/test/.../experiment/EmergenceVerificationTest.java |
+| TestCdiBeans | wacky-manor/src/test/.../agent/TestCdiBeans.java |
+| Agent config manifest | wacky-manor/agent-config.yaml |
