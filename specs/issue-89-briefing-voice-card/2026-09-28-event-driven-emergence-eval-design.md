@@ -36,10 +36,18 @@ For each scenario:
     6. Record response
     7. Judge: does the delta reflect the event?
 
-  CONTROL pair:
+  CONTROL pair (conservative — strips ALL observation):
     8. Call LLM: system prompt (voice card) + NO observation + situation
-    9. Call LLM: same (second call, same prompt)
+    9. Call LLM: same (second call, identical prompt)
     10. Record both — delta is pure random LLM variation
+
+  The control strips all observation sections (cognitive, social, beliefs,
+  norms), not just the cognitive ones that changed. This is a conservative
+  design: the control's delta is purely from LLM non-determinism, making the
+  dual assertion easier to pass. A stricter alternative would keep static
+  sections (social awareness, norms) and strip only cognitive ones — but
+  since the claim is "cognitive state changes → behavioral adaptation,"
+  the simpler control suffices.
 
   Assertion:
     cognitive_delta_score ≥ 3 (change is visible)
@@ -256,11 +264,20 @@ For scenario 1 (scheme frustration), BEFORE loads hooded-claw's config from YAML
 - Drives: scheming intensity reduced from 0.9 to 0.5
 - Beliefs: "Penelope is naive" replaced with "Penelope is more observant than expected"
 
-Mood is handled separately — it's a CognitionCore concern, not SocialConfig. For scenarios that need mood changes, the test would either:
-- Include mood as an additional observation section (manually rendered)
-- Or rely on the SocialConfig-driven state alone
+Mood is handled separately — it's a CognitionCore concern, not SocialConfig. Since the paired-probe design doesn't use CognitionCore.tick(), mood needs to be rendered as a synthetic observation section appended to the CharacterCognition output. A helper method `syntheticMoodSection(pleasure, arousal, dominance)` returns an `ObservationSection` matching MoodPromptSection's format:
 
-Since the paired-probe design doesn't use CognitionCore.tick(), mood needs to be rendered as a synthetic observation section appended to the CharacterCognition output. A helper method `syntheticMoodSection(pleasure, arousal, dominance)` returns an `ObservationSection` matching MoodPromptSection's format.
+```
+Current emotional state:
+- Pleasure: {value} ({label})
+- Arousal: {value} ({label})
+- Dominance: {value} ({label})
+```
+
+Where labels are: value > 0.2 → positive descriptor, value < -0.2 → negative descriptor, else "neutral"/"balanced". This matches the format in the existing emergence report output.
+
+For scenarios WITHOUT mood change (scenarios 2 and 4), the synthetic mood section is omitted from both before and after probes — mood is not a variable in those scenarios and including it at neutral would add noise without signal.
+
+**Belief rendering:** CharacterCognition renders beliefs via two paths: MindMapStore nodes (with entrenchment scores and revision markers) or SocialConfig.initialBeliefs (plain text list). This test uses the SocialConfig path — no MindMapStore is wired. The plain-text rendering is simpler than production but sufficient: the test measures whether the LLM adapts to belief content changes, not rendering fidelity.
 
 ### 3.4 Run command
 
