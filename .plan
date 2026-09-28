@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-89-briefing-voice-card
-state: active
+state: closing:review
 project-sha: 6002a09a6dd664abdc605a67cead259d64cc1ea8
 date: 2026-09-27
 issue-repo: casehubio/examples
@@ -11,6 +11,7 @@ design-repo: project
 design-section-hashes: 
 flyway-next-v: none
 
+evidence-era: true
 ## Queue
 - [ ] casehubio/examples#89 — Issue #89 ← active
   - [x] Batch 1: Emergence eval
