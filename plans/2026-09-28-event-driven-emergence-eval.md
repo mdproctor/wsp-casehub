@@ -94,6 +94,8 @@ class EventDrivenEmergenceEvalTest {
     private static final int JUDGE_THRESHOLD = 3;
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_BACKOFF_MS = 5000;
+    private static final String EVAL_TIMESTAMP = LocalDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
 
     record EventScenario(
             String name,
@@ -179,7 +181,9 @@ Append to the class:
 Append to the class:
 
 ```java
-    private int judgeAdaptation(EventScenario scenario, String beforeResponse, String afterResponse) {
+    record JudgeResult(int score, String reasoning) {}
+
+    private JudgeResult judgeAdaptation(EventScenario scenario, String beforeResponse, String afterResponse) {
         var judgePrompt = String.format("""
                 You are evaluating whether an AI character's behavior CHANGED in response \
                 to a cognitive state change.
@@ -220,17 +224,17 @@ Append to the class:
                 int score = node.get("score").asInt();
                 String reasoning = node.has("reasoning") ? node.get("reasoning").asText() : "";
                 System.out.printf("[%s] judge reasoning: %s%n", scenario.name(), reasoning);
-                return score;
+                return new JudgeResult(score, reasoning);
             } catch (Exception e) {
                 System.err.printf("[%s] judge attempt %d/%d failed: %s%n",
                         scenario.name(), attempt, MAX_RETRIES, e.getMessage());
                 if (attempt < MAX_RETRIES) {
                     try { Thread.sleep(RETRY_BACKOFF_MS * attempt); }
-                    catch (InterruptedException ie) { Thread.currentThread().interrupt(); return 0; }
+                    catch (InterruptedException ie) { Thread.currentThread().interrupt(); return new JudgeResult(0, "interrupted"); }
                 }
             }
         }
-        return 0;
+        return new JudgeResult(0, "all retries failed");
     }
 
     private static String extractJson(String text) {
@@ -348,24 +352,25 @@ Add the scenarios() method with the first scenario and the main test method:
                 truncate(afterParsed.thinking(), 200));
 
         System.out.printf("[%s] judging cognitive delta...%n", scenario.name());
-        int cogDelta = judgeAdaptation(scenario, beforeResponse, afterResponse);
+        var cogResult = judgeAdaptation(scenario, beforeResponse, afterResponse);
         System.out.printf("[%s] judging control delta...%n", scenario.name());
-        int controlDelta = judgeAdaptation(scenario, controlResponse1, controlResponse2);
+        var controlResult = judgeAdaptation(scenario, controlResponse1, controlResponse2);
 
         System.out.printf("[%s] cognitive delta: %d, control delta: %d%n",
-                scenario.name(), cogDelta, controlDelta);
+                scenario.name(), cogResult.score(), controlResult.score());
 
         writeResult(scenario, beforeResponse, afterResponse,
-                controlResponse1, controlResponse2, cogDelta, controlDelta);
+                controlResponse1, controlResponse2, cogResult, controlResult);
 
-        assertThat(cogDelta)
+        assertThat(cogResult.score())
                 .as("Event '%s' should produce visible behavioral shift (score >= %d)",
                         scenario.eventDescription(), JUDGE_THRESHOLD)
                 .isGreaterThanOrEqualTo(JUDGE_THRESHOLD);
-        assertThat(cogDelta)
+        assertThat(cogResult.score())
                 .as("Cognitive delta (%d) should exceed control delta (%d) — " +
-                        "emergence must exceed random variation", cogDelta, controlDelta)
-                .isGreaterThan(controlDelta);
+                        "emergence must exceed random variation",
+                        cogResult.score(), controlResult.score())
+                .isGreaterThan(controlResult.score());
     }
 
     private static String truncate(String text, int maxLen) {
@@ -380,11 +385,9 @@ Add the scenarios() method with the first scenario and the main test method:
     private void writeResult(EventScenario scenario,
                              String beforeResponse, String afterResponse,
                              String controlResponse1, String controlResponse2,
-                             int cogDelta, int controlDelta) {
+                             JudgeResult cogResult, JudgeResult controlResult) {
         try {
-            var timestamp = LocalDateTime.now()
-                    .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-            var outputDir = EVAL_OUTPUT.resolve("event-driven-" + timestamp);
+            var outputDir = EVAL_OUTPUT.resolve("event-driven-" + EVAL_TIMESTAMP);
             Files.createDirectories(outputDir);
 
             var result = new LinkedHashMap<String, Object>();
@@ -395,9 +398,12 @@ Add the scenarios() method with the first scenario and the main test method:
             result.put("afterResponse", afterResponse);
             result.put("controlResponse1", controlResponse1);
             result.put("controlResponse2", controlResponse2);
-            result.put("cognitiveScore", cogDelta);
-            result.put("controlScore", controlDelta);
-            result.put("emergence", cogDelta >= JUDGE_THRESHOLD && cogDelta > controlDelta);
+            result.put("cognitiveScore", cogResult.score());
+            result.put("cognitiveReasoning", cogResult.reasoning());
+            result.put("controlScore", controlResult.score());
+            result.put("controlReasoning", controlResult.reasoning());
+            result.put("emergence", cogResult.score() >= JUDGE_THRESHOLD
+                    && cogResult.score() > controlResult.score());
 
             var mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
@@ -585,8 +591,10 @@ Append to the class:
                     truncate(before.thinking(), 300)));
             sb.append("**After thinking:** %s\n\n".formatted(
                     truncate(after.thinking(), 300)));
-            sb.append("**Cognitive Δ:** %s | **Control Δ:** %s\n\n".formatted(
-                    r.get("cognitiveScore"), r.get("controlScore")));
+            sb.append("**Cognitive Δ:** %s — %s\n\n".formatted(
+                    r.get("cognitiveScore"), r.getOrDefault("cognitiveReasoning", "")));
+            sb.append("**Control Δ:** %s — %s\n\n".formatted(
+                    r.get("controlScore"), r.getOrDefault("controlReasoning", "")));
         }
 
         Files.writeString(outputDir.resolve("emergence-report.md"), sb.toString());
