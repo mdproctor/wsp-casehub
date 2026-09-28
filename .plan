@@ -13,9 +13,9 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#89 — Issue #89 ← active
-  - [ ] Batch 1: Emergence eval
-    - [ ] Task 1: Core framework + scheme frustration
-    - [ ] Task 2: Remaining scenarios + report
+  - [x] Batch 1: Emergence eval
+    - [x] Task 1: Core framework + scheme frustration
+    - [x] Task 2: Remaining scenarios + report
 
 ## Deferred
 - [ ] Remove PersonalityPromptSection and rename GoalPromptSection (S / Low) [blocks] — Blocked by pre-existing neocortex API mismatch (CbrRecordStore renamed to CbrCaseMemoryStore). Fix the mismatch first, then this is a 5-minute change.
