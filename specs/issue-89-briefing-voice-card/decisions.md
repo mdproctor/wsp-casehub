@@ -103,3 +103,61 @@
 **Exploration:** quick
 **Revision:** R1-08 — three-run design isolates emergence correctly
 **Status:** revised
+
+## D9: Eval approach — paired state probes
+
+**Choice:** Paired state probes — build two CharacterCognition instances (before-event and after-event cognitive state), probe both with the same situation prompt, judge the delta. Add a no-cognition control to establish random-variation baseline. ~4 LLM calls per scenario.
+**Alternatives:**
+- Multi-tick simulation — run CognitionCore.tick() N times, inject events at specific ticks, probe at designated ticks. More realistic but requires complex store setup (MindMapStore, memory stores, TrustEvolutionConfig). ~2N LLM calls per scenario. Rejected: the tick pipeline's correctness is unit-tested elsewhere; the interesting question is whether different cognitive states produce different behavior, not whether tick() processes events correctly.
+- Narrative replay — full multi-turn conversation simulation. Most realistic but extremely expensive (~200 LLM calls), highly non-deterministic, and hard to judge ("what exactly are we measuring?"). Rejected: cost/signal ratio is poor.
+**Rationale:** The emergence claim is "different cognitive states → different behavior." Approach A tests this with exactly one controlled variable (the cognitive state in the observation layer). Same voice card, same situation prompt, same character. The control run (no cognitive sections) establishes the random-variation baseline — if cognitive delta >> control delta, that's the emergence signal. Clean isolation, minimal cost, strongest inferential power.
+**Trade-offs:** Doesn't prove the tick() mechanism naturally produces state evolution — only that state differences cause behavioral differences. Mitigated: tick correctness is tested by CognitionCore unit tests and EmergenceVerificationTest.
+**Sources:** EmergenceVerificationTest (structural-only gap), CognitiveInfluenceEvalTest (snapshot-only gap), CognitionCore.tick() (tick pipeline), CharacterCognition.renderCognitiveSections() (section rendering)
+**Depends on:** D8 (three-run emergence eval — this extends it to behavioral measurement)
+**Exploration:** deep-analysis
+**Status:** captured
+
+## D10: Event scenarios — four cognitive-subsystem-spanning events
+
+**Choice:** Four scenarios, each exercising a different cognitive subsystem:
+1. **Scheme frustration (Hooded Claw)** — drives + mood. Before: scheming 0.9, neutral mood, belief "Penelope is naive." After: drive frustrated (0.5), negative mood, revised belief. Situation: unguarded valuable + Penelope nearby.
+2. **Trust erosion (Penelope)** — beliefs + norms. Before: trusting norms, no suspicion. After: new belief about Sneekly's dishonesty. Situation: Sneekly offers guidance.
+3. **Mood elevation (Dick Dastardly)** — mood in isolation. Before: neutral mood. After: elevated pleasure + dominance. Situation: Muttley awaiting orders.
+4. **Social context shift (Hooded Claw)** — persona switching + social awareness. Before: alone (Claw). After: Penelope present (Sneekly). Situation: valuable artifact visible.
+**Alternatives:**
+- Fewer scenarios (2) — lower cost but weaker coverage; single failure invalidates the eval
+- More scenarios (6+) — diminishing returns; 4 covers the key subsystems
+- Different event selections — e.g., goal formation instead of mood elevation. Mood was chosen because it's the most isolated (pure PAD change, no SocialConfig restructuring), making it the cleanest single-variable test.
+**Rationale:** Four scenarios span drives, beliefs/norms, mood, and persona/social — the major cognitive subsystem categories. Each scenario tests a different pathway from event → state change → behavioral adaptation. Together they prove the cognitive system's breadth, not just one lucky path.
+**Trade-offs:** 16 LLM calls total (4 scenarios × 4 calls). Persona-switching scenario is partly structural (already proven by PersonaActivationSection), but the behavioral dimension (how the LLM adapts its response content, not just its persona label) is new.
+**Sources:** SocialConfig (drives, norms, beliefs, persona-constraint), CharacterCognition.renderCognitiveSections(), social-config.yaml (existing character configs), CognitiveInfluenceEvalTest scenarios (prior art)
+**Depends on:** D9 (eval approach)
+**Exploration:** deep-analysis
+**Status:** captured
+
+## D11: Measurement strategy — paired LLM judge with dual assertion
+
+**Choice:** LLM judge evaluates the paired delta — "given this event, does the AFTER response reflect the state change compared to BEFORE?" Score 0-5 on the same scale as CognitiveInfluenceEvalTest. Dual assertion: (1) cognitive delta score ≥ 3 (change is visible), (2) cognitive delta score > control delta score (change exceeds random variation). Markdown report persisted to `docs/eval/`.
+**Alternatives:**
+- Embedding distance — compute semantic similarity between before/after responses. Cheaper (no judge LLM call) but doesn't measure *adaptiveness*, only *difference*. Random variation also produces distance.
+- Human evaluation — most accurate but not automatable, doesn't fit CI pipeline
+- Structural diff only — count section differences. Already done by EmergenceVerificationTest; doesn't prove behavioral impact.
+**Rationale:** The judge LLM can assess whether the response difference is *adaptive* (reflects the event) vs *random* (arbitrary variation). The dual assertion handles both type-I (false positive from random variation — caught by control comparison) and type-II (false negative from too-strict threshold — caught by ≥ 3 being a moderate bar) errors.
+**Trade-offs:** Judge LLM adds cost and non-determinism. Mitigated: retry logic (existing pattern from CognitiveInfluenceEvalTest), and the dual assertion reduces false positives.
+**Sources:** CognitiveInfluenceEvalTest.judgeResponse() (existing judge pattern), EvalJudgeProducer (judge infrastructure)
+**Depends on:** D9 (eval approach), D10 (scenarios)
+**Exploration:** quick
+**Status:** captured
+
+## D12: Test infrastructure — new test class extending existing patterns
+
+**Choice:** New `EventDrivenEmergenceEvalTest` class — `@QuarkusTest @Tag("llm-eval")`. Uses existing `LlmTestSupport` and `CharacterCognition` rendering. Each scenario is a record `EventScenario(name, agentId, eventDescription, beforeState, afterState, situationPrompt, judgeCriteria, nearbyBefore, nearbyAfter)`. Output persisted to `docs/eval/` (durable, git-tracked).
+**Alternatives:**
+- Extend CognitiveInfluenceEvalTest — same class, different method. Rejected: the experimental design is fundamentally different (paired delta vs single-state probe). Mixing them obscures both.
+- Standalone test (no @QuarkusTest) — rejected: needs AgentProvider for LLM calls, which requires Quarkus CDI.
+**Rationale:** New class preserves the single-responsibility of each eval test. Reuses existing infrastructure (LlmTestSupport, SocialConfig, CharacterCognition) without modifying it. @Tag("llm-eval") ensures it runs only in the eval profile, not the standard suite.
+**Trade-offs:** Another eval test class to maintain. Mitigated: shares infrastructure with CognitiveInfluenceEvalTest; if patterns diverge, extract a shared base.
+**Sources:** CognitiveInfluenceEvalTest (pattern to follow), EmergenceVerificationTest (output persistence pattern), TestCdiBeans (CDI wiring for @QuarkusTest)
+**Depends on:** D9 (eval approach)
+**Exploration:** quick
+**Status:** captured
