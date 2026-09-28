@@ -1,0 +1,2 @@
+{"event":"land","repo":"examples","branch":"issue-89-briefing-voice-card","base_branch":"main","landed_sha":"c8db5c4d955425fbe05b0f959ea637f578bcc9f1","push_target":"upstream","mirrored":true,"stamped":true,"timestamp":"2026-09-28T04:54:54.023191+00:00"}
+{"event":"promote","branch":"issue-89-briefing-voice-card","files":[],"timestamp":"2026-09-28T04:56:11.408917+00:00"}
