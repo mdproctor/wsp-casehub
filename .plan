@@ -13,17 +13,9 @@ flyway-next-v: none
 
 ## Queue
 - [ ] casehubio/examples#89 — Issue #89 ← active
-  - [x] Batch 1: eidos-api
-    - [x] Task 1: AgentVoiceProfile record
-    - [x] Task 2: Add voice to AgentDescriptor
-  - [x] Batch 2: blocks-core
-    - [x] Task 3: Update CognitiveSystemPromptRenderer
-    - [x] Task 4: Remove PersonalityPromptSection and rename GoalPromptSection
-  - [ ] Batch 3: wacky-manor
-    - [ ] Task 5: Rewrite 4 character descriptors
-    - [ ] Task 6: PersonaActivationSection
-    - [ ] Task 7: Template behavioral content to SocialConfig
-    - [ ] Task 8: Three-run emergence eval
+  - [ ] Batch 1: Emergence eval
+    - [ ] Task 1: Core framework + scheme frustration
+    - [ ] Task 2: Remaining scenarios + report
 
 ## Deferred
 - [ ] Remove PersonalityPromptSection and rename GoalPromptSection (S / Low) [blocks] — Blocked by pre-existing neocortex API mismatch (CbrRecordStore renamed to CbrCaseMemoryStore). Fix the mismatch first, then this is a 5-minute change.
