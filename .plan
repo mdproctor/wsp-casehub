@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-89-briefing-voice-card
-state: closing:verified
+state: closing:promoted
 project-sha: 6002a09a6dd664abdc605a67cead259d64cc1ea8
 date: 2026-09-27
 issue-repo: casehubio/examples
