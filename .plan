@@ -1,0 +1,15 @@
+# Work Plan — issue-318-domain-activation-consumption
+
+## State
+branch: issue-318-domain-activation-consumption
+state: scaffolded
+project-sha: 
+date: 
+issue-repo: casehubio/blocks
+covers: casehubio/blocks#318
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+
+## Queue
+- [ ] casehubio/blocks#318 — Issue #318 ← active
