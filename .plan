@@ -9,10 +9,11 @@ Current: casehubio/blocks#319 — CognitiveProfile deep integration
 date: 2026-09-29
 
 ## Queue
-- [ ] casehubio/blocks#319 — CognitiveProfile deep integration ← active
-  - [x] Batch 1: Batch2
-    - [x] Task 1: EntityKnowledgePromptSection
-  - [x] Batch 2: Batch3
-    - [x] Task 2: CognitionCore wiring
-- [ ] casehubio/blocks#317 — SocialComparison integration
+- [x] casehubio/blocks#319 — CognitiveProfile deep integration
+- [ ] casehubio/blocks#317 — SocialComparison integration ← active
+  - [x] Batch 1: Batch1
+    - [x] Task 1: Extend CognitiveProfileParticipant
+    - [x] Task 2: SocialComparisonPromptSection
+  - [x] Batch 2: Batch2
+    - [x] Task 3: Wire + cleanup EntityKnowledgePromptSection
 - [ ] casehubio/blocks#318 — DomainActivation consumption
