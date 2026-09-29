@@ -1,10 +1,5 @@
 # Work Plan — casehub-examples
 
-## Queue
-- [ ] casehubio/blocks#319 — CognitiveProfile deep integration ← active
-- [ ] casehubio/blocks#317 — SocialComparison integration
-- [ ] casehubio/blocks#318 — DomainActivation consumption
-
 ## State
 branch: casehub-examples
 state: active
@@ -12,3 +7,12 @@ issue-repo: casehubio/blocks
 covers: casehubio/blocks#319
 Current: casehubio/blocks#319 — CognitiveProfile deep integration
 date: 2026-09-29
+
+## Queue
+- [ ] casehubio/blocks#319 — CognitiveProfile deep integration ← active
+  - [x] Batch 1: Batch2
+    - [x] Task 1: EntityKnowledgePromptSection
+  - [x] Batch 2: Batch3
+    - [x] Task 2: CognitionCore wiring
+- [ ] casehubio/blocks#317 — SocialComparison integration
+- [ ] casehubio/blocks#318 — DomainActivation consumption
