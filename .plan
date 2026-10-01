@@ -1,0 +1,15 @@
+# Work Plan — issue-71-wacky-manor-pre-test-hygiene
+
+## State
+branch: issue-71-wacky-manor-pre-test-hygiene
+state: scaffolded
+project-sha: 
+date: 
+issue-repo: casehubio/examples
+covers: casehubio/examples#71,casehubio/examples#92,casehubio/examples#91,casehubio/examples#40
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+
+## Queue
+- [ ] casehubio/examples#71 — Issue #71 ← active
