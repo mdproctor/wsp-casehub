@@ -2,42 +2,83 @@
 
 ## Last Session
 
-Two phases of work:
+**Issue #76 — Directive-minimal YAML rewrite (LANDED on main)**
 
-**1. Pre-test hygiene (branch closed, landed on main):**
-- #71 — Removed ManorTrustEvents (superseded by CDI trust events)
-- #92 — Closed as already done (voice descriptions)
-- #91 — Removed CognitiveBudget (attention-driven gating replaces it)
-- #40 — Refactored ManorEvent from 12-param record to sealed hierarchy (Action/Dialogue/Aside/Narrator)
+Restructured wacky-manor character definitions into a typed content taxonomy. Every piece of content now has exactly one type and one structural home:
 
-**2. Cross-repo cognition migration (on main, no branch):**
-- All 3 repos rebased against canonical local main
-- Neocortex: deleted 5 stale CbrCase duplicate files from incomplete rename
-- Blocks: removed CDI producers for missing neocortex classes (SocialNormDetector, NarrativeGoalEscalationPolicy, LlmCrossAxisGoalEnricher)
-- Examples: migrated 26 files from `blocks.agentic.social` → `neocortex.cognition` packages
-- Deleted 5 obsolete InMemory store classes — replaced with neocortex Memory classes backed by InMemoryCbrRecordStore
-- Fixed `contribute()` → `render()` API change (CognitionPromptRenderer)
-- Fixed Quarkus integration tests — CDI bean producers, connector exclusion, engine-testing dependency
-- **555 tests pass, 0 failures**
+| Type | Home | Rendered in |
+|---|---|---|
+| Identity | `briefing` (1-2 sentences) | System prompt |
+| Voice | `voice` section + genre templates | System prompt |
+| Hard constraints | `constraints` (HARD) | System prompt |
+| Tendencies | `tendencies` in social-config | Observation (first section) |
+| Goals/Drives/Norms/Beliefs | social-config | Observation (dynamic) |
 
-Closed #96, #71, #64 (Phase C epic — all 6 children done).
+**Changes landed:**
+- Stripped all 18 briefings to 1-2 sentence identity
+- Added voice sections to 14 characters
+- Stripped 3 role templates to voice-only
+- Added `tendencies` field to SocialConfig with parsing + rendering
+- Expanded social-config with tendencies + beliefs for all characters
+- 8 integration tests validating the taxonomy
+- Taxonomy audit: fixed 14 findings (duplicates, wrong-home, missing content)
+- Fixed stale template args in baseline/belbin/jungian profiles
+- Added PromptInspectionTest for eyeballing rendered prompts
 
-## Immediate Next Step
+**Live run results (partial — 25 events captured):**
+Characters behave distinctively with stripped briefings. Voice, tendencies, constraints all working. Hooded Claw maintains dual persona, Dick Dastardly lies convincingly, Ant Hill Mob suspicious of Sneekly.
 
-**#76 — Directive-minimal YAML rewrite.** The pre-test hygiene was specifically to prepare for this. Sequence:
-1. Write behavioral test baselines for current directive-heavy descriptors
-2. Strip verbose directives from descriptors-composite.yaml
-3. Verify behavior doesn't regress — the cognitive system (drives, beliefs, trust, personality) should produce character behavior without hand-holding
+## Immediate Next Steps
 
-## Pre-existing Issues
+### 1. Multi-repo rebase + rebuild (BLOCKER for scenario runs)
 
-- `PersonalityCompositionVerificationTest` — 5 tests @Disabled (pre-existing)
-- Blocks `engine-adapter` modules don't compile (engine repo not in slot) — not needed by examples
+Quarkus dev server has CDI `Unsatisfied dependency` errors (EventLogRepository, CaseInstanceRepository) blocking startup. Fix:
 
-## References
+```
+rm -rf ~/.m2/repository/io/casehub/
+```
 
-| Artifact | Path |
-|----------|------|
-| Diary entry | wsp-casehub/blog/2026-10-01-mdp01-clearing-the-runway.md |
-| Next issue | casehubio/examples#76 |
-| Blocks migration issue | casehubio/blocks#328 (social-jpa modules — deleted from blocks, function served by neocortex CBR) |
+Then rebuild in dependency order:
+
+| Step | Repo | Location |
+|---|---|---|
+| 1 | platform | `/Users/mdproctor/claude/casehub/platform` (canonical) |
+| 2 | eidos | `/Users/mdproctor/claude/casehub/eidos` (canonical) |
+| 3 | engine | `/Users/mdproctor/claude/casehub/engine` (canonical) |
+| 4 | blocks | `/Users/mdproctor/claude/casehub/slots/196/blocks` (slot) |
+| 5 | neocortex | `/Users/mdproctor/claude/casehub/slots/196/neocortex` (slot) |
+| 6 | examples | `/Users/mdproctor/claude/casehub/slots/196/examples` (slot) |
+
+For each: `git fetch upstream && git rebase upstream/main` then `mvn install -DskipTests`
+
+### 2. Comparison runs (after rebuild)
+
+Retrieve old briefings from git (`f9cbe81`), run scenario, save transcript. Then run with new briefings, save transcript. Compare character behavior delta. Save BOTH transcripts to `docs/eval/`.
+
+### 3. Iterative pare-back (#97 Phase 1)
+
+After baseline comparison, progressively remove tendencies to find the minimum set.
+
+## Issues Created This Session
+
+- **casehubio/examples#97** — Epic: Emergent character behavior (14 sub-items, 4 phases)
+- **casehubio/neocortex#398** — Memory seeding infrastructure
+- **casehubio/neocortex#399** — Deductive goal formation
+- **casehubio/neocortex#400** — Cognitive section calibration
+- **casehubio/neocortex#401** — Standardised experience-to-behaviour schema
+- **casehubio/neocortex#402** — CognitiveEmergenceTest framework
+
+## Branch State
+
+- `issue-076-directive-minimal-yaml-rewrite` — stamped closed, landed as ff5acaf
+- `fix/076-taxonomy-cleanup` — merged to main as bca77d5
+- `chore/076-prompt-inspection` — merged to main as 2abf0c3
+- `run/old-briefings-baseline` — temp branch with stashed old YAML files, can be deleted
+
+## Key Design Decisions (in workspace specs/)
+
+- Content type taxonomy: 10 types, each with one home (spec + decisions.md)
+- Tendencies = personality-stable behavioral patterns (always active), distinct from norms (contextual social rules)
+- Templates carry voice only — behavioral content moved to social-config
+- Emergence-first principle: prescribe less, let drives/goals/beliefs produce behavior
+- Future vision: memory-seeded personality emergence, clinical framing, standardised experience schemas
