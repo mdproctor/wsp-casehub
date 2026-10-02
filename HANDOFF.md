@@ -2,69 +2,80 @@
 
 ## Last Session
 
-**Branch: `fix/098-engine-package-rename`** (4 commits, on examples repo)
+**Landed on main:** `cfc6152` (#98) + `090d7c2` (#99)
 
 ### What was done
 
-**1. Multi-repo rebase + .m2 rebuild**
-- Rebased all 8 repos against upstream/main: platform, eidos, engine, blocks, neocortex, examples, qhorus, work
-- Cleared `~/.m2/repository/io/casehub/` and rebuilt in dependency order
-- Correct build order: platform → eidos → engine (skip test compile) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → examples/wacky-manor
-- Blocks has cross-repo API mismatch in engine-adapter-core (package rename) — excluded from build, not needed by wacky-manor
+1. Multi-repo rebase + .m2 rebuild (all 8 repos)
+2. Engine package rename fix (#98) — `engine.internal` → `engine.runtime` in CDI exclusions and test imports
+3. Old vs new briefing comparison runs
+4. Generic character ablation test (#99) — proves taxonomy drives behavior, not model priors
+5. Style-directive ablation — "lean into colloquialisms" beats prescribed catchphrases for 4/5 archetypes
 
-**2. Engine package rename fix (#98)**
-- Engine renamed `io.casehub.engine.internal` → `io.casehub.engine.runtime`
-- Fixed wacky-manor CDI exclusion in `application.properties` (line 18)
-- Fixed test import in `TestCdiBeans.java`
-- This was the root cause of the 57 CDI deployment errors
+### Key findings
 
-**3. Comparison scenarios — old vs new briefings**
-- Ran both scenarios (~10 min each, ~330 events each)
-- Old briefings (verbose, from f9cbe81): `docs/eval/old-briefings-20261002/transcript.json` — 327 events
-- New briefings (directive-minimal): `docs/eval/new-briefings-20261002/transcript.json` — 333 events
-- Result: behavioral parity confirmed. Characters maintain voice and behavioral patterns with stripped briefings
+- **Taxonomy is load-bearing.** Generic characters (no pop-culture refs) exhibit identical behavioral patterns to Wacky Races counterparts.
+- **Prescribe structure, not content.** Style-directive ("lean into Southern colloquialisms") produces richer voice than prescribed catchphrases.
+- **Exception: non-regional archetypes.** Theatrical villain didn't spontaneously generate an evil laugh — keep 1-2 prescribed anchors for archetypes without strong regional grounding.
 
-**4. Generic character ablation test (#99)**
-- Created `GENERIC` profile with renamed characters (Clara Bellingham, Vincent Marsh, Brixton Boys, Reginald Foxworth, James Hartwell)
-- Same taxonomy structure, no pop-culture references, regional voice archetypes
-- Files: `descriptors-generic.yaml`, `social-config-generic.yaml`, `dramatic-ensemble-style` template
-- Made social-config loader profile-aware (`loadForProfile` method)
-- Ran generic scenario: `docs/eval/generic-briefings-20261002/transcript.json` — 306 events
-- Awaiting comparison analysis vs Wacky Races run
+## Baseline Transcripts — DO NOT DELETE
 
-### Commits on branch
+These transcripts are the comparison baselines for the #97 iterative pare-back. Every future ablation run compares against these. They live in `wacky-manor/docs/eval/` on main:
 
-| SHA | Message |
-|-----|---------|
-| 6e20db4 | fix(#98): update engine.internal→engine.runtime package references |
-| e67a133 | chore(#98): save old vs new briefing comparison transcripts |
-| 3b0bb14 | feat(#99): add generic character ablation test profile |
-| efc1e20 | chore(#99): save generic character ablation transcript — 306 events |
+| Transcript | Events | What it tests | Profile |
+|---|---|---|---|
+| `old-briefings-20261002/transcript.json` | 327 | Verbose briefings (pre-rewrite) — behavioral ceiling | BASELINE |
+| `new-briefings-20261002/transcript.json` | 333 | Directive-minimal (post-rewrite) — parity confirmation | BASELINE |
+| `generic-briefings-20261002/transcript.json` | 306 | Generic chars + prescribed catchphrases — taxonomy validation | GENERIC |
+| `generic-colloquial-20261002/transcript.json` | 310 | Generic chars + style-directive only — emergence validation | GENERIC |
+| `directive-minimal-20261002/partial-events.json` | 25 | Partial earlier run (kept for historical reference) | COMPOSITE |
 
-## Issues Created This Session
+**How to run a comparison:** start quarkus:dev with the desired profile, POST `/manor/start`, poll `/manor/events`, save transcript alongside these baselines. Compare character voice distinctiveness and behavioral patterns.
 
-- **casehubio/examples#98** — Fix wacky-manor build: engine.internal→engine.runtime package rename
-- **casehubio/examples#99** — Generic character ablation test — isolate taxonomy contribution vs model prior knowledge
+```bash
+# Run with GENERIC profile
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml quarkus:dev -s .mvn/slot-settings.xml -Dquarkus.http.port=8180 -Dmanor.scenario.profile=generic -Dmaven.test.skip=true
 
-## Build Notes
-
-**Correct build order (updated):**
+# Start scenario and poll
+curl -4 -s -X POST http://127.0.0.1:8180/manor/start
+curl -4 -s http://127.0.0.1:8180/manor/events
 ```
-platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → examples/wacky-manor
-```
-
-**Known cross-repo issues:**
-- Engine test code references stale neocortex CBR APIs — skip test compile
-- Blocks engine-adapter-core references old `io.casehub.engine.internal.executor` package — exclude from build
-- Blocks blocks-core has `MemoryDomain` type mismatch with neocortex — exclude from build (blocks main module still builds)
 
 ## Immediate Next Steps
 
-### 1. Analyze ablation results
-Review generic vs Wacky Races transcript comparison. Key question: is the behavioral delta small (taxonomy drives behavior) or large (model priors do the work)?
+### 1. Iterative pare-back (#97 Phase 1)
 
-### 2. Iterative pare-back (#97 Phase 1)
-After ablation analysis, progressively remove tendencies to find the minimum set that maintains character distinctiveness.
+Using the generic colloquial transcript as the baseline, progressively strip tendencies from `descriptors-generic.yaml` and `social-config-generic.yaml` to find the minimum taxonomy:
 
-### 3. Land the branch
-Once analysis is complete, squash and land `fix/098-engine-package-rename` on main.
+1. Remove tendencies one at a time
+2. Re-run generic scenario (~10 min, ~300 events)
+3. Compare against `generic-colloquial-20261002/transcript.json` for behavioral drift
+4. Find the floor — smallest set that maintains distinct characters
+
+**Villain laugh investigation:** Can `theatrical-menace: 0.9` drive + tendency "you express triumph through dramatic vocalisation" produce an evil laugh without prescribing one? Test with Vincent Marsh.
+
+### 2. Phase 2 — Memory-seeded personality emergence
+
+After pare-back establishes the minimum taxonomy, feed into neocortex memory seeding (#398–#402).
+
+## Build Notes
+
+**Correct build order:**
+```
+platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → wacky-manor (-f wacky-manor/pom.xml)
+```
+
+**Known cross-repo issues (as of 2026-10-02):**
+- Engine test code references stale neocortex CBR APIs — skip test compile
+- Blocks engine-adapter-core references old `engine.internal.executor` package — exclude from build
+- Blocks blocks-core has `MemoryDomain` type mismatch with neocortex — exclude from build
+
+## Issues Created This Session
+
+- **casehubio/examples#98** — CLOSED — engine.internal→engine.runtime package rename fix
+- **casehubio/examples#99** — CLOSED — generic character ablation test
+
+## Branch State
+
+- `fix/098-engine-package-rename` — landed as cfc6152 + 090d7c2 on main
+- `backup/pre-squash-fix/098-engine-package-rename-20261002` — pre-squash backup (9 commits)
