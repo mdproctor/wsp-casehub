@@ -2,83 +2,69 @@
 
 ## Last Session
 
-**Issue #76 — Directive-minimal YAML rewrite (LANDED on main)**
+**Branch: `fix/098-engine-package-rename`** (4 commits, on examples repo)
 
-Restructured wacky-manor character definitions into a typed content taxonomy. Every piece of content now has exactly one type and one structural home:
+### What was done
 
-| Type | Home | Rendered in |
-|---|---|---|
-| Identity | `briefing` (1-2 sentences) | System prompt |
-| Voice | `voice` section + genre templates | System prompt |
-| Hard constraints | `constraints` (HARD) | System prompt |
-| Tendencies | `tendencies` in social-config | Observation (first section) |
-| Goals/Drives/Norms/Beliefs | social-config | Observation (dynamic) |
+**1. Multi-repo rebase + .m2 rebuild**
+- Rebased all 8 repos against upstream/main: platform, eidos, engine, blocks, neocortex, examples, qhorus, work
+- Cleared `~/.m2/repository/io/casehub/` and rebuilt in dependency order
+- Correct build order: platform → eidos → engine (skip test compile) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → examples/wacky-manor
+- Blocks has cross-repo API mismatch in engine-adapter-core (package rename) — excluded from build, not needed by wacky-manor
 
-**Changes landed:**
-- Stripped all 18 briefings to 1-2 sentence identity
-- Added voice sections to 14 characters
-- Stripped 3 role templates to voice-only
-- Added `tendencies` field to SocialConfig with parsing + rendering
-- Expanded social-config with tendencies + beliefs for all characters
-- 8 integration tests validating the taxonomy
-- Taxonomy audit: fixed 14 findings (duplicates, wrong-home, missing content)
-- Fixed stale template args in baseline/belbin/jungian profiles
-- Added PromptInspectionTest for eyeballing rendered prompts
+**2. Engine package rename fix (#98)**
+- Engine renamed `io.casehub.engine.internal` → `io.casehub.engine.runtime`
+- Fixed wacky-manor CDI exclusion in `application.properties` (line 18)
+- Fixed test import in `TestCdiBeans.java`
+- This was the root cause of the 57 CDI deployment errors
 
-**Live run results (partial — 25 events captured):**
-Characters behave distinctively with stripped briefings. Voice, tendencies, constraints all working. Hooded Claw maintains dual persona, Dick Dastardly lies convincingly, Ant Hill Mob suspicious of Sneekly.
+**3. Comparison scenarios — old vs new briefings**
+- Ran both scenarios (~10 min each, ~330 events each)
+- Old briefings (verbose, from f9cbe81): `docs/eval/old-briefings-20261002/transcript.json` — 327 events
+- New briefings (directive-minimal): `docs/eval/new-briefings-20261002/transcript.json` — 333 events
+- Result: behavioral parity confirmed. Characters maintain voice and behavioral patterns with stripped briefings
 
-## Immediate Next Steps
+**4. Generic character ablation test (#99)**
+- Created `GENERIC` profile with renamed characters (Clara Bellingham, Vincent Marsh, Brixton Boys, Reginald Foxworth, James Hartwell)
+- Same taxonomy structure, no pop-culture references, regional voice archetypes
+- Files: `descriptors-generic.yaml`, `social-config-generic.yaml`, `dramatic-ensemble-style` template
+- Made social-config loader profile-aware (`loadForProfile` method)
+- Ran generic scenario: `docs/eval/generic-briefings-20261002/transcript.json` — 306 events
+- Awaiting comparison analysis vs Wacky Races run
 
-### 1. Multi-repo rebase + rebuild (BLOCKER for scenario runs)
+### Commits on branch
 
-Quarkus dev server has CDI `Unsatisfied dependency` errors (EventLogRepository, CaseInstanceRepository) blocking startup. Fix:
-
-```
-rm -rf ~/.m2/repository/io/casehub/
-```
-
-Then rebuild in dependency order:
-
-| Step | Repo | Location |
-|---|---|---|
-| 1 | platform | `/Users/mdproctor/claude/casehub/platform` (canonical) |
-| 2 | eidos | `/Users/mdproctor/claude/casehub/eidos` (canonical) |
-| 3 | engine | `/Users/mdproctor/claude/casehub/engine` (canonical) |
-| 4 | blocks | `/Users/mdproctor/claude/casehub/slots/196/blocks` (slot) |
-| 5 | neocortex | `/Users/mdproctor/claude/casehub/slots/196/neocortex` (slot) |
-| 6 | examples | `/Users/mdproctor/claude/casehub/slots/196/examples` (slot) |
-
-For each: `git fetch upstream && git rebase upstream/main` then `mvn install -DskipTests`
-
-### 2. Comparison runs (after rebuild)
-
-Retrieve old briefings from git (`f9cbe81`), run scenario, save transcript. Then run with new briefings, save transcript. Compare character behavior delta. Save BOTH transcripts to `docs/eval/`.
-
-### 3. Iterative pare-back (#97 Phase 1)
-
-After baseline comparison, progressively remove tendencies to find the minimum set.
+| SHA | Message |
+|-----|---------|
+| 6e20db4 | fix(#98): update engine.internal→engine.runtime package references |
+| e67a133 | chore(#98): save old vs new briefing comparison transcripts |
+| 3b0bb14 | feat(#99): add generic character ablation test profile |
+| efc1e20 | chore(#99): save generic character ablation transcript — 306 events |
 
 ## Issues Created This Session
 
-- **casehubio/examples#97** — Epic: Emergent character behavior (14 sub-items, 4 phases)
-- **casehubio/neocortex#398** — Memory seeding infrastructure
-- **casehubio/neocortex#399** — Deductive goal formation
-- **casehubio/neocortex#400** — Cognitive section calibration
-- **casehubio/neocortex#401** — Standardised experience-to-behaviour schema
-- **casehubio/neocortex#402** — CognitiveEmergenceTest framework
+- **casehubio/examples#98** — Fix wacky-manor build: engine.internal→engine.runtime package rename
+- **casehubio/examples#99** — Generic character ablation test — isolate taxonomy contribution vs model prior knowledge
 
-## Branch State
+## Build Notes
 
-- `issue-076-directive-minimal-yaml-rewrite` — stamped closed, landed as ff5acaf
-- `fix/076-taxonomy-cleanup` — merged to main as bca77d5
-- `chore/076-prompt-inspection` — merged to main as 2abf0c3
-- `run/old-briefings-baseline` — temp branch with stashed old YAML files, can be deleted
+**Correct build order (updated):**
+```
+platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → examples/wacky-manor
+```
 
-## Key Design Decisions (in workspace specs/)
+**Known cross-repo issues:**
+- Engine test code references stale neocortex CBR APIs — skip test compile
+- Blocks engine-adapter-core references old `io.casehub.engine.internal.executor` package — exclude from build
+- Blocks blocks-core has `MemoryDomain` type mismatch with neocortex — exclude from build (blocks main module still builds)
 
-- Content type taxonomy: 10 types, each with one home (spec + decisions.md)
-- Tendencies = personality-stable behavioral patterns (always active), distinct from norms (contextual social rules)
-- Templates carry voice only — behavioral content moved to social-config
-- Emergence-first principle: prescribe less, let drives/goals/beliefs produce behavior
-- Future vision: memory-seeded personality emergence, clinical framing, standardised experience schemas
+## Immediate Next Steps
+
+### 1. Analyze ablation results
+Review generic vs Wacky Races transcript comparison. Key question: is the behavioral delta small (taxonomy drives behavior) or large (model priors do the work)?
+
+### 2. Iterative pare-back (#97 Phase 1)
+After ablation analysis, progressively remove tendencies to find the minimum set that maintains character distinctiveness.
+
+### 3. Land the branch
+Once analysis is complete, squash and land `fix/098-engine-package-rename` on main.
