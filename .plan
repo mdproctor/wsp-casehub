@@ -1,15 +1,16 @@
 # Work Plan — issue-109-cognitive-pipeline-hardening
 
 ## State
-branch: issue-109-cognitive-pipeline-hardening
-state: scaffolded
+branch: issue-115-drive-expression-gap
+state: active
 project-sha: 
 date: 
 issue-repo: casehubio/examples
-covers: 109
+covers: 115
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
 
 ## Queue
-- [ ] casehubio/examples#109 — Issue #109 ← active
+- [x] casehubio/examples#109 — Issue #109
+- [ ] casehubio/examples#115 — Close-the-drive-expression-gap
