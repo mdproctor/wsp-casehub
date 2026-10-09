@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow-grey" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#999"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#c0392b"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { rx: 8; ry: 8; stroke-width: 2; }
+    .label { font-size: 13px; font-weight: 600; fill: #2c3e50; }
+    .sublabel { font-size: 11px; fill: #7f8c8d; }
+    .dead-end { font-size: 12px; font-weight: 700; fill: #c0392b; }
+    .title { font-size: 18px; font-weight: 700; fill: #2c3e50; }
+  </style>
+
+  <text x="400" y="30" text-anchor="middle" class="title">The Disconnected Architecture — Before</text>
+
+  <!-- Drive Adaptation -->
+  <rect x="40" y="60" width="200" height="60" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="140" y="85" text-anchor="middle" class="label">Drive Adaptation</text>
+  <text x="140" y="100" text-anchor="middle" class="sublabel">DriveAdaptationPhase (P17)</text>
+
+  <line x1="240" y1="90" x2="350" y2="90" stroke="#999" stroke-width="2" marker-end="url(#arrow-grey)"/>
+  <text x="295" y="82" text-anchor="middle" class="sublabel">updates intensities</text>
+
+  <rect x="360" y="60" width="200" height="60" class="box" fill="#fdedec" stroke="#c0392b" stroke-dasharray="6,3"/>
+  <text x="460" y="92" text-anchor="middle" class="dead-end">NOTHING READS THEM</text>
+
+  <!-- CAPS Settling -->
+  <rect x="40" y="160" width="200" height="60" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="140" y="185" text-anchor="middle" class="label">CAPS Settling</text>
+  <text x="140" y="200" text-anchor="middle" class="sublabel">BehavioralSynthesisPhase (P19)</text>
+
+  <line x1="240" y1="190" x2="350" y2="190" stroke="#999" stroke-width="2" marker-end="url(#arrow-grey)"/>
+  <text x="295" y="182" text-anchor="middle" class="sublabel">behavioral attractors</text>
+
+  <rect x="360" y="160" width="200" height="60" class="box" fill="#fef9e7" stroke="#f39c12"/>
+  <text x="460" y="185" text-anchor="middle" class="label">Renders</text>
+  <text x="460" y="200" text-anchor="middle" class="sublabel">but drive-blind</text>
+
+  <!-- Appraisal -->
+  <rect x="40" y="260" width="200" height="60" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="140" y="285" text-anchor="middle" class="label">Appraisal</text>
+  <text x="140" y="300" text-anchor="middle" class="sublabel">AppraisalTickParticipant</text>
+
+  <line x1="240" y1="290" x2="350" y2="290" stroke="#999" stroke-width="2" marker-end="url(#arrow-grey)"/>
+  <text x="295" y="282" text-anchor="middle" class="sublabel">emotions</text>
+
+  <rect x="360" y="260" width="200" height="60" class="box" fill="#fef9e7" stroke="#f39c12"/>
+  <text x="460" y="285" text-anchor="middle" class="label">Renders</text>
+  <text x="460" y="300" text-anchor="middle" class="sublabel">but drive-blind</text>
+
+  <!-- Formation Memories -->
+  <rect x="40" y="340" width="200" height="50" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="140" y="370" text-anchor="middle" class="label">Formation Memories</text>
+
+  <line x1="240" y1="365" x2="350" y2="365" stroke="#999" stroke-width="2" marker-end="url(#arrow-grey)"/>
+  <text x="295" y="357" text-anchor="middle" class="sublabel">static rendering</text>
+
+  <rect x="360" y="340" width="200" height="50" class="box" fill="#fef9e7" stroke="#f39c12"/>
+  <text x="460" y="365" text-anchor="middle" class="label">No Salience</text>
+
+  <!-- Red X connections that don't exist -->
+  <text x="620" y="90" class="dead-end">Drive 0.7 → 0.95</text>
+  <text x="620" y="110" class="dead-end">= zero behavioral change</text>
+
+  <!-- Missing connections -->
+  <line x1="140" y1="120" x2="140" y2="160" stroke="#c0392b" stroke-width="2" stroke-dasharray="4,4"/>
+  <text x="155" y="145" class="dead-end" font-size="18">✗</text>
+
+  <line x1="140" y1="220" x2="140" y2="260" stroke="#c0392b" stroke-width="2" stroke-dasharray="4,4"/>
+  <text x="155" y="245" class="dead-end" font-size="18">✗</text>
+
+  <line x1="140" y1="120" x2="50" y2="340" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="60" y="235" class="dead-end" font-size="18">✗</text>
+</svg>

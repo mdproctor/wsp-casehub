@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 380" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#2c3e50"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { rx: 8; ry: 8; stroke-width: 2; }
+    .label { font-size: 13px; font-weight: 600; fill: #2c3e50; }
+    .sublabel { font-size: 11px; fill: #7f8c8d; }
+    .title { font-size: 16px; font-weight: 700; fill: #2c3e50; }
+    .layer-label { font-size: 12px; font-weight: 700; fill: #8e44ad; }
+  </style>
+
+  <text x="400" y="25" text-anchor="middle" class="title">Three Activation Types in the CAPS Network</text>
+
+  <!-- Layer labels -->
+  <text x="20" y="80" class="layer-label">STABLE</text>
+  <text x="20" y="170" class="layer-label">TRANSIENT</text>
+  <text x="20" y="260" class="layer-label">PERSISTENT</text>
+
+  <!-- Connection Weights -->
+  <rect x="100" y="50" width="650" height="55" class="box" fill="#f5eef8" stroke="#8e44ad"/>
+  <text x="130" y="75" class="label">Connection Weights</text>
+  <text x="130" y="92" class="sublabel">disposition_modifiers (socialOrient, rulefollowing)</text>
+  <text x="500" y="75" class="sublabel">Source: personality config</text>
+  <text x="500" y="92" class="sublabel">Changes via: long-term learning only</text>
+
+  <!-- Situation Activations -->
+  <rect x="100" y="140" width="650" height="55" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="130" y="165" class="label">Situation Activations</text>
+  <text x="130" y="182" class="sublabel">SituationClassifier.classify() → CAPS input nodes</text>
+  <text x="500" y="165" class="sublabel">Source: current events</text>
+  <text x="500" y="182" class="sublabel">Lifecycle: fires on event, fades after settling</text>
+
+  <!-- Drive Activations (NEW) -->
+  <rect x="100" y="230" width="650" height="55" class="box" fill="#d5f5e3" stroke="#27ae60"/>
+  <text x="130" y="255" class="label">Drive Activations  NEW</text>
+  <text x="130" y="272" class="sublabel">DriveAdaptationPhase → literature-derived CAPS node mapping</text>
+  <text x="500" y="255" class="sublabel">Source: adapted drive intensities</text>
+  <text x="500" y="272" class="sublabel">Lifecycle: re-injected each tick (persistent bias)</text>
+
+  <!-- Settling -->
+  <rect x="250" y="320" width="300" height="45" class="box" fill="#fef9e7" stroke="#f39c12"/>
+  <text x="400" y="343" text-anchor="middle" class="label">capsEngine.settle(state, combinedActivations)</text>
+  <text x="400" y="358" text-anchor="middle" class="sublabel">→ emergent behavioral attractors</text>
+
+  <!-- Arrows into settling -->
+  <line x1="425" y1="105" x2="400" y2="320" stroke="#8e44ad" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <line x1="425" y1="195" x2="400" y2="320" stroke="#2980b9" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="425" y1="285" x2="400" y2="320" stroke="#27ae60" stroke-width="1.5" marker-end="url(#a)"/>
+</svg>

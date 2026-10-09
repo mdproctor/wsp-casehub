@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 450" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#2980b9"/>
+    </marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#27ae60"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { rx: 8; ry: 8; stroke-width: 2; }
+    .label { font-size: 13px; font-weight: 600; fill: #2c3e50; }
+    .sublabel { font-size: 11px; fill: #7f8c8d; }
+    .theory { font-size: 10px; fill: #8e44ad; font-style: italic; }
+    .new { font-size: 11px; font-weight: 700; fill: #27ae60; }
+    .title { font-size: 18px; font-weight: 700; fill: #2c3e50; }
+  </style>
+
+  <text x="425" y="30" text-anchor="middle" class="title">The Connected Architecture — After</text>
+
+  <!-- Drive Adaptation (center) -->
+  <rect x="300" y="55" width="220" height="70" class="box" fill="#d5f5e3" stroke="#27ae60"/>
+  <text x="410" y="80" text-anchor="middle" class="label">Drive Adaptation</text>
+  <text x="410" y="95" text-anchor="middle" class="sublabel">DriveAdaptationPhase (P17)</text>
+  <text x="410" y="110" text-anchor="middle" class="sublabel">Produces drive-intensity nodes</text>
+
+  <!-- CAPS Settling -->
+  <rect x="40" y="180" width="220" height="70" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="150" y="205" text-anchor="middle" class="label">CAPS Settling</text>
+  <text x="150" y="220" text-anchor="middle" class="sublabel">BehavioralSynthesisPhase (P19)</text>
+  <text x="150" y="235" text-anchor="middle" class="sublabel">→ emergent attractors</text>
+
+  <!-- New connection: Drive → CAPS -->
+  <line x1="340" y1="125" x2="200" y2="180" stroke="#27ae60" stroke-width="2.5" marker-end="url(#arr-green)"/>
+  <text x="240" y="148" class="new">persistent activations</text>
+  <text x="240" y="162" class="theory">Mischel &amp; Shoda 1995; Read &amp; Miller 2002</text>
+
+  <!-- Appraisal -->
+  <rect x="310" y="180" width="220" height="70" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="420" y="205" text-anchor="middle" class="label">Appraisal</text>
+  <text x="420" y="220" text-anchor="middle" class="sublabel">SEC Checks (Relevance, Coping)</text>
+  <text x="420" y="235" text-anchor="middle" class="sublabel">→ drive-modulated emotions</text>
+
+  <!-- New connection: Drive → Appraisal -->
+  <line x1="410" y1="125" x2="420" y2="180" stroke="#27ae60" stroke-width="2.5" marker-end="url(#arr-green)"/>
+  <text x="450" y="148" class="new">DriveCategory.CHARACTER</text>
+  <text x="450" y="162" class="theory">Scherer 2001; Lazarus 1991</text>
+
+  <!-- Formation Memories -->
+  <rect x="580" y="180" width="220" height="70" class="box" fill="#eaf2f8" stroke="#2980b9"/>
+  <text x="690" y="205" text-anchor="middle" class="label">Formation Memories</text>
+  <text x="690" y="220" text-anchor="middle" class="sublabel">Salience-modulated rendering</text>
+  <text x="690" y="235" text-anchor="middle" class="sublabel">→ drive-relevant memories first</text>
+
+  <!-- New connection: Drive → Memory -->
+  <line x1="480" y1="125" x2="650" y2="180" stroke="#27ae60" stroke-width="2.5" marker-end="url(#arr-green)"/>
+  <text x="590" y="138" class="new">PAD proximity</text>
+  <text x="590" y="152" class="theory">Klinger 1971; Bower 1981</text>
+
+  <!-- LLM prompt -->
+  <rect x="200" y="310" width="420" height="70" class="box" fill="#fef9e7" stroke="#f39c12"/>
+  <text x="410" y="335" text-anchor="middle" class="label">LLM Prompt Context</text>
+  <text x="410" y="352" text-anchor="middle" class="sublabel">Emergent attractors + modulated emotions + salient memories</text>
+  <text x="410" y="367" text-anchor="middle" class="sublabel">No raw values, no prescriptive text, no drive labels</text>
+
+  <!-- Outputs to LLM -->
+  <line x1="150" y1="250" x2="300" y2="310" stroke="#2980b9" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="420" y1="250" x2="410" y2="310" stroke="#2980b9" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="690" y1="250" x2="520" y2="310" stroke="#2980b9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Emergent behavior -->
+  <rect x="300" y="410" width="220" height="35" class="box" fill="#f5eef8" stroke="#8e44ad"/>
+  <text x="410" y="433" text-anchor="middle" class="label" fill="#8e44ad">Emergent Behavior</text>
+
+  <line x1="410" y1="380" x2="410" y2="410" stroke="#8e44ad" stroke-width="1.5" marker-end="url(#arr)" style="marker-end: none;"/>
+  <text x="435" y="400" class="theory">behavior emerges from enriched context</text>
+</svg>
