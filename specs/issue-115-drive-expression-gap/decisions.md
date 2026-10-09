@@ -8,34 +8,42 @@
 - New CAPS input nodes per drive type — requires topology changes, conflates motivational and perceptual constructs
 - Reverse reinforcement mapping — indirect, sparse activation, still requires event-type-to-CAPS mapping
 **Rationale:** PAD (Pleasure-Arousal-Dominance) space is already the shared mathematical foundation across drives, formation memories, and affect theory. CAPS input nodes represent psychological constructs with inherent PAD profiles derivable from published literature. The mapping becomes geometric similarity in PAD space — computed, not assigned. The derivation chain is fully traceable: drive reinforcement history → PAD centroid → similarity to CAPS node PAD profiles → activation weight.
-**Trade-offs:** Requires PAD profiles for all ~30 CAPS input nodes (one-time effort, literature-grounded). PAD space is low-dimensional (3D) so drives with similar PAD profiles will produce similar CAPS activations — acceptable because psychologically similar drives SHOULD have similar behavioral influence.
+**Trade-offs:** Requires PAD profiles for all 31 CAPS input nodes (one-time effort, literature-grounded — see D2 for sourcing tiers). PAD space is low-dimensional (3D) so drives with similar PAD profiles will produce similar CAPS activations — acceptable because psychologically similar drives SHOULD have similar behavioral influence.
+**Schema impact:** CapsNode record (caps-api) must be extended with optional PAD profile fields (pleasure, arousal, dominance). This is a data extension to a shared SPI type consumed by caps-engine, caps-testing, caps-llm-classifier, mindmap-intelligence, and cognition. Adding nullable fields is non-breaking — modules that don't use PAD profiles ignore them. The caps-topology.yaml gains PAD values per input node.
+**Dual pathway merge:** Drive-based activations supplement situation-based activations (from SituationClassifier) via additive merge with configurable dampening (manor.caps.drive-dampening, default 0.3). Drive activations are persistent biases, not event-triggered — the dampening factor prevents saturation while preserving the perceptual bias drives create. Existing activation clamping [-1, 1] provides a hard ceiling.
 **Sources:** Mehrabian (1996) PAD model, Bradley & Lang (1999) ANEW, Fontaine et al. (2007) GRID, Mischel & Shoda (1995) CAPS theory
 **Exploration:** deep-analysis
-**Status:** captured
+**Status:** revised (R1: acknowledged schema extension, specified dual pathway merge strategy)
 
 ## D2: Model Value Sourcing Principle
 
-**Choice:** All model values (PAD profiles, similarity thresholds, dampening factors) must be sourced from published psychological literature with citations
+**Choice:** All model values (PAD profiles, similarity thresholds, dampening factors) must be traceable to published psychological literature — with sourcing tier documented per value
 **Alternatives:**
 - Hand-tuned values based on intuition — no derivation, not reproducible
 - LLM-generated values — plausible but not citable
-**Rationale:** The system is a computational implementation of established psychological models. Values sourced from literature are reproducible, defensible, and traceable. Where a construct lacks a direct published PAD value, derive from the closest published construct with the derivation documented.
-**Trade-offs:** Requires literature review effort. Some constructs may need interpolation from related published values.
-**Sources:** Design principle from user
+- Single "literature-sourced" requirement without tiers — aspirational for constructs where published norms don't exist
+**Rationale:** The system is a computational implementation of established psychological models. Values must be reproducible, defensible, and traceable. Three sourcing tiers acknowledge the practical reality that published PAD norms cover emotion words and concepts (ANEW, GRID) but not all CAPS constructs or motivational drives:
+  - **Tier 1 — Direct:** Published normed values (e.g., ANEW word ratings, GRID emotion profiles). Cite source and table/page.
+  - **Tier 2 — Derived:** Derived from published research with documented derivation chain (e.g., secure_attachment PAD from attachment theory's characterization of secure base affect). Cite source theory and derivation reasoning.
+  - **Tier 3 — Constrained:** Researcher judgment within literature-informed bounds (e.g., PAD profile for "competence_recognition" bounded by published achievement emotion profiles). Cite bounding sources and state that it is researcher-derived.
+All three tiers are acceptable; Tier 3 values should be flagged for empirical validation through D4a's micro-experiments.
+**Trade-offs:** Requires literature review effort. Most CAPS input nodes will be Tier 2 or 3. This is honest about the derivation quality rather than claiming false precision.
+**Sources:** Design principle from user, Bradley & Lang (1999) ANEW, Fontaine et al. (2007) GRID
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1: three-tier sourcing replaces single "literature-sourced" requirement)
 
 ## D3: Drive → Appraisal Wiring
 
-**Choice:** DriveProfile adapter — extend DriveProfile.allDrives() to merge SDT drives + character drives (from MindMap drive-intensity nodes)
+**Choice:** Call-site merge — AppraisalTickParticipant merges SDT drives (from DriveOrchestrator) with character drives (from MindMapStore drive-intensity nodes) at the point of use. Character drives use keyword lists for relevance detection.
 **Alternatives:**
+- DriveProfile.allDrives() extension — creates wrong-layer dependency (cognition-api → mindmap-api)
 - Separate AppraisalTickParticipant path — keeps SDT and character drive paths separated but duplicates wiring
 - Unified drive model — replace dual drive system entirely; largest change, conflicts with Phase D SDT design
-**Rationale:** DriveCategory.CHARACTER enum already exists but was never wired. RelevanceCheck already keyword-matches on drive.name() and drive.trigger(). Minimal code change to connect character drives through existing appraisal infrastructure.
-**Trade-offs:** Couples character drives into the SDT drive list. RelevanceCheck's keyword matching may need tuning for character drive names (gallantry, proving-worth, protection vs curiosity, competence, affiliation, autonomy).
-**Sources:** AppraisalTickParticipant.java, SchererAppraisalStrategy.java, DriveProfile.java
+**Rationale:** DriveProfile lives in cognition-api (a pure API module). MindMap drive-intensity nodes are in MindMapStore (mindmap-api runtime). Merging in DriveProfile.allDrives() would create a cross-layer dependency. AppraisalTickParticipant already has DriveOrchestrator injected; adding MindMapStore injection and merging the two drive lists preserves layer boundaries. DriveCategory.CHARACTER enum already exists and distinguishes character from SDT drives in the merged list.
+**Relevance detection:** Character drives require keyword lists (not drive-name substring matching). The Drive record's trigger field is extended from single String to List<String> to hold situationally-relevant terms (e.g., scheming → ["plan", "trap", "ambush", "outwit", "scheme"]). RelevanceCheck.computeDriveRelevance() matches these keywords against the narrative using the same pattern as RuleBasedSituationClassifier. SDT drives ("curiosity", "competence", "affiliation", "autonomy") naturally appear in narratives; character drives need curated keyword lists in social-config.yaml.
+**Sources:** AppraisalTickParticipant.java, RelevanceCheck.java, RuleBasedSituationClassifier.java, DriveProfile.java (cognition-api module boundaries)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1: call-site merge replaces DriveProfile extension; keyword lists replace name-only matching)
 
 ## D4: Emergence Philosophy
 
@@ -63,16 +71,17 @@
 
 ## D5: Memory-Drive Association Mechanism
 
-**Choice:** PAD proximity — associate formation memories with drives by geometric similarity in PAD space
+**Choice:** PAD proximity — associate formation memories with drives by geometric similarity in PAD space, with initial PAD centroids for cold start
 **Alternatives:**
 - Explicit YAML field (associated-drives per memory) — manually assigned, not emergent
 - Content-inferred via LLM — emergent but expensive (LLM call per memory per tick) and non-deterministic
-**Rationale:** Formation memories already have PAD values. Drives have PAD centroids (from D1). Similarity between memory PAD and drive PAD centroid determines association strength. Derived, not declared. Consistent with PAD bridge theme.
-**Trade-offs:** PAD space is 3D so some memories with different narrative content but similar PAD profiles may associate with the same drives. Acceptable — psychologically similar experiences SHOULD associate similarly.
+**Rationale:** Formation memories already have PAD values (pleasure, arousal, dominance in social-config.yaml). Drives have PAD centroids (from D1). Similarity between memory PAD and drive PAD centroid determines association strength. Derived, not declared. Consistent with PAD bridge theme.
+**Cold-start strategy:** At cold start (no reinforcement history), drive PAD centroids are undefined. Initial PAD profiles are specified in social-config.yaml drive entries (e.g., scheming: pleasure=0.7, arousal=0.5, dominance=0.9 — derived from the character's formation memories that shaped the drive). These seed values serve as the centroid until reinforcement history accumulates, at which point the centroid is a weighted blend of initial values and experienced PAD (initial weight decays via manor.drives.initial-pad-decay config). This ensures formation memories — the character's backstory — are MOST relevant at cold start and gradually yield to runtime experience.
+**Trade-offs:** PAD space is 3D so some memories with different narrative content but similar PAD profiles may associate with the same drives. Acceptable — psychologically similar experiences SHOULD associate similarly. Initial PAD profiles require per-drive authoring in social-config.yaml.
 **Sources:** Existing FormationMemory PAD values in social-config.yaml, D1 PAD bridge
 **Depends on:** D1 (PAD bridge provides drive PAD centroids)
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1: cold-start strategy with initial PAD profiles in social-config.yaml)
 
 ## D6: Memory Salience Rendering Strategy
 
@@ -88,12 +97,30 @@
 
 ## D7: Design Scope
 
-**Choice:** Full architecture — all 3 integration points (Drive→CAPS, Drive→Appraisal, Drive→Memory Salience) + content changes (enriched formation memories) + rendering cleanup (remove somatic drives from renderInternalState)
+**Choice:** Full architecture — all 3 integration points (Drive→CAPS, Drive→Appraisal, Drive→Memory Salience) + content changes (enriched formation memories) + rendering cleanup (remove somatic drives from renderInternalState). Implementation follows strict phasing order.
 **Alternatives:**
 - CAPS integration + rendering only — defers appraisal and memory salience
 - Everything including detailed eval strategy — comprehensive but significantly larger spec
-**Rationale:** The three integration points are architecturally related and should be designed as a coherent system. Implementation can be phased.
-**Trade-offs:** Larger design scope means longer brainstorming, but phased implementation keeps each step testable.
-**Sources:** Issue #118 implementation order
+**Rationale:** The three integration points are architecturally related and should be designed as a coherent system. Implementation is phased to prevent regression.
+**Implementation phasing (strict order):**
+  1. Wire computational pipeline (D1 PAD bridge, D3 appraisal wiring, D5 memory association)
+  2. Verify each integration point via D4a micro-experiments — drive expression must be measurably present
+  3. THEN remove prescriptive rendering (somatic drive text from renderInternalState)
+Rendering cleanup MUST NOT precede verified computational pipeline delivery. Issue #115's data showed gloating collapsed -1.52 when prescriptive text was removed without computational replacement. The same failure mode must not repeat.
+**Trade-offs:** Larger design scope means longer brainstorming, but phased implementation keeps each step testable and prevents regression.
+**Sources:** Issue #118 implementation order, Issue #115 regression data
+**Exploration:** quick
+**Status:** revised (R1: explicit phasing order to prevent #115-style regression)
+
+## D8: CAPS Topology Stability Under Drive-Based Activation
+
+**Choice:** CAPS topology (connection weights, convergence parameters, distortion mechanics) remains unchanged. Drive-based activation bias is managed through dampening and clamping, not topology retuning.
+**Alternatives:**
+- Retune convergence parameters (max_iterations, epsilon) for persistent drive activations — premature without empirical evidence of settling problems
+- Separate settling parameters for drive-biased vs pure-situation activation — unnecessary complexity, existing clamping handles magnitude
+**Rationale:** Drive activations are persistent low-level biases (dampened to ~30% of raw value via D1's dampening config), structurally different from event-triggered situation activations. Existing safeguards — activation clamping [-1, 1], convergence epsilon 0.001, max 100 iterations — are designed for arbitrary input patterns and handle additive bias without modification. If micro-experiments (D4a) reveal settling anomalies, the dampening factor and activation clamp are the first tuning targets, not the topology itself.
+**Trade-offs:** If drive bias causes unexpected attractor patterns, the fix is dampening/config tuning rather than topology redesign. D4a's runtime configurability ensures this is adjustable without code changes.
+**Sources:** caps-topology.yaml convergence parameters, CapsEngine.settle() interface
+**Surfaced by:** R1-09 (reviewer identified implicit decision)
 **Exploration:** quick
 **Status:** captured
