@@ -2,18 +2,21 @@
 
 ## D1: Drive → CAPS Mapping Mechanism
 
-**Choice:** PAD-space geometric derivation (PAD Bridge)
+**Choice:** CAPS connection weight modulation via disposition_modifiers
+**Supersedes:** PAD-space geometric derivation (PAD Bridge) — rejected after decision review R1-01 identified PAD as an emotion model, not a motivation bridge. Domain mismatch made PAD profiles for CAPS nodes Tier 2-3 at best.
 **Alternatives:**
-- Hand-crafted config mapping (caps-activations per drive type in YAML) — arbitrary, not traceable, no derivation chain
-- New CAPS input nodes per drive type — requires topology changes, conflates motivational and perceptual constructs
-- Reverse reinforcement mapping — indirect, sparse activation, still requires event-type-to-CAPS mapping
-**Rationale:** PAD (Pleasure-Arousal-Dominance) space is already the shared mathematical foundation across drives, formation memories, and affect theory. CAPS input nodes represent psychological constructs with inherent PAD profiles derivable from published literature. The mapping becomes geometric similarity in PAD space — computed, not assigned. The derivation chain is fully traceable: drive reinforcement history → PAD centroid → similarity to CAPS node PAD profiles → activation weight.
-**Trade-offs:** Requires PAD profiles for all 31 CAPS input nodes (one-time effort, literature-grounded — see D2 for sourcing tiers). PAD space is low-dimensional (3D) so drives with similar PAD profiles will produce similar CAPS activations — acceptable because psychologically similar drives SHOULD have similar behavioral influence.
-**Schema impact:** CapsNode record (caps-api) must be extended with optional PAD profile fields (pleasure, arousal, dominance). This is a data extension to a shared SPI type consumed by caps-engine, caps-testing, caps-llm-classifier, mindmap-intelligence, and cognition. Adding nullable fields is non-breaking — modules that don't use PAD profiles ignore them. The caps-topology.yaml gains PAD values per input node.
-**Dual pathway merge:** Drive-based activations supplement situation-based activations (from SituationClassifier) via additive merge with configurable dampening (manor.caps.drive-dampening, default 0.3). Drive activations are persistent biases, not event-triggered — the dampening factor prevents saturation while preserving the perceptual bias drives create. Existing activation clamping [-1, 1] provides a hard ceiling.
-**Sources:** Mehrabian (1996) PAD model, Bradley & Lang (1999) ANEW, Fontaine et al. (2007) GRID, Mischel & Shoda (1995) CAPS theory
+- PAD bridge (input activation via geometric similarity) — domain mismatch: PAD is for emotions not motivations; requires ~30 CAPS node PAD profiles most of which lack published values; adds second activation pathway with unspecified interaction semantics
+- Hand-crafted config mapping (caps-activations per drive type) — arbitrary, not traceable
+- New CAPS input nodes per drive type — conflates motivational and perceptual constructs
+- Reverse reinforcement mapping — indirect, sparse activation
+**Rationale:** CAPS already supports disposition-based weight modulation via `disposition_modifiers` in caps-topology.yaml. Personality dimensions (socialOrient, rulefollowing) already scale connection weights — drives extend this mechanism. Drives modulate HOW situations are processed (connection weight bias), not WHAT situations are perceived (input activation). This is psychologically accurate: motivation creates processing biases, not phantom perceptions. No CapsNode schema extension needed. No PAD profiles for CAPS nodes needed. Uses `CapsEngine.updateWeights()` for dynamic modulation as drive intensities change.
+**Drive-to-connection mapping:** Each drive type maps to connection groups it strengthens/weakens, defined universally (same for all characters). The mapping is from drives to processing paths (input→mediating→output connections), not to perceptual nodes. Example: gallantry strengthens social_input→approach paths, weakens social_input→withdraw paths. Mapping defined alongside drive type definitions, literature-sourced per D2 tiers.
+**Dynamic modulation:** Current disposition_modifiers are static (set at agent creation). Drive-based modifiers are dynamic — recalculated each tick from current drive intensities via `CapsEngine.updateWeights()`. Weight change = `connection_modifier × drive_intensity × dampening_factor`. Dampening configurable via `manor.caps.drive-dampening` (default 0.3).
+**Trade-offs:** Still requires defining which connections each drive type modulates (a mapping). But this mapping is more natural than PAD-to-input: "gallantry biases prosocial processing paths" is more defensible than "gallantry activates the acceptance input node." Mapping grounded in drive's psychological meaning, not PAD geometry.
+**Sources:** Mischel & Shoda (1995) CAPS theory, caps-topology.yaml disposition_modifiers mechanism, CapsEngine.updateWeights()
+**Surfaced by:** Decision review R1-01
 **Exploration:** deep-analysis
-**Status:** revised (R1: acknowledged schema extension, specified dual pathway merge strategy)
+**Status:** revised (R2: weight modulation replaces PAD bridge)
 
 ## D2: Model Value Sourcing Principle
 
@@ -79,7 +82,7 @@ All three tiers are acceptable; Tier 3 values should be flagged for empirical va
 **Cold-start strategy:** At cold start (no reinforcement history), drive PAD centroids are undefined. Initial PAD profiles are specified in social-config.yaml drive entries (e.g., scheming: pleasure=0.7, arousal=0.5, dominance=0.9 — derived from the character's formation memories that shaped the drive). These seed values serve as the centroid until reinforcement history accumulates, at which point the centroid is a weighted blend of initial values and experienced PAD (initial weight decays via manor.drives.initial-pad-decay config). This ensures formation memories — the character's backstory — are MOST relevant at cold start and gradually yield to runtime experience.
 **Trade-offs:** PAD space is 3D so some memories with different narrative content but similar PAD profiles may associate with the same drives. Acceptable — psychologically similar experiences SHOULD associate similarly. Initial PAD profiles require per-drive authoring in social-config.yaml.
 **Sources:** Existing FormationMemory PAD values in social-config.yaml, D1 PAD bridge
-**Depends on:** D1 (PAD bridge provides drive PAD centroids)
+**Depends on:** D2 (literature sourcing for initial PAD profiles). Note: D1 revision to weight modulation decoupled D5 from D1 — memory-drive association uses formation memory PAD values + drive initial PAD profiles independently of CAPS mapping mechanism.
 **Exploration:** quick
 **Status:** revised (R1: cold-start strategy with initial PAD profiles in social-config.yaml)
 
