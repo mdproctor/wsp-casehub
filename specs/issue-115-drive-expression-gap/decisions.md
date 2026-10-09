@@ -49,7 +49,32 @@
 **Exploration:** deep-analysis
 **Status:** captured
 
-## D5: Design Scope
+## D5: Memory-Drive Association Mechanism
+
+**Choice:** PAD proximity — associate formation memories with drives by geometric similarity in PAD space
+**Alternatives:**
+- Explicit YAML field (associated-drives per memory) — manually assigned, not emergent
+- Content-inferred via LLM — emergent but expensive (LLM call per memory per tick) and non-deterministic
+**Rationale:** Formation memories already have PAD values. Drives have PAD centroids (from D1). Similarity between memory PAD and drive PAD centroid determines association strength. Derived, not declared. Consistent with PAD bridge theme.
+**Trade-offs:** PAD space is 3D so some memories with different narrative content but similar PAD profiles may associate with the same drives. Acceptable — psychologically similar experiences SHOULD associate similarly.
+**Sources:** Existing FormationMemory PAD values in social-config.yaml, D1 PAD bridge
+**Depends on:** D1 (PAD bridge provides drive PAD centroids)
+**Exploration:** quick
+**Status:** captured
+
+## D6: Memory Salience Rendering Strategy
+
+**Choice:** All three strategies (prominence ordering, threshold filtering, enrichment injection) available at runtime as tunable global settings. Optimal hybridization discovered empirically through micro experiments.
+**Alternatives:**
+- Pick one strategy upfront — loses experimental flexibility
+**Rationale:** This is research. The right combination of salience strategies is an empirical question, not a design question. Runtime configurability lets us isolate each variable's contribution and find the optimal blend. Same pattern as CognitionConfig's progressive activation levels.
+**Trade-offs:** More implementation work than a single strategy. But the experimental value far outweighs the cost — and the strategies are independently simple.
+**Config shape:** `manor.salience.ordering=true`, `manor.salience.threshold=0.3`, `manor.salience.enrichment=false`
+**Sources:** Design principle from user — empirical over upfront design
+**Exploration:** quick
+**Status:** captured
+
+## D7: Design Scope
 
 **Choice:** Full architecture — all 3 integration points (Drive→CAPS, Drive→Appraisal, Drive→Memory Salience) + content changes (enriched formation memories) + rendering cleanup (remove somatic drives from renderInternalState)
 **Alternatives:**
