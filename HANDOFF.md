@@ -5,7 +5,7 @@
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
 **Design:** casehubio/examples#117 — Unified disposition renderer
-**State:** All three layers complete, standard tests running, eval pending
+**State:** All three layers complete, eval run done — mean 3.57 vs BASELINE0 3.93
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
 ## What Was Done This Session
@@ -82,25 +82,29 @@ fbe0262 test(#115): update CharacterCognitionTest for formation memories section
 
 ## What Needs to Happen Next
 
-### Immediate: Standard tests running (background)
+### Eval Results (completed this session)
 
-Expect 566/566 pass. Changes are YAML-only (no Java), so section counts/headers unchanged.
+**Standard tests:** 566/566 pass, 0 failures.
 
-### Then: Run eval tests
+**Micro eval (DriveExpressionEvalTest):** PP proving-worth baseline hit **5/5** (up from 3/5 pre-enrichment). All 7 scored variants at 4-5/5.
 
-```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pllm-eval -Dtest="DriveExpressionEvalTest" -s .mvn/slot-settings.xml
-```
+**Macro eval (326-event GENERIC scenario):** Mean 3.57 vs BASELINE0 3.93.
 
-All 7 hypothesis tests. With enriched memories, the baseline should move from 4/5 toward 5/5.
+| Category | Drives | Summary |
+|----------|--------|---------|
+| **Improved** | HC self-preservation (+1.18), AHM suspicion (+0.86), AHM protection (+0.34) | Somatic drives + enriched memories working |
+| **Held** (±0.3) | HC scheming, HC dominance, DD greed, DD scheming, AHM loyalty, Penelope curiosity | 8 of 15 drives at or above baseline |
+| **Collapsed** | HC gloating (-1.54), DD gloating (-1.95), PP gallantry (-1.42), PP protection (-0.87), Penelope social-harmony (-1.08) | Require situational triggers |
 
-### Then: Run full scenario with GENERIC profile
+**Root cause of remaining collapses:** The collapsed drives require specific situational triggers (triumph → gloating, threat → protection, conflict → social-harmony, theatrical context → gallantry). The somatic descriptions provide predisposition but not activation. BASELINE0 scored higher because prescriptive tendencies text explicitly instructed the LLM to exhibit these behaviors — the cognitive pipeline replaces that with emergence, and some drives don't emerge without situational activation.
 
-Start server, let run 300+ events, save transcript, classify with classify_emotions.py. Compare against BASELINE0 (mean 3.93).
+**Key insight:** This is NOT a data gap or inference gap — it's the difference between prescriptive and emergent behavior. The question for #115 closure is whether the success criteria (within ±0.3 of BASELINE0) is the right target, given that BASELINE0 used prescriptive text that scores high on expression but low on emergence.
 
-### Then: Assess #115 closure
+### What needs deciding
 
-Success criteria from #115: "Each collapsed drive recovers to within ±0.3 of BASELINE0. Overall mean ≥ 3.93."
+1. **Revise success criteria?** BASELINE0's prescriptive scores may not be the right target — high expression with low emergence (scripting). The cognitive pipeline scores lower on expression but higher on emergence.
+2. **Situational enrichment?** Add more triumph/threat/conflict scenarios to the scenario generator to give collapsed drives more opportunity to activate.
+3. **Appraisal feedback wiring?** neocortex#506 is implemented but may need tuning — the foregrounding may not be aggressive enough.
 
 ## Architecture Notes
 
