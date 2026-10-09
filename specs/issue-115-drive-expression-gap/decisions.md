@@ -49,6 +49,18 @@
 **Exploration:** deep-analysis
 **Status:** captured
 
+## D4a: Runtime Configurability Principle
+
+**Choice:** Every design choice involving alternative strategies or "how much" parameters must be exposed as runtime configuration. Support hybrid modes where strategies compose. Tune empirically through training/eval tests. Never bake in a single approach if alternatives are viable.
+**Alternatives:**
+- Fixed implementations chosen at design time — loses experimental flexibility, assumes we can predict the right answer before observing behavior
+**Rationale:** This is research. The system is a platform for discovering what works, not a product with known requirements. Every knob that can be turned should be turnable. The optimal configuration is discovered empirically, not designed theoretically.
+**Applies to:** D1 (dampening factor, similarity threshold, activation scaling), D3 (modulation strength, which SEC checks use character drives), D5 (PAD similarity function, centroid decay rate), D6 (salience strategies), rendering (somatic text on/off alongside CAPS attractors)
+**Config pattern:** Quarkus config properties (manor.caps.dampening, manor.appraisal.character-drive-weight, manor.salience.*, etc.)
+**Sources:** Design principle from user — empirical over upfront design
+**Exploration:** quick
+**Status:** captured
+
 ## D5: Memory-Drive Association Mechanism
 
 **Choice:** PAD proximity — associate formation memories with drives by geometric similarity in PAD space
