@@ -5,133 +5,118 @@
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
 **Design:** casehubio/examples#117 — Unified disposition renderer
-**State:** Unified renderer implemented, tests pending
-**Plan:** `.plan` has #115 active (covers=115), #117 queued
-**Related:** #116 — CognitivePipelineBuilder (testable pipeline assembly, not started)
+**State:** All three layers complete, standard tests running, eval pending
+**Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
 ## What Was Done This Session
 
-### 1. Root-to-tip pipeline analysis (four parallel forks)
+### 1. Verified standard tests pass (566/566, 0 failures)
 
-Traced the full drive expression pipeline. Key finding: three disconnected drive systems — orchestrator drives (cognitive engagement, works), character drives (personality disposition, suppressed), CAPS attractors (emergent behavior, works). Character-specific drives have zero rendering path because `CharacterDrivePromptSection` is gated by `!appraisalActive` and manor enables appraisal.
+Full test suite green. Pre-existing BeliefRevision/RelationshipStage errors from Oct 6 are stale reports — not in current run.
 
-### 2. Created design issue #117
+### 2. Somatic drive descriptions for all 5 characters
 
-Full analysis documented: pipeline traces, gap inventory, eval findings, unified renderer design, test strategy. Cross-referenced from #115.
+Rewrote drive descriptions from behavioral directives to somatic felt-state format for hooded-claw, penelope-pitstop, dick-dastardly, and ant-hill-mob (PP was done in previous session). Both BASELINE and GENERIC profiles. Commit `435945b`.
 
-### 3. Unified renderInternalState() implemented
+### 3. Eval tests confirm production model improvement
 
-New method in `CharacterCognition` that reads BOTH:
-- Character drives from cognitive subgraph (via `resolveAdaptedDrives()`)
-- CAPS behavioral attractors from BEHAVIORAL subgraph
+| Test | Pre-Unified | Post-Unified | Threshold |
+|------|:-----------:|:------------:|:---------:|
+| Baseline (production, no injection) | 3/5 | **4/5** | ≥3 ✓ |
+| Somatic drives | 3/5 | **4/5** | ≥3 ✓ |
+| Somatic + memories | 5/5 | 5/5 | ≥3 ✓ |
 
-Renders a single "What Pulls at You" section in somatic format. Positioned after "Who You Are", before "Where You Come From". No nearby-agents gate — works in both solo and social scenes.
+### 4. Ultrathink first-principles analysis (corrected)
 
-### 4. BehavioralPromptSection disabled
+Three parallel forks verified claims against evidence:
+- **WRONG claim:** "4→5 gap is drive-memory proximity." Baseline already has both drives and memories adjacent — still 4/5.
+- **CORRECT root cause:** Formation memories are terse event descriptions. The 5/5 tests used **enriched memories with drive-expression cues** — showing the child's behavioral response to each event (how the drive was reinforced).
+- **Literature confirmation (all SUPPORTED):** Damasio (somatic markers need autobiographical anchoring), Conway (episodic recall reactivates motivational states), McAdams (personality = traits + adaptations + narrative), CAPS (if-then profiles built from reinforcement history).
 
-Removed `.with("behavioral", true)` from PlaybookOrchestrator CognitionConfig. CAPS attractors now render through the unified renderer instead of BehavioralPromptSection.
+### 5. Created neocortex Layer 2 issues
 
-### 5. PP drive descriptions rewritten to somatic format
+| Issue | Title |
+|-------|-------|
+| casehubio/neocortex#504 | CAPS attractor labels — personality-specific output |
+| casehubio/neocortex#505 | AMPD expression style derivation |
+| casehubio/neocortex#506 | Appraisal-to-selection feedback |
+| casehubio/neocortex#507 | **Epic:** Cognitive inference enrichment (Layer 2) |
 
-Both BASELINE and GENERIC profiles. Analytical descriptions ("Must protect and impress Penelope") replaced with somatic felt-state text ("A warmth moves through you when courtesy matters...").
+### 6. Layer 2 neocortex changes implemented (separate session)
 
-### 6. Tests updated
+All three Layer 2 issues implemented and wired into examples:
+- Expression style derivation from AMPD facets (CognitiveDerivationEngine)
+- Personality-specific CAPS attractor labels (BehavioralSynthesisPhase)
+- Appraisal-driven drive foregrounding (CognitionRenderContext)
+- CharacterCognition wired to prefer personality-label and pass activated drives
 
-- CharacterCognitionTest: 8→9 sections with "What Pulls at You"
-- PropagationBoundaryTest: two new tests for unified renderer (solo + full pipeline)
-- Test run in progress
+Commits `12e6db9` and `62ea75f` on this branch.
+
+### 7. Layer 3 data enrichment — formation memories + AMPD + disposition
+
+**PP (both profiles):** Enriched all formation memories with drive-response expression cues. Added age-14 engineering competition memory in GENERIC. Added PAD values.
+
+**DD (both profiles):** Added 6 AMPD personality facets (Grandiosity:80, Attention Seeking:85, Deceitfulness:70, Manipulativeness:55, Impulsivity:65, Irresponsibility:75). Added 5 formation memories with drive-response cues. Added attachment and disposition axes.
+
+**Penelope (both profiles):** Added 5 formation memories with drive-response cues. Added disposition axes.
+
+**AHM (both profiles):** Added 5 formation memories with drive-response cues. Added disposition axes.
+
+Commit `130747f`.
 
 ## Commits on Branch
 
 ```
+130747f feat(#115): enrich formation memories with drive-expression cues + fill data gaps
+62ea75f feat(#115): wire appraisal-driven foregrounding into CharacterCognition
+12e6db9 feat(#115): prefer personality-label in unified attractor renderer
+435945b wip(#115): rewrite all character drives to somatic felt-state format
+d02a0d4 docs(#118): add literature-first design principle to CLAUDE.md
 e30fe7a test(#115): update section count and add boundary tests for unified renderer
 169b093 wip(#115): unified renderInternalState — somatic drives + CAPS attractors
 f9a683f fix(#115): wire dead ends 1/3/4 in PlaybookOrchestrator
 fbe0262 test(#115): update CharacterCognitionTest for formation memories section
 42f8113 fix(#115): wire renderFormationMemories into renderCognitiveSections
 65044d3 test(#115): add propagation boundary tests for 5 dead ends
-4f3d142 docs(#115): save full-run and pipeline-hardening transcripts from 2026-10-08
 ```
-
-## Dead End Status
-
-| # | Dead End | Status | Fix |
-|---|----------|--------|-----|
-| 1 | behavioralEnabled = false | **Fixed** → **Superseded** | Unified renderer replaces BehavioralPromptSection |
-| 2 | renderFormationMemories uncalled | **Fixed** | Added call in renderCognitiveSections |
-| 3 | seedCapsState not called | **Fixed** | Added in PlaybookOrchestrator loop |
-| 4 | seedPeople not called | **Fixed** | Added after PlaybookOrchestrator loop |
-| 5 | No drive rendering as somatic cues | **Fixed** | renderInternalState() with somatic descriptions |
-| 6 | perspectiveComparisonEnabled disabled | Open (lower priority) | Separate scope |
-| 7 | Drives invisible in solo scenes | **Fixed** | Same unified renderer (no nearby-agents gate) |
 
 ## What Needs to Happen Next
 
-### Immediate: Verify tests pass
+### Immediate: Standard tests running (background)
 
-Tests are running. If CharacterCognitionTest or PropagationBoundaryTest fail, debug and fix.
+Expect 566/566 pass. Changes are YAML-only (no Java), so section counts/headers unchanged.
 
-### Then: Run somatic eval tests
+### Then: Run eval tests
 
 ```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pllm-eval -Dtest="DriveExpressionEvalTest#ppAmbiguous_somaticDrives_provingWorth,DriveExpressionEvalTest#ppAmbiguous_somaticDrivesAndMemories_provingWorth" -s .mvn/slot-settings.xml
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pllm-eval -Dtest="DriveExpressionEvalTest" -s .mvn/slot-settings.xml
 ```
 
-Target: ≥3/5 on both expression and emergence dimensions.
+All 7 hypothesis tests. With enriched memories, the baseline should move from 4/5 toward 5/5.
 
-### Then: Run full scenario with all wiring active
+### Then: Run full scenario with GENERIC profile
 
-Run a GENERIC profile scenario with all fixes active. Compare drive expression scores against BASELINE0 (3.93). Save transcript.
+Start server, let run 300+ events, save transcript, classify with classify_emotions.py. Compare against BASELINE0 (mean 3.93).
 
-### Then: Rewrite remaining characters' drive descriptions
+### Then: Assess #115 closure
 
-If PP validates, rewrite drives for: hooded-claw, penelope-pitstop, dick-dastardly, ant-hill-mob.
-
-### Then: Consider #116 CognitivePipelineBuilder
-
-Extract composable pipeline builder from PlaybookOrchestrator. Separate scope.
-
-## Key Files Changed This Session
-
-| File | What |
-|------|------|
-| `CharacterCognition.java` | Added renderInternalState() + renderAttractorAsFelt() + wiring |
-| `PlaybookOrchestrator.java` | Disabled BehavioralPromptSection via CognitionConfig |
-| `social-config.yaml` | PP drive descriptions → somatic format |
-| `social-config-generic.yaml` | PP drive descriptions → somatic format |
-| `CharacterCognitionTest.java` | 8→9 sections, "What Pulls at You" in expected order |
-| `PropagationBoundaryTest.java` | Two new boundary tests for unified renderer |
+Success criteria from #115: "Each collapsed drive recovers to within ±0.3 of BASELINE0. Overall mean ≥ 3.93."
 
 ## Architecture Notes
 
-### Neocortex source location
-The neocortex repos are at `/Users/mdproctor/claude/casehub/slots/196/neocortex`. Key files:
+### Three-Layer Fix Architecture
 
-- `BehavioralPromptSection.java`: `cognition/src/main/java/io/casehub/neocortex/cognition/prompt/`
-  - Four-filter pipeline: subgraph type == BEHAVIORAL, CapsGenerated trait, agent-id, strength > 0.1
-  - NOW DISABLED — unified renderer in CharacterCognition reads same data
-- `DriveAdaptationPhase.java`: `cognition/src/main/java/io/casehub/neocortex/cognition/drive/`
-  - Looks for `cognitiveKind = "drive-intensity"` in cognitive subgraphs
-- `CognitionCore.java`: `cognition/src/main/java/io/casehub/neocortex/cognition/core/`
-  - `behavioralEnabled` now false (unified renderer replaces it)
-- `CharacterDrivePromptSection.java`: suppressed by `!appraisalActive` — not used
-- `CognitionConfig.java`: `cognition-api/src/main/java/.../core/`
-  - `all()` disables subsystems; `with(name, true)` enables individually
+| Layer | What | Status |
+|-------|------|--------|
+| 1 — Wiring | Connect dead ends in pipeline | **DONE** |
+| 2 — Inference | Personality-specific CAPS, expression styles, appraisal foregrounding | **DONE** (neocortex#504-506) |
+| 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
 
-### Three drive systems (documented in #117)
+### Key Constraint: Emergence Not Scripting
 
-| System | Level | Renderer | Status |
-|--------|-------|----------|--------|
-| Orchestrator drives | Cognitive engagement | DrivePromptSection | Works (separate) |
-| Character drives | Personality disposition | **renderInternalState()** | **NEW — unified** |
-| CAPS attractors | Emergent behavior | **renderInternalState()** | **NEW — unified** |
-
-### Key constraint: emergence not scripting
-Every change must be tested for scripting/triggering. The judge criteria require 50% weight on emergence. Drive cues must be somatic/felt, never behavioral directives. A scripted 5/5 is worth 2/5 at most.
+Every change must be tested for scripting/triggering. Drive cues are somatic/felt, never behavioral directives. Formation memories show drive REINFORCEMENT, not drive instructions. A scripted 5/5 on expression is worth 2 at most.
 
 ## Baseline Transcripts — DO NOT DELETE
-
-These transcripts are the comparison baselines for the #97 iterative pare-back. They live in `wacky-manor/docs/eval/` on the branch and main:
 
 | Transcript | Events | What it tests | Profile |
 |---|---|---|---|
@@ -148,25 +133,3 @@ These transcripts are the comparison baselines for the #97 iterative pare-back. 
 ```
 platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → wacky-manor (-f wacky-manor/pom.xml)
 ```
-
-**Run tests:**
-```bash
-# Standard tests
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -s .mvn/slot-settings.xml
-
-# Boundary tests only
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Dtest="PropagationBoundaryTest" -s .mvn/slot-settings.xml
-
-# Drive expression eval tests (LLM required)
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pllm-eval -Dtest="DriveExpressionEvalTest" -s .mvn/slot-settings.xml
-```
-
-## Pre-existing test failures (not caused by #115)
-
-- `RelationshipStageIntegrationTest` (3 errors) — IllegalAccessError on package-private constructor
-- `BeliefRevisionIntegrationTest` (3 errors) — same issue, neocortex API visibility change
-
-## Branch State
-
-- `issue-115-drive-expression-gap` — active, 12 commits (7 this session), Layer 1 + Layer 2 complete
-- Project repo and workspace repo both on this branch
