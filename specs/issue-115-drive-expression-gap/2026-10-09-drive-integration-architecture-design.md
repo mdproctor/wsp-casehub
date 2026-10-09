@@ -211,7 +211,36 @@ Strategies compose — ordering + threshold + enrichment can all be active simul
 
 Apply to both BASELINE and GENERIC profiles in social-config.yaml and social-config-generic.yaml.
 
-## 4. Implementation Phasing (Strict Order)
+## 4. Why This Will Be Different (Addressing the #115 Failure)
+
+Issue #115 showed that removing prescriptive text caused drive expression to collapse. The question is: why will computational integration succeed where simple text removal failed?
+
+**What happened last time:** Somatic drive descriptions ("a warmth moves through you when courtesy matters") were the ONLY mechanism through which drives influenced the LLM. Removing them removed all drive influence. There was nothing computational to replace them because the computational connections prescribed by the underlying theories were never wired:
+
+| Theory | What it prescribes | What was built | What was missing |
+|--------|-------------------|----------------|-----------------|
+| Scherer (2001) | Motivational state feeds relevance check | SEC checks existed | Character drives never connected (only SDT drives) |
+| Mischel & Shoda (1995) | Goals participate as CAPS activations | CAPS engine existed | Drive intensities never injected into settling |
+| Klinger (1971) | Active drives increase salience for related stimuli | Formation memories existed | No salience modulation |
+
+The architecture had the infrastructure but not the connections. Removing prescriptive text exposed the missing connections — there was no computational fallback.
+
+**What's different now:** We're wiring the three connections the theories prescribe. Each replaces a specific function that prescriptive text previously served:
+
+| What prescriptive text did | What computation now does |
+|---|---|
+| Told LLM to feel gallant ("warmth when courtesy matters") | Drive→CAPS: gallantry activation biases network toward prosocial attractors → LLM sees emergent attractor ("Something deep-rooted — a tendency-to-protect") |
+| Made threats feel important via somatic cues | Drive→Appraisal: protection drive amplifies relevance for threat events → LLM sees stronger emotional responses |
+| All backstory equally present regardless of current state | Drive→Memory: high-protection drive makes protection-related formation memories more salient → recent experience shapes which past echoes |
+
+**Evidence from the emergence literature:**
+- Park et al. (2023): LLM agent behavior emerges when architectural support (memory, reflection, planning) is present. Each component critically contributes — ablation confirms.
+- SEAA (2026): Agents develop distinct behavioral signatures through computational mechanisms (HMM inertia, social comparison), not through explicit instructions.
+- Failure mode documented: "LLMs struggle to integrate nuanced events unless explicitly instructed" — BUT this applies when there is no computational pipeline. Our pipeline provides the computational equivalent of "explicit instruction" without prescriptive text.
+
+**The phasing gate makes regression impossible:** Phase 5 (remove somatic text) has a hard prerequisite: phases 1-3 must be wired AND verified. The verification is empirical — micro experiments must show measurable drive expression through the computational pipeline BEFORE prescriptive text is removed. If computation doesn't produce sufficient drive expression, we don't remove the text.
+
+## 5. Implementation Phasing (Strict Order)
 
 | Phase | What | Validates | Gate |
 |-------|------|-----------|------|
