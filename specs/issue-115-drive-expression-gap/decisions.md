@@ -2,21 +2,31 @@
 
 ## D1: Drive → CAPS Mapping Mechanism
 
-**Choice:** CAPS connection weight modulation via disposition_modifiers
-**Supersedes:** PAD-space geometric derivation (PAD Bridge) — rejected after decision review R1-01 identified PAD as an emotion model, not a motivation bridge. Domain mismatch made PAD profiles for CAPS nodes Tier 2-3 at best.
+**Choice:** Persistent dispositional activations — drives injected as persistent baseline activations in the CAPS network, with literature-derived mappings per drive type
+**Supersedes:**
+- R3: CAPS weight modulation via disposition_modifiers — rejected after literature review. Read & Miller (2002) and Read et al. (2018) establish that in computational CAPS models, motivational states operate as activations flowing through the weighted network, NOT as modulators that change connection weights. Weights represent stable personality traits from developmental/learning history; they don't fluctuate with momentary motivation. Weight changes are reserved for long-term learning (Hebbian + error-correcting).
+- R1: PAD-space geometric derivation (PAD Bridge) — rejected after decision review R1-01 identified PAD as an emotion model, not a motivation bridge.
 **Alternatives:**
-- PAD bridge (input activation via geometric similarity) — domain mismatch: PAD is for emotions not motivations; requires ~30 CAPS node PAD profiles most of which lack published values; adds second activation pathway with unspecified interaction semantics
-- Hand-crafted config mapping (caps-activations per drive type) — arbitrary, not traceable
-- New CAPS input nodes per drive type — conflates motivational and perceptual constructs
+- Weight modulation (R2) — intuitively appealing but contradicted by published CAPS computational models (Read & Miller 2002). Weights encode stable personality, not dynamic motivation.
+- PAD bridge (R1) — domain mismatch: PAD is for emotions not motivations
+- Hand-crafted config mapping — arbitrary, not traceable
 - Reverse reinforcement mapping — indirect, sparse activation
-**Rationale:** CAPS already supports disposition-based weight modulation via `disposition_modifiers` in caps-topology.yaml. Personality dimensions (socialOrient, rulefollowing) already scale connection weights — drives extend this mechanism. Drives modulate HOW situations are processed (connection weight bias), not WHAT situations are perceived (input activation). This is psychologically accurate: motivation creates processing biases, not phantom perceptions. No CapsNode schema extension needed. No PAD profiles for CAPS nodes needed. Uses `CapsEngine.updateWeights()` for dynamic modulation as drive intensities change.
-**Drive-to-connection mapping:** Each drive type maps to connection groups it strengthens/weakens, defined universally (same for all characters). The mapping is from drives to processing paths (input→mediating→output connections), not to perceptual nodes. Example: gallantry strengthens social_input→approach paths, weakens social_input→withdraw paths. Mapping defined alongside drive type definitions, literature-sourced per D2 tiers.
-**Dynamic modulation:** Current disposition_modifiers are static (set at agent creation). Drive-based modifiers are dynamic — recalculated each tick from current drive intensities via `CapsEngine.updateWeights()`. Weight change = `connection_modifier × drive_intensity × dampening_factor`. Dampening configurable via `manor.caps.drive-dampening` (default 0.3).
-**Trade-offs:** Still requires defining which connections each drive type modulates (a mapping). But this mapping is more natural than PAD-to-input: "gallantry biases prosocial processing paths" is more defensible than "gallantry activates the acceptance input node." Mapping grounded in drive's psychological meaning, not PAD geometry.
-**Sources:** Mischel & Shoda (1995) CAPS theory, caps-topology.yaml disposition_modifiers mechanism, CapsEngine.updateWeights()
-**Surfaced by:** Decision review R1-01
-**Exploration:** deep-analysis
-**Status:** revised (R2: weight modulation replaces PAD bridge)
+**Rationale:** In Mischel & Shoda's CAPS theory, personality is the pattern of connection weights AND the pattern of activations across cognitive-affective units (CAUs). Goals and motivating forces are one of the five CAU types. Read & Miller's *Virtual Personalities* (2002) — the most elaborated computational CAPS implementation — treats goals as activations that spread through the weighted network to bias behavior selection. Drives in our system follow this model: they are persistent activations (re-injected each tick based on current drive intensity) that bias the network's settling dynamics alongside transient situation activations.
+**Three activation types in the CAPS network:**
+  - **Connection weights** = stable personality (from disposition_modifiers, changed only by long-term learning)
+  - **Situation activations** = transient event-triggered signals (from SituationClassifier, existing)
+  - **Drive activations** = persistent motivational bias (from DriveAdaptationPhase, NEW — re-injected each tick)
+**Drive-to-activation mapping:** Each drive type maps to CAPS nodes it activates, defined universally. Mappings derived from published motivational psychology literature for each specific drive construct:
+  - Gallantry/prosocial motivation: Batson (1991) empathy-altruism, Penner et al. (2005) prosocial behavior → `other_safety`, `acceptance`, `approach`
+  - Proving-worth/achievement motivation: McClelland (1961) need for achievement → `mastery`, `competence_recognition`, `self_efficacy`
+  - Protection/caregiving: George & Solomon (2008) caregiving behavioral system → `other_safety`, `physical_threat` sensitivity, `approach`
+  - Scheming/Machiavellianism: Christie & Geis (1970) Machiavellianism → `dominance`, `strategic cognition`, `distrust`
+  Each mapping is Tier 2 sourcing (D2) — derived from published research with documented derivation chain.
+**Activation merge:** Drive activations are added to the `combinedActivations` map alongside situation activations before `capsEngine.settle()`. Merge strategy: additive with configurable dampening (`manor.caps.drive-dampening`, default 0.3). Drive activations are persistent low-level biases; situation activations are transient high-level signals. Existing activation clamping [-1, 1] prevents saturation.
+**Trade-offs:** Still requires defining which CAPS nodes each drive type activates. But the mapping is now derived from specific motivational construct literature, not from PAD geometry or intuition. Adding a new drive type requires a literature review of that motivational construct to identify its activation pattern.
+**Sources:** Mischel & Shoda (1995) CAPS theory, Read & Miller (2002) Virtual Personalities, Read et al. (2018) Personality Neuroscience, Batson (1991), McClelland (1961), George & Solomon (2008), Christie & Geis (1970)
+**Exploration:** deep-analysis + literature-review
+**Status:** revised (R3: persistent activations replaces weight modulation, per published CAPS computational models)
 
 ## D2: Model Value Sourcing Principle
 
@@ -107,7 +117,7 @@ All three tiers are acceptable; Tier 3 values should be flagged for empirical va
 - Everything including detailed eval strategy — comprehensive but significantly larger spec
 **Rationale:** The three integration points are architecturally related and should be designed as a coherent system. Implementation is phased to prevent regression.
 **Implementation phasing (strict order):**
-  1. Wire computational pipeline (D1 PAD bridge, D3 appraisal wiring, D5 memory association)
+  1. Wire computational pipeline (D1 persistent drive activations, D3 appraisal wiring, D5 memory association)
   2. Verify each integration point via D4a micro-experiments — drive expression must be measurably present
   3. THEN remove prescriptive rendering (somatic drive text from renderInternalState)
 Rendering cleanup MUST NOT precede verified computational pipeline delivery. Issue #115's data showed gloating collapsed -1.52 when prescriptive text was removed without computational replacement. The same failure mode must not repeat.
