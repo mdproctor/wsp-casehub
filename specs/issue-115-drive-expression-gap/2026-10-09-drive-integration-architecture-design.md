@@ -146,7 +146,7 @@ drives:
 4. Overall salience = max association strength across all drives, weighted by drive intensity
 5. Apply rendering strategies based on salience scores
 
-**PAD similarity function:** Weighted cosine similarity with valence emphasis:
+**PAD similarity function:** Weighted dot product with valence emphasis (values normalized to [-1, 1] range):
 ```
 similarity = w_p × (mem.pleasure × drive.pleasure)
            + w_a × (mem.arousal × drive.arousal)
