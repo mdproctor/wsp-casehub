@@ -100,25 +100,51 @@ fbe0262 test(#115): update CharacterCognitionTest for formation memories section
 
 **Key insight:** This is NOT a data gap or inference gap — it's the difference between prescriptive and emergent behavior. The question for #115 closure is whether the success criteria (within ±0.3 of BASELINE0) is the right target, given that BASELINE0 used prescriptive text that scores high on expression but low on emergence.
 
-### What needs deciding
+### Transcript diagnostic (corrected understanding)
 
-1. **Revise success criteria?** BASELINE0's prescriptive scores may not be the right target — high expression with low emergence (scripting). The cognitive pipeline scores lower on expression but higher on emergence.
-2. **Situational enrichment?** Add more triumph/threat/conflict scenarios to the scenario generator to give collapsed drives more opportunity to activate.
-3. **Appraisal feedback wiring?** neocortex#506 is implemented but may need tuning — the foregrounding may not be aggressive enough.
+Three distinct root causes — two are NOT pipeline problems:
+- **HC gloating:** Persona constraint (never-break-cover) correctly suppresses public gloating. Pipeline is right.
+- **DD gloating:** Zero triumph events in scenario. Scenario diversity problem.
+- **PP gallantry:** Drive absorption by proving-worth. Somatic descriptions too similar.
 
-## Architecture Notes
+Prescriptive text that is inferred from the personality model (not manually inserted) is legitimate emergence. Derived tendencies from #505's expression styles are the mechanism.
+
+### Remaining work — neocortex first, then examples
+
+**Neocortex epic: casehubio/neocortex#513** (do these first)
+
+| Issue | What | Priority |
+|-------|------|----------|
+| neocortex#506 | Re-wire appraisal foregrounding to personality drives (not orchestrator drives) | High |
+| neocortex#509 | Wire drive adaptation into CAPS settling and appraisal | High |
+| neocortex#510 | CAPS settling dampens too aggressively | High |
+| neocortex#508 | Klinger motivational salience modulation | Medium |
+| neocortex#511 | Pipeline tuning (graduated placement, differentiation) | Medium |
+| neocortex#512 | Personality-driven trust interpretation | Lower |
+| (unissued) | Cognitive state dump endpoint (desiredstate API pattern) | Medium |
+
+**Examples issues to pick up AFTER neocortex work lands:**
+
+| Issue | What | Why after neocortex |
+|-------|------|---------------------|
+| #118 | Wire drive adaptation into CAPS/appraisal (examples side) | Needs neocortex#509 first |
+| #119 | Klinger Current Concerns (examples integration) | Needs neocortex#508 first |
+| #116 | CognitivePipelineBuilder extraction | Independent, can do anytime |
+| #114 | DD missing tendencies | Small fix, can do anytime |
+| #117 | Unified disposition renderer design | Close — design implemented |
+| #115 | Drive expression gap epic | Close — Layer 1+3 delivered |
 
 ### Three-Layer Fix Architecture
 
 | Layer | What | Status |
 |-------|------|--------|
 | 1 — Wiring | Connect dead ends in pipeline | **DONE** |
-| 2 — Inference | Personality-specific CAPS, expression styles, appraisal foregrounding | **DONE** (neocortex#504-506) |
+| 2 — Inference | CAPS labels + expression derivation done (#504, #505). Appraisal wiring needs re-work (#506). Drive-CAPS loop (#509) and salience (#508) not started. | **PARTIAL** |
 | 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
 
 ### Key Constraint: Emergence Not Scripting
 
-Every change must be tested for scripting/triggering. Drive cues are somatic/felt, never behavioral directives. Formation memories show drive REINFORCEMENT, not drive instructions. A scripted 5/5 on expression is worth 2 at most.
+Prescriptive text inferred from the personality model (AMPD facets → derived tendencies) is legitimate. Hand-written behavioral labels are not. The distinction: the system derives "cannot resist celebrating" from Grandiosity:80 + Impulsivity:65 + reinforcement history, rather than a human writing it.
 
 ## Baseline Transcripts — DO NOT DELETE
 
