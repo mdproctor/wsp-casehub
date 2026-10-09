@@ -6,7 +6,7 @@ state: active
 project-sha: 
 date: 
 issue-repo: casehubio/examples
-covers: 115,118
+covers: 115,118,119
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
@@ -16,3 +16,4 @@ flyway-next-v:
 - [ ] casehubio/examples#115 — Close-the-drive-expression-gap
 - [ ] casehubio/examples#117 — Design: Unified disposition renderer
 - [ ] casehubio/examples#118 — Wire-drive-adaptation-into-CAPS-and-appraisal
+- [ ] casehubio/examples#119 — Klinger-current-concerns-motivational-salience

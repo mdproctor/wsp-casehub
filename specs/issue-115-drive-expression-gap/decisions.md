@@ -74,11 +74,12 @@ All three tiers are acceptable; Tier 3 values should be flagged for empirical va
 
 ## D5: Memory-Drive Association Mechanism
 
-**Choice:** PAD proximity — associate formation memories with drives by geometric similarity in PAD space, with initial PAD centroids for cold start
+**Choice:** Motivational salience via PAD proximity — grounded in Klinger's current concerns theory, operationalized through PAD-space geometric similarity, with initial PAD centroids for cold start
 **Alternatives:**
 - Explicit YAML field (associated-drives per memory) — manually assigned, not emergent
 - Content-inferred via LLM — emergent but expensive (LLM call per memory per tick) and non-deterministic
-**Rationale:** Formation memories already have PAD values (pleasure, arousal, dominance in social-config.yaml). Drives have PAD centroids (from D1). Similarity between memory PAD and drive PAD centroid determines association strength. Derived, not declared. Consistent with PAD bridge theme.
+- Pure semantic/keyword matching — computationally cheap but doesn't capture affective similarity
+**Rationale:** Klinger's current concerns theory (1971, 2004) establishes that active motivational states (goal pursuits, drives) directly increase cognitive salience for related stimuli — this is the theoretical foundation. PAD proximity is the computational operationalization: formation memories have PAD values, drives have PAD centroids, and geometric similarity determines association strength. Derived, not declared. Literature (Rubin & Talarico 2009) confirms dimensional models outperform categorical for autobiographical memory retrieval. Valence should be weighted more heavily than arousal/dominance in the similarity function (PMC mood-congruent memory review 2023).
 **Cold-start strategy:** At cold start (no reinforcement history), drive PAD centroids are undefined. Initial PAD profiles are specified in social-config.yaml drive entries (e.g., scheming: pleasure=0.7, arousal=0.5, dominance=0.9 — derived from the character's formation memories that shaped the drive). These seed values serve as the centroid until reinforcement history accumulates, at which point the centroid is a weighted blend of initial values and experienced PAD (initial weight decays via manor.drives.initial-pad-decay config). This ensures formation memories — the character's backstory — are MOST relevant at cold start and gradually yield to runtime experience.
 **Trade-offs:** PAD space is 3D so some memories with different narrative content but similar PAD profiles may associate with the same drives. Acceptable — psychologically similar experiences SHOULD associate similarly. Initial PAD profiles require per-drive authoring in social-config.yaml.
 **Sources:** Existing FormationMemory PAD values in social-config.yaml, D1 PAD bridge
