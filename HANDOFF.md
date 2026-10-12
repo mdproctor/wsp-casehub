@@ -4,69 +4,55 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**Design:** casehubio/examples#117 — Unified disposition renderer
-**State:** All three layers complete, eval run done — mean 3.57 vs BASELINE0 3.93
+**State:** All layers complete, neocortex pipeline fully wired — awaiting eval run
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
 ## What Was Done This Session
 
-### 1. Verified standard tests pass (566/566, 0 failures)
+### 1. Verified neocortex epic fully closed
 
-Full test suite green. Pre-existing BeliefRevision/RelationshipStage errors from Oct 6 are stale reports — not in current run.
+All six neocortex issues (casehubio/neocortex#513 epic) confirmed CLOSED:
 
-### 2. Somatic drive descriptions for all 5 characters
+| Issue | What |
+|-------|------|
+| neocortex#506 | Appraisal-to-selection feedback |
+| neocortex#508 | Klinger Current Concerns — motivational salience |
+| neocortex#509 | Wire drive adaptation into CAPS settling and appraisal |
+| neocortex#510 | CAPS settling dampens too aggressively |
+| neocortex#511 | Pipeline tuning — graduated placement, differentiation |
+| neocortex#512 | Personality-driven trust interpretation |
 
-Rewrote drive descriptions from behavioral directives to somatic felt-state format for hooded-claw, penelope-pitstop, dick-dastardly, and ant-hill-mob (PP was done in previous session). Both BASELINE and GENERIC profiles. Commit `435945b`.
+Neocortex 0.2-SNAPSHOT jars installed locally (Oct 12 03:32). CDI-wired paths (drive→CAPS settling, expression styles, dampening fix) take effect automatically.
 
-### 3. Eval tests confirm production model improvement
+### 2. Wired appraisal-driven drive foregrounding (#118)
 
-| Test | Pre-Unified | Post-Unified | Threshold |
-|------|:-----------:|:------------:|:---------:|
-| Baseline (production, no injection) | 3/5 | **4/5** | ≥3 ✓ |
-| Somatic drives | 3/5 | **4/5** | ≥3 ✓ |
-| Somatic + memories | 5/5 | 5/5 | ≥3 ✓ |
+`renderInternalState()` now accepts activated drive categories from `cognitionCore.activatedDriveCategories()`. Drives activated by the current situation render first (salience ordering), ambient drives follow by intensity. Changed from `private` to package-private for testability.
 
-### 4. Ultrathink first-principles analysis (corrected)
+Two new tests: `renderInternalStateForegoundsActivatedDrives` (verifies activated drive reorders above higher-intensity ambient) and `renderInternalStateNoActivationPreservesIntensityOrder` (verifies fallback to intensity ordering).
 
-Three parallel forks verified claims against evidence:
-- **WRONG claim:** "4→5 gap is drive-memory proximity." Baseline already has both drives and memories adjacent — still 4/5.
-- **CORRECT root cause:** Formation memories are terse event descriptions. The 5/5 tests used **enriched memories with drive-expression cues** — showing the child's behavioral response to each event (how the drive was reinforced).
-- **Literature confirmation (all SUPPORTED):** Damasio (somatic markers need autobiographical anchoring), Conway (episodic recall reactivates motivational states), McAdams (personality = traits + adaptations + narrative), CAPS (if-then profiles built from reinforcement history).
+568/568 tests pass. Commit `4eae1bf`.
 
-### 5. Created neocortex Layer 2 issues
+### 3. Wired Klinger concern-based salience (#119)
 
-| Issue | Title |
-|-------|-------|
-| casehubio/neocortex#504 | CAPS attractor labels — personality-specific output |
-| casehubio/neocortex#505 | AMPD expression style derivation |
-| casehubio/neocortex#506 | Appraisal-to-selection feedback |
-| casehubio/neocortex#507 | **Epic:** Cognitive inference enrichment (Layer 2) |
+Replaced passThrough lambda in `PlaybookOrchestrator.configureAppraisal()` with `ConcernBasedSalienceStrategy`. Enabled `salienceEnabled` in `CognitionConfig` (was `false` in `CognitionConfig.all()`).
 
-### 6. Layer 2 neocortex changes implemented (separate session)
+The strategy matches observation text against active concerns (drive descriptions + active goals) via keyword overlap. High-salience concerns feed into `activatedDriveCategories()`, composing with the drive foregrounding from #118.
 
-All three Layer 2 issues implemented and wired into examples:
-- Expression style derivation from AMPD facets (CognitiveDerivationEngine)
-- Personality-specific CAPS attractor labels (BehavioralSynthesisPhase)
-- Appraisal-driven drive foregrounding (CognitionRenderContext)
-- CharacterCognition wired to prefer personality-label and pass activated drives
+568/568 tests pass. Commit `c45d7a1`.
 
-Commits `12e6db9` and `62ea75f` on this branch.
+### 4. Confirmed #117 design implemented — closeable
 
-### 7. Layer 3 data enrichment — formation memories + AMPD + disposition
-
-**PP (both profiles):** Enriched all formation memories with drive-response expression cues. Added age-14 engineering competition memory in GENERIC. Added PAD values.
-
-**DD (both profiles):** Added 6 AMPD personality facets (Grandiosity:80, Attention Seeking:85, Deceitfulness:70, Manipulativeness:55, Impulsivity:65, Irresponsibility:75). Added 5 formation memories with drive-response cues. Added attachment and disposition axes.
-
-**Penelope (both profiles):** Added 5 formation memories with drive-response cues. Added disposition axes.
-
-**AHM (both profiles):** Added 5 formation memories with drive-response cues. Added disposition axes.
-
-Commit `130747f`.
+The unified disposition renderer design (#117) was fully implemented in commits `169b093` and `e30fe7a` — `renderInternalState()`, boundary tests, BehavioralPromptSection disabled. Issue is still OPEN on GitHub, ready to close.
 
 ## Commits on Branch
 
 ```
+c45d7a1 feat(#119): wire Klinger concern-based salience into cognitive pipeline
+4eae1bf feat(#118): wire appraisal-driven drive foregrounding into renderInternalState
+c6dfa54 feat(#118): wire CognitiveDefaultsRegistry into RelationshipStagePhase
+509b7a3 docs(#115): Layer 1+2+3 eval results — mean 3.57 vs BASELINE0 3.93
+6617d92 data(#115): save Layer 1+2+3 scenario run transcript (326 events, GENERIC)
+3f4f3af fix(#115): update ManorSocialConfigLoaderTest for somatic drive descriptions
 130747f feat(#115): enrich formation memories with drive-expression cues + fill data gaps
 62ea75f feat(#115): wire appraisal-driven foregrounding into CharacterCognition
 12e6db9 feat(#115): prefer personality-label in unified attractor renderer
@@ -82,69 +68,50 @@ fbe0262 test(#115): update CharacterCognitionTest for formation memories section
 
 ## What Needs to Happen Next
 
-### Eval Results (completed this session)
+### 1. Run eval to measure impact of pipeline wiring
 
-**Standard tests:** 566/566 pass, 0 failures.
+The last eval (mean 3.57 vs BASELINE0 3.93) was BEFORE:
+- Appraisal-driven drive foregrounding (#118)
+- Klinger concern-based salience (#119)
+- CAPS dampening fix (neocortex#510 — attractors can now reach established/deep-rooted)
+- Personality-specific attractor labels (neocortex#504)
+- Expression style derivation from AMPD (neocortex#505)
+- Drive adaptation → CAPS settling loop (neocortex#509)
+- Pipeline tuning (neocortex#511)
 
-**Micro eval (DriveExpressionEvalTest):** PP proving-worth baseline hit **5/5** (up from 3/5 pre-enrichment). All 7 scored variants at 4-5/5.
+A new GENERIC scenario run + `classify_emotions.py` is the critical next step. Success criteria: mean ≥ 3.93, no drive > 0.3 below BASELINE0.
 
-**Macro eval (326-event GENERIC scenario):** Mean 3.57 vs BASELINE0 3.93.
+### 2. Close #117
 
-| Category | Drives | Summary |
-|----------|--------|---------|
-| **Improved** | HC self-preservation (+1.18), AHM suspicion (+0.86), AHM protection (+0.34) | Somatic drives + enriched memories working |
-| **Held** (±0.3) | HC scheming, HC dominance, DD greed, DD scheming, AHM loyalty, Penelope curiosity | 8 of 15 drives at or above baseline |
-| **Collapsed** | HC gloating (-1.54), DD gloating (-1.95), PP gallantry (-1.42), PP protection (-0.87), Penelope social-harmony (-1.08) | Require situational triggers |
+Design implemented. Close with comment referencing commits `169b093` and `e30fe7a`.
 
-**Root cause of remaining collapses:** The collapsed drives require specific situational triggers (triumph → gloating, threat → protection, conflict → social-harmony, theatrical context → gallantry). The somatic descriptions provide predisposition but not activation. BASELINE0 scored higher because prescriptive tendencies text explicitly instructed the LLM to exhibit these behaviors — the cognitive pipeline replaces that with emergence, and some drives don't emerge without situational activation.
+### 3. Assess #115/#118/#119 closure after eval
 
-**Key insight:** This is NOT a data gap or inference gap — it's the difference between prescriptive and emergent behavior. The question for #115 closure is whether the success criteria (within ±0.3 of BASELINE0) is the right target, given that BASELINE0 used prescriptive text that scores high on expression but low on emergence.
+If eval meets success criteria:
+- Close #115 (epic complete)
+- Close #118 (drive adaptation wired)
+- Close #119 (Klinger salience wired)
 
-### Transcript diagnostic (corrected understanding)
+If eval shows remaining gaps, formation memory salience modulation is the next lever — ordering memories by drive relevance in `renderFormationMemories()`. This was deferred because it requires adding drive associations to formation memories (data change) and lacks empirical justification yet.
 
-Three distinct root causes — two are NOT pipeline problems:
-- **HC gloating:** Persona constraint (never-break-cover) correctly suppresses public gloating. Pipeline is right.
-- **DD gloating:** Zero triumph events in scenario. Scenario diversity problem.
-- **PP gallantry:** Drive absorption by proving-worth. Somatic descriptions too similar.
+### 4. Independent tasks (can do anytime)
 
-Prescriptive text that is inferred from the personality model (not manually inserted) is legitimate emergence. Derived tendencies from #505's expression styles are the mechanism.
+| Issue | What |
+|-------|------|
+| #116 | CognitivePipelineBuilder extraction |
+| #114 | DD missing tendencies |
 
-### Remaining work — neocortex first, then examples
-
-**Neocortex epic: casehubio/neocortex#513** (do these first)
-
-| Issue | What | Priority |
-|-------|------|----------|
-| neocortex#506 | Re-wire appraisal foregrounding to personality drives (not orchestrator drives) | High |
-| neocortex#509 | Wire drive adaptation into CAPS settling and appraisal | High |
-| neocortex#510 | CAPS settling dampens too aggressively | High |
-| neocortex#508 | Klinger motivational salience modulation | Medium |
-| neocortex#511 | Pipeline tuning (graduated placement, differentiation) | Medium |
-| neocortex#512 | Personality-driven trust interpretation | Lower |
-| (unissued) | Cognitive state dump endpoint (desiredstate API pattern) | Medium |
-
-**Examples issues to pick up AFTER neocortex work lands:**
-
-| Issue | What | Why after neocortex |
-|-------|------|---------------------|
-| #118 | Wire drive adaptation into CAPS/appraisal (examples side) | Needs neocortex#509 first |
-| #119 | Klinger Current Concerns (examples integration) | Needs neocortex#508 first |
-| #116 | CognitivePipelineBuilder extraction | Independent, can do anytime |
-| #114 | DD missing tendencies | Small fix, can do anytime |
-| #117 | Unified disposition renderer design | Close — design implemented |
-| #115 | Drive expression gap epic | Close — Layer 1+3 delivered |
-
-### Three-Layer Fix Architecture
+### Three-Layer Fix Architecture (updated)
 
 | Layer | What | Status |
 |-------|------|--------|
 | 1 — Wiring | Connect dead ends in pipeline | **DONE** |
-| 2 — Inference | CAPS labels + expression derivation done (#504, #505). Appraisal wiring needs re-work (#506). Drive-CAPS loop (#509) and salience (#508) not started. | **PARTIAL** |
+| 2 — Inference | CAPS labels, expression styles, appraisal foregrounding, Klinger salience, drive-CAPS loop, dampening fix, pipeline tuning | **DONE** |
 | 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
 
 ### Key Constraint: Emergence Not Scripting
 
-Prescriptive text inferred from the personality model (AMPD facets → derived tendencies) is legitimate. Hand-written behavioral labels are not. The distinction: the system derives "cannot resist celebrating" from Grandiosity:80 + Impulsivity:65 + reinforcement history, rather than a human writing it.
+Prescriptive text inferred from the personality model (AMPD facets → derived tendencies) is legitimate. Hand-written behavioral labels are not.
 
 ## Baseline Transcripts — DO NOT DELETE
 
