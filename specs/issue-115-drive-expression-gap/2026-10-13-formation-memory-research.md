@@ -10,8 +10,9 @@
 
 ### What's Done
 - **Phase 0 (complete):** `serves` annotation system built, all 26 formation memories annotated and audited, 6 Level 2-4 micro tests + 5 mediating substrate tests executed, two full scenario baselines established. See §7-§8 for details.
-- **Root cause found (§10.1):** CAPS INPUT nodes have no vocabulary — `RuleBasedSituationClassifier` produces zero content-based situation activations. The CAPS network is personality-aware but situation-blind.
+- **Root cause found (§10.1):** CAPS INPUT nodes had no vocabulary — `RuleBasedSituationClassifier` produced zero content-based situation activations. The CAPS network was personality-aware but situation-blind.
 - **Theory validated (§8.1, §8.1b):** Micro tests confirm the LLM produces all drives at 5/5 on direct trigger. Cross-character tests confirm same situation → different personality → different emergent behaviour (DD gloats 5/5, PP 0/5 for identical event). If-then behavioural signatures match CAPS predictions.
+- **Layer A (complete):** Weighted situation vocabulary implemented. `CapsNode.keywords` → `CapsNode.vocabulary` (`Map<String, Double>`). All 31 INPUT nodes have construct-derived vocabulary at graded weights (strong 0.7-0.9, moderate 0.4-0.6, faint 0.2-0.3). 17 previously disconnected INPUT nodes now have MEDIATING connections. Topology validation test guards against regression. Neocortex branch: `issue-115-weighted-situation-vocabulary`.
 
 ### What's Settled — Do Not Re-Derive
 - **D1-D11 are MADE decisions** — see `decisions.md`. Do not re-litigate.
@@ -21,10 +22,8 @@
 - **Three-layer approach defined** (§10.7) — situation encoding, memory calibration, drive amplification. All three layers needed; redundancy not established.
 - **Literature is researched** — CAPS (Mischel & Shoda), Read & Miller Virtual Personalities, Conway SMS, Singer SDMs, Klinger concerns, Scherer SECs, Festinger social comparison, Leach schadenfreude, Sacchi & Dan-Glauser personality×appraisal. Do not re-search.
 
-### What's Next — Phase 1
-See §12 for the concrete implementation plan. In summary:
-
-**Layer A (situation vocabulary):** Add weighted, construct-derived vocabulary to the 28 CAPS INPUT nodes. Change `CapsNode.keywords` (`List<String>`) to `CapsNode.vocabulary` (`Map<String, Double>`). Derive terms from each node's source literature at graded activation weights. Verify INPUT→MEDIATING connections exist. Test by classifying existing transcripts.
+### What's Next — Layer B + C
+See §12 for the concrete implementation plan. Layer A is done. Remaining:
 
 **Layer B (memory calibration):** Connect formation memories to actual catalogue entries (replace placeholder `catalogueEntryId`). Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`) via the shared_node_map. Each memory's developmental position in the escalating sequence determines calibration intensity (§10.8).
 

@@ -290,8 +290,10 @@ Before running the next eval:
 | 2 — Inference | CAPS labels, expression styles, appraisal foregrounding, Klinger salience | **DONE** |
 | 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
 | 4 — Data tuning | Somatic refinement, formation memory enrichment | **ATTEMPTED → PIVOTED** |
-| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **NEXT** |
-| 1-5 (drive integration) | Drive→CAPS, Drive→Appraisal, Drive→Memory salience, rendering cleanup | **BLOCKED on Phase 0** |
+| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **DONE** |
+| A — Situation vocabulary | Weighted vocabulary for CAPS INPUT nodes, missing connections | **DONE** (neocortex `issue-115-weighted-situation-vocabulary`) |
+| B — Memory calibration | Connect memories to catalogue entries, calibrate mediating nodes | **NEXT** |
+| C — Drive amplification | D1 drive→CAPS activation injection | **BLOCKED on Layer B** |
 
 ### Key Constraint: Emergence Not Scripting
 
