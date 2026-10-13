@@ -29,7 +29,7 @@
 ### What's Next — Layer B + C
 See §12 for the concrete implementation plan. Layer A is done. Remaining:
 
-**Layer B (memory calibration):** Connect formation memories to actual catalogue entries (replace placeholder `catalogueEntryId`). Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`) via the shared_node_map. Each memory's developmental position in the escalating sequence determines calibration intensity (§10.8). **Mapping methodology defined (§12.4). All 26 memory-to-catalogue mappings completed (§12.5).** Implementation (YAML + Java changes) pending.
+**Layer B (memory calibration): COMPLETE.** Formation memories connected to catalogue entries (placeholder `catalogueEntryId` replaced). Mapping methodology defined (§12.4), all 26 mappings completed (§12.5). `SocialConfig.FormationMemory` has `catalogue` field, `ManorCognitiveSeeder` uses it with enriched `situationTypes`. Psychological substrate rendered as "What Shaped You" section in `CharacterCognition` — felt-experience descriptions for all 5 characters.
 
 **Layer C (drive amplification):** Implement D1 — drive intensities inject persistent activations into CAPS nodes per §2.3 mappings. Include explicit mediating substrate rendering. Do not assume any layer is redundant without empirical proof.
 
@@ -951,7 +951,7 @@ Layer A (situation vocabulary) was the primary bottleneck identified in §10.1. 
 | 1c | Verify INPUT→MEDIATING connections | neocortex (caps-topology.yaml) | **DONE** | 17 disconnected nodes fixed, 30 connections added |
 | 1d | Run full scenario with vocabulary active | examples (wacky-manor) | **TODO** | Blocked on scenario run — see §11.7 |
 | 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | **DONE** | 26 memories mapped, catalogue field added, situationTypes enriched with drives |
-| 2b | Render mediating substrate explicitly | examples (CharacterCognition) | TODO | Layer B |
+| 2b | Render mediating substrate explicitly | examples (CharacterCognition) | **DONE** | "What Shaped You" section, felt-experience substrate for all 5 characters |
 | 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | TODO | Layer C |
 | 3b | Full scenario with all three layers | examples (wacky-manor) | TODO | Level 5 eval, compare to P0 baseline (mean 3.72) |
 
