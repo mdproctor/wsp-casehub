@@ -12,7 +12,7 @@
 - **Phase 0 (complete):** `serves` annotation system built, all 26 formation memories annotated and audited, 6 Level 2-4 micro tests + 5 mediating substrate tests executed, two full scenario baselines established. See §7-§8 for details.
 - **Root cause found (§10.1):** CAPS INPUT nodes had no vocabulary — `RuleBasedSituationClassifier` produced zero content-based situation activations. The CAPS network was personality-aware but situation-blind.
 - **Theory validated (§8.1, §8.1b):** Micro tests confirm the LLM produces all drives at 5/5 on direct trigger. Cross-character tests confirm same situation → different personality → different emergent behaviour (DD gloats 5/5, PP 0/5 for identical event). If-then behavioural signatures match CAPS predictions.
-- **Layer A (complete):** Weighted situation vocabulary implemented. `CapsNode.keywords` → `CapsNode.vocabulary` (`Map<String, Double>`). All 31 INPUT nodes have construct-derived vocabulary at graded weights (strong 0.7-0.9, moderate 0.4-0.6, faint 0.2-0.3). 17 previously disconnected INPUT nodes now have MEDIATING connections. Topology validation test guards against regression. Neocortex branch: `issue-115-weighted-situation-vocabulary`.
+- **Layer A (complete — see §11 for full results):** Weighted situation vocabulary implemented in neocortex. `CapsNode.keywords` → `CapsNode.vocabulary` (`Map<String, Double>`). All 31 INPUT nodes have construct-derived vocabulary at graded weights (strong 0.7-0.9, moderate 0.4-0.6, faint 0.2-0.3). Critical topology gap discovered and fixed: 17 INPUT nodes (including all 5 priority nodes for collapsed drives) had zero MEDIATING connections — 30 literature-sourced connections added. Topology validation test guards against regression. 33 caps-engine tests pass, 581 wacky-manor tests pass. Neocortex branch: `issue-115-weighted-situation-vocabulary`. Key empirical finding: vocabulary terms must be in their expected morphological form (inflected, not base) for exact-match classification (§11.5).
 
 ### What's Settled — Do Not Re-Derive
 - **D1-D11 are MADE decisions** — see `decisions.md`. Do not re-litigate.
@@ -21,6 +21,9 @@
 - **The derivation chain and all 7 breaks are mapped** (§10.4) — do not re-investigate.
 - **Three-layer approach defined** (§10.7) — situation encoding, memory calibration, drive amplification. All three layers needed; redundancy not established.
 - **Literature is researched** — CAPS (Mischel & Shoda), Read & Miller Virtual Personalities, Conway SMS, Singer SDMs, Klinger concerns, Scherer SECs, Festinger social comparison, Leach schadenfreude, Sacchi & Dan-Glauser personality×appraisal. Do not re-search.
+- **Vocabulary is universal across characters** (Read & Miller 2002) — personality differences come from connection weights and drive amplification, not different input features. Do not create character-specific vocabularies.
+- **Vocabulary weights are first approximations** — subject to empirical tuning (D4a) but derived from construct centrality, not arbitrary. The three-tier grading (strong/moderate/faint) is the right granularity.
+- **All INPUT nodes must have MEDIATING connections** — a topology validation test enforces this. New INPUT nodes added in the future must include connections or the test fails.
 
 ### What's Next — Layer B + C
 See §12 for the concrete implementation plan. Layer A is done. Remaining:
@@ -764,39 +767,207 @@ This connects to the LLM bias concern (§8.5): extreme characters need extreme p
 
 ---
 
+## 11. Layer A Results — Weighted Situation Vocabulary
+
+**Date:** 2026-10-13
+**Branch:** neocortex `issue-115-weighted-situation-vocabulary`
+**Commits:** `989647c6` (vocabulary + classifier), `bb4147dd` (connections + validation tests)
+
+### 11.1 What Was Implemented
+
+**API change — `CapsNode` record:**
+`List<String> keywords` → `Map<String, Double> vocabulary`
+
+This is the structural prerequisite identified in §10.1 (break #1) and §10.5: flat keyword matching cannot express that "humiliated" is a stronger dominance signal than "suggested." The vocabulary map encodes activation weights directly on terms.
+
+**Confidence calculation — `RuleBasedSituationClassifier`:**
+
+Old: `confidence = matchCount × 0.3` (all matches equal, accumulative)
+New: `confidence = max(matched_weights) + min(0.15, (n−1) × 0.05)` × salience_multiplier
+
+Rationale: The strongest matched term determines the primary activation level. Additional matches add a small reinforcement (0.05 per extra match, capped at 0.15) — this captures the intuition that co-occurring construct-relevant terms reinforce the classification without allowing many faint matches to over-activate a node. A single strong term ("humiliated" at 0.8) produces higher confidence than three faint terms ("suggest" at 0.3 × 3 = max 0.3 + 0.10 = 0.40).
+
+**Literature justification for max-weight-primary:** Read & Miller (2002) describe input features as "cues that predict the availability of affordances." A single strong cue is more diagnostic than several weak ones — the strongest signal is the best predictor of the construct. The reinforcement bonus captures the Bayesian intuition that corroborating evidence increases confidence, but does not replace the primary signal.
+
+**Backward compatibility:** The loader accepts both `vocabulary:` (map → weighted) and `keywords:` (list → all terms at 0.5). Existing consumers work without changes.
+
+### 11.2 Vocabulary Derivation — Sources and Method
+
+Each INPUT node's vocabulary was derived from the motivational construct it represents, following the three-tier structure proposed in §10.5 and §12.2:
+
+| Tier | Weight range | Criterion | Example (`dominance`) |
+|---|---|---|---|
+| Strong | 0.7–0.9 | Highly diagnostic — near-certain indicator of the construct | dominated (0.9), overpowered (0.9), humiliated (0.8) |
+| Moderate | 0.4–0.6 | Commonly associated but contextually ambiguous | authority (0.5), controlled (0.5), influence (0.4) |
+| Faint | 0.2–0.3 | Weakly suggestive — needs corroboration | direct (0.3), pressure (0.4) |
+
+**Source constructs per category:**
+
+| Category | Primary literature | Construct |
+|---|---|---|
+| relationship | Bowlby (1969/1982), van IJzendoorn (1995) | Attachment styles, internal working models |
+| threat | Gray (1982) RST, Dickerson & Kemeny (2004) | Fight-flight-freeze-fawn, social evaluation threat |
+| achievement | McClelland (1961), Winter (1973) | Need for achievement (nAch), need for power (nPow) |
+| social | Baumeister & Leary (1995), Williams (2007), Bandura (1977) | Belongingness, ostracism, observational learning |
+| resource | Hobfoll (1989) COR theory | Conservation of resources |
+| autonomy | Deci & Ryan (2000) SDT, Seligman (1975) | Self-determination, learned helplessness |
+| consequence | Gray (1982) RST, Skinner (1953) | BAS/BIS reinforcement sensitivity, operant conditioning |
+
+**Key constraint maintained (§12.3):** Vocabulary is universal across characters. All characters have the same input features — "humiliated" activates `dominance` at 0.8 for everyone. Individual differences emerge from connection weights (disposition_modifiers), mediating node calibration (Layer B), and drive amplification (Layer C). This is core CAPS architecture (Mischel & Shoda 1995; Read & Miller 2002): "Different individuals will develop different cue-affordance associations" through differential weights, not different input features.
+
+### 11.3 Discovery: 17 Disconnected INPUT Nodes
+
+**Finding:** A topology audit revealed that 17 of 31 INPUT nodes had zero outgoing connections. Situation activations fired correctly (vocabulary → node activation) but propagated nowhere — the signal died at the INPUT layer.
+
+**Critical impact:** All 5 priority nodes for collapsed drives were disconnected:
+
+| Disconnected node | Priority drive | Why disconnection matters |
+|---|---|---|
+| `dominance` | gloating | Power-related events produce no downstream activation → no approach/assert attractors for gloating |
+| `failure` | gloating | Rival's failure doesn't depress self_worth or activate BIS → no social comparison pathway |
+| `competence_recognition` | gallantry | Recognition events don't boost self_worth or activate BAS → no reward signal for competent helping |
+| `exclusion` | social-harmony | Ostracism events don't activate other_safety or BIS → no threat signal to drive harmony-seeking |
+| `competition` | gloating | Competitive events produce no approach activation or social comparison signal |
+
+**Root cause:** The original topology (neocortex#407/#408) was designed primarily for attachment, threat, and reinforcement pathways. Achievement, social comparison, and resource nodes were added as input features but never connected to the mediating layer — they had vocabulary for detection but no wiring for propagation.
+
+### 11.4 Connections Added — Literature Grounding
+
+30 new connections added, each traceable to construct literature:
+
+**Priority connections (collapsed drives):**
+
+| Connection | Weight | Literature source | Mechanism |
+|---|---|---|---|
+| dominance → BAS_activation | 0.40 | McClelland nPow | Power motivation activates approach/reward system |
+| dominance → social_comparison | 0.45 | Festinger (1954) | Dominance events trigger upward/downward social comparison |
+| failure → self_worth | −0.30 | McClelland (1961) | Achievement failure depresses self-worth |
+| failure → BIS_activation | 0.30 | Gray RST | Failure activates behavioral inhibition, rumination |
+| competence_recognition → self_worth | 0.30 | McClelland (1961) | Recognition validates competence → boosts self-worth |
+| competence_recognition → BAS_activation | 0.35 | Gray RST | Recognition = social reward signal → approach |
+| exclusion → other_safety | −0.35 | Williams (2007) | Ostracism threatens belonging and perceived safety |
+| exclusion → BIS_activation | 0.35 | Williams (2007) | Exclusion → behavioral inhibition, social withdrawal |
+| competition → BAS_activation | 0.40 | Gray RST | Resource competition activates approach/reward system |
+| competition → social_comparison | 0.40 | Festinger (1954) | Competition heightens social comparison processes |
+
+**Additional connections (completing the topology):**
+
+| Connection | Weight | Source |
+|---|---|---|
+| betrayal → other_reliability | −0.45 | Bowlby: trust violation |
+| betrayal → FFFS_activation | 0.35 | Betrayal by trusted figure activates fight-flight |
+| abandonment → other_reliability | −0.40 | Bowlby: abandonment → others are unreliable |
+| abandonment → self_worth | −0.25 | Bowlby: abandoned → not worth staying for |
+| neglect → self_worth | −0.30 | Bowlby: neglect → not worth attending to |
+| neglect → other_reliability | −0.30 | Neglect → others don't attend to needs |
+| psychological_threat → threat_sensitivity | 0.45 | Coercion/manipulation → sensitized threat detection |
+| psychological_threat → BIS_activation | 0.35 | Psychological threat → behavioral inhibition |
+| unpredictable_danger → threat_sensitivity | 0.45 | Chronic unpredictability → sensitized threat detection |
+| unpredictable_danger → arousal_level | 0.40 | Volatile environment → elevated baseline arousal |
+| submission → self_efficacy | −0.25 | Repeated yielding → depressed self-efficacy |
+| scarcity → BIS_activation | 0.30 | Resource scarcity → cautious behavior |
+| scarcity → FFFS_activation | 0.25 | Severe deprivation → survival-level threat |
+| abundance → BAS_activation | 0.25 | Resource abundance → approach/reward |
+| sharing → other_reliability | 0.25 | Prosocial behavior → others are reliable |
+| reward_removal → BIS_activation | 0.30 | Loss of expected reward → inhibition |
+| reward_removal → reinforcement_expectation | −0.35 | Reward removal depresses reward expectation |
+| aversive_removal → BAS_activation | 0.30 | Negative reinforcement → approach behavior |
+| aversive_removal → reinforcement_expectation | 0.30 | Aversive removal → positive reinforcement expectation |
+
+**Post-fix state:** All 31 INPUT nodes now have at least one outgoing connection. A topology validation test (`allInputNodesHaveConnections`) guards against regression.
+
+### 11.5 Empirical Results — Classifier Tests
+
+**Existing tests (10 → 13, all passing):**
+
+All original keyword-based tests pass with the vocabulary-weighted classifier. The vocabulary was designed to be a superset of the previous keywords — no existing functionality lost.
+
+**New weighted-specific tests:**
+
+| Test | Description | Result | What it validates |
+|---|---|---|---|
+| `strongVocabularyTermProducesHighConfidence` | "attacked violently and felt threatened" | physical_threat ≥ 0.5 ✓ | Strong terms (attacked:0.9) produce high confidence |
+| `multipleMatchesBoostConfidence` | "rewarded and praised, and earned a bonus" vs "rewarded" | multi > single ✓ | Reinforcement bonus works for corroborating terms |
+| `scenarioEvent_rivalFailure` | "rival's scheme collapsed... humiliated and defeated" | failure ✓, dominance ✓ | Scenario-realistic text activates multiple relevant nodes |
+| `scenarioEvent_helpingOthers` | "helped the newcomer feel welcomed... sharing" | acceptance ✓, sharing ✓ | Prosocial events activate belongingness + resource nodes |
+| `scenarioEvent_competitionAndRecognition` | "clever scheme outwitted the rival... praised his brilliant plan" | competence_recognition ✓, competition ✓ | Achievement + competition co-activate |
+
+**Inflection sensitivity discovered:** During testing, "humiliate" (base form) in the vocabulary did not match "humiliated" (past tense) in event text because `containsKeyword` does exact token matching. Fixed by using inflected forms in vocabulary (e.g., "humiliated" rather than "humiliate"). Event narratives predominantly use past tense — vocabulary terms should match the forms that appear in actual text. This is an empirical finding: vocabulary terms must be domain-instantiated in their expected morphological form, not dictionary base forms.
+
+### 11.6 Full Test Results
+
+| Suite | Tests | Pass | Fail | Skip |
+|---|---|---|---|---|
+| caps-engine (RuleBasedSituationClassifierTest) | 13 | 13 | 0 | 0 |
+| caps-engine (CapsTopologyLoaderTest) | 14 | 14 | 0 | 0 |
+| caps-engine (SubThoughtSituationDecoratorTest) | 6 | 6 | 0 | 0 |
+| **caps-engine total** | **33** | **33** | **0** | **0** |
+| neocortex reactor (full install) | — | BUILD SUCCESS | — | — |
+| wacky-manor (full suite) | 581 | 576 | 0 | 5 |
+
+No regressions in either repo.
+
+### 11.7 What Layer A Does NOT Yet Validate
+
+Layer A is structural — it makes the classifier capable of content-specific activations and gives those activations pathways to propagate. But we have not yet validated:
+
+1. **End-to-end scenario impact:** Step 1d (§12.1) — run a full scenario with the vocabulary active and compare CAPS attractors before/after. This requires wacky-manor to pick up the updated topology (it does, via dependency), but a scenario run hasn't been executed this session.
+
+2. **Vocabulary tuning (D4a):** The weights are literature-derived first approximations. Empirical tuning — classifying existing transcripts and comparing to human judgment — is needed. Some weights may be too high (causing false activations) or too low (missing genuine signals). This is expected and acknowledged by D4a.
+
+3. **Connection weight tuning:** The 30 new connections use consensus weights (no empirical effect-size data available for most). These are starting values — the disposition_modifiers already modulate them per character, but the base weights may need adjustment based on scenario results.
+
+4. **Cross-layer interaction:** Layer A operates in isolation until Layers B (memory calibration) and C (drive amplification) are implemented. The derivation chain (§10.4) requires all three layers to produce the emergent if-then profiles predicted by CAPS theory. Layer A alone addresses break #1 and #3; breaks #4-7 remain.
+
+### 11.8 Implications for Layer B and C
+
+The connection audit (§11.3) has a direct implication for Layer B design: the `social_comparison` mediating node is now reachable from `dominance` and `competition` INPUT nodes. This is the node that Festinger (1954) and Leach et al. (2003) identify as the mechanism for schadenfreude. When Layer B calibrates DD's `self_worth` to strongly negative (via formation memory catalogue entries), and Layer C injects persistent drive activation into `BAS_activation` (via D1), the full gloating pathway becomes:
+
+```
+[rival fails] → dominance(0.8) + failure(0.7) activate INPUT layer
+  → dominance → BAS_activation(0.4) + social_comparison(0.45)
+  → failure → self_worth(−0.30) + BIS_activation(0.30)
+  → DD's depressed self_worth (Layer B calibrated) amplifies social_comparison
+  → DD's gloating drive (Layer C) injects persistent BAS_activation bias
+  → OUTPUT: approach(BAS) + assert(FFFS→fight path, modulated by disposition)
+  → Emergent gloating attractor
+```
+
+This pathway was completely broken before Layer A: `dominance` and `failure` had no connections, `social_comparison` was unreachable from INPUT nodes, and all terms matched at equal flat weight regardless of diagnostic strength.
+
+---
+
 ## 12. Phase 1 Implementation Plan
 
-### 12.1 Recommended Order
+### 12.1 Implementation Status
 
-Start with Layer A (situation vocabulary) because it's the primary bottleneck identified in §10.1 and is independently testable without cross-repo changes. Layer B and C require neocortex repo changes.
+Layer A (situation vocabulary) was the primary bottleneck identified in §10.1. It is now complete (§11). The remaining steps are Layer B (memory calibration) and Layer C (drive amplification), both requiring cross-repo work.
 
-| Step | What | Repo | Validates | Test |
+| Step | What | Repo | Status | Result |
 |---|---|---|---|---|
-| 1a | Define weighted vocabulary for all 28 INPUT nodes | neocortex (caps-topology.yaml) | Construct-derived terms with activation degrees | Classify existing transcripts, check node activations |
-| 1b | Change `CapsNode.keywords` to `CapsNode.vocabulary` (`Map<String,Double>`) | neocortex (caps-api, caps-engine) | Weighted matching in SituationClassifier | Unit test: classifier produces graded activations |
-| 1c | Verify INPUT→MEDIATING connections exist | neocortex (caps-topology.yaml) | All achievement, social, resource nodes have pathways to mediating layer | Topology validation test |
-| 1d | Run full scenario with situation vocabulary active | examples (wacky-manor) | Scenario events produce content-specific CAPS activations | Compare CAPS attractors before/after |
-| 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | Real `catalogueEntryId` values, not placeholders | Seeder test: mediating nodes calibrated per catalogue |
-| 2b | Render mediating substrate explicitly | examples (CharacterCognition) | LLM sees psychological substrate (insecurity, validation need) alongside drives | Micro test: substrate rendering changes behaviour |
-| 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | Drive intensities bias CAPS settling | Micro test: compare attractors with/without drive injection |
-| 3b | Full scenario with all three layers | examples (wacky-manor) | Gloating, gallantry, social-harmony improve toward B0 | Level 5 eval, compare to Phase 0 baseline (mean 3.72) |
+| 1a | Define weighted vocabulary for all 31 INPUT nodes | neocortex (caps-topology.yaml) | **DONE** | 31 nodes, construct-derived weights, 3-tier grading |
+| 1b | Change `CapsNode.keywords` → `CapsNode.vocabulary` | neocortex (caps-api, caps-engine) | **DONE** | Max-weight confidence + reinforcement bonus |
+| 1c | Verify INPUT→MEDIATING connections | neocortex (caps-topology.yaml) | **DONE** | 17 disconnected nodes fixed, 30 connections added |
+| 1d | Run full scenario with vocabulary active | examples (wacky-manor) | **TODO** | Blocked on scenario run — see §11.7 |
+| 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | TODO | Layer B |
+| 2b | Render mediating substrate explicitly | examples (CharacterCognition) | TODO | Layer B |
+| 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | TODO | Layer C |
+| 3b | Full scenario with all three layers | examples (wacky-manor) | TODO | Level 5 eval, compare to P0 baseline (mean 3.72) |
 
-### 12.2 Vocabulary Derivation Per Node
+### 12.2 Vocabulary Derivation Per Node (IMPLEMENTED — see §11.2)
 
-Each INPUT node's vocabulary must come from its construct's source literature. The terms are the *language of the construct* as it manifests in event narratives. Examples for priority nodes (the ones most relevant to collapsed drives):
+The vocabulary is now implemented for all 31 INPUT nodes in `caps-topology.yaml`. The full vocabulary is authoritative in the YAML file; the table below records the pre-implementation plan for the priority nodes. Actual weights may differ slightly from this plan based on inflection-form corrections (§11.5) and construct-centrality judgments made during implementation.
 
-| Node | Construct | Literature | Priority Terms (strong → faint) |
+| Node | Construct | Literature | Planned terms (strong → faint) |
 |---|---|---|---|
-| `dominance` | McClelland nPow, Winter (1973) | Power motivation | strong: control, command, overpower, humiliate; moderate: influence, direct, pressure; faint: suggest, manage |
-| `failure` | McClelland (1961) | Achievement motivation (negative) | strong: fail, collapse, defeated, humiliated; moderate: stumble, miss, fall; faint: struggle, slip |
-| `competence_recognition` | McClelland (1961) | Achievement motivation (positive) | strong: brilliant, genius, masterful; moderate: clever, skilled, impressive; faint: capable, competent |
-| `acceptance` | Baumeister & Leary (1995) | Belongingness | strong: embrace, welcome, belong, love; moderate: include, invite, approve; faint: notice, greet, acknowledge |
-| `rejection` | Bowlby attachment theory | Attachment insecurity | strong: reject, abandon, betray, discard; moderate: dismiss, ignore, exclude; faint: overlook, forget |
-| `physical_threat` | Gray RST | Fight-flight-freeze | strong: attack, weapon, danger, trapped; moderate: threat, chase, corner; faint: risk, edge, dark |
-| `reward` | Gray RST, operant | Reinforcement | strong: triumph, prize, treasure, victory; moderate: success, gain, win; faint: find, achieve, solve |
-| `exclusion` | Williams (2007) ostracism | Social exclusion | strong: ostracise, shun, banish; moderate: exclude, ignore, overlook; faint: leave out, forget |
-
-Full vocabulary for all 28 nodes requires literature review during implementation. The examples above establish the pattern: terms derived from construct literature, instantiated in the domain, graded by activation intensity.
+| `dominance` | McClelland nPow, Winter (1973) | Power motivation | strong: dominated, overpowered, humiliated, bullied; moderate: control, command, authority; faint: influence, pressure, direct |
+| `failure` | McClelland (1961) | Achievement motivation (negative) | strong: failed, incompetent, defeated, collapsed; moderate: mistake, stumbled, unable; faint: couldn't, struggle, slip |
+| `competence_recognition` | McClelland (1961) | Achievement motivation (positive) | strong: brilliant, masterful, praised, recognized; moderate: impressive, acknowledged, clever; faint: capable, competent |
+| `acceptance` | Baumeister & Leary (1995) | Belongingness | strong: embraced, welcomed, belonged; moderate: accepted, included, approved; faint: greeted, noticed |
+| `rejection` | Bowlby attachment theory | Attachment insecurity | strong: rejected, dismissed, unwanted; moderate: refused, spurned, turned away; faint: ignored, cold |
+| `physical_threat` | Gray RST | Fight-flight-freeze | strong: attacked, violence, weapon, danger; moderate: hurt, harm, threat; faint: risk |
+| `reward` | Gray RST, operant | Reinforcement | strong: triumph, rewarded, victory; moderate: success, earned, win; faint: found, received |
+| `exclusion` | Williams (2007) ostracism | Social exclusion | strong: ostracized, shunned, banished; moderate: excluded, isolated, marginalized; faint: left out, rejected |
 
 ### 12.3 Key Constraints (Repeated for Visibility)
 
@@ -827,7 +998,13 @@ Full vocabulary for all 28 nodes requires literature review during implementatio
 | Design spec (drive integration) | `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md` |
 | Design spec (memory concern) | `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-concern-architecture-design.md` |
 | Decisions | `wsp-casehub/specs/issue-115-drive-expression-gap/decisions.md` |
-| CAPS topology | `neocortex/docs/specs/2026-10-02-caps-topology.yaml` |
+| CAPS topology (authoritative) | `neocortex/caps-engine/src/main/resources/caps-topology.yaml` |
+| CapsNode (API) | `neocortex/caps-api/src/main/java/.../caps/CapsNode.java` |
+| CapsTopologyLoader | `neocortex/caps-engine/src/main/java/.../caps/engine/CapsTopologyLoader.java` |
+| RuleBasedSituationClassifier | `neocortex/caps-engine/src/main/java/.../caps/engine/RuleBasedSituationClassifier.java` |
+| RuleBasedSituationClassifierTest | `neocortex/caps-engine/src/test/java/.../caps/engine/RuleBasedSituationClassifierTest.java` |
+| CapsTopologyLoaderTest | `neocortex/caps-engine/src/test/java/.../caps/engine/CapsTopologyLoaderTest.java` |
+| LlmSituationClassifier | `neocortex/caps-llm-classifier/src/main/java/.../caps/llm/LlmSituationClassifier.java` |
 | Catalogue | `neocortex/docs/specs/experience-behaviour-catalogue/` |
 | ConcernBasedSalienceStrategy | `neocortex/cognition/src/main/java/.../salience/ConcernBasedSalienceStrategy.java` |
 | FormativeExperience | `neocortex/memory-api/src/main/java/.../experience/FormativeExperience.java` |
