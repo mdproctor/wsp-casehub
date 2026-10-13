@@ -4,72 +4,70 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**State:** Phase 0 complete (all sub-phases). Post-audit baseline established (2-run average).
-**Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
+**State:** Phase 0 complete. Root cause found. Theory validated by micro tests. Implementation plan for Phase 1 ready.
+**Plan:** `.plan` has #115 active (covers=115,118,119)
 
-**Key documents:**
-- Research: `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
-- Design: `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md`
-- Eval results: `wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/RESULTS.md`
+### Read Order for Next Session
 
-## What Was Done
+1. **This file** — orientation and "do not re-derive" list
+2. **Research doc §0 (Current State)** — 30-line summary of where we are
+3. **Research doc §10 (Situation Encoding Investigation)** — root cause and three-layer approach
+4. **Research doc §12 (Phase 1 Implementation Plan)** — concrete steps
 
-### Phase 0 — Formation Memory Audit + `serves` Annotation System
+**Research doc:** `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
+
+Do NOT read the full 800-line research doc upfront. §0 tells you what's settled. §10 and §12 tell you what to do. Read §1-§9 only if you need supporting evidence for a specific question.
+
+### Do Not Re-Derive
+
+These are done. Do not re-investigate, re-brainstorm, or re-litigate:
+
+| What | Status | Where |
+|---|---|---|
+| D1-D11 design decisions | Made | `decisions.md` |
+| `serves` annotation system | Built and tested | Phase 0a-0b (commits `85e6d3a`, `dcfdf2c`) |
+| Formation memory audit | Complete (23 fixes) | Phase 0c (commit `9bc9dec`) |
+| Micro test baselines | Captured | §8.1, §8.1b — 11 tests, all scored |
+| Full scenario baselines | Two runs averaged | §8.2 — mean 3.72 |
+| Root cause: empty INPUT keywords | Found and documented | §10.1 |
+| Literature: situation encoding in CAPS | Researched | §10.2 (Read & Miller, Shoda/Mischel, Sacchi/Dan-Glauser) |
+| Three-layer derivation approach | Defined | §10.7 |
+| Intensity principle | Established | §10.8 |
+| Emergent gloating derivation | Validated by micro tests | §10.9, §8.1b |
+| Redundancy principle | "Include all layers; prove redundancy empirically later" | §8.1b |
+
+### The Root Cause (Summary)
+
+The CAPS network has **zero content-based situation activations**. All 28 INPUT nodes have empty keyword/vocabulary lists. The `RuleBasedSituationClassifier` skips nodes with empty vocabularies. The network settles on personality weights alone — it can distinguish personality types but NOT situations.
+
+Micro tests prove the LLM expresses all drives at 5/5 when given a direct trigger situation. In full scenarios, events go through the pipeline and lose situational specificity. The personality substrate is already expressive enough — the pipeline just can't see what's happening.
+
+### The Fix (Three Layers)
+
+**Layer A — Situation Vocabulary:** Add weighted, construct-derived vocabulary to the 28 CAPS INPUT nodes. Terms derived from each node's source literature (McClelland for achievement, Bowlby for attachment, Gray RST for threat, etc.) at graded activation weights. Universal across characters — personality differences emerge from propagation, not encoding.
+
+**Layer B — Memory Calibration:** Connect formation memories to actual catalogue entries (replace placeholder `catalogueEntryId`). Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`). Include explicit mediating substrate rendering so the LLM sees the psychological depth (insecurity, validation need) alongside drives.
+
+**Layer C — Drive Amplification:** Implement D1 — drive intensities inject persistent activations into CAPS nodes. Drives co-activate with situation signals, amplifying drive-relevant events for characters with relevant drives.
+
+All three layers needed. Do not assume any is redundant without empirical proof.
+
+### Key Constraint
+
+All mechanisms must be **literature-rooted** (CAPS theory, Mischel's if-then profiles), **individual-specific** (personality determines activation, not universal rules), **not hard-wired** (no "rival fails → gloating" rules), and **LLM-bias-aware** (extreme substrate overcomes LLM sanitization tendency). Include redundant signals; prove redundancy empirically — never assume it.
+
+## Phase 0 Summary (Complete)
 
 | Phase | Commit | What |
 |---|---|---|
 | 0a | `85e6d3a` | `ConcernAnnotation` record, `FormationMemoryParser`, loader + renderer |
 | 0b | `dcfdf2c` | Annotated all 26 formation memories with `serves` annotations |
 | 0c | `9bc9dec` | Fixed 11 pre-resolutions, 6 action primings, 5 value declarations, 1 contradiction |
-| 0d | `a83cfba` | 6 micro tests for 5 collapsed drives + baseline scores captured |
-| 0e-r1 | `bab91f7` | Full scenario run 1 (294 events), classified |
+| 0d | `a83cfba` + `02d008a` | 6 drive expression tests + 5 substrate tests, baselines captured |
+| 0e | `bab91f7` + `58de5db` | Two full scenario runs, classified, two-run averages established |
 | fix | `a2f5e9a` | Restored Pen age-7 and DD age-6 felt intensity |
-| 0e-r2 | `58de5db` | Full scenario run 2 (241 events), classified |
 
-### Phase 0 Eval Summary (2-run average, mean 3.72)
-
-| Drive | B0 | L4b | P0-avg | vs L4b | Verdict |
-|---|---|---|---|---|---|
-| HC gloating | 3.97 | 2.50 | 2.56 | +0.06 | Collapsed — pipeline problem |
-| DD gloating | 3.50 | 2.76 | 2.78 | +0.02 | Collapsed — pipeline problem |
-| PP gallantry | 4.50 | 3.08 | 3.56 | +0.48 | Recovering — audit helped |
-| Pen social-harmony | 3.18 | 2.71 | 2.66 | -0.05 | Stable — needs pipeline |
-| Pen adventure | 3.75 | 3.24 | 3.37 | +0.13 | Modest improvement |
-
-### Micro Test Baselines
-
-HC gloating 5/5, DD gloating 5/5, PP gallantry 3/5, PP gallantry-diff 3/5, Pen social-harmony 5/5, Pen adventure 5/5.
-
-**Critical insight:** LLM CAN express all drives perfectly on direct trigger (5/5). Gloating collapse is a situation-to-drive routing gap in the pipeline, not LLM capability or memory content.
-
-**LLM bias consideration (from user):** Pipeline work must be literature-rooted (CAPS, Mischel if-then profiles), not hard-wired rules. LLM bias against "negative" drives (gloating/schadenfreude) may need balanced counterweighting — informed by the character's personality profile (callousness, grandiosity), not universal adjustments.
-
-## What Needs to Happen Next
-
-### 1. Phases 1-5 — Drive Integration Pipeline
-
-Per design spec: `2026-10-09-drive-integration-architecture-design.md`
-
-The gloating collapse requires pipeline-level support:
-- Phase 1: Drive→CAPS activation (connect drive intensities to CAPS node priming)
-- Phase 2: Drive→Appraisal (foreground drive-relevant appraisals)
-- Phase 3: Drive→Memory salience (use `serves` annotations for concern-based retrieval)
-- Phase 4: Enrichment (catalogue entry connection, situationTypes from annotations)
-- Phase 5: Somatic removal (replace prescriptive text with derived prompts)
-
-**Approach constraint:** Mechanisms must be rooted in literature (CAPS topology, Mischel's if-then profiles, Conway/Singer memory systems). No hard-wired "situation→drive" rules. The personality profile (drives + facets + CAPS network) determines which drives activate — the pipeline provides the routing, not the answers.
-
-### 2. DD greed regression (-0.56 vs L4b)
-
-Needs investigation. The pre-resolution removal may have weakened the greed signal beyond what the pipeline can compensate for.
-
-### 3. PP gallantry differentiation
-
-3/5 on differentiation test — gallantry instrumentalized as proving-worth container. CAPS topology review needed to ensure gallantry nodes have sufficient independence.
-
-### 4. Close #117
-
-Design implemented (commits `169b093`, `e30fe7a`). Close with comment.
+**Phase 0 eval (two-run average, mean 3.72):** PP gallantry +0.48 vs L4b (recovering). HC/DD gloating flat (+0.06/+0.02, confirmed pipeline gap). Pen social-harmony -0.05 (stable). Pen adventure +0.13.
 
 ## Baseline Transcripts — DO NOT DELETE
 

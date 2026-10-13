@@ -1,8 +1,36 @@
 # Formation Memory Research — Complete Reference
 
-**Date:** 2026-10-13
-**Purpose:** Internal research document for session continuity. Covers literature findings, implementation mapping, audit results, and iteration plan. A future session should be able to read ONLY this document and have full context for the next iteration.
+**Date:** 2026-10-13 (updated across multiple sessions)
+**Purpose:** Internal research document for session continuity. A future session should be able to read §0 and §10-§12 and know exactly where we are and what to do next. The rest is supporting evidence — read on demand, not upfront.
 **Branch:** issue-115-drive-expression-gap
+
+---
+
+## 0. Current State — Read This First
+
+### What's Done
+- **Phase 0 (complete):** `serves` annotation system built, all 26 formation memories annotated and audited, 6 Level 2-4 micro tests + 5 mediating substrate tests executed, two full scenario baselines established. See §7-§8 for details.
+- **Root cause found (§10.1):** CAPS INPUT nodes have no vocabulary — `RuleBasedSituationClassifier` produces zero content-based situation activations. The CAPS network is personality-aware but situation-blind.
+- **Theory validated (§8.1, §8.1b):** Micro tests confirm the LLM produces all drives at 5/5 on direct trigger. Cross-character tests confirm same situation → different personality → different emergent behaviour (DD gloats 5/5, PP 0/5 for identical event). If-then behavioural signatures match CAPS predictions.
+
+### What's Settled — Do Not Re-Derive
+- **D1-D11 are MADE decisions** — see `decisions.md`. Do not re-litigate.
+- **The `serves` annotation system works** — parser, loader, renderer all tested.
+- **Gloating collapse is a situation-routing gap, not LLM capability or memory content** — proven by micro tests.
+- **The derivation chain and all 7 breaks are mapped** (§10.4) — do not re-investigate.
+- **Three-layer approach defined** (§10.7) — situation encoding, memory calibration, drive amplification. All three layers needed; redundancy not established.
+- **Literature is researched** — CAPS (Mischel & Shoda), Read & Miller Virtual Personalities, Conway SMS, Singer SDMs, Klinger concerns, Scherer SECs, Festinger social comparison, Leach schadenfreude, Sacchi & Dan-Glauser personality×appraisal. Do not re-search.
+
+### What's Next — Phase 1
+See §12 for the concrete implementation plan. In summary:
+
+**Layer A (situation vocabulary):** Add weighted, construct-derived vocabulary to the 28 CAPS INPUT nodes. Change `CapsNode.keywords` (`List<String>`) to `CapsNode.vocabulary` (`Map<String, Double>`). Derive terms from each node's source literature at graded activation weights. Verify INPUT→MEDIATING connections exist. Test by classifying existing transcripts.
+
+**Layer B (memory calibration):** Connect formation memories to actual catalogue entries (replace placeholder `catalogueEntryId`). Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`) via the shared_node_map. Each memory's developmental position in the escalating sequence determines calibration intensity (§10.8).
+
+**Layer C (drive amplification):** Implement D1 — drive intensities inject persistent activations into CAPS nodes per §2.3 mappings. Include explicit mediating substrate rendering. Do not assume any layer is redundant without empirical proof.
+
+**Constraint:** All mechanisms must be literature-rooted, individual-specific, not hard-wired, and LLM-bias-aware (§8.5). Include redundant signals; prove redundancy empirically later — never assume it (§8.1b).
 
 ---
 
@@ -737,7 +765,51 @@ This connects to the LLM bias concern (§8.5): extreme characters need extreme p
 
 ---
 
-## 11. File Locations
+## 12. Phase 1 Implementation Plan
+
+### 12.1 Recommended Order
+
+Start with Layer A (situation vocabulary) because it's the primary bottleneck identified in §10.1 and is independently testable without cross-repo changes. Layer B and C require neocortex repo changes.
+
+| Step | What | Repo | Validates | Test |
+|---|---|---|---|---|
+| 1a | Define weighted vocabulary for all 28 INPUT nodes | neocortex (caps-topology.yaml) | Construct-derived terms with activation degrees | Classify existing transcripts, check node activations |
+| 1b | Change `CapsNode.keywords` to `CapsNode.vocabulary` (`Map<String,Double>`) | neocortex (caps-api, caps-engine) | Weighted matching in SituationClassifier | Unit test: classifier produces graded activations |
+| 1c | Verify INPUT→MEDIATING connections exist | neocortex (caps-topology.yaml) | All achievement, social, resource nodes have pathways to mediating layer | Topology validation test |
+| 1d | Run full scenario with situation vocabulary active | examples (wacky-manor) | Scenario events produce content-specific CAPS activations | Compare CAPS attractors before/after |
+| 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | Real `catalogueEntryId` values, not placeholders | Seeder test: mediating nodes calibrated per catalogue |
+| 2b | Render mediating substrate explicitly | examples (CharacterCognition) | LLM sees psychological substrate (insecurity, validation need) alongside drives | Micro test: substrate rendering changes behaviour |
+| 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | Drive intensities bias CAPS settling | Micro test: compare attractors with/without drive injection |
+| 3b | Full scenario with all three layers | examples (wacky-manor) | Gloating, gallantry, social-harmony improve toward B0 | Level 5 eval, compare to Phase 0 baseline (mean 3.72) |
+
+### 12.2 Vocabulary Derivation Per Node
+
+Each INPUT node's vocabulary must come from its construct's source literature. The terms are the *language of the construct* as it manifests in event narratives. Examples for priority nodes (the ones most relevant to collapsed drives):
+
+| Node | Construct | Literature | Priority Terms (strong → faint) |
+|---|---|---|---|
+| `dominance` | McClelland nPow, Winter (1973) | Power motivation | strong: control, command, overpower, humiliate; moderate: influence, direct, pressure; faint: suggest, manage |
+| `failure` | McClelland (1961) | Achievement motivation (negative) | strong: fail, collapse, defeated, humiliated; moderate: stumble, miss, fall; faint: struggle, slip |
+| `competence_recognition` | McClelland (1961) | Achievement motivation (positive) | strong: brilliant, genius, masterful; moderate: clever, skilled, impressive; faint: capable, competent |
+| `acceptance` | Baumeister & Leary (1995) | Belongingness | strong: embrace, welcome, belong, love; moderate: include, invite, approve; faint: notice, greet, acknowledge |
+| `rejection` | Bowlby attachment theory | Attachment insecurity | strong: reject, abandon, betray, discard; moderate: dismiss, ignore, exclude; faint: overlook, forget |
+| `physical_threat` | Gray RST | Fight-flight-freeze | strong: attack, weapon, danger, trapped; moderate: threat, chase, corner; faint: risk, edge, dark |
+| `reward` | Gray RST, operant | Reinforcement | strong: triumph, prize, treasure, victory; moderate: success, gain, win; faint: find, achieve, solve |
+| `exclusion` | Williams (2007) ostracism | Social exclusion | strong: ostracise, shun, banish; moderate: exclude, ignore, overlook; faint: leave out, forget |
+
+Full vocabulary for all 28 nodes requires literature review during implementation. The examples above establish the pattern: terms derived from construct literature, instantiated in the domain, graded by activation intensity.
+
+### 12.3 Key Constraints (Repeated for Visibility)
+
+1. **Literature-rooted.** Every vocabulary term traceable to the construct literature that defines the INPUT node. No intuitive keyword lists.
+2. **Weighted, not flat.** Terms carry activation degrees (0.0-1.0). "Humiliated" activates `dominance` at 0.8; "stumbled" at 0.3.
+3. **Universal across characters.** Same vocabulary for everyone. Personality differences emerge from connection weights and drive amplification, not from different input features (Mischel & Shoda 1995; Read & Miller 2002).
+4. **Additive layers.** Include all three layers (vocabulary, substrate, drive amplification). Do not remove any signal without empirical proof of redundancy.
+5. **Empirically validated.** Classify existing transcripts with the new vocabulary. Check which nodes fire. Compare to human judgment. Tune weights based on results (D4a).
+
+---
+
+## 13. File Locations
 
 | What | Path |
 |---|---|
