@@ -31,7 +31,7 @@ See §12 for the concrete implementation plan. Layer A is done. Remaining:
 
 **Layer B (memory calibration): COMPLETE.** Formation memories connected to catalogue entries (placeholder `catalogueEntryId` replaced). Mapping methodology defined (§12.4), all 26 mappings completed (§12.5). `SocialConfig.FormationMemory` has `catalogue` field, `ManorCognitiveSeeder` uses it with enriched `situationTypes`. Psychological substrate rendered as "What Shaped You" section in `CharacterCognition` — felt-experience descriptions for all 5 characters.
 
-**Layer C (drive amplification):** Implement D1 — drive intensities inject persistent activations into CAPS nodes per §2.3 mappings. Include explicit mediating substrate rendering. Do not assume any layer is redundant without empirical proof.
+**Layer C (drive amplification): COMPLETE.** D1 implemented — drive intensities inject activations into CAPS nodes via explicit mappings (14 drive types → specific CAPS nodes). `BehavioralSynthesisPhase.mergeDriveIntensities()` replaced text-based classification with direct injection. Unmapped types fall back to text classification. Neocortex commit: `11e64632`.
 
 **Constraint:** All mechanisms must be literature-rooted, individual-specific, not hard-wired, and LLM-bias-aware (§8.5). Include redundant signals; prove redundancy empirically later — never assume it (§8.1b).
 
@@ -952,7 +952,7 @@ Layer A (situation vocabulary) was the primary bottleneck identified in §10.1. 
 | 1d | Run full scenario with vocabulary active | examples (wacky-manor) | **TODO** | Blocked on scenario run — see §11.7 |
 | 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | **DONE** | 26 memories mapped, catalogue field added, situationTypes enriched with drives |
 | 2b | Render mediating substrate explicitly | examples (CharacterCognition) | **DONE** | "What Shaped You" section, felt-experience substrate for all 5 characters |
-| 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | TODO | Layer C |
+| 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | **DONE** | 14 drive types mapped to CAPS nodes, direct injection at drive intensity |
 | 3b | Full scenario with all three layers | examples (wacky-manor) | TODO | Level 5 eval, compare to P0 baseline (mean 3.72) |
 
 ### 12.2 Vocabulary Derivation Per Node (IMPLEMENTED — see §11.2)

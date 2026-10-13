@@ -4,7 +4,7 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**State:** Layers A + B complete, Layer C next
+**State:** All three layers (A + B + C) complete. Full scenario validation run next.
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
 ## START HERE
@@ -84,16 +84,17 @@ Phase 0 (`serves` annotations), Layer 4 data tuning, memory audit, literature re
 
 Steps 2a-2b complete. See research doc §12.4 (methodology) and §12.5 (mappings). Commits: `f3c9673` (step 2a), `23eb356` (step 2b).
 
-### 2. Layer C — Drive Amplification (research doc §2.3, §12.1 steps 3a-3b)
+### 2. Layer C — Drive Amplification — DONE
 
-**The problem (§10.4 break #7):** D1 (drive→CAPS activation injection) is designed but not implemented. Drive intensities (e.g., gloating:0.7) should inject persistent activations into CAPS nodes, biasing the network settling toward drive-relevant attractors.
+D1 implemented in neocortex `BehavioralSynthesisPhase.mergeDriveIntensities()`. 14 drive types → explicit CAPS node mappings. Commit: `11e64632`.
 
-**Now unblocked.** Layer B provided the calibrated mediating substrate. Drive amplification operates through this layer.
+### 3. Full Scenario Validation — NEXT
 
-**Files to investigate:**
-- `neocortex/caps-engine/src/main/java/.../BehavioralSynthesisPhase.java` — where drive activation injection should go
-- Research doc §2.3 for drive→CAPS node mappings
-- `caps-topology.yaml` — mediating and output nodes
+All three layers complete. All 7 derivation chain breaks fixed. Next:
+1. Install neocortex with Layers A+C (`mvn install -Dmaven.test.skip=true`)
+2. Rebuild wacky-manor
+3. Run full GENERIC scenario (~300 events)
+4. Classify with `classify_emotions.py`, compare to P0 (3.72) and B0 (3.96)
 
 ### 3. Layer A validation (§11.7, §12.1 step 1d)
 
@@ -118,7 +119,7 @@ Run a full scenario with the vocabulary active and compare CAPS attractors befor
 | 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **DONE** |
 | A — Situation vocabulary | Weighted vocabulary for CAPS INPUT nodes, missing connections | **DONE** (neocortex `issue-115-weighted-situation-vocabulary`) |
 | B — Memory calibration | Connect memories to catalogue entries, calibrate mediating nodes | **DONE** (examples `issue-115-drive-expression-gap`) |
-| C — Drive amplification | D1 drive→CAPS activation injection | **NEXT** (unblocked) |
+| C — Drive amplification | D1 drive→CAPS activation injection | **DONE** (neocortex `11e64632`) |
 
 ### The Derivation Chain (§10.4, §11.8)
 
@@ -129,7 +130,7 @@ Formation Memories (serves: recognition|strong)
   → [catalogue entry] calibrates MEDIATING nodes            ← Break #4: FIXED (Layer B)
   → [situation occurs] INPUT nodes fire via vocabulary       ← Break #1: FIXED (Layer A)
   → [propagation] INPUT→MEDIATING connections exist          ← Break #3: FIXED (Layer A)
-  → [drive activation] persistent drive bias co-activates   ← Break #7: not implemented (Layer C)
+  → [drive activation] persistent drive bias co-activates   ← Break #7: FIXED (Layer C)
   → [settling] OUTPUT attractors emerge
   → [rendering] LLM receives attractor + memory salience → behaviour
 ```

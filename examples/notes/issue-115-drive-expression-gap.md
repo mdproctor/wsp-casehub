@@ -16,7 +16,7 @@
 | #4 | Placeholder catalogueEntryId | FIXED (Layer B) |
 | #5 | situationTypes generic | FIXED (Layer B) |
 | #6 | No substrate rendering | FIXED (Layer B) |
-| #7 | Drive→CAPS activation not implemented | **NEXT (Layer C)** |
+| #7 | Drive→CAPS activation not implemented | FIXED (Layer C) |
 
 ## Layer Status
 
@@ -24,15 +24,19 @@
 |-------|------|--------|---------|
 | A | Weighted situation vocabulary | DONE | neocortex `989647c6`, `bb4147dd` |
 | B | Memory calibration | DONE | examples `f3c9673` (2a), `23eb356` (2b) |
-| C | Drive amplification | NEXT | neocortex — `BehavioralSynthesisPhase.mergeDriveIntensities()` |
+| C | Drive amplification | DONE | neocortex `11e64632` — D1 mappings in `BehavioralSynthesisPhase` |
 
-## Layer C — What Needs to Happen
+## Layer C — DONE
 
-`mergeDriveIntensities()` already exists in `BehavioralSynthesisPhase` — it reads drive-intensity nodes and classifies their TEXT DESCRIPTIONS through the vocabulary. This is crude: it relies on drive descriptions containing vocabulary terms.
+D1 implemented: `BehavioralSynthesisPhase.mergeDriveIntensities()` now uses explicit mappings (14 drive types → CAPS nodes) instead of text classification. Unmapped types fall back to vocabulary classifier.
 
-D1 design (§2.3) calls for EXPLICIT mappings: drive type → specific CAPS nodes. The improvement: replace text-based classification with a static mapping table. 14 drive types map to specific CAPS node activations. Scale by drive intensity. Keep text-based as fallback for unmapped types.
+## All Three Layers Complete — What's Next
 
-After Layer C: run a full scenario (step 1d) to measure improvement against P0 baseline (mean 3.72).
+All 7 derivation chain breaks are fixed. Remaining steps:
+1. **Install neocortex** with Layers A+C changes, rebuild wacky-manor
+2. **Run full scenario** (step 3b) — compare against P0 baseline (mean 3.72)
+3. **Classify with `classify_emotions.py`** — measure per-drive scores, compare to B0 (mean 3.96)
+4. If gaps remain, empirically tune vocabulary weights (D4a) or adjust substrate descriptions
 
 ## Key Methodology — Repeatable
 
