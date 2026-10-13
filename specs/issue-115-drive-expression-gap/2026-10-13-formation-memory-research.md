@@ -586,23 +586,139 @@ Investigation of the SituationClassifier revealed that **the CAPS network receiv
 | autonomy | Deci & Ryan SDT | agency_granted, controlled, choice_available, powerlessness |
 | consequence | Gray RST, operant conditioning | reward, punishment, reward_removal, aversive_removal |
 
-**The gap is purely operational:** these nodes have no keywords, so the RuleBasedSituationClassifier cannot match event text to them. Adding keywords — domain-specific cue-affordance associations per Read & Miller — enables the existing infrastructure.
+**Why this is NOT hard-wiring:** Adding situation vocabulary to INPUT nodes defines what SITUATION FEATURES the network can detect. It does NOT determine what a character DOES with that information. "Rival fails" activates `failure` + `dominance` for ALL characters. DD with gloating:0.7 (which persistently activates the same nodes via D1) gets amplified co-activation → gloating attractors. PP with callousness:5 routes the same input through `other_safety` → helping attractors. The personality is in the propagation, not the encoding (Mischel & Shoda 1995; Read & Miller 2002).
 
-**Why this is NOT hard-wiring:** Adding keywords to INPUT nodes defines what SITUATION FEATURES the network can detect. It does NOT determine what a character DOES with that information. "Rival fails" activates `failure` + `dominance` for ALL characters. DD with gloating:0.7 (which persistently activates the same nodes via D1) gets amplified co-activation → gloating attractors. PP with callousness:5 routes the same input through `other_safety` → helping attractors. The personality is in the propagation, not the encoding (Mischel & Shoda 1995; Read & Miller 2002).
+### 10.4 The Full Derivation Chain — All Known Breaks
 
-**What we need:**
-1. Keywords for each of the 28 INPUT nodes — domain-specific terms that appear in event narratives when these situational features are present
-2. Optionally: missing connections from INPUT nodes to mediating nodes (the topology YAML lists connections from only some input nodes — `failure`, `dominance`, `competence_recognition` have no listed connections)
-3. D1 drive activation injection (persistent bias) — amplifies situation signals for characters with relevant drives
+The architecture maps a complete chain from memories through psychological needs to emergent behaviour. Each link has a mechanism designed or implemented; several links are broken or disconnected.
 
-### 10.4 Keyword Derivation Approach
+```
+Formation Memories (serves: recognition|strong)
+  → [catalogue entry] calibrates MEDIATING nodes (self_worth ↓, competence_recognition sensitivity ↑)
+  → [situation occurs] INPUT nodes fire (failure, dominance, competence_recognition)
+  → [propagation] MEDIATING nodes amplify/attenuate based on calibrated values
+  → [drive activation] persistent drive bias co-activates with situation signal
+  → [settling] OUTPUT attractors emerge (approach + assert for DD, proximity_seek for PP)
+  → [rendering] LLM receives emergent attractor + memory salience → behaviour
+```
 
-Keywords should be derived from:
-1. **The motivational construct** each node represents (e.g., `dominance` → terms from Christie & Geis 1970 Machiavellianism, Winter 1973 power motivation)
-2. **The domain** (manor house mystery with interpersonal dynamics — what words appear in event narratives when these situations occur?)
-3. **Empirical validation** — classify existing transcripts, check which nodes fire, compare to human judgment
+**Known breaks (cross-referencing §2.2):**
 
-The keywords are a Tier 2/3 derivation (D2 sourcing) — derived from the motivational construct literature with domain-specific instantiation. They should be treated as initial values subject to empirical tuning (D4a).
+| # | Break | Status | §2.2 ref |
+|---|---|---|---|
+| 1 | INPUT nodes have no vocabulary → SituationClassifier is blind | **Found §10.1** | New finding |
+| 2 | INPUT vocabulary needs weighted terms, not flat keywords | **New** | — |
+| 3 | Several INPUT→MEDIATING connections missing in topology | **Suspected** | — |
+| 4 | `catalogueEntryId` always `"formation-memory"` → no memory→model calibration | Known | Gap 1 |
+| 5 | `situationTypes` always `["formation", period]` → no drive-type situation tagging | Known | Gap 2 |
+| 6 | `ConcernBasedSalienceStrategy` uses keyword overlap, not structural links | Known | Gap 4 |
+| 7 | D1 drive→CAPS activation not implemented | Known | D1 design |
+
+Breaks 1-3 are in the situation encoding layer. Breaks 4-6 are in the memory→concern association layer. Break 7 is in the drive amplification layer. All three layers need to function for the full chain to work.
+
+### 10.5 Weighted Situation Vocabulary
+
+Flat keyword matching (`List<String>`) is insufficient. Situation vocabulary needs two properties:
+
+**1. Activation degrees.** The term "humiliated" should activate `dominance` more strongly than "stumbled." Different cues signal the same construct at different intensities. This parallels the `serves` annotation degree scale (faint/moderate/strong/defining) — situation vocabulary needs the same grading.
+
+**Data structure change:** `CapsNode.keywords` (`List<String>`) → `CapsNode.vocabulary` (`Map<String, Double>` — term → activation weight). The `RuleBasedSituationClassifier` computes confidence from the matched term's weight rather than counting matches.
+
+**2. Construct-derived terms.** Each INPUT node's vocabulary must be derived from the motivational construct it represents, using the source literature that defines that construct. The terms are not generic co-occurring words — they are the *language of the construct* as it manifests in event narratives.
+
+| Node | Construct Source | Term Types | Examples |
+|---|---|---|---|
+| `dominance` | McClelland nPow, Winter (1973) | Power-relevant terms at graded intensities | strong: control, command, overpower, humiliate; moderate: influence, direct, pressure; faint: suggest, manage |
+| `failure` | McClelland (1961) achievement | Achievement-failure terms | strong: fail, collapse, defeated; moderate: stumble, miss, fall short; faint: struggle, slip |
+| `rejection` | Bowlby attachment theory | Attachment-rejection terms | strong: reject, abandon, betray; moderate: dismiss, ignore, exclude; faint: overlook, forget |
+| `acceptance` | SDT relatedness, Baumeister belonging | Belonging-acceptance terms | strong: embrace, welcome, belong; moderate: include, invite, acknowledge; faint: notice, greet |
+| `reward` | Gray RST, operant | Reinforcement terms | strong: triumph, prize, treasure; moderate: success, gain, win; faint: find, achieve |
+| `physical_threat` | Gray RST, trauma | Threat-danger terms | strong: attack, danger, weapon; moderate: threat, chase, trap; faint: risk, edge, dark |
+
+**3. The vocabulary is domain-instantiated.** The construct defines the *type* of term; the domain determines the *specific words*. "Dominance" in a manor house mystery involves "control," "authority," "command." In a schoolyard setting it would involve "bully," "boss," "pick on." Same construct, different vocabulary. The construct source (McClelland, Bowlby, Gray) determines which terms belong; the domain determines which forms they take.
+
+### 10.6 Memory → Mediating Node Calibration
+
+The `serves` annotations connect memories to drives (§5). But memories also calibrate the MEDIATING nodes — `self_worth`, `self_efficacy`, `other_reliability`, `other_safety` — which represent the deeper psychological substrate (insecurity, trust, competence beliefs). This calibration happens through the Experience-to-Behaviour Catalogue (§2.1):
+
+**How it should work:**
+1. Formation memory has `serves: recognition|defining` (structural link to drive)
+2. Memory also references a catalogue entry: e.g., `attachment-dismissive` or `bandura-mastery-efficacy`
+3. Catalogue entry maps to MEDIATING nodes via shared_node_map (§2.4): `self_worth` [attachment, cbt, bandura], `self_efficacy` [bandura, cbt], etc.
+4. The memory's PAD values and developmental period modulate HOW the catalogue entry calibrates the mediating nodes
+
+**What this means concretely:** DD's age-8 memory ("Nobody asked about it") doesn't just serve the `recognition` drive. Through its catalogue entry, it calibrates:
+- `self_worth` downward (his accomplishments aren't valued by others)
+- `competence_recognition` sensitivity upward (he craves what he's been denied)
+- `BAS_activation` (reward-seeking intensified by deprivation)
+
+These mediating node values are what make DD's recognition drive PERSONAL — it's not generic "wants recognition," it's "has low self_worth calibrated by childhood neglect of his achievements, producing heightened sensitivity to competence_recognition events."
+
+**Current break (§2.2 gap 1):** `ManorCognitiveSeeder` always uses `catalogueEntryId: "formation-memory"` — a placeholder. No actual catalogue entries are referenced. The mediating nodes are calibrated only by the disposition_modifiers (personality-level defaults), not by individual formative experiences.
+
+**What needs to happen:** Each formation memory needs a `catalogue` reference linking to the appropriate experience-behaviour model. The `serves` annotation identifies WHICH DRIVE the memory calibrates. The `catalogue` entry identifies WHICH PSYCHOLOGICAL MODEL explains HOW it calibrates the mediating nodes.
+
+### 10.7 Derivation Approach Summary
+
+The full derivation chain requires three layers to function:
+
+**Layer A — Situation Encoding (INPUT nodes)**
+- Add weighted vocabulary to INPUT nodes, derived from each node's construct literature
+- Verify INPUT→MEDIATING connections exist for all relevant pathways
+- `CapsNode.keywords` → `CapsNode.vocabulary` (term → weight)
+- Sourcing: Tier 2 (construct-derived) + Tier 3 (domain-instantiated), subject to empirical tuning per D4a
+
+**Layer B — Memory Calibration (MEDIATING nodes)**
+- Connect formation memories to catalogue entries (replace placeholder `catalogueEntryId`)
+- Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`) via shared_node_map
+- `serves` annotations tag the drive; `catalogue` entries tag the psychological model
+- Sourcing: Tier 2 (catalogue entries already literature-sourced)
+
+**Layer C — Drive Amplification (persistent activations)**
+- Implement D1: drive intensities inject persistent activations into CAPS nodes (§2.3 mappings)
+- Drive activations co-activate with situation activations, amplifying drive-relevant signals
+- Character's mediating node values (calibrated by memories in Layer B) determine propagation
+- Sourcing: Tier 2 (D1 mappings already literature-sourced)
+
+All three layers are independently testable (testing pyramid §6). Layer A can be validated by classifying existing transcripts and checking which INPUT nodes fire. Layer B by verifying mediating node values after seeding. Layer C by comparing CAPS attractors with and without drive activation.
+
+### 10.8 Intensity Principle — Extreme Characters Need Extreme Substrate
+
+The Wediko camp findings (Shoda, Mischel & Wright 1994) showed that extreme behavioural signatures come from extreme if-then profiles, not scaled-up moderate ones. The children with the most distinctive personality patterns had qualitatively different attractor landscapes, not just amplified versions of average profiles.
+
+For our characters to express extreme drives (HC's gloating, DD's recognition hunger), the MEDIATING nodes must be calibrated to extreme values:
+
+- DD's `self_worth` should be strongly negative (calibrated by a sequence of memories showing escalating neglect of his accomplishments — age 6: youngest gets nothing; age 8: nobody asks; age 14: nobody sees)
+- HC's `other_reliability` should be deeply negative (calibrated by memories of transactional care, betrayed trust, exploitative relationships)
+- PP's `self_efficacy` tied to external validation (calibrated by memories where worth is measured by what you protect/fix, never intrinsic)
+
+The `serves` degree scale (faint → defining) captures this per-memory, but the cumulative effect across the memory sequence matters: each successive memory should push the mediating node further, showing an escalating developmental trajectory. DD's recognition deprivation doesn't start at "defining" — it starts faint (age 6, youngest gets nothing) and intensifies through moderate (age 8, nobody asks) to defining (age 14, nobody sees). The escalation IS the character formation.
+
+The formation memories are not independent data points — they are a developmental sequence that calibrates the mediating nodes progressively. The catalogue entries for each memory should reflect where in that escalation the memory sits, and the cumulative calibration should produce the extreme mediating-node values that drive the character's distinctive if-then profile.
+
+### 10.9 Emergent Drive Expression Through Mediating Nodes
+
+Gloating is not a primitive behaviour — it's an emergent expression of the mediating layer. The derivation:
+
+1. **Low `self_worth`** (insecurity, calibrated by formation memories of neglect/deprivation) + **high `competence_recognition` sensitivity** (need for validation, calibrated by memories of unwitnessed achievement)
+2. **Rival fails publicly** → INPUT nodes fire: `failure`, `dominance`, `competence_recognition`
+3. `failure` + `dominance` propagate through the MEDIATING layer, where DD's depressed `self_worth` amplifies the signal — rival's failure is a relative `self_worth` boost through social comparison (Festinger 1954)
+4. **BAS_activation** fires strongly because the social comparison satisfies the deprived `competence_recognition` need — Leach et al. (2003) showed schadenfreude is strongest when it addresses a domain of self-relevance
+5. **OUTPUT**: approach + assert — the gloating attractor emerges not from a "gloating rule" but from the combination of insecurity, validation hunger, and social comparison operating through the CAPS network
+
+The same INPUT activation (rival fails) produces DIFFERENT outputs for different characters:
+- **DD** (low self_worth, high competence_recognition): gloating — the failure temporarily relieves insecurity through relative superiority
+- **PP** (moderate self_worth, high other_safety): concern — the failure activates care through the protection pathway
+- **AHM** (high other_reliability sensitivity): suspicion — the failure raises questions about what caused it
+
+This is Mischel's if-then profile: same situation, different personality substrate, different emergent behaviour. The gloating is never hard-wired — it's derived from the intersection of insecurity, validation need, and social comparison.
+
+**Literature:**
+- Festinger, L. (1954). A Theory of Social Comparison Processes. *Human Relations*, 7(2), 117-140.
+- Leach, C.W., Spears, R., Branscombe, N.R. & Doosje, B. (2003). Malicious pleasure: Schadenfreude at the suffering of another group. *JPSP*, 84(5), 932-943.
+- Smith, R.H. (2000). Assimilative and contrastive emotional reactions to upward and downward social comparisons. In Suls & Wheeler (Eds.), *Handbook of Social Comparison*.
+
+This connects to the LLM bias concern (§8.5): extreme characters need extreme psychological substrate to overcome the LLM's tendency toward moderate, socially acceptable responses. A `self_worth` of -0.7 produces qualitatively different attractor patterns than -0.3 — the CAPS network doesn't just scale linearly. Extreme values create attractor basins that the LLM can't escape through generic sanitization.
 
 ---
 
