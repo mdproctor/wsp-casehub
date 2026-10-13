@@ -17,7 +17,7 @@ When it stops working, you get a character who is technically correct but emotio
 
 ## The Gap
 
-Our evaluation framework classifies every event in a scenario run — each line of dialogue, each aside — scoring how strongly each character drive is expressed on a 1-5 scale. When we replaced prescriptive text (somatic descriptions that told the LLM exactly how each drive feels) with a cognitive pipeline that derives behaviour from personality traits, overall drive expression dropped. Not catastrophically — the mean went from 3.93 to 3.57 — but five specific drives collapsed:
+Our evaluation framework classifies every event in a scenario run — each line of dialogue, each aside — scoring how strongly each character drive is expressed on a 1-5 scale. When we replaced prescriptive text (somatic descriptions that told the LLM exactly how each drive feels) with a cognitive pipeline that derives behaviour from personality traits, overall drive expression dropped. Not catastrophically — the mean went from 3.96 to 3.70 — but five specific drives collapsed:
 
 | Character | Drive | Prescriptive | Pipeline | Gap |
 |---|---|---|---|---|
@@ -49,7 +49,7 @@ We'd been fighting the wrong battle. The problem wasn't insufficient data richne
 
 ## The Pivot
 
-Claude and I audited all 24 formation memories across five characters. We found pre-resolved drive conflicts in 11 of them. Action priming in 6. Value declarations in 5. A DD memory that contradicted what his own personality model would produce.
+We audited all 26 formation memories across five characters. We found pre-resolved drive conflicts in 11 of them. Action priming in 6. Value declarations in 5. A DD memory that contradicted what his own personality model would produce.
 
 The fix wasn't more tuning. The fix was architectural: connect formation memories to the cognitive pipeline through a testable derivation chain, so we could verify at every step that the pipeline — not the author — was producing the emotional interpretation.
 

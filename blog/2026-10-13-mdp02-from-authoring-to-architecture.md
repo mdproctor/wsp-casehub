@@ -5,7 +5,7 @@ date: 2026-10-13
 entry_type: article
 subtype: diary
 projects: [casehubio/examples]
-tags: [cognitive-architecture, autobiographical-memory, Conway-SMS, Singer-SDM, Klinger, CAPS, formation-memories, testing-pyramid]
+tags: [cognitive-architecture, autobiographical-memory, Conway-SMS, Singer-SDM, Klinger, CAPS, formation-memories, testing-pyramid, LLM-bias]
 series: issue-115-drive-expression-gap
 ---
 
@@ -13,7 +13,7 @@ series: issue-115-drive-expression-gap
 
 In Part 1, I described how tuning character data — somatic descriptions and formation memories — seemed to improve drive expression until we realised we were doing the pipeline's job for it. The fix isn't better data. It's a testable derivation chain where every step from personality traits to behaviour is independently verifiable.
 
-The question was: what does the literature say about how memories connect to personality, and can we build that connection into the pipeline?
+The question was: what does the literature say about how memories connect to personality, and can we build that connection into the pipeline? We designed it, built it, and ran two full scenario evaluations. Here's what we found.
 
 ## What the Research Says
 
@@ -48,9 +48,43 @@ At runtime, the annotations are stripped — the LLM receives clean narrative te
 
 The terminology comes from the autobiographical memory function literature. Pillemer (2003), Bluck (2003), and Singer all use "serves" for the memory-concern relationship: memories *serve* directive functions, memories *serve* as archetypes of personality themes. Not "feeds," not "grounds" — "serves" is the established term.
 
+## The Audit
+
+We annotated all 26 formation memories and fixed 23 problems: 11 pre-resolved drive conflicts, 6 action primings, 5 value declarations, and 1 outright contradiction. The DD age-14 contradiction — "that felt wrong" about a successful plan for a character with scheming at 0.85 — became the comparative framing: "it felt so much better when there was someone to show it to." Preserves scheming satisfaction while engaging recognition through comparison rather than negation.
+
+Then we ran two full scenarios and averaged the results.
+
+## What the Numbers Said
+
+PP gallantry improved by 0.48 points — the largest sustained gain. Removing pre-resolutions that forced gallantry into proving-worth's frame let the personality model differentiate them. Pen adventure recovered to within 0.06 of the original baseline — the pre-resolution "not with fear but with something you'd later call 'the good kind of scared'" had been actively suppressing the adventure drive.
+
+But HC gloating moved 0.06. DD gloating moved 0.02. Essentially flat. We'd cleaned the memories, removed the contradictions, annotated every drive link — and gloating didn't care.
+
+This is where the micro tests changed the story.
+
+## The Micro Test Revelation
+
+We built Level 2-4 tests — single-situation drive expression judgments. Present one character with one triggering situation, judge whether the target drive expresses. When we tested HC gloating with a direct trigger (a rival humiliated by a trap HC had set), the score was 5/5. DD gloating: 5/5. Pen social-harmony: 5/5. Pen adventure: 5/5.
+
+The LLM CAN express every drive at full intensity. The personality model produces rich, emergent, psychologically grounded responses. HC's gloating response included "somatic warmth pooling behind the ribs, swelling pressure, the urge to narrate the trick." DD's included "heat blooming in the chest, honey-thick satisfaction, compulsive laughter." These aren't mechanical outputs — they're the personality model doing exactly what it's supposed to do.
+
+The problem isn't the LLM. The problem isn't the memories. The problem is that in a full scenario, the cognitive pipeline doesn't route gloating-relevant situations through gloating-relevant appraisals. When a rival fails, the pipeline processes the situation generically. The character's gloating drive is sitting at 0.7 intensity with CAPS nodes mapped to `dominance` and `BAS_activation` — but nothing in the pipeline says "this situation, for this character, should foreground these nodes."
+
+Gloating collapse is a situation-to-drive routing gap.
+
+## PP Gallantry and the LLM Bias Question
+
+PP gallantry scored 3/5 on the direct trigger — not 5/5. The judge noted that gallantry was "instrumentalized as a coping mechanism for proving-worth anxiety: 'without something to do for her, what am I?'" The character expressed courtesy, but the internal experience was about proving worth through the courtesy.
+
+This points to something we need to think carefully about: LLM training bias. Achievement narratives dominate training data. Stories about proving yourself, demonstrating competence, earning recognition — the LLM has seen millions of these. Stories about courtesy for its own sake, the pleasure of a well-shaped gesture with no instrumental purpose — it's seen far fewer.
+
+The pipeline needs to account for this, but not through hard-wired rules. The character's personality profile (gallantry at 0.9, proving-worth at 0.7, callousness at 5) should determine which drive dominates — not a universal adjustment. The CAPS topology connects drives to nodes; the nodes compete through the network. If gallantry's nodes are insufficiently independent from proving-worth's nodes, the topology needs revision. That's a literature-informed architectural decision, not a data-tuning hack.
+
+The same applies to gloating. LLMs may suppress schadenfreude because training data treats it as negative behaviour. A character with callousness at 90 and grandiosity at 80 should express gloating more readily than one with callousness at 5. The pipeline conveys that personality signal; the CAPS network routes it through the right nodes; the LLM receives a context where gloating is psychologically inevitable for this specific character. We're not overriding the LLM — we're giving it the information it needs to produce what the personality model predicts.
+
 ## The Testing Pyramid
 
-The real win is testability. Full scenario runs take 30 minutes and produce noisy results (±0.3 variance between runs). What we needed was a testing pyramid:
+The real win from this work is testability. Full scenario runs take 30 minutes and produce noisy results (±0.3 variance between runs — we saw adventure swing from 3.69 to 3.05 across two runs of the same configuration). What the annotation system gave us is a testing pyramid:
 
 | Level | What | Time |
 |---|---|---|
@@ -61,21 +95,11 @@ The real win is testability. Full scenario runs take 30 minutes and produce nois
 | 4 | If-then behavioural signature — Mischel's CAPS prediction | ~1 minute |
 | 5 | Full scenario — confirms micro improvements compose | ~30 minutes |
 
-Level 0 runs on every commit. No LLM, no API calls, no non-determinism. It checks: does this memory's text contradict the personality model? Does it pre-resolve a drive conflict the model should handle? Does it describe actions the LLM should derive?
+Level 2 is where the pipeline proves itself. If PP's gallantry doesn't express independently of proving-worth when someone needs help in a theatrical way, the problem is in the pipeline — not in the somatic description. Fix the pipeline, not the data.
 
-Level 2 is where the pipeline proves itself. Present one situation to one character. Judge whether the right drive expresses. If PP's gallantry doesn't express when someone needs help in a theatrical way, the problem is in the pipeline — not in the somatic description. Fix the pipeline, not the data.
+Level 5 is for baseline confirmation. Run it after the micro tests pass. Not for iteration.
 
-Level 5 is for baseline confirmation. Run it once after the micro tests pass. Not for iteration.
-
-## The Memory Audit
-
-The `serves` annotations also make the memory audit systematic. Every formation memory gets annotated, and the annotations expose problems:
-
-- A memory annotated `serves: recognition|strong` that says "that felt wrong" — the annotation makes the contradiction visible. The memory should describe the situation, not resolve which drive dominates.
-- A memory annotated `serves: scheming|defining` that describes specific actions ("you practiced on the gardener, then the cook") — the annotation shows this is action priming, not situational data.
-- A memory with no annotation at all — it serves no testable purpose. Either it grounds a drive (annotate it) or it's background texture (fine, but you can't test it).
-
-## What We're Building
+## What We're Building Next
 
 The derivation chain from personality traits to behaviour now has testable links at every step:
 
@@ -88,8 +112,8 @@ Personality Model (facets, drives, attachment)
           → LLM Context → Emergent Behaviour
 ```
 
-Each arrow is a unit test. Each unit test runs in milliseconds to seconds. The full scenario run confirms composition — it doesn't drive iteration.
+The `serves` annotations and the memory audit were Phase 0 — getting the data clean and testable. Phases 1-5 wire the pipeline: drive intensities prime CAPS nodes, CAPS nodes foreground appraisals, appraisals activate drive-relevant memories, and the rendering layer presents all of this as clean psychological context.
 
-The irony: we spent a session tuning somatic descriptions and formation memories, discovered we were the wrong people to be writing emotional evaluations, and ended up designing the architecture that lets the pipeline do the job instead. The data tuning produced one genuinely useful finding (DD's anticipatory gloating improved by a full point) and one instructive failure (PP's gallantry regression from action-describing somatics). Everything else was the author overriding the model.
+The constraint we're holding to: every mechanism must be rooted in published computational models (CAPS, Conway SMS, Klinger concerns, Mischel's if-then profiles). No hard-wired "rival fails → activate gloating" rules. The personality profile determines which drives activate; the pipeline provides the routing. The LLM produces the behaviour. And the testing pyramid verifies each step independently.
 
-The next step is implementation: annotate all 24 formation memories, build the Level 0 checker, wire the Level 2-4 micro tests, and establish the post-audit baseline. The architecture is designed. The literature backs it. The testing pyramid is defined. Now we find out if the pipeline can do the job we've been doing badly by hand.
+We started this session trying to tune data. We ended it understanding that the data was never the problem. The problem is that personality information doesn't flow through the system the way computational psychology says it should. The literature gives us the architecture. Now we wire it up.

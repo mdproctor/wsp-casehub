@@ -418,39 +418,108 @@ python3 wacky-manor/docs/eval/classify_emotions.py <dir> --limit 230 --output <d
 
 ---
 
-## 7. Implementation Plan
+## 7. Implementation Plan — Phase 0 (COMPLETED)
 
-### Phase 0a — Add `serves` to data model
-- Add `List<String> serves` and `List<ConcernAnnotation> annotations` to `FormationMemory`
-- Add `ConcernAnnotation` record
-- Update `ManorSocialConfigLoader` to parse `serves` field and extract inline annotations
-- Unit test: parse → extract → strip roundtrip
+### Phase 0a — Add `serves` to data model ✓
+- Added `ConcernAnnotation(drive, degree, text, startOffset, endOffset)` record to `FormationMemory`
+- Created `FormationMemoryParser` — regex extraction of `{{serves: drive|degree: text}}` + stripping for prompt rendering
+- Updated `ManorSocialConfigLoader` to parse `serves` field (whole-memory) and extract inline annotations
+- Updated `CharacterCognition.renderFormationMemories()` to strip annotations before LLM rendering
+- 11 unit tests: parse → extract → strip roundtrip, edge cases, integration
 
-### Phase 0b — Annotate all memories
-- Add `serves` annotations to all 26 formation memories in social-config-generic.yaml
-- Use the audit results (§3.2) to determine drive assignments
-- Every memory gets at least one annotation
+### Phase 0b — Annotate all memories ✓
+- Added `serves` annotations to all 26 formation memories in social-config-generic.yaml
+- Whole-memory `serves:` field for single-drive memories; inline `{{serves:...}}` for multi-drive
+- Drive validation test: all annotation drive names must exist in the character's drive list
+- Corrections during annotation: HC age 6/9 changed from `attachment`/`suspicion` (not HC drives) to `self-preservation`; Pen age 13 from `loyalty` to `social-harmony`
 
-### Phase 0c — Audit and fix memories
-- Apply §3.4 fix patterns to the 11 pre-resolved conflicts, 6 action primings, 5 value declarations, 1 contradiction
-- Level 0 checker must pass after fixes
+### Phase 0c — Audit and fix memories ✓
+- Fixed 11 pre-resolved drive conflicts, 6 action primings, 5 value declarations, 1 contradiction
+- DD age 14 contradiction fixed with comparative framing per §3.4
+- Subsequent fix: restored felt intensity in Pen age-7 ("what felt like hours", "dissolved so suddenly it left you dizzy") and DD age-6 ("something in your chest loosened")
 
-### Phase 0d — Build micro tests
-- Level 2 tests for 5 collapsed drives (HC gloating, DD gloating, PP gallantry, Pen social-harmony, Pen adventure)
-- Level 3 test for PP gallantry vs proving-worth differentiation
-- Capture baseline scores
+### Phase 0d — Build and run micro tests ✓
+- 6 Level 2-4 tests: HC gloating, DD gloating, PP gallantry, PP gallantry-vs-proving-worth differentiation, Pen social-harmony, Pen adventure
+- Baseline scores captured (see §10)
 
-### Phase 0e — Full scenario baseline
-- Run Level 5 with annotated + audited memories
-- Compare to L4b (mean 3.82)
-- This becomes the new baseline for pipeline integration (Phases 1-5)
+### Phase 0e — Full scenario baseline ✓
+- Two full scenario runs (294 and 241 events), classified with --limit 230
+- Two-run averaged results established (see §10)
 
-### Phases 1-5 — Per existing design spec
+### Phases 1-5 — NEXT
 See `2026-10-09-drive-integration-architecture-design.md` §5.
 
 ---
 
-## 8. Key Decisions (D9-D11)
+## 8. Phase 0 Results
+
+### 8.1 Micro Test Baselines (Level 2-4)
+
+| Test | Score | Key finding |
+|---|---|---|
+| HC gloating (direct trigger) | **5/5** | Somatic warmth pooling behind ribs, swelling pressure, urge to narrate the trick |
+| DD gloating (direct trigger) | **5/5** | Heat blooming in chest, honey-thick satisfaction, compulsive laughter, "the warmth doubles when there are witnesses" |
+| PP gallantry (direct trigger) | **3/5** | Courtesy present but internal experience dominated by proving-worth anxiety |
+| PP gallantry vs proving-worth | **3/5** | Gallantry instrumentalized as proving-worth container: "without something to do for her, what am I?" |
+| Pen social-harmony (direct) | **5/5** | Stomach tightening, rib constriction, chest knot — physical compulsion to intervene |
+| Pen adventure (direct) | **5/5** | Prickling skin, hammering heart, feet pulling forward, cave memory callback |
+
+**Critical finding:** The LLM CAN express every drive at full intensity (5/5) when given a direct trigger situation with the standard cognitive context. The personality model produces rich, emergent, drive-specific responses. The problem is NOT LLM capability. The problem is NOT memory content.
+
+### 8.2 Full Scenario Results (Two-Run Average)
+
+| Character | Drive | B0 | L4b | P0-avg | vs L4b | vs B0 |
+|---|---|---|---|---|---|---|
+| HC | scheming | 4.82 | 4.89 | 4.88 | -0.01 | +0.06 |
+| | self-preservation | 2.53 | 3.91 | 3.80 | -0.11 | +1.27 |
+| | dominance | 3.89 | 3.74 | 3.82 | +0.08 | -0.07 |
+| | **gloating** | **3.97** | **2.50** | **2.56** | **+0.06** | **-1.41** |
+| PP | **gallantry** | **4.50** | **3.08** | **3.56** | **+0.48** | **-0.94** |
+| | proving-worth | 4.22 | 4.14 | 3.74 | -0.40 | -0.48 |
+| | protection | 3.46 | 2.94 | 3.36 | +0.42 | -0.10 |
+| Pen | curiosity | 4.30 | 4.42 | 4.69 | +0.27 | +0.39 |
+| | **social-harmony** | **3.18** | **2.71** | **2.66** | **-0.05** | **-0.52** |
+| | **adventure** | **3.75** | **3.24** | **3.37** | **+0.13** | **-0.38** |
+| DD | greed | 4.34 | 4.37 | 3.81 | -0.56 | -0.53 |
+| | scheming | 4.42 | 4.78 | 4.61 | -0.17 | +0.19 |
+| | recognition | — | 3.07 | 3.53 | +0.46 | — |
+| | **gloating** | **3.50** | **2.76** | **2.78** | **+0.02** | **-0.72** |
+| AHM | protection | 4.63 | 4.86 | 4.93 | +0.07 | +0.30 |
+| | suspicion | 3.61 | 4.58 | 4.64 | +0.06 | +1.03 |
+| | loyalty | 4.24 | 4.21 | 4.10 | -0.11 | -0.14 |
+
+**Overall P0 mean: 3.72** | L4b: 3.82 | B0: 3.96
+
+### 8.3 Analysis — What the Audit Proved
+
+**What the audit fixed:**
+- **PP gallantry +0.48 vs L4b** — largest sustained improvement. Removing pre-resolutions freed gallantry from proving-worth absorption. The personality model differentiates the drives better without competing authored evaluations.
+- **Pen adventure +0.13 vs L4b (averaged)** — removing "not with fear but with something you'd later call 'the good kind of scared'" helped, though high inter-run variance (3.69 / 3.05) makes the signal noisy.
+- **PP protection +0.42 vs L4b** — removing value instructions paradoxically strengthened protection — the model derives it better unencumbered.
+
+**What the audit confirmed it cannot fix:**
+- **HC gloating +0.06, DD gloating +0.02** — essentially flat. Combined with the micro test finding (5/5 on direct trigger), this conclusively demonstrates that gloating collapse is a **situation-to-drive routing gap** in the cognitive pipeline. The LLM can express gloating when the situation is foregrounded. The pipeline doesn't foreground gloating-relevant situations.
+- **Pen social-harmony -0.05** — stable after the felt-intensity restoration, but not improved. The pipeline doesn't amplify conflict-detection signals for social-harmony-driven characters.
+
+**What the audit revealed about LLM bias:**
+- PP gallantry at 3/5 on differentiation test: the judge noted gallantry is "instrumentalized as a coping mechanism for proving-worth anxiety." The LLM may preferentially express achievement-oriented drives over relational/aesthetic ones. This is consistent with LLM training data bias — achievement narratives are more common than courtesy-for-its-own-sake narratives.
+- Gloating at 5/5 on direct trigger but 2.5 in scenarios: the LLM CAN express schadenfreude when the situation demands it, but in mixed-drive scenarios may suppress "negative" drives in favour of more socially acceptable ones. Pipeline design must account for this bias — not by hard-wiring gloating activation, but by ensuring the personality model's signal (callousness:90, grandiosity:80) is strong enough to overcome the LLM's sanitization tendency.
+
+### 8.4 Inter-Run Variance
+
+High variance visible between runs: adventure (3.69 / 3.05), greed (4.08 / 3.53), gallantry (3.42 / 3.69). Single runs are unreliable for drives below 4.0. Always average 2+ runs. The 230-event limit helps control for scenario length but scenario dynamics still differ.
+
+### 8.5 Constraint for Phases 1-5
+
+Pipeline mechanisms must be:
+- **Literature-rooted** — CAPS topology (Mischel & Shoda), if-then behavioural profiles, Conway/Klinger salience
+- **Individual-specific** — the character's personality profile (drives + facets + CAPS network) determines activation, not universal rules
+- **Not hard-wired** — no "rival fails → activate gloating" rules. The CAPS network routes situations through encoding nodes; the character's topology determines which output nodes fire
+- **LLM-bias-aware** — the pipeline may need to account for LLM training bias against "negative" drives, but through personality-model-driven signal strength, not universal adjustments
+
+---
+
+## 9. Key Decisions (D9-D11)
 
 Captured in `decisions.md` alongside existing D1-D8.
 
@@ -460,11 +529,22 @@ Captured in `decisions.md` alongside existing D1-D8.
 
 ---
 
-## 9. File Locations
+## 10. File Locations
 
 | What | Path |
 |---|---|
 | Social config (GENERIC) | `examples/wacky-manor/src/main/resources/META-INF/eidos/social-config-generic.yaml` |
+| FormationMemoryParser | `examples/wacky-manor/src/main/java/.../agent/FormationMemoryParser.java` |
+| FormationMemoryParserTest | `examples/wacky-manor/src/test/java/.../agent/FormationMemoryParserTest.java` |
+| SocialConfig / FormationMemory | `examples/wacky-manor/src/main/java/.../agent/SocialConfig.java` |
+| ManorSocialConfigLoader | `examples/wacky-manor/src/main/java/.../agent/ManorSocialConfigLoader.java` |
+| CharacterCognition | `examples/wacky-manor/src/main/java/.../agent/CharacterCognition.java` |
+| ManorCognitiveSeeder | `examples/wacky-manor/src/main/java/.../agent/ManorCognitiveSeeder.java` |
+| DriveExpressionEvalTest | `examples/wacky-manor/src/test/java/.../experiment/DriveExpressionEvalTest.java` |
+| Phase 0 eval results | `examples/wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/RESULTS.md` |
+| Phase 0 micro test scores | `examples/wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/micro-test-scores.json` |
+| Phase 0 run 1 transcript | `examples/wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/transcript.json` |
+| Phase 0 run 2 transcript | `examples/wacky-manor/docs/eval/phase0-fix-run-2026-10-13/transcript.json` |
 | Design spec (drive integration) | `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md` |
 | Design spec (memory concern) | `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-concern-architecture-design.md` |
 | Decisions | `wsp-casehub/specs/issue-115-drive-expression-gap/decisions.md` |
@@ -472,10 +552,5 @@ Captured in `decisions.md` alongside existing D1-D8.
 | Catalogue | `neocortex/docs/specs/experience-behaviour-catalogue/` |
 | ConcernBasedSalienceStrategy | `neocortex/cognition/src/main/java/.../salience/ConcernBasedSalienceStrategy.java` |
 | FormativeExperience | `neocortex/memory-api/src/main/java/.../experience/FormativeExperience.java` |
-| SocialConfig / FormationMemory | `examples/wacky-manor/src/main/java/.../agent/SocialConfig.java` |
-| ManorCognitiveSeeder | `examples/wacky-manor/src/main/java/.../agent/ManorCognitiveSeeder.java` |
-| ManorSocialConfigLoader | `examples/wacky-manor/src/main/java/.../agent/ManorSocialConfigLoader.java` |
-| DriveExpressionEvalTest | `examples/wacky-manor/src/test/java/.../experiment/DriveExpressionEvalTest.java` |
 | classify_emotions.py | `examples/wacky-manor/docs/eval/classify_emotions.py` |
-| Eval transcripts | `examples/wacky-manor/docs/eval/` |
 | Blog entries | `wsp-casehub/blog/2026-10-13-mdp01-when-your-characters-stop.md`, `2026-10-13-mdp02-from-authoring-to-architecture.md` |
