@@ -4,81 +4,72 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**State:** Layer 4 data tuning attempted → architectural pivot to `serves` annotations
+**State:** Phase 0 complete — `serves` annotation system built, all memories audited, post-audit baseline established
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
-**Read the research document before doing anything else:**
+**Research document (still authoritative for theory + pipeline design):**
 `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
 
-This is the complete knowledge base for the next iteration. It covers:
-- All literature findings (Conway SMS, Singer SDMs, Klinger, CAPS, LLM persona research) with specific citations and implementation mapping
-- Full memory audit results (26 memories, per-memory findings)
-- All eval data (L4a mean 3.79, L4b mean 3.82, PW mean 3.70, B0 mean 3.96)
-- The `serves` annotation design (syntax, vocabulary, degree scale, parser behavior)
-- The testing pyramid (Levels 0-5, what exists, what's needed)
-- Implementation plan (Phase 0a-0e)
-- Every relevant file path in both repos
+**Phase 0 eval results:**
+`wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/RESULTS.md`
 
-**Design specs:**
-- `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md` — drive integration architecture (D1-D8)
-- `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-concern-architecture-design.md` — formation memory concern architecture (D9-D11)
-- `wsp-casehub/specs/issue-115-drive-expression-gap/decisions.md` — all 11 decisions
+## What Was Done This Session
+
+### Phase 0 — Formation Memory Audit + `serves` Annotation System
+
+| Phase | Commit | What |
+|---|---|---|
+| 0a | `85e6d3a` | `ConcernAnnotation` record, `FormationMemoryParser`, loader + renderer updates |
+| 0b | `dcfdf2c` | Annotated all 26 formation memories with `serves` annotations |
+| 0c | `9bc9dec` | Fixed 11 pre-resolutions, 6 action primings, 5 value declarations, 1 contradiction |
+| 0d | `a83cfba` | 6 micro tests for 5 collapsed drives (HC/DD gloating, PP gallantry, Pen harmony/adventure) |
+| 0e | `bab91f7` | Full scenario run (294 events), post-audit baseline established |
+
+### Phase 0 Eval Results (mean 3.76, vs L4b 3.82, vs B0 3.96)
+
+**Winners:** Pen adventure +0.45 (near B0), PP gallantry +0.34, PP protection +0.59
+**Flat:** HC gloating +0.09, DD gloating +0.09 — confirms gloating is a pipeline problem, not memory authoring
+**Regressed:** Pen social-harmony -0.29 — age-7 memory may have been over-trimmed
+
+### Key Finding
+
+The audit confirmed that **gloating collapse is not a memory problem** — it's a pipeline gap. Clean memories with proper annotations show essentially no gloating improvement (+0.09). This validates the need for Phases 1-5 (drive→CAPS, drive→appraisal, drive→memory salience integration).
+
+The audit DID fix **adventure** (nearly to B0) and **gallantry** (significant recovery), showing that pre-resolutions were actively suppressing these drives.
 
 ## What Needs to Happen Next
 
-### 1. Implement the `serves` annotation system (Phase 0a-0e)
+### 1. Investigate Pen social-harmony regression (-0.29)
 
-Full detail in the research document §7. In summary:
+The age-7 memory was shortened significantly (duck story + value declaration removed). The felt experience of physical sickness from conflict may need to be restored without the action priming and value declaration. Consider:
+- Restoring bodily felt experience (tightness, nausea) while removing the duck story
+- Adding more situational detail without specifying what Penelope DOES
 
-**Phase 0a:** Add `serves` + `ConcernAnnotation` to `FormationMemory` record in `SocialConfig.java`, update `ManorSocialConfigLoader` to parse, build annotation parser.
+### 2. Consider restoring DD age-6 felt experience
 
-**Phase 0b:** Annotate all 26 formation memories in `social-config-generic.yaml` with `{{serves: drive|degree: text}}`. Use the audit results (research doc §3.2) for drive assignments.
+"The fullness wasn't just in your stomach" was removed as a pre-resolution, but it carried useful felt experience. Consider restoring the physical sensation without the "not X, it was Y" framing.
 
-**Phase 0c:** Fix the 11 pre-resolved conflicts, 6 action primings, 5 value declarations, 1 contradiction per audit findings.
+### 3. Proceed to Phases 1-5 (Drive Integration Pipeline)
 
-**Phase 0d:** Build Level 2-4 micro tests for 5 collapsed drives (HC gloating, DD gloating, PP gallantry, Pen social-harmony, Pen adventure). `DriveExpressionEvalTest` has PP proving-worth as the pattern.
+Per existing design spec: `2026-10-09-drive-integration-architecture-design.md`
 
-**Phase 0e:** Run full scenario (Level 5) to establish post-audit baseline. Compare to L4b (mean 3.82).
+The gloating collapse requires pipeline-level support:
+- Phase 1: Drive→CAPS activation (connect drive intensities to CAPS node priming)
+- Phase 2: Drive→Appraisal (foreground drive-relevant appraisals)
+- Phase 3: Drive→Memory salience (use `serves` annotations for concern-based retrieval)
+- Phase 4: Enrichment (catalogue entry connection, situationTypes from annotations)
+- Phase 5: Somatic removal (replace prescriptive text with derived prompts)
 
-### 2. Close #117
+### 4. Close #117
 
 Design implemented (commits `169b093`, `e30fe7a`). Close with comment referencing those commits.
-
-### 3. Independent tasks
-
-| Issue | What |
-|-------|------|
-| #116 | CognitivePipelineBuilder extraction |
-| #114 | DD missing tendencies |
 
 ## Architecture Summary
 
 | Layer | What | Status |
 |-------|------|--------|
-| 1 — Wiring | Connect dead ends in pipeline | **DONE** |
-| 2 — Inference | CAPS labels, expression styles, appraisal foregrounding, Klinger salience | **DONE** |
-| 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
-| 4 — Data tuning | Somatic refinement, formation memory enrichment | **ATTEMPTED → PIVOTED** |
-| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **NEXT** |
-| 1-5 (drive integration) | Drive→CAPS, Drive→Appraisal, Drive→Memory salience, rendering cleanup | **BLOCKED on Phase 0** |
-
-## Key Constraint: Emergence Not Scripting
-
-**Strengthened from this session's findings:**
-
-Formation memories are the strongest LLM behavioral signal (ACL 2025: demonstrations
-override instructions). Every emotional evaluation in a memory overrides the personality
-model. Do NOT:
-- Pre-resolve drive conflicts ("not X, it was Y")
-- Describe actions the character does (action priming)
-- Declare what things mean (value declarations)
-- State emotions that contradict what the personality model would derive
-
-DO: describe situations. Let the personality model (drives, facets, CAPS network)
-derive the emotional response. Use `serves` annotations to document which drive
-a memory calibrates — for testing, not for the LLM.
-
-The research document §3 has the full audit results per memory.
+| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **DONE** |
+| 1-5 (drive integration) | Drive→CAPS, Drive→Appraisal, Drive→Memory salience, rendering cleanup | **NEXT** |
 
 ## Baseline Transcripts — DO NOT DELETE
 
@@ -94,6 +85,7 @@ The research document §3 has the full audit results per memory.
 | `pipeline-wiring-run-2026-10-13/transcript.json` | 997 | Full pipeline wiring | GENERIC |
 | `layer4-refinement-run-2026-10-13/transcript.json` | 349 | L4a somatic + memory refinements | GENERIC |
 | `layer4-gallantry-fix-2026-10-13/transcript.json` | 300 | L4b gallantry somatic fix | GENERIC |
+| `phase0-audit-baseline-2026-10-13/transcript.json` | 294 | Phase 0 post-audit baseline | GENERIC |
 
 ## Build Notes
 
