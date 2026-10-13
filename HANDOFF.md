@@ -4,67 +4,103 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**State:** Pipeline wiring complete, eval run done, results posted to #115
+**State:** Layer 4 data tuning attempted → architectural pivot to `serves` annotations
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
-## What Was Done This Session
+## START HERE — Research Reference
 
-### 1. Built and ran pipeline wiring eval
+**Read this first:**
+`wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
 
-With all pipeline wiring active (appraisal-driven drive foregrounding #118, Klinger
-concern-based salience #119, neocortex fixes #504-#512), ran a GENERIC scenario
-producing 997 events — 3× the L123 baseline of 326 events.
+This is the complete knowledge base for the next iteration. It covers:
+- All literature findings (Conway SMS, Singer SDMs, Klinger, CAPS, LLM persona research) with specific citations and implementation mapping
+- Full memory audit results (26 memories, per-memory findings)
+- All eval data from this session (L4a mean 3.79, L4b mean 3.82)
+- The `serves` annotation design (syntax, vocabulary, degree scale, parser behavior)
+- The testing pyramid (Levels 0-5, what exists, what's needed)
+- Implementation plan (Phase 0a-0e)
+- Every relevant file path in both repos
 
-### 2. Discovered run-length confound
+**Design specs:**
+- `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md` — original drive integration architecture (D1-D8)
+- `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-concern-architecture-design.md` — formation memory concern architecture (D9-D11)
+- `wsp-casehub/specs/issue-115-drive-expression-gap/decisions.md` — all 11 decisions
 
-The full 997-event run produced a misleading mean of 3.24. Longer runs dilute scores
-because routine dialogue scores low on drive expression. Length-controlled comparison
-(first 230 classifiable events, matching L123 sample size) produced mean **3.69** —
-an improvement of +0.12 over L123's 3.57. Future evals must length-control.
+## What Was Done This Session (2026-10-13)
 
-### 3. Posted results to #115
+### 1. Layer 4 data tuning — attempted and pivoted
 
-Full comparison table, methodology finding, and assessment posted as a comment on
-the issue. Key result: 7-8 of 16 drives at or above BASELINE0, up from 7 in L123
-but the shift is in which drives recovered. PP protection major recovery (+0.81).
+Refined somatic descriptions for 5 collapsed drives (pure physiology). Added targeted
+formation memories. Ran two eval cycles (L4a, L4b). DD gloating improved +0.76 (reliable).
+PP gallantry regressed because the somatic described actions, not feelings.
 
-## Commits on Branch
+### 2. Discovered author-priming problem
+
+The formation memories were pre-resolving drive conflicts (author deciding which drive
+dominates), priming specific actions, and contradicting the personality model. LLM
+persona research (ACL 2025) confirms: demonstrations override instructions. Our
+memories were overriding the pipeline.
+
+### 3. Full memory audit
+
+Audited all 26 formation memories across 5 characters. Found: 11 pre-resolved drive
+conflicts, 6 action primings, 5 value declarations, 1 contradiction (DD age 14 "felt wrong").
+
+### 4. Literature research and architectural design
+
+Researched Conway SMS, Singer SDMs, Klinger concerns, CAPS behavioral signatures.
+Designed the `serves` annotation system connecting formation memories to the drive-concern
+derivation chain. Two-layer mechanism: structural association (Singer) + dynamic
+activation (Conway/Klinger). Vocabulary: drive type names connected to CAPS nodes via D1.
+
+### 5. Cleaned up social-config-generic.yaml
+
+All somatics now pure internal physiology. All 5 targeted formation memories removed
+(recognized as author priming). YAML is in clean state for annotation work.
+
+### 6. Blog entries written
+
+Two-part series in `wsp-casehub/blog/`:
+- Part 1: When Your AI Characters Stop Being Themselves
+- Part 2: From Authoring to Architecture
+
+## Commits This Session
 
 ```
-bac8b17 docs(#115): length-controlled eval — mean 3.69 (+0.12 vs L123), 10/16 drives at B0
-0f87936 docs(#115): pipeline wiring eval results — mean 3.24, run-length confound identified
-122e621 data(#115): save pipeline-wiring scenario run transcript (997 events, GENERIC)
-c45d7a1 feat(#119): wire Klinger concern-based salience into cognitive pipeline
-4eae1bf feat(#118): wire appraisal-driven drive foregrounding into renderInternalState
-c6dfa54 feat(#118): wire CognitiveDefaultsRegistry into RelationshipStagePhase
-509b7a3 docs(#115): Layer 1+2+3 eval results — mean 3.57 vs BASELINE0 3.93
-6617d92 data(#115): save Layer 1+2+3 scenario run transcript (326 events, GENERIC)
-3f4f3af fix(#115): update ManorSocialConfigLoaderTest for somatic drive descriptions
-130747f feat(#115): enrich formation memories with drive-expression cues + fill data gaps
-62ea75f feat(#115): wire appraisal-driven foregrounding into CharacterCognition
-12e6db9 feat(#115): prefer personality-label in unified attractor renderer
-435945b wip(#115): rewrite all character drives to somatic felt-state format
-d02a0d4 docs(#118): add literature-first design principle to CLAUDE.md
-e30fe7a test(#115): update section count and add boundary tests for unified renderer
-169b093 wip(#115): unified renderInternalState — somatic drives + CAPS attractors
-f9a683f fix(#115): wire dead ends 1/3/4 in PlaybookOrchestrator
-fbe0262 test(#115): update CharacterCognitionTest for formation memories section
-42f8113 fix(#115): wire renderFormationMemories into renderCognitiveSections
-65044d3 test(#115): add propagation boundary tests for 5 dead ends
+22da3b0 fix(#115): strip action descriptions and targeted memories from somatics
+870ddd2 docs(#115): L4 eval results — mean 3.79 (+0.09 vs PW), DD gloating +1.00
+9e4ee23 data(#115): save Layer 4 refinement scenario run transcript (349 events, GENERIC)
+e2bb9c1 feat(#115): Layer 4 somatic + memory refinements for 5 collapsed drives
+2f2fd6f docs(#115): L4b eval — mean 3.82 (+0.12 vs PW), gallantry partial recovery
+de2767c data(#115): save Layer 4 gallantry-fix scenario run transcript (300 events, GENERIC)
 ```
 
 ## What Needs to Happen Next
 
-### 1. Close #117
+### 1. Implement the `serves` annotation system (Phase 0a-0e)
+
+Read the research document for full detail. In summary:
+
+**Phase 0a:** Add `serves` + `ConcernAnnotation` to `FormationMemory` record, update loader and parser.
+
+**Phase 0b:** Annotate all 26 formation memories with `{{serves: drive|degree: text}}`.
+
+**Phase 0c:** Fix the 11 pre-resolved conflicts, 6 action primings, 5 value declarations, 1 contradiction per audit findings in the research doc.
+
+**Phase 0d:** Build Level 2-4 micro tests for 5 collapsed drives (HC gloating, DD gloating, PP gallantry, Pen social-harmony, Pen adventure). DriveExpressionEvalTest already has PP proving-worth as a pattern.
+
+**Phase 0e:** Run full scenario (Level 5) to establish post-audit baseline. Compare to L4b (mean 3.82).
+
+### 2. Close #117
 
 Design implemented (commits `169b093`, `e30fe7a`). Close with comment referencing those commits.
 
-### 2. Address 5 remaining collapsed drives
+### 3. Independent tasks
 
-Each drive has a different root cause and a different safe lever. **No prescriptive
-briefing text. No hand-written behavioral labels.** Every intervention must work
-through the cognitive pipeline's own mechanisms: somatic descriptions, formation
-memories, expression style derivation, scenario design, or eval methodology.
+| Issue | What |
+|-------|------|
+| #116 | CognitivePipelineBuilder extraction |
+| #114 | DD missing tendencies |
 
 ---
 
@@ -246,23 +282,34 @@ Before running the next eval:
 | #116 | CognitivePipelineBuilder extraction |
 | #114 | DD missing tendencies |
 
-### Three-Layer Fix Architecture (final)
+### Architecture Summary
 
 | Layer | What | Status |
 |-------|------|--------|
 | 1 — Wiring | Connect dead ends in pipeline | **DONE** |
-| 2 — Inference | CAPS labels, expression styles, appraisal foregrounding, Klinger salience, drive-CAPS loop, dampening fix, pipeline tuning | **DONE** |
+| 2 — Inference | CAPS labels, expression styles, appraisal foregrounding, Klinger salience | **DONE** |
 | 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
-| 4 — Refinement | Somatic differentiation, formation memory enrichment, scenario design, eval methodology | **NEXT** |
+| 4 — Data tuning | Somatic refinement, formation memory enrichment | **ATTEMPTED → PIVOTED** |
+| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **NEXT** |
+| 1-5 (drive integration) | Drive→CAPS, Drive→Appraisal, Drive→Memory salience, rendering cleanup | **BLOCKED on Phase 0** |
 
 ### Key Constraint: Emergence Not Scripting
 
-Prescriptive text inferred from the personality model (AMPD facets → derived tendencies)
-is legitimate. Hand-written behavioral labels are not. Every intervention in Layer 4
-must work through: somatic descriptions (body-felt), formation memories (past episodes),
-expression style derivation (AMPD-inferred), scenario design (environmental stimuli),
-or eval methodology (measurement accuracy). If you're tempted to write "You like to
-gloat" or "You tend to seek adventure" — stop. Describe how it FEELS, not what to DO.
+**Strengthened from this session's findings:**
+
+Formation memories are the strongest LLM behavioral signal (ACL 2025: demonstrations
+override instructions). Every emotional evaluation in a memory overrides the personality
+model. Do NOT:
+- Pre-resolve drive conflicts ("not X, it was Y")
+- Describe actions the character does (action priming)
+- Declare what things mean (value declarations)
+- State emotions that contradict what the personality model would derive
+
+DO: describe situations. Let the personality model (drives, facets, CAPS network)
+derive the emotional response. Use `serves` annotations to document which drive
+a memory calibrates — for testing, not for the LLM.
+
+The research document (§3) has the full audit results per memory.
 
 ## Baseline Transcripts — DO NOT DELETE
 
@@ -276,6 +323,8 @@ gloat" or "You tend to seek adventure" — stop. Describe how it FEELS, not what
 | `pipeline-hardening-run-2026-10-08/transcript.json` | — | Pipeline hardening run | — |
 | `layer-123-run-2026-10-09/transcript.json` | 326 | Layer 1+2+3 baseline | GENERIC |
 | `pipeline-wiring-run-2026-10-13/transcript.json` | 997 | Full pipeline wiring | GENERIC |
+| `layer4-refinement-run-2026-10-13/transcript.json` | 349 | L4a somatic + memory refinements | GENERIC |
+| `layer4-gallantry-fix-2026-10-13/transcript.json` | 300 | L4b gallantry somatic fix | GENERIC |
 
 ## Build Notes
 
