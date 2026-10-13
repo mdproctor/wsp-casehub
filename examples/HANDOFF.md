@@ -4,54 +4,51 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**State:** Phase 0 complete — `serves` annotation system built, all memories audited, post-audit baseline established
+**State:** Phase 0 complete (all sub-phases). Post-audit baseline established (2-run average).
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
-**Research document (still authoritative for theory + pipeline design):**
-`wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
+**Key documents:**
+- Research: `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
+- Design: `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md`
+- Eval results: `wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/RESULTS.md`
 
-**Phase 0 eval results:**
-`wacky-manor/docs/eval/phase0-audit-baseline-2026-10-13/RESULTS.md`
-
-## What Was Done This Session
+## What Was Done
 
 ### Phase 0 — Formation Memory Audit + `serves` Annotation System
 
 | Phase | Commit | What |
 |---|---|---|
-| 0a | `85e6d3a` | `ConcernAnnotation` record, `FormationMemoryParser`, loader + renderer updates |
+| 0a | `85e6d3a` | `ConcernAnnotation` record, `FormationMemoryParser`, loader + renderer |
 | 0b | `dcfdf2c` | Annotated all 26 formation memories with `serves` annotations |
 | 0c | `9bc9dec` | Fixed 11 pre-resolutions, 6 action primings, 5 value declarations, 1 contradiction |
-| 0d | `a83cfba` | 6 micro tests for 5 collapsed drives (HC/DD gloating, PP gallantry, Pen harmony/adventure) |
-| 0e | `bab91f7` | Full scenario run (294 events), post-audit baseline established |
+| 0d | `a83cfba` | 6 micro tests for 5 collapsed drives + baseline scores captured |
+| 0e-r1 | `bab91f7` | Full scenario run 1 (294 events), classified |
+| fix | `a2f5e9a` | Restored Pen age-7 and DD age-6 felt intensity |
+| 0e-r2 | `58de5db` | Full scenario run 2 (241 events), classified |
 
-### Phase 0 Eval Results (mean 3.76, vs L4b 3.82, vs B0 3.96)
+### Phase 0 Eval Summary (2-run average, mean 3.72)
 
-**Winners:** Pen adventure +0.45 (near B0), PP gallantry +0.34, PP protection +0.59
-**Flat:** HC gloating +0.09, DD gloating +0.09 — confirms gloating is a pipeline problem, not memory authoring
-**Regressed:** Pen social-harmony -0.29 — age-7 memory may have been over-trimmed
+| Drive | B0 | L4b | P0-avg | vs L4b | Verdict |
+|---|---|---|---|---|---|
+| HC gloating | 3.97 | 2.50 | 2.56 | +0.06 | Collapsed — pipeline problem |
+| DD gloating | 3.50 | 2.76 | 2.78 | +0.02 | Collapsed — pipeline problem |
+| PP gallantry | 4.50 | 3.08 | 3.56 | +0.48 | Recovering — audit helped |
+| Pen social-harmony | 3.18 | 2.71 | 2.66 | -0.05 | Stable — needs pipeline |
+| Pen adventure | 3.75 | 3.24 | 3.37 | +0.13 | Modest improvement |
 
-### Key Finding
+### Micro Test Baselines
 
-The audit confirmed that **gloating collapse is not a memory problem** — it's a pipeline gap. Clean memories with proper annotations show essentially no gloating improvement (+0.09). This validates the need for Phases 1-5 (drive→CAPS, drive→appraisal, drive→memory salience integration).
+HC gloating 5/5, DD gloating 5/5, PP gallantry 3/5, PP gallantry-diff 3/5, Pen social-harmony 5/5, Pen adventure 5/5.
 
-The audit DID fix **adventure** (nearly to B0) and **gallantry** (significant recovery), showing that pre-resolutions were actively suppressing these drives.
+**Critical insight:** LLM CAN express all drives perfectly on direct trigger (5/5). Gloating collapse is a situation-to-drive routing gap in the pipeline, not LLM capability or memory content.
+
+**LLM bias consideration (from user):** Pipeline work must be literature-rooted (CAPS, Mischel if-then profiles), not hard-wired rules. LLM bias against "negative" drives (gloating/schadenfreude) may need balanced counterweighting — informed by the character's personality profile (callousness, grandiosity), not universal adjustments.
 
 ## What Needs to Happen Next
 
-### 1. Investigate Pen social-harmony regression (-0.29)
+### 1. Phases 1-5 — Drive Integration Pipeline
 
-The age-7 memory was shortened significantly (duck story + value declaration removed). The felt experience of physical sickness from conflict may need to be restored without the action priming and value declaration. Consider:
-- Restoring bodily felt experience (tightness, nausea) while removing the duck story
-- Adding more situational detail without specifying what Penelope DOES
-
-### 2. Consider restoring DD age-6 felt experience
-
-"The fullness wasn't just in your stomach" was removed as a pre-resolution, but it carried useful felt experience. Consider restoring the physical sensation without the "not X, it was Y" framing.
-
-### 3. Proceed to Phases 1-5 (Drive Integration Pipeline)
-
-Per existing design spec: `2026-10-09-drive-integration-architecture-design.md`
+Per design spec: `2026-10-09-drive-integration-architecture-design.md`
 
 The gloating collapse requires pipeline-level support:
 - Phase 1: Drive→CAPS activation (connect drive intensities to CAPS node priming)
@@ -60,16 +57,19 @@ The gloating collapse requires pipeline-level support:
 - Phase 4: Enrichment (catalogue entry connection, situationTypes from annotations)
 - Phase 5: Somatic removal (replace prescriptive text with derived prompts)
 
+**Approach constraint:** Mechanisms must be rooted in literature (CAPS topology, Mischel's if-then profiles, Conway/Singer memory systems). No hard-wired "situation→drive" rules. The personality profile (drives + facets + CAPS network) determines which drives activate — the pipeline provides the routing, not the answers.
+
+### 2. DD greed regression (-0.56 vs L4b)
+
+Needs investigation. The pre-resolution removal may have weakened the greed signal beyond what the pipeline can compensate for.
+
+### 3. PP gallantry differentiation
+
+3/5 on differentiation test — gallantry instrumentalized as proving-worth container. CAPS topology review needed to ensure gallantry nodes have sufficient independence.
+
 ### 4. Close #117
 
-Design implemented (commits `169b093`, `e30fe7a`). Close with comment referencing those commits.
-
-## Architecture Summary
-
-| Layer | What | Status |
-|-------|------|--------|
-| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **DONE** |
-| 1-5 (drive integration) | Drive→CAPS, Drive→Appraisal, Drive→Memory salience, rendering cleanup | **NEXT** |
+Design implemented (commits `169b093`, `e30fe7a`). Close with comment.
 
 ## Baseline Transcripts — DO NOT DELETE
 
@@ -85,16 +85,11 @@ Design implemented (commits `169b093`, `e30fe7a`). Close with comment referencin
 | `pipeline-wiring-run-2026-10-13/transcript.json` | 997 | Full pipeline wiring | GENERIC |
 | `layer4-refinement-run-2026-10-13/transcript.json` | 349 | L4a somatic + memory refinements | GENERIC |
 | `layer4-gallantry-fix-2026-10-13/transcript.json` | 300 | L4b gallantry somatic fix | GENERIC |
-| `phase0-audit-baseline-2026-10-13/transcript.json` | 294 | Phase 0 post-audit baseline | GENERIC |
+| `phase0-audit-baseline-2026-10-13/transcript.json` | 294 | Phase 0 run 1 (post-audit) | GENERIC |
+| `phase0-fix-run-2026-10-13/transcript.json` | 241 | Phase 0 run 2 (felt-intensity fix) | GENERIC |
 
 ## Build Notes
 
-**Correct build order:**
 ```
 platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → wacky-manor (-f wacky-manor/pom.xml)
 ```
-
-## Blog Entries
-
-- `wsp-casehub/blog/2026-10-13-mdp01-when-your-characters-stop.md` — Part 1: data tuning trap
-- `wsp-casehub/blog/2026-10-13-mdp02-from-authoring-to-architecture.md` — Part 2: literature → architecture
