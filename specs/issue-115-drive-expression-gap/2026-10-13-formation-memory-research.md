@@ -24,11 +24,12 @@
 - **Vocabulary is universal across characters** (Read & Miller 2002) — personality differences come from connection weights and drive amplification, not different input features. Do not create character-specific vocabularies.
 - **Vocabulary weights are first approximations** — subject to empirical tuning (D4a) but derived from construct centrality, not arbitrary. The three-tier grading (strong/moderate/faint) is the right granularity.
 - **All INPUT nodes must have MEDIATING connections** — a topology validation test enforces this. New INPUT nodes added in the future must include connections or the test fails.
+- **Memory-to-catalogue mapping methodology is defined (§12.4)** — three tests (directional correctness, cumulative trajectory, no contradictions), OUTPUT-vs-MEDIATING rule, escalation verification. All 26 mappings completed (§12.5). Do not re-derive the methodology or the mappings.
 
 ### What's Next — Layer B + C
 See §12 for the concrete implementation plan. Layer A is done. Remaining:
 
-**Layer B (memory calibration):** Connect formation memories to actual catalogue entries (replace placeholder `catalogueEntryId`). Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`) via the shared_node_map. Each memory's developmental position in the escalating sequence determines calibration intensity (§10.8).
+**Layer B (memory calibration):** Connect formation memories to actual catalogue entries (replace placeholder `catalogueEntryId`). Catalogue entries calibrate mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`) via the shared_node_map. Each memory's developmental position in the escalating sequence determines calibration intensity (§10.8). **Mapping methodology defined (§12.4). All 26 memory-to-catalogue mappings completed (§12.5).** Implementation (YAML + Java changes) pending.
 
 **Layer C (drive amplification):** Implement D1 — drive intensities inject persistent activations into CAPS nodes per §2.3 mappings. Include explicit mediating substrate rendering. Do not assume any layer is redundant without empirical proof.
 
@@ -976,6 +977,116 @@ The vocabulary is now implemented for all 31 INPUT nodes in `caps-topology.yaml`
 3. **Universal across characters.** Same vocabulary for everyone. Personality differences emerge from connection weights and drive amplification, not from different input features (Mischel & Shoda 1995; Read & Miller 2002).
 4. **Additive layers.** Include all three layers (vocabulary, substrate, drive amplification). Do not remove any signal without empirical proof of redundancy.
 5. **Empirically validated.** Classify existing transcripts with the new vocabulary. Check which nodes fire. Compare to human judgment. Tune weights based on results (D4a).
+
+### 12.4 Memory-to-Catalogue Mapping Methodology
+
+**When to use:** whenever mapping a formation memory to a catalogue entry in `experience-behaviour-catalogue/`. This methodology was developed during Layer B and should be applied consistently for any new characters or memory additions.
+
+#### The Selection Principle
+
+The `serves` annotation and the `catalogue` entry are complementary:
+- **`serves`** says WHICH DRIVE the memory calibrates — a structural tag for testing and salience
+- **`catalogue`** says WHICH PSYCHOLOGICAL MODEL explains HOW the memory calibrates the MEDIATING NODES
+
+They answer different questions. Do not conflate them.
+
+#### The Three Tests
+
+Every mapping must pass:
+
+1. **Directional correctness.** Does the catalogue entry's `expected_outcomes` calibrate the RIGHT mediating nodes in the RIGHT direction for this character? Check each node in the entry's outcomes against the character's target substrate.
+
+2. **Cumulative trajectory.** Does the sequence of catalogue entries across ALL memories produce the extreme substrate §10.8 requires? Trace each mediating node across the full memory sequence and verify the cumulative calibration is sufficient (e.g., DD needs self_worth ↓↓, not just ↓).
+
+3. **No unresolvable contradictions.** Do any outcomes CONTRADICT the character's profile? Mild conflicts (DD: cbt-negative-self → withdraw ↑, counteracted by mastery → approach ↑) are acceptable — the CAPS network resolves them through attractor dynamics. Strong conflicts (Pen: attachment-anxious → other_reliability ↓ for a secure-attachment character) are not — they push the substrate in the wrong direction.
+
+#### The OUTPUT-vs-MEDIATING Rule
+
+**Always prefer catalogue entries that calibrate MEDIATING nodes over those that only affect OUTPUT nodes.**
+
+Mediating nodes: `self_worth`, `self_efficacy`, `other_reliability`, `other_safety`, `threat_sensitivity`, `FFFS_activation`, `BAS_activation`, `reinforcement_expectation`, `arousal_level`, `escape_assessment`, `distrust`, `self_direct`, `trust`
+
+OUTPUT nodes: `approach`, `persist`, `withdraw`, `fight`, `flight`, `freeze`, `assert`, `comply`, `submit`, `explore`, `rebel`, `fawn`, `abandon`, `depend`
+
+Many Bandura and operant entries only calibrate OUTPUT nodes. These are valid catalogue entries but weak Layer B choices because Break #4 is specifically about mediating node calibration. Entries like `bandura-observational-learning` (approach ↑, persist ↑, generalize ↑ — all OUTPUT) should be rejected in favour of entries that move the mediating substrate.
+
+**Exception:** when no mediating-node entry fits the memory content, an OUTPUT-only entry is acceptable as a last resort. Document why in the mapping rationale.
+
+#### Applying to a New Character
+
+1. Define the **target mediating state** first: which mediating nodes need extreme values for the character's drives to emerge? Reference §10.8 (intensity principle) and §10.9 (emergent drives).
+
+2. For each memory in chronological order, ask: "which catalogue entry's `expected_outcomes` move the mediating nodes toward the target state?"
+
+3. Verify the **escalation trajectory** (§10.8): successive memories should push mediating nodes FURTHER, not reset them. If a memory reinforces a previous calibration, using the same catalogue entry twice is correct (e.g., DD's two `cbt-negative-self` entries for escalating recognition deprivation).
+
+4. Check for **attachment profile consistency**: the character's declared attachment style (secure, dismissive, anxious, fearful) should be consistent with the attachment catalogue entries used. Don't use `attachment-anxious` for a secure character unless the narrative specifically justifies an anxiety episode.
+
+5. Verify that the **character's known behavioral profile** isn't contradicted: if the character is persistent and approach-motivated, don't use entries with `persist` ↓ or `withdraw` ↑ unless other entries compensate.
+
+#### Rejected Mappings — Lessons Learned
+
+| Rejected Entry | Problem | Lesson |
+|----------------|---------|--------|
+| `cbt-negative-world` for HC age 15 | withdraw ↑, persist ↓ contradict HC's cold patience | Check ALL expected_outcomes, not just the thematic fit |
+| `attachment-anxious` for Pen age 7 | other_reliability ↓, self_worth ↓ contradict secure attachment | Attachment entries must match the declared attachment style |
+| `operant-negative-reinforcement` for DD age 6 | flight ↑, withdraw ↑ — DD takes, he doesn't flee | Match the BEHAVIORAL mechanism, not just the emotional tone |
+| OUTPUT-only entries (bandura-observational-learning, bandura-model-imitation, operant-positive-reinforcement) as primary choices | No mediating node calibration | Layer B exists to calibrate mediating nodes — OUTPUT-only entries miss the target |
+
+### 12.5 Memory-to-Catalogue Mapping (Layer B)
+
+The authoritative mapping. Each formation memory → catalogue entry, with the mediating nodes it calibrates.
+
+**DD (Dick Dastardly)** — Target: self_worth ↓↓, self_efficacy ↑, other_reliability ↓
+
+| Age | Serves | Catalogue | Key Mediating Calibration |
+|-----|--------|-----------|--------------------------|
+| 6 | greed\|defining, scheming\|moderate | `attachment-dismissive` | other_reliability ↓, distrust ↑, self_direct ↑ |
+| 8 | recognition\|defining | `cbt-negative-self` | self_worth ↓ |
+| 10 | scheming\|strong | `bandura-mastery-efficacy` | self_efficacy ↑ |
+| 12 | gloating\|defining | `operant-positive-reinforcement` | approach ↑, persist ↑ |
+| 14 | scheming\|strong, recognition\|strong | `cbt-negative-self` | self_worth ↓ (reinforced) |
+
+**HC (Hooded Claw)** — Target: other_reliability ↓↓↓↓, distrust ↑↑↑↑
+
+| Age | Serves | Catalogue | Key Mediating Calibration |
+|-----|--------|-----------|--------------------------|
+| 6 | self-preservation\|defining | `attachment-dismissive` | other_reliability ↓, distrust ↑, self_direct ↑ |
+| 9 | self-preservation\|strong | `cbt-negative-other` | other_reliability ↓, other_safety ↓, distrust ↑ |
+| 12 | dominance\|strong, scheming\|moderate | `bandura-mastery-efficacy` | self_efficacy ↑ |
+| 14 | dominance\|strong | `cbt-negative-other` | other_reliability ↓, other_safety ↓, distrust ↑ |
+| 15 | scheming\|defining | `attachment-trust-erosion` | distrust ↑↑, other_reliability ↓↓ |
+| 18 | scheming\|strong | `operant-autonomy-reinforcement` | self_direct ↑, rebel ↑ |
+
+**PP (Peter Perfect)** — Target: self_efficacy ↑↑ (external), other_reliability ↑↑
+
+| Age | Serves | Catalogue | Key Mediating Calibration |
+|-----|--------|-----------|--------------------------|
+| 5 | protection\|moderate, proving-worth\|moderate | `attachment-secure` | self_worth ↑, other_reliability ↑, trust ↑ |
+| 8 | proving-worth\|defining | `bandura-mastery-efficacy` | self_efficacy ↑ |
+| 12 | protection\|moderate, proving-worth\|moderate | `cbt-positive-other` | other_reliability ↑, other_safety ↑, trust ↑ |
+| 14 | proving-worth\|strong | `bandura-mastery-efficacy` | self_efficacy ↑ (reinforced) |
+| 16 | gallantry\|strong, proving-worth\|strong | `cbt-positive-self` | self_worth ↑ |
+
+**Pen (Penelope)** — Target: other_safety ↑↑, self_efficacy ↑↑
+
+| Age | Serves | Catalogue | Key Mediating Calibration |
+|-----|--------|-----------|--------------------------|
+| 5 | curiosity\|defining | `bandura-mastery-efficacy` | self_efficacy ↑ |
+| 7 | social-harmony\|defining | `attachment-secure` | other_safety ↑, other_reliability ↑, trust ↑ |
+| 9 | social-harmony\|moderate, adventure\|moderate | `cbt-positive-other` | other_safety ↑, other_reliability ↑, trust ↑ |
+| 11 | adventure\|defining | `bandura-mastery-efficacy` | self_efficacy ↑ (reinforced) |
+| 13 | social-harmony\|strong (×2) | `cbt-positive-self` | self_worth ↑ |
+
+**AHM (Ant Hill Mob)** — Target: other_reliability CONFLICTED, distrust ↑↑
+
+| Age | Serves | Catalogue | Key Mediating Calibration |
+|-----|--------|-----------|--------------------------|
+| 8 | loyalty\|defining | `attachment-secure` | other_reliability ↑, trust ↑, self_worth ↑ |
+| 10 | suspicion\|defining | `trauma-hypervigilance` | distrust ↑, cautious_approach ↑ |
+| 12 | protection\|defining | `cbt-positive-self` | self_worth ↑ |
+| 14 | loyalty\|strong | `attachment-earned-security` | trust ↑, other_reliability ↑ |
+| 15 | suspicion\|strong | `attachment-trust-erosion` | distrust ↑↑, other_reliability ↓↓ |
 
 ---
 
