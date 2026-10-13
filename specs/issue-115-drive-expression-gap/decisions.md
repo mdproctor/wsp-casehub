@@ -1,4 +1,4 @@
-# Decisions — #118 Drive Integration Architecture
+# Decisions — #115/#118 Drive Integration Architecture
 
 ## D1: Drive → CAPS Mapping Mechanism
 
@@ -137,4 +137,45 @@ Rendering cleanup MUST NOT precede verified computational pipeline delivery. Iss
 **Sources:** caps-topology.yaml convergence parameters, CapsEngine.settle() interface
 **Surfaced by:** R1-09 (reviewer identified implicit decision)
 **Exploration:** quick
+**Status:** captured
+
+## D9: Formation Memory Concern Vocabulary
+
+**Choice:** Drive type names as the `serves` vocabulary — individual-specific concerns connected to CAPS nodes via D1 mappings
+**Alternatives:**
+- CAPS mediating node names directly (self_worth, BAS_activation) — too granular, loses the motivational meaning. A memory serves a CONCERN (goal pursuit), not a network node.
+- McClelland's three needs (achievement, affiliation, power) — too coarse. Gloating, scheming, and proving-worth all map to "achievement," losing the behavioral signature.
+- SDT basic needs (autonomy, competence, relatedness) — also too coarse for distinguishing character-specific drive expression.
+- Murray's 20 needs — right granularity but many didn't survive empirical testing. Not a maintained vocabulary.
+- New bespoke concern vocabulary — unnecessary when drive types already serve this function.
+**Rationale:** Singer (2013) and Klinger (1971) both establish that concerns are individual-specific, not universal categories. Drive type names ARE concerns in Klinger's sense — specific motivational goal-pursuits. D1 already maps each drive type to CAPS nodes with literature sourcing (Batson 1991 for gallantry, McClelland 1961 for proving-worth, etc.). Higher-level themes (insecurity, need-for-validation) are derivable compositions of drive types + facet configurations — they emerge from the graph, not from a separate vocabulary.
+**Trade-offs:** Drive names are character-specific (PP has gallantry, DD doesn't). Cross-character comparison requires going through D1's CAPS node mappings. Acceptable — the behavioral signature IS character-specific per CAPS theory.
+**Sources:** Singer et al. (2013) SDMs, Klinger (1971/2004) current concerns, D1 drive-to-CAPS mappings, D2 sourcing principle
+**Exploration:** deep-analysis (literature review of Murray/McClelland/SDT/Singer/Klinger taxonomies)
+**Status:** captured
+
+## D10: Two-Layer Memory-Concern Association
+
+**Choice:** Static structural association (`serves` annotations, Singer 2013) + dynamic activation modulation (PAD-proximity/Klinger salience, D5) as complementary mechanisms at different levels
+**Alternatives:**
+- `serves` replaces PAD-proximity — loses the dynamic, context-dependent activation that Conway's SMS and Klinger's theory predict
+- `serves` is testing-only metadata — loses the structural association that Singer's SDM model establishes as a stable personality property
+- PAD-proximity only (status quo per D5) — loses static testability and authorial intent documentation
+**Rationale:** Empirically established as two distinct mechanisms. Singer (2013): "the pool of self-defining memories possesses a synchronic existence within narrative identity; they remain relatively static." Conway (2005): "the working self modulates access to long-term knowledge" based on current goals. Both are validated. `serves` captures the structural link (which drive a memory is about — this doesn't change with context). PAD-proximity/Klinger captures the dynamic activation (which memories surface depends on current drive intensity). Neither replaces the other.
+**Trade-offs:** Two mechanisms to maintain. But they're at different layers — `serves` is authoring-time/testing, PAD-proximity is runtime. No implementation coupling.
+**Sources:** Singer et al. (2013), Conway (2005), Conway & Pleydell-Pearce (2000), Klinger (1971)
+**Exploration:** deep-analysis (literature review)
+**Status:** captured
+
+## D11: Annotation Syntax and Degree Scale
+
+**Choice:** Inline `{{serves: drive|degree: text}}` annotations within formation memory episode text, with optional whole-memory `serves` field. Degree scale: faint, moderate, strong, defining.
+**Alternatives:**
+- Separate sub-memory records — adds structural complexity to the YAML, breaks the narrative flow
+- Whole-memory-only labeling — too coarse for memories that serve multiple drives in different passages
+- No degree — loses the intensity information that distinguishes a passing reference from a formative experience
+**Rationale:** Inline annotations preserve the memory as a single readable narrative while enabling fine-grained drive association. The parser extracts annotations for testing (Level 0) and strips them for prompt rendering (LLM sees clean text). Degree scale from Pillemer (2003): directive memories "inform, guide, motivate, and inspire" — the degree captures which function the passage serves. "Defining" = the memory IS the formation of this concern (Pillemer's "originating event").
+**Trade-offs:** Inline syntax adds parsing complexity. Acceptable — the parser is simple regex extraction.
+**Sources:** Pillemer (2003) directive function taxonomy, Singer (2013) SDM properties (vivid, emotionally evocative, linked to enduring concerns)
+**Exploration:** quick (iterative design with user)
 **Status:** captured
