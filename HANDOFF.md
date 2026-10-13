@@ -7,9 +7,12 @@
 **State:** Layers A + B complete, Layer C next
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
-## START HERE — The Research Document
+## START HERE
 
-**Read this before doing anything:**
+**Operational note (progress, direction, what not to re-derive):**
+`wsp-casehub/examples/notes/issue-115-drive-expression-gap.md`
+
+**Research document (deep technical reference, literature, methodology):**
 `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
 
 **How to read it:**
