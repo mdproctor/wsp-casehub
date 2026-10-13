@@ -950,7 +950,7 @@ Layer A (situation vocabulary) was the primary bottleneck identified in §10.1. 
 | 1b | Change `CapsNode.keywords` → `CapsNode.vocabulary` | neocortex (caps-api, caps-engine) | **DONE** | Max-weight confidence + reinforcement bonus |
 | 1c | Verify INPUT→MEDIATING connections | neocortex (caps-topology.yaml) | **DONE** | 17 disconnected nodes fixed, 30 connections added |
 | 1d | Run full scenario with vocabulary active | examples (wacky-manor) | **TODO** | Blocked on scenario run — see §11.7 |
-| 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | TODO | Layer B |
+| 2a | Map formation memories to catalogue entries | examples (social-config-generic.yaml, ManorCognitiveSeeder) | **DONE** | 26 memories mapped, catalogue field added, situationTypes enriched with drives |
 | 2b | Render mediating substrate explicitly | examples (CharacterCognition) | TODO | Layer B |
 | 3a | Implement D1 drive→CAPS activation injection | neocortex (BehavioralSynthesisPhase) | TODO | Layer C |
 | 3b | Full scenario with all three layers | examples (wacky-manor) | TODO | Level 5 eval, compare to P0 baseline (mean 3.72) |
