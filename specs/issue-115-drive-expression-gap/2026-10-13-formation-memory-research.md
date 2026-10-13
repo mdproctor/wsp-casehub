@@ -466,6 +466,21 @@ See `2026-10-09-drive-integration-architecture-design.md` §5.
 
 **Critical finding:** The LLM CAN express every drive at full intensity (5/5) when given a direct trigger situation with the standard cognitive context. The personality model produces rich, emergent, drive-specific responses. The problem is NOT LLM capability. The problem is NOT memory content.
 
+### 8.1b Mediating Substrate Tests (§10.9 validation)
+
+| Test | Score | Finding |
+|---|---|---|
+| DD extreme insecurity + rival fails | **5/5 gloating** | "The hollow behind the ribs FILLING" — insecurity relieved through social comparison |
+| DD secure substrate + rival fails | **5/5 gloating** | Drive profile (gloating:0.7, attention-seeking:85) produces gloating in both conditions |
+| DD extreme insecurity + rival succeeds | **5/5 frustration** | "Nobody looks at me," "MY moment" — social comparison worsens insecurity |
+| DD extreme insecurity + alone | **1/5 gloating** | No comparison target → exclusion anxiety, not schadenfreude |
+| PP high other_safety + rival fails | **0/5 gloat, 2/5 gallantry** | Zero schadenfreude — guilt about not warning, rushes to help |
+
+**Key findings:**
+- **Cross-character validation:** Same situation ("rival falls"), different personality → completely different emergent behaviour. PP shows zero schadenfreude (0/5) for the exact event where DD shows maximum (5/5). The personality substrate determines the output.
+- **If-then behavioural signature validated:** DD's pattern matches CAPS predictions — gloating when rival fails (5/5), recognition frustration when rival succeeds (5/5), exclusion anxiety when alone (1/5). This IS Mischel's behavioural signature.
+- **Substrate redundancy NOT established:** DD scored 5/5 in both extreme-insecurity and secure-substrate conditions, but this is ONE character, ONE situation — not a basis for removing the explicit substrate signal. The safe approach: include explicit mediating substrate rendering in the pipeline as a layer. If it proves redundant for some characters, that's discoverable through systematic empirical testing later. Removing signals before the replacement is verified caused the original #115 collapse — the same mistake must not repeat.
+
 ### 8.2 Full Scenario Results (Two-Run Average)
 
 | Character | Drive | B0 | L4b | P0-avg | vs L4b | vs B0 |
