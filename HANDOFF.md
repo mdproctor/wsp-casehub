@@ -4,7 +4,7 @@
 
 **Branch:** `issue-115-drive-expression-gap`
 **Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
-**State:** Layer A complete, Layer B next
+**State:** Layers A + B complete, Layer C next
 **Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
 ## START HERE — The Research Document
@@ -54,35 +54,43 @@ The rest (§1-§9, §13) is supporting evidence — read on demand when §0/§10
 
 Neocortex changes are on branch `issue-115-weighted-situation-vocabulary`. Neocortex workspace HANDOFF updated at `wsp-casehub-neocortex/HANDOFF.md`.
 
+### Layer B — Memory Calibration (2026-10-14 session)
+
+**Step 2a — Map formation memories to catalogue entries:**
+1. Developed mapping methodology (§12.4): three tests (directional correctness, cumulative trajectory, no contradictions), OUTPUT-vs-MEDIATING rule
+2. Mapped all 26 formation memories to catalogue entries (§12.5)
+3. Added `catalogue` field to `FormationMemory` record with backward-compatible default
+4. Updated `ManorCognitiveSeeder` to use `mem.catalogue()` and enrich `situationTypes` with drive annotations
+5. Commit: `f3c9673`
+
+**Step 2b — Render mediating substrate:**
+1. Added `substrate` field to `SocialConfig`, parsed from `psychological-substrate` in YAML
+2. Added "What Shaped You" section to `CharacterCognition.renderCognitiveSections()` — rendered between formation memories and relational schemas
+3. Wrote felt-experience substrate descriptions for all 5 characters (no behavioral prescriptions)
+4. Commit: `23eb356`
+
+**Key methodology insight:** Always prefer catalogue entries that calibrate MEDIATING nodes over OUTPUT-only entries. Many Bandura/operant entries (observational-learning, model-imitation, positive-reinforcement) only move OUTPUT nodes and can't fix Break #4.
+
 ### Previous Session Work (preserved for context)
 
 Phase 0 (`serves` annotations), Layer 4 data tuning, memory audit, literature research, blog entries — all documented in the research doc §7-§8 and prior HANDOFF entries.
 
 ## What Needs to Happen Next
 
-### 1. Layer B — Memory Calibration (research doc §10.6, §10.8, §12.1 steps 2a-2b)
+### 1. Layer B — Memory Calibration — DONE
 
-**The problem (§10.4 break #4):** `ManorCognitiveSeeder` always uses `catalogueEntryId: "formation-memory"` — a placeholder. No actual catalogue entries are referenced. The mediating nodes (`self_worth`, `self_efficacy`, `other_reliability`, `other_safety`) are calibrated only by disposition_modifiers (personality-level defaults), not by individual formative experiences.
-
-**What needs to happen:**
-- **Step 2a:** Map each formation memory to an actual catalogue entry in `experience-behaviour-catalogue/`. The `serves` annotation identifies WHICH DRIVE the memory calibrates. The catalogue entry identifies WHICH PSYCHOLOGICAL MODEL explains HOW it calibrates the mediating nodes (e.g., `attachment-dismissive`, `bandura-mastery-efficacy`).
-- **Step 2b:** Render the mediating substrate explicitly in `CharacterCognition` so the LLM sees the psychological substrate (insecurity, validation need) alongside drives.
-
-**Key insight (§10.8):** Extreme characters need extreme mediating substrate. DD's `self_worth` should be strongly negative (calibrated by escalating neglect memories: age 6 → age 8 → age 14). The formation memories are a developmental sequence, not independent data points. Each successive memory pushes the mediating node further.
-
-**Key insight (§10.9):** Gloating is emergent, not primitive. It emerges from low `self_worth` + high `competence_recognition` sensitivity + rival's failure → social comparison (Festinger 1954) → schadenfreude (Leach et al. 2003). Layer B makes this derivation individual-specific.
-
-**Files to investigate:**
-- `neocortex/docs/specs/experience-behaviour-catalogue/` — existing catalogue entries
-- `examples/wacky-manor/.../agent/ManorCognitiveSeeder.java` — where `catalogueEntryId` is set
-- `neocortex/caps-engine/src/main/resources/caps-topology.yaml` — mediating nodes and connections
-- Research doc §10.6 for the full mechanism design
+Steps 2a-2b complete. See research doc §12.4 (methodology) and §12.5 (mappings). Commits: `f3c9673` (step 2a), `23eb356` (step 2b).
 
 ### 2. Layer C — Drive Amplification (research doc §2.3, §12.1 steps 3a-3b)
 
 **The problem (§10.4 break #7):** D1 (drive→CAPS activation injection) is designed but not implemented. Drive intensities (e.g., gloating:0.7) should inject persistent activations into CAPS nodes, biasing the network settling toward drive-relevant attractors.
 
-**Blocked on Layer B.** The mediating substrate must be calibrated first — drive amplification operates through the mediating layer.
+**Now unblocked.** Layer B provided the calibrated mediating substrate. Drive amplification operates through this layer.
+
+**Files to investigate:**
+- `neocortex/caps-engine/src/main/java/.../BehavioralSynthesisPhase.java` — where drive activation injection should go
+- Research doc §2.3 for drive→CAPS node mappings
+- `caps-topology.yaml` — mediating and output nodes
 
 ### 3. Layer A validation (§11.7, §12.1 step 1d)
 
@@ -106,8 +114,8 @@ Run a full scenario with the vocabulary active and compare CAPS attractors befor
 | 4 — Data tuning | Somatic refinement, formation memory enrichment | **ATTEMPTED → PIVOTED** |
 | 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **DONE** |
 | A — Situation vocabulary | Weighted vocabulary for CAPS INPUT nodes, missing connections | **DONE** (neocortex `issue-115-weighted-situation-vocabulary`) |
-| B — Memory calibration | Connect memories to catalogue entries, calibrate mediating nodes | **NEXT** |
-| C — Drive amplification | D1 drive→CAPS activation injection | **BLOCKED on Layer B** |
+| B — Memory calibration | Connect memories to catalogue entries, calibrate mediating nodes | **DONE** (examples `issue-115-drive-expression-gap`) |
+| C — Drive amplification | D1 drive→CAPS activation injection | **NEXT** (unblocked) |
 
 ### The Derivation Chain (§10.4, §11.8)
 
@@ -115,7 +123,7 @@ The full chain from memory to emergent behaviour, with break status:
 
 ```
 Formation Memories (serves: recognition|strong)
-  → [catalogue entry] calibrates MEDIATING nodes            ← Break #4: placeholder catalogueEntryId (Layer B)
+  → [catalogue entry] calibrates MEDIATING nodes            ← Break #4: FIXED (Layer B)
   → [situation occurs] INPUT nodes fire via vocabulary       ← Break #1: FIXED (Layer A)
   → [propagation] INPUT→MEDIATING connections exist          ← Break #3: FIXED (Layer A)
   → [drive activation] persistent drive bias co-activates   ← Break #7: not implemented (Layer C)
