@@ -529,7 +529,84 @@ Captured in `decisions.md` alongside existing D1-D8.
 
 ---
 
-## 10. File Locations
+## 10. Situation Encoding Investigation
+
+### 10.1 Root Cause Discovery
+
+Investigation of the SituationClassifier revealed that **the CAPS network receives no content-based situation activations**:
+
+1. **RuleBasedSituationClassifier** matches event text against INPUT node keywords. But ALL INPUT nodes in the current topology are defined as simple strings (`mastery`, `failure`, `dominance`, etc.) which the loader creates with `keywords: List.of()` — empty. The classifier skips nodes with empty keywords (`if (node.keywords().isEmpty()) continue;`).
+
+2. **SubThoughtSituationDecorator** adds activations based on cognitive subthought type (concern, intention, self-reflection, etc.) — not based on event content. When DD watches a rival trip, the pipeline processes it as a generic affect-observation with fixed activations for `acceptance` (0.3) and `exclusion` (0.3), regardless of what actually happened.
+
+3. **CapsProducer** in wacky-manor wires `RuleBasedSituationClassifier` as the active implementation.
+
+**Result:** The CAPS network settles on personality weights (from disposition_modifiers) and generic cognitive-kind activations, with NO content-specific situational signal. The network can distinguish personality types but NOT situations. This is why drives score 5/5 on micro tests (where the LLM reads raw event text directly) but 2.5 in scenarios (where the event goes through the pipeline and loses its situational specificity).
+
+### 10.2 Literature: Situation Encoding in CAPS Models
+
+**Read & Miller (2002, 2018) Virtual Personalities:**
+- The model uses an "Environment layer" containing "cues that predict the availability of affordances for the pursuit of various goals"
+- Situation features are domain-specific, not a universal taxonomy: "Features of a classroom give cues to the affordances for academic achievement; features of a dance party give cues to the affordances for pursuing affiliation"
+- Input features are universal across characters — individual differences come from differential connection weights, not different input feature sets
+- "Different individuals will develop different cue-affordance associations" through learning history
+- The model uses unconditioned stimuli (primary rewards) and conditioned stimuli (learned cue-affordance associations)
+
+**Sources:** Read & Miller (2002) PSPR 6:357-369; Read, Brown, Wang & Miller (2018) Personality Neuroscience 1:e10; Read, Monroe, Brownstein, Yang, Chopra & Miller (2010) Psychological Review 117:61-92.
+
+**Shoda, Mischel & Wright (1994) Wediko Camp:**
+- Five interpersonal psychological situation categories: (1) teased by peer, (2) warned by adult, (3) praised, (4) approached, (5) blocked from goal
+- Children with identical average aggression had completely different if-then profiles across these situations — the profile IS the personality
+- The categories are domain-specific to the camp context, not universal
+- Behavioral signatures were stable across summers
+
+**Source:** Shoda, Mischel & Wright (1994) JPSP 65:1023-1035.
+
+**Sacchi & Dan-Glauser (2026) Personality × Appraisal:**
+- Big Five traits modulate cognitive appraisals through three mechanisms:
+  1. **Motivational drives** (approach/avoidance orientation) — extraversion tracks reward sensitivity, neuroticism tracks punishment sensitivity
+  2. **Chronic accessibility** (which memory schemas are primed) — neuroticism has "strong negative memory networks," extraversion has preferential positive memory access
+  3. **Attentional deployment** (what's attended to) — neuroticism shows attentional bias toward negative stimuli, extraversion toward positive
+- These mechanisms operate THROUGH the network (via weights and activation patterns), not by changing what input features exist
+- Openness/Intellect's strongest finding: link to Understanding Potential (coping) — intellectual curiosity increases comprehension-oriented appraisal
+
+**Source:** Sacchi & Dan-Glauser (2026) Emotion Review 18(1):15-41.
+
+### 10.3 Implications for Architecture
+
+**Our CAPS topology already has the correct input node categories.** The seven categories (relationship, threat, achievement, social, resource, autonomy, consequence) with 28 specific nodes map to the motivational constructs from the source literature:
+
+| Our Category | Source Literature | Covers |
+|---|---|---|
+| relationship | Bowlby attachment theory | secure_attachment, inconsistent_care, rejection, betrayal, abandonment, neglect |
+| threat | Gray RST, trauma research | physical_threat, social_threat, psychological_threat, unpredictable_danger |
+| achievement | McClelland (1961) | mastery, failure, performance_judged, competence_recognition |
+| social | Wiggins interpersonal theory | acceptance, exclusion, dominance, submission, modeling_observed |
+| resource | Evolutionary psychology | scarcity, abundance, competition, sharing |
+| autonomy | Deci & Ryan SDT | agency_granted, controlled, choice_available, powerlessness |
+| consequence | Gray RST, operant conditioning | reward, punishment, reward_removal, aversive_removal |
+
+**The gap is purely operational:** these nodes have no keywords, so the RuleBasedSituationClassifier cannot match event text to them. Adding keywords — domain-specific cue-affordance associations per Read & Miller — enables the existing infrastructure.
+
+**Why this is NOT hard-wiring:** Adding keywords to INPUT nodes defines what SITUATION FEATURES the network can detect. It does NOT determine what a character DOES with that information. "Rival fails" activates `failure` + `dominance` for ALL characters. DD with gloating:0.7 (which persistently activates the same nodes via D1) gets amplified co-activation → gloating attractors. PP with callousness:5 routes the same input through `other_safety` → helping attractors. The personality is in the propagation, not the encoding (Mischel & Shoda 1995; Read & Miller 2002).
+
+**What we need:**
+1. Keywords for each of the 28 INPUT nodes — domain-specific terms that appear in event narratives when these situational features are present
+2. Optionally: missing connections from INPUT nodes to mediating nodes (the topology YAML lists connections from only some input nodes — `failure`, `dominance`, `competence_recognition` have no listed connections)
+3. D1 drive activation injection (persistent bias) — amplifies situation signals for characters with relevant drives
+
+### 10.4 Keyword Derivation Approach
+
+Keywords should be derived from:
+1. **The motivational construct** each node represents (e.g., `dominance` → terms from Christie & Geis 1970 Machiavellianism, Winter 1973 power motivation)
+2. **The domain** (manor house mystery with interpersonal dynamics — what words appear in event narratives when these situations occur?)
+3. **Empirical validation** — classify existing transcripts, check which nodes fire, compare to human judgment
+
+The keywords are a Tier 2/3 derivation (D2 sourcing) — derived from the motivational construct literature with domain-specific instantiation. They should be treated as initial values subject to empirical tuning (D4a).
+
+---
+
+## 11. File Locations
 
 | What | Path |
 |---|---|
