@@ -1,55 +1,108 @@
-# HANDOFF — 2026-09-15
+# HANDOFF — casehub-examples — 2026-10-13
 
-## Last Session
+## START HERE
 
-Two issues completed this session:
+**Branch:** `issue-115-drive-expression-gap`
+**Issue:** casehubio/examples#115 — Epic: Close the drive expression gap
+**State:** Layer 4 data tuning attempted → architectural pivot to `serves` annotations
+**Plan:** `.plan` has #115 active (covers=115,118,119), #117 queued
 
-**Issue #55 (dialogue knowledge extraction)** — 3 tasks across 2 batches. Characters now learn structured knowledge from conversations via MindMapExtractor. Key pivot: decision review found ConversationBridge.process() ignores principalId and hardcodes confidence — switched to MindMapExtractor.extract() directly with manual node creation per listener.
+**Read the research document before doing anything else:**
+`wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-research.md`
 
-What was built for #55:
-- `determineListeners()` — listener determination for all 4 dialogue types with `perception` tag gating for overhearing
-- `isExtractableDialogue()` — non-verbal character filter
-- `extractDialogueKnowledge()` — calls MindMapExtractor.extract() once per dialogue event, creates per-listener nodes with principalId and ConfidenceOrigin (STATED 0.8 / INFERRED 0.7)
-- Tick loop wiring — extraction runs after dialogue publication, before action resolution
+This is the complete knowledge base for the next iteration. It covers:
+- All literature findings (Conway SMS, Singer SDMs, Klinger, CAPS, LLM persona research) with specific citations and implementation mapping
+- Full memory audit results (26 memories, per-memory findings)
+- All eval data (L4a mean 3.79, L4b mean 3.82, PW mean 3.70, B0 mean 3.96)
+- The `serves` annotation design (syntax, vocabulary, degree scale, parser behavior)
+- The testing pyramid (Levels 0-5, what exists, what's needed)
+- Implementation plan (Phase 0a-0e)
+- Every relevant file path in both repos
 
-**Issue #56 (SocialConfig to YAML)** — 2 tasks in 1 batch. SocialConfig moved from hardcoded Java map to `META-INF/eidos/social-config.yaml`. ManorSocialConfigLoader reads YAML at startup. Hardcoded CONFIGS map, forCharacter(), hasConfig() removed. SocialConfig is now a pure data record. Note: Eidos AgentDescriptor has no extensionData field — used local YAML file instead.
+**Design specs:**
+- `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-09-drive-integration-architecture-design.md` — drive integration architecture (D1-D8)
+- `wsp-casehub/specs/issue-115-drive-expression-gap/2026-10-13-formation-memory-concern-architecture-design.md` — formation memory concern architecture (D9-D11)
+- `wsp-casehub/specs/issue-115-drive-expression-gap/decisions.md` — all 11 decisions
 
-457 tests total, 21 new this session (12 unit + 2 integration for #55, 7 unit for #56). 1 pre-existing @QuarkusTest boot error (AgentLangchain4jProperties).
+## What Needs to Happen Next
 
-## Immediate Next Step
+### 1. Implement the `serves` annotation system (Phase 0a-0e)
 
-Issue #57: Context-based ManorNormFilter. Queue at position 3/6 — #57 is active in `.plan`.
+Full detail in the research document §7. In summary:
 
-## Decisions This Session
+**Phase 0a:** Add `serves` + `ConcernAnnotation` to `FormationMemory` record in `SocialConfig.java`, update `ManorSocialConfigLoader` to parse, build annotation parser.
 
-**#55 decisions (D1-D6):**
-- D1: Learner scope — target + perception-gated overhearing
-- D2: Confidence model — ConfidenceOrigin (STATED 0.8 / INFERRED 0.7)
-- D3: Wiring in ScenarioOrchestrator — private method, not dispatcher (blocking LLM call)
-- D4: PULL_ASIDE — extract once, scope to both participants
-- D5: MindMapExtractor.extract() instead of ConversationBridge.process()
-- D6: Three-tier deviation — dialogue knowledge writes directly to Tier 3
+**Phase 0b:** Annotate all 26 formation memories in `social-config-generic.yaml` with `{{serves: drive|degree: text}}`. Use the audit results (research doc §3.2) for drive assignments.
 
-**#56 decisions (D1-D2):**
-- D1: Config source — local YAML file instead of Eidos extensionData (no extensionData field in AgentDescriptor)
-- D2: Loading mechanism — static loader alongside descriptors
+**Phase 0c:** Fix the 11 pre-resolved conflicts, 6 action primings, 5 value declarations, 1 contradiction per audit findings.
 
-## Cross-Module
+**Phase 0d:** Build Level 2-4 micro tests for 5 collapsed drives (HC gloating, DD gloating, PP gallantry, Pen social-harmony, Pen adventure). `DriveExpressionEvalTest` has PP proving-worth as the pattern.
 
-**Upstream issues to file:**
-- neocortex: MindMapExtractor.parseOnly() — extract without persisting (eliminates orphaned global nodes)
-- neocortex: ConversationBridge.process() — add principalId and custom confidence parameters
-- eidos: Add extensionData field to AgentDescriptor — enables embedding social config in descriptors
+**Phase 0e:** Run full scenario (Level 5) to establish post-audit baseline. Compare to L4b (mean 3.82).
 
-**CDI gap (unchanged):** MindMapExtractor, CognitiveProfile, and MindMapStore are not CDI-discoverable in wacky-manor's Quarkus context. All wired via `Instance<>` with graceful degradation.
+### 2. Close #117
 
-**Pre-existing test failure:** PersonalityCompositionVerificationTest fails with AgentLangchain4jProperties boot error — all @QuarkusTest tests affected.
+Design implemented (commits `169b093`, `e30fe7a`). Close with comment referencing those commits.
 
-## References
+### 3. Independent tasks
 
-- Plan #55: `plans/2026-09-15-dialogue-knowledge-extraction.md`
-- Spec #55: `specs/issue-55-conversation-bridge/2026-09-15-conversation-bridge-design.md`
-- Decisions #55: `specs/issue-55-conversation-bridge/decisions.md` (D1-D6)
-- Plan #56: `plans/2026-09-15-socialconfig-yaml.md`
-- Spec #56: `specs/issue-56-socialconfig-yaml/2026-09-15-socialconfig-yaml-design.md`
-- Decisions #56: `specs/issue-56-socialconfig-yaml/decisions.md` (D1-D2)
+| Issue | What |
+|-------|------|
+| #116 | CognitivePipelineBuilder extraction |
+| #114 | DD missing tendencies |
+
+## Architecture Summary
+
+| Layer | What | Status |
+|-------|------|--------|
+| 1 — Wiring | Connect dead ends in pipeline | **DONE** |
+| 2 — Inference | CAPS labels, expression styles, appraisal foregrounding, Klinger salience | **DONE** |
+| 3 — Data | Somatic drives, enriched memories, AMPD facets, disposition axes | **DONE** |
+| 4 — Data tuning | Somatic refinement, formation memory enrichment | **ATTEMPTED → PIVOTED** |
+| 0 — `serves` annotations | Annotate memories, audit, build micro tests, establish baseline | **NEXT** |
+| 1-5 (drive integration) | Drive→CAPS, Drive→Appraisal, Drive→Memory salience, rendering cleanup | **BLOCKED on Phase 0** |
+
+## Key Constraint: Emergence Not Scripting
+
+**Strengthened from this session's findings:**
+
+Formation memories are the strongest LLM behavioral signal (ACL 2025: demonstrations
+override instructions). Every emotional evaluation in a memory overrides the personality
+model. Do NOT:
+- Pre-resolve drive conflicts ("not X, it was Y")
+- Describe actions the character does (action priming)
+- Declare what things mean (value declarations)
+- State emotions that contradict what the personality model would derive
+
+DO: describe situations. Let the personality model (drives, facets, CAPS network)
+derive the emotional response. Use `serves` annotations to document which drive
+a memory calibrates — for testing, not for the LLM.
+
+The research document §3 has the full audit results per memory.
+
+## Baseline Transcripts — DO NOT DELETE
+
+| Transcript | Events | What it tests | Profile |
+|---|---|---|---|
+| `old-briefings-20261002/transcript.json` | 327 | Verbose briefings (pre-rewrite) | BASELINE |
+| `new-briefings-20261002/transcript.json` | 333 | Directive-minimal (post-rewrite) | BASELINE |
+| `generic-briefings-20261002/transcript.json` | 306 | Generic + prescribed catchphrases | GENERIC |
+| `generic-colloquial-20261002/transcript.json` | 310 | Generic + style-directive only | GENERIC |
+| `full-run-2026-10-08.json` | — | Full run baseline | — |
+| `pipeline-hardening-run-2026-10-08/transcript.json` | — | Pipeline hardening run | — |
+| `layer-123-run-2026-10-09/transcript.json` | 326 | Layer 1+2+3 baseline | GENERIC |
+| `pipeline-wiring-run-2026-10-13/transcript.json` | 997 | Full pipeline wiring | GENERIC |
+| `layer4-refinement-run-2026-10-13/transcript.json` | 349 | L4a somatic + memory refinements | GENERIC |
+| `layer4-gallantry-fix-2026-10-13/transcript.json` | 300 | L4b gallantry somatic fix | GENERIC |
+
+## Build Notes
+
+**Correct build order:**
+```
+platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → wacky-manor (-f wacky-manor/pom.xml)
+```
+
+## Blog Entries
+
+- `wsp-casehub/blog/2026-10-13-mdp01-when-your-characters-stop.md` — Part 1: data tuning trap
+- `wsp-casehub/blog/2026-10-13-mdp02-from-authoring-to-architecture.md` — Part 2: literature → architecture
