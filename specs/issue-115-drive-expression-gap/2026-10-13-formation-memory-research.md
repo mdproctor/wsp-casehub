@@ -26,12 +26,23 @@
 - **All INPUT nodes must have MEDIATING connections** — a topology validation test enforces this. New INPUT nodes added in the future must include connections or the test fails.
 - **Memory-to-catalogue mapping methodology is defined (§12.4)** — three tests (directional correctness, cumulative trajectory, no contradictions), OUTPUT-vs-MEDIATING rule, escalation verification. All 26 mappings completed (§12.5). Do not re-derive the methodology or the mappings.
 
-### What's Next — Layer B + C
-See §12 for the concrete implementation plan. Layer A is done. Remaining:
+### What's Done — Layers A + B + C + Drive Competition
 
-**Layer B (memory calibration): COMPLETE.** Formation memories connected to catalogue entries (placeholder `catalogueEntryId` replaced). Mapping methodology defined (§12.4), all 26 mappings completed (§12.5). `SocialConfig.FormationMemory` has `catalogue` field, `ManorCognitiveSeeder` uses it with enriched `situationTypes`. Psychological substrate rendered as "What Shaped You" section in `CharacterCognition` — felt-experience descriptions for all 5 characters.
+All three layers and drive competition detection are complete. See §12.1 for implementation status.
 
-**Layer C (drive amplification): COMPLETE.** D1 implemented — drive intensities inject activations into CAPS nodes via explicit mappings (14 drive types → specific CAPS nodes). `BehavioralSynthesisPhase.mergeDriveIntensities()` replaced text-based classification with direct injection. Unmapped types fall back to text classification. Neocortex commit: `11e64632`.
+**Layer A:** Weighted situation vocabulary — §11 for full results.
+
+**Layer B:** Memory calibration — 26 memories mapped to catalogue entries (§12.5), methodology in §12.4. "What Shaped You" substrate section for all 5 characters.
+
+**Layer C:** Drive amplification — D1 drive→CAPS injection via `DriveCompetitionDetector.DRIVE_CAPS_MAPPINGS`.
+
+**Drive competition (§10.10):** Drives compete when they share CAPS activation nodes. Universal meta-instruction in `CognitivePreambleGenerator`: "Each drive is a distinct felt state. When multiple drives activate in the same moment, attend to which quality of feeling is at the front." PP gallantry: P0 3/5 → 4-5/5.
+
+### What's Next
+
+1. **Full scenario validation** (step 3b) — install neocortex, run GENERIC scenario, classify, compare to P0 (3.72) and B0 (3.96)
+2. **Inference-based drive differentiation** (§10.10.4) — during consolidation, classify drive descriptions → detect overlap → derive grounded differentiation text from formation memories
+3. **Literature review** — Barrett (emotion differentiation), Kashdan (unpacking emotion differentiation), Semerari (metacognition assessment)
 
 **Constraint:** All mechanisms must be literature-rooted, individual-specific, not hard-wired, and LLM-bias-aware (§8.5). Include redundant signals; prove redundancy empirically later — never assume it (§8.1b).
 
