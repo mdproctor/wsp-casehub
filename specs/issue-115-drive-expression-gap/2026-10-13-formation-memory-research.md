@@ -40,8 +40,8 @@ All three layers and drive competition detection are complete. See §12.1 for im
 
 ### What's Next
 
-1. **Literature review** — Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment. Do this BEFORE implementing — the literature may shape the design.
-2. **Inference-based drive differentiation** (§10.10.4) — during consolidation, classify drive descriptions → detect overlap → derive grounded differentiation text from formation memories. Replaces generic preamble with character-specific, memory-grounded guidance.
+1. ~~**Literature review**~~ — **DONE** (§10.10.6). Barrett (2017), Kashdan et al. (2015), Semerari et al. (2003). Key finding: differentiation requires grounded conceptual knowledge (S6-level, formation-memory-traced), not generic metacognitive instruction (S3-level). Revised §10.10.4 architecture: classify formation memories (not drive descriptions) as primary signal.
+2. **Implement inference-based drive differentiation** (§10.10.7) — `DriveProfileDerivationPhase` as a new `ConsolidationPhase`. Two layers: inferred drive CAPS profiles (replaces static `DRIVE_CAPS_MAPPINGS`), grounded differentiation text (replaces generic `DIFFERENTIATION_INSTRUCTION`). Design complete — ready for implementation.
 3. **Full scenario validation** (step 3b) — AFTER inference system is built. One run against the final form. Compare to P0 (3.72) and B0 (3.96).
 
 **Constraint:** All mechanisms must be literature-rooted, individual-specific, not hard-wired, and LLM-bias-aware (§8.5). Include redundant signals; prove redundancy empirically later — never assume it (§8.1b).
@@ -856,10 +856,186 @@ The drive competition problem maps to established constructs:
 - Mischel, W. & Shoda, Y. (1995). "A Cognitive-Affective System Theory of Personality." — Multiple if-then units compete; settling dynamics resolve competition. But does not address subjective experience of the settling.
 - Read, S.J. & Miller, L.C. (2002). "Virtual Personalities: A Neural Network Model of Personality." — Parallel constraint satisfaction with multiple competing goals/needs. Network settles, but the EXPERIENCE of settling (which the LLM must simulate) requires attending to qualitative differences.
 
-**To investigate (not yet reviewed):**
-- Gross, J.J. (2015). "Emotion regulation: Current status and future prospects." — Emotion differentiation as a regulatory capacity. People who can differentiate emotions more finely have better regulation outcomes. Granularity of emotional distinction → granularity of behavioral response.
-- Barrett, L.F. (2017). *How Emotions Are Made.* — Constructed emotion theory: emotional granularity predicts psychological health. The ability to make fine-grained distinctions between similar-seeming emotional states (our exact problem) is a measurable skill.
-- Kashdan, T.B., Barrett, L.F. & McKnight, P.E. (2015). "Unpacking Emotion Differentiation." *Current Directions in Psychological Science.* — Direct review of emotion differentiation as a construct. Should contain operationalisation we can map to CAPS.
+**Reviewed (2026-10-14):**
+- Barrett, L.F. (2017). *How Emotions Are Made.* — see §10.10.6
+- Kashdan, T.B., Barrett, L.F. & McKnight, P.E. (2015). "Unpacking Emotion Differentiation." — see §10.10.6
+- Semerari, A. et al. (2003). "How to Evaluate Metacognitive Functioning in Psychotherapy?" — see §10.10.6
+- Dimaggio, G. & Lysaker, P.H. (2010). *Metacognition and Severe Adult Mental Disorders.* — see §10.10.6
+
+#### 10.10.6 Literature Review — Emotion Differentiation and Metacognitive Monitoring
+
+Three independent research traditions converge on the same conclusion: our drive competition problem is a differentiation failure, and differentiation requires grounded conceptual knowledge — not generic metacognitive instruction.
+
+**Barrett (2017) — Constructed Emotion Theory:**
+Emotions are not detected from distinct biological signatures but *constructed* by applying conceptual knowledge to ambiguous interoceptive signals. Two states with near-identical bodily profiles become distinct when different *emotion concepts* are applied. The mechanism is predictive coding: the brain generates competing simulations grounded in past experience; sensory evidence selects among them. Emotion concepts are ad hoc categories (Barsalou) — dynamically assembled, goal-relative populations of predictions. Each past instance contributes a simulation. Emotional granularity — the ability to make fine-grained distinctions — is expertise, not innate trait. Higher granularity → better regulation; lower granularity → conflation.
+
+**Architectural mapping:** When two drives share CAPS activation nodes, they produce similar "interoceptive" signals. Differentiation requires the LLM to have conceptual knowledge populated by *specific experiential referents* — the formation memories that built each drive. The generic preamble instruction ("attend to which quality is at the front") is the right metacognitive strategy but lacks the conceptual content Barrett says is necessary. The system must supply the specific biographical instances that populate each drive's concept.
+
+**Barrett's key claim for our design:** A drive's "emotion concept" = the population of formation memories that serve it. The richer and more varied the experiential history, the more differentiated the concept becomes.
+
+**Kashdan, Barrett & McKnight (2015) — Unpacking Emotion Differentiation:**
+ED depends on *conceptual knowledge* — emotion-word labels linked to rich conceptual representations enable context-specific, situation-appropriate categorisation. Without rich concepts, experience collapses into coarse categories ("good"/"bad"). ED is a *deployable skill*, not just a trait — enhanced by increasing conceptual knowledge (confirmed by Vedernikova et al. 2021: 5-day emotion-knowledge intervention increased negative ED). Measured via ICC across emotion ratings in experience sampling — high ICC = low differentiation (emotions co-vary); low ICC = high differentiation (independently tracked).
+
+**Architectural mapping:** The system should provide *conceptual knowledge* (distinguishing features grounded in formation memories), not just *metacognitive instruction*. Kashdan/Barrett's framework: give the system richer concepts, and differentiation follows naturally. The meta-instruction is a regulation strategy; conceptual knowledge provision is more fundamental.
+
+**Design implication:** This shifts the design from "instruction that tells the LLM HOW to differentiate" to "knowledge that gives the LLM WHAT to differentiate WITH."
+
+**Semerari et al. (2003) / Dimaggio & Lysaker (2010) — Metacognition Assessment Scale:**
+The MAS-A Self-Reflectivity subscale defines a hierarchy of metacognitive capability:
+
+| Level | Capability | Our architecture |
+|-------|-----------|------------------|
+| S3 | Distinguishes cognitive operations (remembering vs. desiring vs. deciding) | Current generic meta-instruction |
+| S4 | Defines and distinguishes own emotional states from one another | Target: inference-based differentiation |
+| S6+ | Integrates into coherent narrative, traces states through biographical experience | Grounded differentiation via formation memories |
+
+Our current preamble operates at S3 — it tells the agent different drives exist and to attend to differences, but doesn't name what those differences ARE. The inference-based system targets S6: grounding each drive's felt quality in specific developmental episodes.
+
+Metacognitive Interpersonal Therapy (MIT; Dimaggio et al. 2015) uses specific autobiographical episodes as the substrate for improving differentiation: (1) collect episodes, (2) identify emotional states within them, (3) link current felt states to the biographical episodes that shaped them, (4) use the grounding to distinguish similar states. Key: "specific autobiographical memories are the most fertile soil to think about mental states" — overgeneralised memories don't support differentiation.
+
+**Architectural mapping:** Tracing each drive's felt quality through CAPS mediating nodes to formation memories is the computational analogue of MIT's therapeutic technique. The S3→S6 progression validates the move from generic instruction to grounded differentiation text.
+
+**Convergent findings across all three traditions:**
+
+1. **The current generic meta-instruction is necessary but insufficient.** It operates at S3. Differentiation requires S4+ (specific state labels) or S6 (narrative grounding).
+
+2. **Differentiation requires grounded conceptual knowledge.** Barrett: concepts populated by experiential instances. Kashdan: richer concepts → differentiation follows. Semerari/MIT: biographical episodes as substrate.
+
+3. **The mechanism is: trace each drive's felt quality through developmental history.** Formation memories provide the experiential referents that make overlapping drives distinguishable. This is theoretically validated across constructed emotion theory, emotion differentiation research, and clinical metacognition.
+
+4. **Key revision to §10.10.4:** The original vision says "classify drive *descriptions* through the vocabulary classifier." The literature says the primary signal should be the *formation memories* that serve each drive — not the drive description text. Barrett: the concept is populated by its instances (memories), not by its description. Drive descriptions are phenomenological prose; formation memories are the developmental episodes. The drive's CAPS activation profile should be derived from its formation memories.
+
+#### 10.10.7 Design — Memory-Traced Drive Differentiation
+
+**Theoretical grounding:**
+
+Barrett's constructed emotion theory provides the theoretical framework. A drive's "concept" (in Barrett's terms) is the population of formation memories that serve it. Two drives with overlapping CAPS activation pathways are like two emotions with similar interoceptive profiles — differentiation requires applying different concepts (different populations of memories) to the same activation pattern. The system derives which memories make each drive's pathway unique, then supplies those as conceptual knowledge to the LLM.
+
+This is a two-layer system:
+
+**Layer 1 — Inferred Drive Profiles (replaces static DRIVE_CAPS_MAPPINGS):**
+For each drive, classify its formation memories through `RuleBasedSituationClassifier` to discover which INPUT nodes the drive's developmental history activates. This produces a character-specific, memory-grounded activation profile for each drive. The CAPS network handles propagation from INPUT through MEDIATING to OUTPUT, modulated by the character's disposition — which is more principled than the static table, which maps drives to an arbitrary mix of INPUT/MEDIATING/OUTPUT nodes identically for all characters.
+
+**Layer 2 — Grounded Differentiation Text (replaces generic DIFFERENTIATION_INSTRUCTION):**
+For competing drive pairs, identify the MEDIATING nodes reached uniquely by each drive's pathway. The mediating node's pole descriptions (from caps-topology.yaml) provide felt-quality language. The formation memories that activated those unique pathways provide experiential referents. Compose differentiation text that grounds each drive's felt quality in specific memories.
+
+**Algorithm — DriveProfileDerivationPhase (new ConsolidationPhase):**
+
+```
+for each agent:
+  driveProfiles = {}
+  
+  // Layer 1: Build drive CAPS profiles from formation memories
+  for each drive (from MindMapStore drive-intensity nodes):
+    memories = findFormationMemoriesServing(drive)  // via serves annotations
+    inputProfile = {}
+    for each memory:
+      activations = classifier.classify(memory.episode, metadata)
+      degreeWeight = toDegreeWeight(memory.servesDegree)  // faint=0.25, moderate=0.5, strong=0.75, defining=1.0
+      for each activation:
+        inputProfile.merge(activation.nodeId, activation.confidence * degreeWeight, Math::max)
+    driveProfiles[drive.type] = inputProfile
+  
+  // Layer 2: Detect competition and derive differentiation
+  for each pair (driveA, driveB) in driveProfiles:
+    sharedInputs = intersection(driveA.inputNodes, driveB.inputNodes)
+    if sharedInputs.isEmpty: continue  // no overlap at INPUT level
+    
+    // Trace shared inputs through connections to find MEDIATING overlap
+    mediatingA = traceToMediating(driveA.inputNodes, topology)
+    mediatingB = traceToMediating(driveB.inputNodes, topology)
+    sharedMediating = intersection(mediatingA, mediatingB)
+    if sharedMediating.isEmpty: continue  // no pathway overlap
+    
+    // Identify unique pathways
+    uniqueMediatingA = mediatingA - sharedMediating
+    uniqueMediatingB = mediatingB - sharedMediating
+    
+    // Find memories grounding each unique pathway
+    anchorMemoriesA = findMemoriesCalibrating(uniqueMediatingA, driveA.memories)
+    anchorMemoriesB = findMemoriesCalibrating(uniqueMediatingB, driveB.memories)
+    
+    // Derive felt quality from mediating node poles
+    feltQualityA = describeFeltQuality(uniqueMediatingA, topology)  // from node pole descriptions
+    feltQualityB = describeFeltQuality(uniqueMediatingB, topology)
+    
+    // Compose grounded differentiation text
+    differentiationText = composeDifferentiation(
+        anchorMemoriesA, feltQualityA,
+        anchorMemoriesB, feltQualityB)
+    
+    // Store as consolidation artifact
+    store(competingPairArtifact(driveA, driveB, sharedMediating, differentiationText))
+```
+
+**Output format — what the LLM sees (S6-level grounded differentiation):**
+
+Instead of the current generic instruction (S3):
+> "Each of these pulls is a distinct felt state — a different quality of warmth, tension, or urgency. When more than one activates in the same moment, attend to which quality is at the front."
+
+The system produces character-specific grounded text (S6):
+> "Two pulls are active in the same moment. One traces through safety and acceptance — the stranger your father helped, the dog you carried home. The other traces through capability and competence — the engine that doesn't idle, the night you practised until dark. They're both real. They're not the same."
+
+This text:
+- **Not arbitrary** — derived from the character's CAPS pathways and formation memories
+- **Not declared** — inferred during consolidation from vocabulary classification + topology tracing
+- **Not prescriptive** — doesn't name drives or tell the LLM what to feel; provides conceptual knowledge for the LLM to distinguish with
+- **Universal** — works for any character in any world with any drives, using the same infrastructure
+- **S6-grounded** — traces felt quality through biographical experience (Semerari), provides experiential referents (Barrett), supplies conceptual knowledge (Kashdan)
+
+**Storage model:**
+
+Two artifact types stored in MindMapStore after consolidation:
+
+1. **drive-profile** nodes (one per drive per agent):
+   - Properties: `agent-id`, `drive-type`, `inferred-inputs` (JSON: nodeId → activation), `source-memory-ids`
+   - Trait: `DriveProfileInferred`
+
+2. **competing-pair** nodes (one per competing pair per agent):
+   - Properties: `agent-id`, `drive-a`, `drive-b`, `shared-mediating` (JSON), `unique-mediating-a`, `unique-mediating-b`, `differentiation-text`, `anchor-memories-a`, `anchor-memories-b`
+   - Trait: `DriveCompetitionInferred`
+
+**Render-time integration:**
+
+1. `BehavioralSynthesisPhase.mergeDriveIntensities()`: Check for `DriveProfileInferred` nodes first. If found, use inferred INPUT activations. Fall back to static `DRIVE_CAPS_MAPPINGS` only when inference hasn't run (cold start).
+
+2. `CognitivePreambleGenerator` (or `CharacterCognition` render): Check for `DriveCompetitionInferred` nodes. If found, use stored `differentiation-text` instead of generic `DIFFERENTIATION_INSTRUCTION`.
+
+**Cold-start strategy:**
+
+On first consolidation tick (no inferred profiles yet), the system uses:
+- Static `DRIVE_CAPS_MAPPINGS` for drive activation injection
+- Generic `DIFFERENTIATION_INSTRUCTION` for metacognitive support
+
+After the first consolidation cycle completes, inferred profiles and grounded differentiation text take over. Graceful degradation — no breaking change, no feature gap during cold start.
+
+**Key revision from §10.10.4:**
+
+The original vision proposed classifying drive *descriptions* through the vocabulary classifier. The literature review (§10.10.6) revises this: classify *formation memories that serve each drive* instead. Rationale:
+
+- Barrett: the concept (drive) is populated by its instances (formation memories), not by its description
+- Drive descriptions are phenomenological prose ("warmth moves through you") — they may not match INPUT vocabulary well
+- Formation memories are developmental episodes ("your father took you to watch a race") — situational text that the vocabulary classifier was designed for
+- The drive's CAPS profile should reflect its developmental history, not its current felt-quality description
+
+The drive description text may still be classified for supplementary signal, but formation memories are the primary source.
+
+**Relationship to existing architecture:**
+
+| Component | Current | After inference system |
+|-----------|---------|----------------------|
+| `DRIVE_CAPS_MAPPINGS` | Static table, 14 entries, world-specific | Inferred from formation memories, universal |
+| `DIFFERENTIATION_INSTRUCTION` | Generic S3 text, same for all characters | Grounded S6 text, character-specific |
+| `DriveCompetitionDetector.hasCompetingDrives()` | Checks static table overlap | Checks inferred profile overlap |
+| `mergeDriveIntensities()` fallback | Text classification for unknown drives | Inferred profiles primary; static table → cold start only |
+
+**What this does NOT change:**
+
+- The preamble-level generic instruction can remain as a baseline (S3 floor)
+- The grounded differentiation text supplements it when available
+- The CAPS topology, connection weights, and settling mechanics are untouched (D8)
+- Formation memory `serves` annotations remain stable structural properties (D10, Singer SDM)
+- The vocabulary classifier and its parameters are unchanged
 
 ---
 

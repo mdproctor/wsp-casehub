@@ -179,3 +179,21 @@ Rendering cleanup MUST NOT precede verified computational pipeline delivery. Iss
 **Sources:** Pillemer (2003) directive function taxonomy, Singer (2013) SDM properties (vivid, emotionally evocative, linked to enduring concerns)
 **Exploration:** quick (iterative design with user)
 **Status:** captured
+
+## D12: Inference-Based Drive Differentiation
+
+**Choice:** Memory-traced drive differentiation during consolidation — classify formation memories (not drive descriptions) through the vocabulary classifier to infer per-drive CAPS profiles, detect competition via pathway overlap, and derive S6-level grounded differentiation text from unique formation memories
+**Supersedes:**
+- Static `DRIVE_CAPS_MAPPINGS` in `DriveCompetitionDetector` — world-specific, not universal, not grounded in developmental history
+- Generic `DIFFERENTIATION_INSTRUCTION` — operates at S3 (Semerari MAS-A), insufficient for differentiation per Barrett (2017) and Kashdan et al. (2015)
+**Alternatives:**
+- Classify drive descriptions (not memories) — §10.10.4 original vision. Rejected: drive descriptions are phenomenological prose; formation memories are situational episodes that match the vocabulary classifier's design. Barrett (2017): the concept is populated by its instances (memories), not its description.
+- LLM-generated differentiation text during consolidation — emergent but expensive, non-deterministic, and unnecessary. The structured data (mediating node poles, formation memory episodes) is sufficient for template-based composition.
+- Per-character static differentiation text — what Attempt 2 was (§10.10.2). Prescriptive, hand-authored, not universal.
+**Rationale:** Three independent literature traditions converge: differentiation requires grounded conceptual knowledge, not generic metacognitive instruction. Barrett (2017): emotion concepts = populations of experiential instances; differentiation requires applying different concepts to the same activation. Kashdan et al. (2015): conceptual knowledge enables differentiation as a deployable skill; richer concepts → differentiation follows. Semerari et al. (2003): MAS-A hierarchy distinguishes S3 (generic: "attend to differences") from S6 (grounded: "this feeling traces through this experience"). MIT therapy (Dimaggio et al. 2015) validates biographical episodes as substrate for differentiation.
+**Implementation:** `DriveProfileDerivationPhase` as a new `ConsolidationPhase`. Two-layer output: (1) inferred drive INPUT activation profiles stored as `DriveProfileInferred` nodes, consumed by `mergeDriveIntensities()` in place of static table; (2) grounded differentiation text stored as `DriveCompetitionInferred` nodes, consumed by preamble/render pipeline in place of generic instruction. Cold-start fallback to static table and generic instruction until first consolidation completes.
+**Trade-offs:** More consolidation-time computation. But runs once per sleep cycle (5 min default), result is cached, and the existing vocabulary classifier and topology tracing are O(n) per memory. Requires formation memories to have `serves` annotations (already present from Layer B work). New worlds must annotate formation memories before inference works — but this is required for Layer B calibration anyway.
+**Sources:** Barrett (2017) *How Emotions Are Made*, Kashdan et al. (2015) *Current Directions in Psychological Science* 24(1) 10-16, Semerari et al. (2003) *Clinical Psychology & Psychotherapy* 10 238-261, Dimaggio & Lysaker (2010), Dimaggio et al. (2015) MIT treatment manual, Vedernikova et al. (2021) *Frontiers in Psychology*
+**Full design:** research doc §10.10.6-7
+**Exploration:** deep-analysis (literature review of three traditions + first-principles design)
+**Status:** captured
