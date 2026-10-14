@@ -59,11 +59,13 @@ Results saved: `wacky-manor/docs/eval/layer-b-eval-2026-10-14/`
 1. ~~**Literature review**~~ — **DONE** (§10.10.6). Three traditions converge: differentiation requires S6-level grounded conceptual knowledge (formation-memory-traced), not S3-level generic instruction. Key revision: classify formation memories (not drive descriptions) as primary signal.
 2. **Implement inference-based drive differentiation** (§10.10.7, D12) — `DriveProfileDerivationPhase` as new `ConsolidationPhase`. Two layers: inferred drive CAPS profiles (replaces static `DRIVE_CAPS_MAPPINGS`), grounded differentiation text (replaces generic `DIFFERENTIATION_INSTRUCTION`). Design complete — ready for implementation.
 3. **Full scenario run** (step 3b) — AFTER inference system is built. No point validating against a configuration we're about to change. One run against the final form.
-4. **Blog** — Part 3 written and committed. Dedicated article on drive competition once inference system is validated.
+4. **Blog** — Part 3 written and committed. **Next blog must cover the literature review findings (Barrett/Kashdan/Semerari → S3→S6 progression, memory-traced differentiation, constructed emotion theory applied to cognitive agents).** Write after inference system is validated.
 
 ## What NOT to Re-Derive
 
-- D1-D11 decisions (made, in `decisions.md`)
+- D1-D12 decisions (made, in `decisions.md`)
+- Literature review (Barrett 2017, Kashdan 2015, Semerari 2003) — done, findings in §10.10.6
+- Memory-traced drive differentiation design — done, in §10.10.7
 - Serves annotation system (working, tested)
 - Vocabulary weights (first approximations, empirically tunable)
 - Memory-to-catalogue mappings (§12.5 is authoritative)
