@@ -59,6 +59,14 @@ The note gives you operational context. The research doc gives you depth. Read t
 
 **Note:** `caps-llm-classifier` test has pre-existing compilation error from Layer A vocabulary change (keywords→vocabulary). Needs fix before merge.
 
+### Cross-Repo: DriveProfileDerivationPhase (neocortex `issue-115-weighted-situation-vocabulary`)
+
+| Commit | What |
+|--------|------|
+| `caae5ba9` | DriveProfileDerivationPhase — memory-traced drive differentiation (§10.10.7, D12) |
+
+New `ConsolidationPhase` (priority 20, after BehavioralSynthesisPhase at 19). Classifies formation memories through vocabulary classifier, infers per-drive CAPS profiles, detects competition via MEDIATING pathway overlap, derives S6-grounded differentiation text. 8 unit tests.
+
 ## What Needs to Happen Next
 
 ### 1. Implement Inference-Based Drive Differentiation (§10.10.7, D12)
