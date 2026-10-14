@@ -37,9 +37,9 @@ Drives compete when they share CAPS activation nodes (§10.10). Overlapping path
 
 **Current state:** Universal meta-instruction in `CognitivePreambleGenerator` (neocortex cognition module): "Each drive is a distinct felt state. When multiple drives activate in the same moment, attend to which quality of feeling is at the front." Always present when drives are enabled. No detection gate, no per-character config.
 
-**What's not right yet:** The meta-instruction is generic ("warmth, tension, or urgency"). It should be DERIVED from the character's actual CAPS pathways and formation memories during consolidation. The D1 static mapping table (`DriveCompetitionDetector`) should be replaced by inference-based detection using the vocabulary classifier. See §10.10.3-10.10.4 for details.
+**What's not right yet:** The meta-instruction is generic ("warmth, tension, or urgency") — operates at S3 (Semerari MAS-A). Should be DERIVED from the character's actual CAPS pathways and formation memories during consolidation to reach S6 (narrative-grounded). The D1 static mapping table (`DriveCompetitionDetector`) should be replaced by inference-based detection using the vocabulary classifier. See §10.10.6-7 for literature review and design.
 
-**Literature to investigate:** Barrett (2017) *How Emotions Are Made* — emotion differentiation / granularity. Kashdan et al. (2015) "Unpacking Emotion Differentiation." Semerari et al. (2003) Metacognition Assessment Scale. These may provide the operationalisation for inference-based drive differentiation.
+**Literature review DONE (§10.10.6):** Barrett (2017), Kashdan et al. (2015), Semerari et al. (2003). Convergent finding: differentiation requires grounded conceptual knowledge (S6), not generic metacognitive instruction (S3). Key revision: classify formation memories (not drive descriptions) as primary signal. Design in §10.10.7, decision D12.
 
 ## Micro Test Results (Layer B Eval — 2026-10-14)
 
@@ -56,8 +56,8 @@ Results saved: `wacky-manor/docs/eval/layer-b-eval-2026-10-14/`
 
 ## What's Next
 
-1. **Inference-based drive differentiation** (§10.10.4) — during consolidation, classify drive descriptions through vocabulary classifier → detect CAPS overlap → trace pathways through formation memories → derive grounded differentiation text. This replaces the generic preamble instruction with character-specific, memory-grounded guidance.
-2. **Literature review** — Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment scale. These may provide the operationalisation.
+1. ~~**Literature review**~~ — **DONE** (§10.10.6). Three traditions converge: differentiation requires S6-level grounded conceptual knowledge (formation-memory-traced), not S3-level generic instruction. Key revision: classify formation memories (not drive descriptions) as primary signal.
+2. **Implement inference-based drive differentiation** (§10.10.7, D12) — `DriveProfileDerivationPhase` as new `ConsolidationPhase`. Two layers: inferred drive CAPS profiles (replaces static `DRIVE_CAPS_MAPPINGS`), grounded differentiation text (replaces generic `DIFFERENTIATION_INSTRUCTION`). Design complete — ready for implementation.
 3. **Full scenario run** (step 3b) — AFTER inference system is built. No point validating against a configuration we're about to change. One run against the final form.
 4. **Blog** — Part 3 written and committed. Dedicated article on drive competition once inference system is validated.
 

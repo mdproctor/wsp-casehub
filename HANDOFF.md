@@ -61,11 +61,11 @@ The note gives you operational context. The research doc gives you depth. Read t
 
 ## What Needs to Happen Next
 
-### 1. Inference-Based Drive Differentiation (§10.10.4)
-During consolidation (sleep), classify drive descriptions through the vocabulary classifier → detect CAPS overlap → trace pathways through formation memories → derive grounded differentiation text. Replaces generic preamble instruction with character-specific, memory-grounded guidance. See §10.10.3-4 for architecture vision.
+### 1. Implement Inference-Based Drive Differentiation (§10.10.7, D12)
+`DriveProfileDerivationPhase` as new `ConsolidationPhase`. Two layers: (1) inferred drive CAPS profiles from formation memory classification (replaces static `DRIVE_CAPS_MAPPINGS`), (2) S6-grounded differentiation text from unique formation memories (replaces generic S3 `DIFFERENTIATION_INSTRUCTION`). Design complete in §10.10.7. Cold-start fallback to existing static table.
 
-### 2. Literature Review
-Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment scale. These may provide operationalisation for inference-based drive differentiation. **Do this BEFORE implementing** — the literature may shape the design.
+### ~~2. Literature Review~~ — DONE (§10.10.6)
+Barrett (2017), Kashdan et al. (2015), Semerari et al. (2003) reviewed. Convergent finding: differentiation requires grounded conceptual knowledge populated by specific experiential referents (formation memories), not generic metacognitive instruction. Key revision: classify formation memories (not drive descriptions) as primary signal. Decision D12 recorded.
 
 ### 3. Full Scenario Validation (step 3b)
 AFTER the inference system is built. No point running against a configuration we're about to change. Install neocortex, rebuild wacky-manor, run GENERIC scenario (~300 events), classify with `classify_emotions.py`. Compare to P0 (3.72) and B0 (3.96). One run against the final form.
