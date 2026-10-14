@@ -56,16 +56,27 @@ Results saved: `wacky-manor/docs/eval/layer-b-eval-2026-10-14/`
 
 ## What's Next
 
-1. ~~**Literature review**~~ — **DONE** (§10.10.6). Three traditions converge: differentiation requires S6-level grounded conceptual knowledge (formation-memory-traced), not S3-level generic instruction. Key revision: classify formation memories (not drive descriptions) as primary signal.
-2. **Implement inference-based drive differentiation** (§10.10.7, D12) — `DriveProfileDerivationPhase` as new `ConsolidationPhase`. Two layers: inferred drive CAPS profiles (replaces static `DRIVE_CAPS_MAPPINGS`), grounded differentiation text (replaces generic `DIFFERENTIATION_INSTRUCTION`). Design complete — ready for implementation.
-3. **Full scenario run** (step 3b) — AFTER inference system is built. No point validating against a configuration we're about to change. One run against the final form.
-4. **Blog** — Part 3 written and committed. **Next blog must cover the literature review findings (Barrett/Kashdan/Semerari → S3→S6 progression, memory-traced differentiation, constructed emotion theory applied to cognitive agents).** Write after inference system is validated.
+1. ~~**Literature review**~~ — **DONE** (§10.10.6). Three traditions converge: differentiation requires S6-level grounded conceptual knowledge (formation-memory-traced), not S3-level generic instruction.
+2. ~~**Implement inference-based drive differentiation**~~ — **DONE** (§10.10.7, D12). `DriveProfileDerivationPhase` in neocortex (`caae5ba9`, `10e1f88a`). Render wiring in CharacterCognition (`ca2bc4e`). 8 unit tests.
+3. **Inferred somatic rendering** (#120, §10.10.8, D13) — Replace hand-authored drive descriptions with LLM-generated, situation-primed somatic text. The pivot: micro tests showed hand-authored descriptions create echo-scripting risk and concreteness asymmetry (protection's "loose hinge" primes proving-worth behavior). The LLM should construct its own somatic experience from formation memories + situation context, not repeat our template text.
+4. **Full scenario run** (step 3b) — AFTER #120 is implemented. One run against the final form. Compare to P0 (3.72) and B0 (3.96).
+5. **Blog** — Parts 1-3 written. **Next blog must cover: literature review (Barrett/Kashdan/Semerari), the S3→S6 progression, proximity discovery, pivot from template to inferred somatic rendering, constructed emotion theory applied to cognitive agents.** Write after inference system is validated.
+
+## The Pivot — Template → Inferred
+
+**What we planned (§10.10.4-7):** Inference-based drive differentiation — classify formation memories, detect competition, derive grounded text. Keep hand-authored drive descriptions.
+
+**What micro tests revealed:** The hand-authored descriptions are the bottleneck, not the differentiation text. "A warmth moves through you when courtesy matters" is template text that: (1) the LLM echo-scripts, (2) creates concreteness asymmetry (protection's "loose hinge" is more specific than gallantry's "warmth"), (3) is not situation-responsive.
+
+**What we're building instead (#120):** LLM-generated somatic descriptions during consolidation + situation-specific priming at render time. Same theory (Barrett/Conway/Klinger), deeper application. The whole "What Pulls at You" section becomes fully inferred — no template text, no hand-authored content.
 
 ## What NOT to Re-Derive
 
-- D1-D12 decisions (made, in `decisions.md`)
+- D1-D13 decisions (made, in `decisions.md`)
 - Literature review (Barrett 2017, Kashdan 2015, Semerari 2003) — done, findings in §10.10.6
 - Memory-traced drive differentiation design — done, in §10.10.7
+- Inferred somatic rendering design — done, in §10.10.8
+- Proximity finding: meta-instruction must be adjacent to drives in observation section (commit daf6272 moved to preamble, lost effect)
 - Serves annotation system (working, tested)
 - Vocabulary weights (first approximations, empirically tunable)
 - Memory-to-catalogue mappings (§12.5 is authoritative)

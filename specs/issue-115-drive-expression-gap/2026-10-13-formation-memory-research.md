@@ -40,9 +40,10 @@ All three layers and drive competition detection are complete. See §12.1 for im
 
 ### What's Next
 
-1. ~~**Literature review**~~ — **DONE** (§10.10.6). Barrett (2017), Kashdan et al. (2015), Semerari et al. (2003). Key finding: differentiation requires grounded conceptual knowledge (S6-level, formation-memory-traced), not generic metacognitive instruction (S3-level). Revised §10.10.4 architecture: classify formation memories (not drive descriptions) as primary signal.
-2. **Implement inference-based drive differentiation** (§10.10.7) — `DriveProfileDerivationPhase` as a new `ConsolidationPhase`. Two layers: inferred drive CAPS profiles (replaces static `DRIVE_CAPS_MAPPINGS`), grounded differentiation text (replaces generic `DIFFERENTIATION_INSTRUCTION`). Design complete — ready for implementation.
-3. **Full scenario validation** (step 3b) — AFTER inference system is built. One run against the final form. Compare to P0 (3.72) and B0 (3.96).
+1. ~~**Literature review**~~ — **DONE** (§10.10.6). Barrett, Kashdan, Semerari. S6 grounded > S3 generic.
+2. ~~**Inference-based drive differentiation**~~ — **DONE** (§10.10.7, D12). `DriveProfileDerivationPhase` + render wiring. 8 unit tests.
+3. **Inferred somatic rendering** (#120, §10.10.8, D13) — Replace hand-authored drive descriptions with LLM-generated, situation-primed somatic text. Pivot from template to inferred.
+4. **Full scenario validation** (step 3b) — AFTER #120. Compare to P0 (3.72) and B0 (3.96).
 
 **Constraint:** All mechanisms must be literature-rooted, individual-specific, not hard-wired, and LLM-bias-aware (§8.5). Include redundant signals; prove redundancy empirically later — never assume it (§8.1b).
 
@@ -1031,11 +1032,41 @@ The drive description text may still be classified for supplementary signal, but
 
 **What this does NOT change:**
 
-- The preamble-level generic instruction can remain as a baseline (S3 floor)
-- The grounded differentiation text supplements it when available
 - The CAPS topology, connection weights, and settling mechanics are untouched (D8)
 - Formation memory `serves` annotations remain stable structural properties (D10, Singer SDM)
 - The vocabulary classifier and its parameters are unchanged
+
+#### 10.10.8 Inferred Somatic Rendering — No Template Text
+
+**Discovery (2026-10-14 micro tests):** Hand-authored somatic drive descriptions in social-config.yaml create two problems: (1) echo-scripting — the LLM repeats "warmth in my chest" verbatim rather than constructing genuine experience; (2) concreteness asymmetry — some descriptions are more vivid/specific than others (protection's "a loose hinge" primes proving-worth behavior in hinge-related scenarios).
+
+**Principle (D13):** No hand-authored template text for drive somatic descriptions. The LLM knows what gallantry at 0.9 feels like — it doesn't need us to tell it. What it needs is the character's formation memories to personalize the concept and the current situation to contextualize the activation.
+
+**Architecture — two-phase rendering:**
+
+**Phase 1 — Consolidation (sleep):** LLM generates base somatic descriptions per drive per character. Input: drive type + intensity + formation memories that serve this drive + character personality facets. Prompt: "Given these formation memories, describe what this person feels in their body when this pull activates — without naming the pull. Second person, somatic only, no behavioral instructions." Stored as `DriveDescriptionGenerated` artifact. Regenerated when drive intensity changes significantly (adaptation). Precedent: `BeliefRevisionPhase` already uses LLM during consolidation.
+
+**Phase 2 — Render time (situation priming):** Current situation classified through vocabulary classifier → INPUT activations. Compare against drive memory activations (pre-computed in `DriveProfileDerivationPhase`). Select formation memories most relevant to current context. These prime the rendering — the character's felt state reflects not just the drive in general but the drive AS ACTIVATED BY THIS SPECIFIC SITUATION through specific developmental memories.
+
+**Effect:** "What Pulls at You" becomes fully dynamic:
+- Character-specific (derived from their formation memories)
+- Intensity-appropriate (0.9 gallantry feels different from 0.5 gallantry)
+- Situation-specific (door scenario primes different memories than dinner scenario)
+- Not template text (LLM-generated, unique per character and context)
+
+**Conway SMS integration:** This implements Conway's working self mechanism — the current motivational state (active drives) modulates which formation memories are accessible. Situation priming is the computational operationalization: the vocabulary classifier's INPUT activations for the current event are compared against the pre-computed memory activations per drive, producing a relevance ranking.
+
+**Relationship to existing components:**
+- `DriveProfileDerivationPhase` provides the pre-computed memory→INPUT activation profiles (Layer 1 from §10.10.7)
+- Situation priming uses `RuleBasedSituationClassifier` (same classifier, applied to current event)
+- Generated descriptions stored in MindMapStore alongside `DriveProfileInferred` and `DriveCompetitionInferred` artifacts
+- `renderInternalState()` reads generated descriptions instead of social-config `description` field
+- Social-config `description` field retained as cold-start fallback only
+
+**Micro test evidence (2026-10-14):**
+- Proximity validated: meta-instruction must be adjacent to drive content in observation section, not in distant preamble (commit daf6272 moved it to preamble, losing the effect)
+- S6 grounded text (memory-traced) outperforms S3 generic text (metacognitive instruction without content): 4/5 vs 2-3/5 on PP gallantry door scenario
+- 4/5 ceiling on dual-activation scenarios is likely due to hand-authored drive descriptions priming competing drives — LLM-generated, situation-primed descriptions should improve this
 
 ---
 

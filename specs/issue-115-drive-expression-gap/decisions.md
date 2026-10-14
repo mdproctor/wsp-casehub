@@ -197,3 +197,21 @@ Rendering cleanup MUST NOT precede verified computational pipeline delivery. Iss
 **Full design:** research doc §10.10.6-7
 **Exploration:** deep-analysis (literature review of three traditions + first-principles design)
 **Status:** captured
+
+## D13: Inferred Somatic Rendering — No Template Drive Descriptions
+
+**Choice:** LLM-generated somatic drive descriptions during consolidation, situation-primed at render time — replaces hand-authored template text in social-config.yaml
+**Supersedes:**
+- Hand-authored `description` field on `SocialConfig.Drive` — template text creates echo-scripting risk and concreteness asymmetry between drives. Retained as cold-start fallback only.
+**Alternatives:**
+- Keep hand-authored descriptions — echo-scripting risk, not character-specific, not situation-responsive. Scored 3/5 baseline on micro tests.
+- Memory excerpts only (no LLM generation) — Barrett-compliant but lacks somatic quality. Memories are developmental episodes, not felt-state descriptions.
+- Remove somatic descriptions entirely, rely on CAPS attractors + formation memories — CAPS attractors produce generic labels ("approach," "perfectionism") that don't carry drive-specific flavor. Insufficient signal.
+**Rationale:** The LLM knows what gallantry at 0.9 feels like from its training data. What it needs is the character's formation memories to PERSONALIZE the concept (Barrett 2017) and the current situation to CONTEXTUALIZE the activation (Conway 2005 working self). Hand-authored descriptions are templates that: (1) create echo-scripting — the LLM repeats "warmth in my chest" rather than constructing genuine experience; (2) create concreteness asymmetry — some descriptions are more vivid than others, biasing drive competition outcomes; (3) are not situation-responsive — same text regardless of context.
+**Two-phase architecture:** (1) Consolidation: LLM generates base somatic descriptions per drive per character from formation memories + personality + intensity. (2) Render time: situation priming selects relevant memories via vocabulary classifier INPUT activation comparison, contextualizing the felt state for the current moment.
+**Micro test evidence:** S6 grounded text (memory-traced, adjacent) scored 4/5 vs S3 generic (metacognitive instruction) 2-3/5 on PP gallantry door. Hand-authored descriptions create a 4/5 ceiling due to concreteness asymmetry between competing drives.
+**Trade-offs:** Adds LLM call during consolidation (cost, non-determinism). Mitigated: runs once per sleep cycle, result cached. BeliefRevisionPhase already uses LLM during consolidation — precedent exists.
+**Sources:** Barrett (2017), Conway (2005) working self, Klinger (1971) current concerns, micro test data from 2026-10-14
+**Full design:** research doc §10.10.8
+**Exploration:** deep-analysis (empirical micro tests + first-principles design from Barrett/Conway/Klinger)
+**Status:** captured
