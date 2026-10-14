@@ -30,13 +30,24 @@
 
 D1 implemented: `BehavioralSynthesisPhase.mergeDriveIntensities()` now uses explicit mappings (14 drive types → CAPS nodes) instead of text classification. Unmapped types fall back to vocabulary classifier.
 
-## All Three Layers Complete — What's Next
+## All Three Layers Complete + Drive Competition Detection
 
-All 7 derivation chain breaks are fixed. Remaining steps:
-1. **Install neocortex** with Layers A+C changes, rebuild wacky-manor
-2. **Run full scenario** (step 3b) — compare against P0 baseline (mean 3.72)
-3. **Classify with `classify_emotions.py`** — measure per-drive scores, compare to B0 (mean 3.96)
-4. If gaps remain, empirically tune vocabulary weights (D4a) or adjust substrate descriptions
+All 7 derivation chain breaks are fixed. Additionally:
+
+**DriveCompetitionDetector** (neocortex caps-api, commit `ea9d6c91`): Detects when drives share CAPS activation nodes (overlapping pathways → similar felt experience → LLM conflation). When detected, a universal meta-instruction helps the LLM attend to which quality of feeling is active. Fully automatic — no per-character configuration needed.
+
+**PP gallantry results with drive competition detection:**
+- Door stuck: P0 baseline 3/5 → now 4-5/5 (non-deterministic but consistently improved)
+- Dinner differentiation: P0 baseline 3/5 → now 5/5
+
+**Key insight (§10.10 candidate):** Drives compete when they activate overlapping CAPS nodes. This is detectable from the D1 mappings. A universal meta-reasoning instruction ("attend to which quality of feeling is shaping your response") resolves the conflation without prescribing behavior.
+
+## Remaining Steps
+
+1. **Run full scenario** (step 3b) — compare against P0 baseline (mean 3.72)
+2. **Classify with `classify_emotions.py`** — measure per-drive scores, compare to B0 (mean 3.96)
+3. If gaps remain, empirically tune vocabulary weights (D4a)
+4. Consider adding DriveCompetitionDetector to CognitivePreambleGenerator for universal system-prompt-level coverage
 
 ## Key Methodology — Repeatable
 

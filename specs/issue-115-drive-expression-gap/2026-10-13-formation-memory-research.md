@@ -766,6 +766,26 @@ This is Mischel's if-then profile: same situation, different personality substra
 
 This connects to the LLM bias concern (§8.5): extreme characters need extreme psychological substrate to overcome the LLM's tendency toward moderate, socially acceptable responses. A `self_worth` of -0.7 produces qualitatively different attractor patterns than -0.3 — the CAPS network doesn't just scale linearly. Extreme values create attractor basins that the LLM can't escape through generic sanitization.
 
+### 10.10 Drive Competition — Automatic Detection via CAPS Overlap
+
+Two drives "compete" when they activate overlapping CAPS nodes. Shared activation pathways produce similar felt experience, causing the LLM to conflate them. The LLM defaults to the most concrete/actionable drive, suppressing the more abstract one.
+
+**Discovery:** PP's gallantry (0.9) was consistently suppressed by proving-worth (0.7) in situations that activated both (e.g., stuck door). The gallantry drive description was strong and distinct, the substrate was balanced — but the LLM still defaulted to competence-display over theatrical courtesy.
+
+**Root cause:** The two drives activate overlapping CAPS nodes through their co-existing drives (gallantry + protection share `other_safety`, `approach`). The overlap creates an activation pathway where the more concrete drive (proving-worth → fix the thing) wins over the more abstract one (gallantry → fix it with style).
+
+**Solution:** `DriveCompetitionDetector` (neocortex caps-api) automatically detects overlapping CAPS activations from the D1 mappings. When competition is detected, a universal meta-instruction is rendered: "Each of these pulls is a distinct felt state... attend to which quality is at the front... Notice which feeling is shaping your response, not just what you do."
+
+**Properties:**
+- **Universal** — same instruction for any character, any drives
+- **Drive-driven** — triggered by CAPS node overlap, not declared by config author
+- **Pure meta-reasoning** — tells the LLM HOW to process competing signals, not WHAT to do
+- **Not always-on** — only appears when competition is actually detected (AHM's loyalty+suspicion don't overlap → no instruction)
+
+**Result:** PP gallantry improved from 3/5 (P0 baseline) to 4-5/5. Differentiation improved from 3/5 to 5/5. The LLM explicitly catches the proving-worth impulse and separates it from gallantry: "Not because she needs her chair pulled out. Because the moment deserves it."
+
+**Architecture principle:** When the cognitive architecture detects that rendered signals could confuse the LLM (overlapping activation pathways), it automatically provides meta-reasoning guidance. The guidance is about HOW to think, not WHAT to think. This is analogous to the CAPS settler's role in resolving competing activations — but operating at the prompt level rather than the network level.
+
 ---
 
 ## 11. Layer A Results — Weighted Situation Vocabulary

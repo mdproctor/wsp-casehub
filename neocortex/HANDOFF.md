@@ -43,6 +43,17 @@ Designed and implemented cognitive observability (#333) — brainstorming, spec 
 
 All infrastructure is in place — Layer 3 tasks are pure query logic over the SnapshotStore SPI. Should be straightforward.
 
+## Cross-Repo Changes (from examples #115 sessions)
+
+**Branch:** `issue-115-weighted-situation-vocabulary`
+
+| Date | Commit | What |
+|------|--------|------|
+| 2026-10-13 | `989647c6`, `bb4147dd` | Layer A: weighted vocabulary for 31 INPUT nodes, 30 missing connections |
+| 2026-10-14 | `11e64632` | Layer C: D1 drive→CAPS activation injection in `BehavioralSynthesisPhase` |
+
+**Note:** `caps-llm-classifier` test has pre-existing compilation error from Layer A vocabulary change (keywords→vocabulary). Needs fix before merge.
+
 ## References
 
 - Spec: `wksp/specs/issue-322-cognitive-node-types/issue-333-cognitive-observability/2026-09-14-cognitive-observability-design.md`
