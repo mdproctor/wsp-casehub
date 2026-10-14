@@ -2,50 +2,39 @@
 
 ## Last Session
 
-Designed and implemented cognitive observability (#333) — brainstorming, spec (3-round standard review, $20.61), plan (17 tasks / 3 batches), and execution of Batches 1-2 (14 of 17 tasks complete). Batch 3 (Layer 3 temporal observation) remains.
+Fixed 3 pipeline gaps blocking drive discrimination in full scenario runs (#584, #585, #586). All work on branch `issue-115-weighted-situation-vocabulary`.
 
-### What was built
+### What was fixed
 
-**Layer 1 — Live View (Batch 1, complete):**
-- `cognitive-observability` module — new Maven module with platform-api (@McpDomain) + MicroProfile GraphQL deps
-- `CognitionInspectService` — per-subgraph node/edge counts, avg confidence, trait distribution, 5-bucket confidence histogram
-- `CognitionHealthService` — wraps MindMapAnalyzer (orphans, contradictions, low-confidence, unvalidated edges, stale nodes, density, k-cores with Summary-trait filtering)
-- `GraphSerializer` — toJson (Jackson) + toMermaid (StringBuilder) graph export
-- `CognitionResolver` — @McpDomain("cognition") @GraphQLApi with inspect(), entity(), health() queries
-- 14 tests green
+**#584 — DriveProfileDerivationPhase produces 0 profiles:**
+- Root cause: early-return guard at line 76 when `SituationClassifier`/`CapsTopology` CDI `Instance<>` deps don't resolve during consolidation
+- Fix: graceful degradation — profiles derive from memory excerpts alone (no CAPS input activation); competition detected via shared `catalogue-entry-id` overlap instead of shared mediating nodes
+- Commit: `33235928`
+- Tests: 10/10 green (8 existing + 2 new)
 
-**Layer 2 — Snapshot + Delta Infrastructure (Batch 2, complete):**
-- `MutationContext` — ThreadLocal in mindmap-api for mutation source tagging
-- `GraphMutation` — sealed interface (13 record variants: NodeAdded, NodeUpdated, NodeErased, EdgeAdded, EdgeRemoved, NodesMerged, NodeSuperseded, NodeReinstated, AliasAdded, AliasRemoved, SubgraphCreated, SubgraphErased, EntityErased) with Jackson @JsonTypeInfo
-- `FieldChange` — diff() and diffSnapshot() for before/after field tracking (handles mutable InMemoryMindMapStore via pre-snapshot)
-- `SnapshotStore` SPI — storeMutation, findMutations, findMutationsForEntity, storeKeyframe, reconstruct, audit entries, purge
-- `MutationTrackingDecorator` — extends AbstractForwardingMindMapStore, intercepts all 14 mutation methods, pre-snapshots for updateNode
-- `MutationTrackingCdiDecorator` — @Decorator @Priority(20), classpath-activated
-- `ConsolidationCompleted` + `PhaseResult` CDI events in mindmap-intelligence
-- ConsolidationScheduler modified: MutationContext set/clear per phase, fires ConsolidationCompleted per tenant
-- ConversationBridge + ExtractionRequestedObserver: MutationContext wrapping
-- `InMemorySnapshotStore` + `SnapshotStoreContractTest` (12 tests) in cognitive-observability-testing
-- `SqliteSnapshotStore` (WAL, HikariCP, Flyway V1, junction table mutation_nodes) in cognitive-observability-sqlite — passes all 12 contract tests
-- `SnapshotCaptureService` — observes ConsolidationCompleted, builds audit entries, keyframe threshold capture, retention purge
+**#586 — Somatic discrimination text not generating:**
+- Root cause: cascading failure from #584 — 0 competition artifacts meant `generateDiscriminationText()` had nothing to process
+- Fix: verified via cross-phase pipeline test — Phase 1 (null CAPS, catalogue fallback) → Phase 2 (LLM generation) works end-to-end
+- Commit: `9c7ddea6`
 
-### Key findings during implementation
+**#585 — Generation prompt somatic-only strips discriminating channels:**
+- Root cause: SYSTEM_PROMPT and DISCRIMINATION_SYSTEM both restricted to "somatic/bodily sensations only"
+- Fix: updated to Barrett (2017) 4-channel constructed emotion — somatic, attentional, temporal, action tendency
+- User prompts also updated to remove "somatic only" restriction
+- Commit: `9c7ddea6` (same commit as #586)
+- Tests: 25/25 green across both phase test classes
 
-- InMemoryMindMapStore.getNode() returns a mutable StoredNode reference — updateNode mutates it in place. The decorator must snapshot node state into an immutable NodeSnapshot record before calling delegate().updateNode() to avoid aliasing
-- mindmap-core was missing from root pom dependencyManagement — added
-- MicroProfile GraphQL API 2.0 (`org.eclipse.microprofile.graphql`) provides @GraphQLApi/@Query/@Name/@DefaultValue — not managed by Quarkus BOM, version added to root dependencyManagement
+### Key decisions
+
+- **Catalogue-based competition fallback**: when CAPS topology is unavailable, drives compete if their formation memories share `catalogue-entry-id` values. This is semantically correct — catalogue entries represent experience-behaviour patterns, so shared entries mean overlapping experiential territory.
+- **Multi-channel prompts**: each channel (somatic, attentional, temporal, action tendency) should contribute something that distinguishes THIS pull from any other. The "somatic only" constraint was the direct cause of the B0 → pipeline regression (3.96 → 3.55).
 
 ## Immediate Next Step
 
-**Batch 3: Layer 3 — Temporal Observation (3 tasks remaining)**
-1. Task 15: `CognitionDiffService` + `GraphDiffResult` — structured diff with source filtering, wildcard support, default from=lastConsolidationTime
-2. Task 16: `CognitionTraceService` + `EntityTrace` + `TraceEvent` — entity audit trail with bidirectional merge/supersession tracing
-3. Task 17: Add diff() + trace() @Query methods to CognitionResolver, full build verification, CLAUDE.md update
-
-All infrastructure is in place — Layer 3 tasks are pure query logic over the SnapshotStore SPI. Should be straightforward.
+Run a full scenario with GENERIC profile to measure whether the pipeline regression is recovered. Compare against B0 baseline (3.96 mean). The cognitive-dump endpoint shows what each character sees — verify that generated descriptions contain channel-specific discriminating vocabulary.
 
 ## References
 
-- Spec: `wksp/specs/issue-322-cognitive-node-types/issue-333-cognitive-observability/2026-09-14-cognitive-observability-design.md`
-- Decisions: `wksp/specs/issue-322-cognitive-node-types/issue-333-cognitive-observability/decisions.md` (D1-D10, 4 revised from review)
-- Plan: `wksp/plans/2026-09-14-cognitive-observability.md`
-- Open issues: #333 (cognitive observability epic — in progress)
+- Epic: casehubio/examples#122 (Batch 1)
+- Branch: `issue-115-weighted-situation-vocabulary` (neocortex)
+- Branch: `issue-115-drive-expression-gap` (examples)
