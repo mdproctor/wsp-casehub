@@ -1423,3 +1423,118 @@ The authoritative mapping. Each formation memory → catalogue entry, with the m
 | FormativeExperience | `neocortex/memory-api/src/main/java/.../experience/FormativeExperience.java` |
 | classify_emotions.py | `examples/wacky-manor/docs/eval/classify_emotions.py` |
 | Blog entries | `wsp-casehub/blog/2026-10-13-mdp01-when-your-characters-stop.md`, `2026-10-13-mdp02-from-authoring-to-architecture.md` |
+
+---
+
+## 14. Phase 1/2 Implementation Results (2026-10-14)
+
+### 14.1 What Was Built
+
+**Phase 1 — Consolidation (DriveDescriptionGenerationPhase):**
+- `@Priority(21)` consolidation phase in `neocortex/mindmap-intelligence`
+- Generates somatic drive descriptions via LLM from formation memories
+- Stored as `DriveDescriptionGenerated` trait nodes in MindMapStore
+- Generic fallback for drives without serving memories
+- Somatic discrimination criteria for competing drive pairs (reads `DriveCompetitionInferred`, generates discrimination text via LLM)
+
+**Phase 2 — Render time (CharacterCognition):**
+- `renderInternalState()` reads `DriveDescriptionGenerated` artifacts, falls back to social-config
+- `SituationClassifier` classifies current event → INPUT activations
+- Compares against `DriveProfileInferred` artifacts for overlap
+- Surfaces relevant formation memories ("A memory surfaces — ...")
+- Conway SMS working-self mechanism: situation modulates which memories are accessible
+
+**Wiring fixes:**
+- `CharacterAgentLoop` (scripted mode) now uses `CharacterCognition.renderCognitiveSections()` — was bypassing cognitive sections entirely
+- `PlaybookOrchestrator.runScripted()` passes cognitions to character loops
+- Significance accumulator suspended during formation memory seeding
+- `maxPerPass` increased to 50 (was 20, truncating PP's memories)
+
+### 14.2 Bugs Found and Fixed
+
+| Bug | Root cause | Impact | Fix |
+|---|---|---|---|
+| Phase ordering random | CDI proxy classes don't inherit `@Priority` — `getClass().getAnnotation()` returns null | DriveDescriptionGeneration ran before ExperienceConsolidation → 0 formative memories | Walk superclass chain for annotation |
+| maxPerPass=20 truncation | 26 formation memories, only 20 processed per pass | PP's 5 memories left for second tick → PP had no generated descriptions | Set to 50 in application.properties |
+| Scripted mode bypass | `CharacterAgentLoop.run()` built observations without cognitive sections | Phase 1/2 descriptions invisible in scripted mode | Wire `CharacterCognition` into `CharacterAgentLoop` |
+| Significance race | Accumulator fired `consolidateNow` during seeding, grabbing lock before all characters seeded | `PlaybookOrchestrator.consolidateNow` skipped | Suspend/resume accumulator around seeding |
+| discoverTenants security | `ConsolidationScheduler.tick()` called `discoverTenants()` requiring cross-tenant admin | Periodic consolidation ticks failed | Track known tenants from `consolidateNow` calls |
+| Mutiny timeout broken | `.await().atMost()` on virtual threads didn't propagate timeout exceptions | Character calls hung forever with no retry | Replace with `Thread.ofVirtual` + `Thread.join(Duration)` |
+
+### 14.3 Micro Test Results
+
+| Test | Hand-authored (B0) | Phase 1 generated | Full pipeline (generated + discrimination + priming) |
+|---|---|---|---|
+| PP gallantry door | 3/5 | 4-5/5 | **5/5** |
+| PP gallantry dinner | 3/5 | 4-5/5 | **5/5** |
+| HC gloating | 5/5 | 5/5 | 5/5 |
+| DD gloating | 5/5 | 5/5 | 5/5 |
+| Pen harmony | 5/5 | 5/5 | 5/5 |
+| Pen adventure | 5/5 | 5/5 | 5/5 |
+
+### 14.4 Full Scenario Results vs B0 Baseline
+
+**B0 mean: 3.96. Verified pipeline mean: 3.55. Delta: -0.41 (regression).**
+
+| Drive | B0 | Pipeline | Delta | Status |
+|---|---|---|---|---|
+| HC scheming | 4.82 | 4.95 | +0.13 | Above B0 |
+| HC self-preservation | 2.53 | 3.79 | +1.26 | Well above B0 |
+| PP protection | 3.46 | 3.39 | -0.07 | At B0 |
+| AHM protection | 4.63 | 4.90 | +0.27 | Above B0 |
+| AHM suspicion | 3.61 | 4.46 | +0.85 | Above B0 |
+| Pen curiosity | 4.30 | 4.49 | +0.19 | Above B0 |
+| HC gloating | 3.97 | 2.16 | -1.81 | **Collapsed** |
+| PP gallantry | 4.50 | 2.93 | -1.57 | **Collapsed** |
+| DD gloating | 3.50 | 2.56 | -0.94 | Below B0 |
+
+### 14.5 Root Cause of Regression: Somatic-Only Channel
+
+The generation prompt says "somatic only, no behavioral instructions." This produces descriptions that:
+1. Share vocabulary across competing drives (chest warmth, hand tension, shoulder squaring)
+2. Cannot discriminate between gallantry and proving-worth (both produce heat + expansion)
+3. Lose the non-somatic channels that B0 hand-authored text carried
+
+**B0 hand-authored descriptions used multiple expression channels:**
+- Gallantry: somatic (warmth) + **attentional** ("the feeling needs an audience") + **meaning** ("something in the way it happens")
+- Proving-worth: somatic (tension) + **temporal** ("doesn't release until you see it work") + **contrast** ("not the gesture, the result")
+- Protection: **attentional narrowing** ("You notice broken things before beautiful ones")
+
+**The generation prompt strips channels 2-4.** The somatic channel alone doesn't differentiate.
+
+### 14.6 Literature: Expression Channels Beyond Somatic
+
+| Channel | Literature | Example | When |
+|---|---|---|---|
+| Interoceptive/somatic | Barrett (2017), Damasio (1994) | "warmth in your chest" | High-arousal drives |
+| Action readiness | Frijda (1986) | "your hands are already there" | Approach-oriented drives |
+| Attentional narrowing | Easterbrook (1959), Fredrickson (2001) | "the edges of the room disappear" | Drives that change perception |
+| Temporal markers | Barrett (2017) prediction | "the warmth came before you noticed the problem" | Distinguishing competing drives |
+
+See issue #121 for full proposal.
+
+### 14.7 Diagnostic Infrastructure Built
+
+| Tool | Purpose | Time |
+|---|---|---|
+| `/manor/cognitive-dump/{id}` | Live inspection of what a character sees | 1s |
+| `ConsolidationPipelinePropagationTest` | Phases produce expected artifacts in order | 2.5s |
+| `PipelineToRenderingTest` | Rendered observation contains right signals | 4.7s |
+| `ScriptedModeObservationTest` | Scripted mode includes cognitive sections | 4.4s |
+| `DriveDescriptionDiscriminationTest` | Descriptions discriminate between drives | <1s |
+| `SomaticDescriptionEvalTest` | LLM quality of generated descriptions | ~5min (llm-eval) |
+
+### 14.8 File Locations (New)
+
+| What | Path |
+|---|---|
+| DriveDescriptionGenerationPhase | `neocortex/mindmap-intelligence/src/main/java/.../consolidation/DriveDescriptionGenerationPhase.java` |
+| DriveDescriptionGenerationPhaseTest | `neocortex/mindmap-intelligence/src/test/java/.../consolidation/DriveDescriptionGenerationPhaseTest.java` |
+| ConsolidationPipelinePropagationTest | `neocortex/mindmap-intelligence/src/test/java/.../consolidation/ConsolidationPipelinePropagationTest.java` |
+| ConsolidationPipelineOrderTest | `neocortex/mindmap-intelligence/src/test/java/.../consolidation/ConsolidationPipelineOrderTest.java` |
+| PipelineToRenderingTest | `examples/wacky-manor/src/test/java/.../agent/PipelineToRenderingTest.java` |
+| ScriptedModeObservationTest | `examples/wacky-manor/src/test/java/.../agent/ScriptedModeObservationTest.java` |
+| DriveDescriptionDiscriminationTest | `examples/wacky-manor/src/test/java/.../agent/DriveDescriptionDiscriminationTest.java` |
+| CognitiveDumpResource | `examples/wacky-manor/src/main/java/.../web/CognitiveDumpResource.java` |
+| SomaticDescriptionEvalTest | `examples/wacky-manor/src/test/java/.../experiment/SomaticDescriptionEvalTest.java` |
+| Phase 1 verified run transcript | `examples/wacky-manor/docs/eval/phase1-verified-run-2026-10-14/transcript.json` |
