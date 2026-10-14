@@ -40,9 +40,9 @@ All three layers and drive competition detection are complete. See §12.1 for im
 
 ### What's Next
 
-1. **Full scenario validation** (step 3b) — install neocortex, run GENERIC scenario, classify, compare to P0 (3.72) and B0 (3.96)
-2. **Inference-based drive differentiation** (§10.10.4) — during consolidation, classify drive descriptions → detect overlap → derive grounded differentiation text from formation memories
-3. **Literature review** — Barrett (emotion differentiation), Kashdan (unpacking emotion differentiation), Semerari (metacognition assessment)
+1. **Literature review** — Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment. Do this BEFORE implementing — the literature may shape the design.
+2. **Inference-based drive differentiation** (§10.10.4) — during consolidation, classify drive descriptions → detect overlap → derive grounded differentiation text from formation memories. Replaces generic preamble with character-specific, memory-grounded guidance.
+3. **Full scenario validation** (step 3b) — AFTER inference system is built. One run against the final form. Compare to P0 (3.72) and B0 (3.96).
 
 **Constraint:** All mechanisms must be literature-rooted, individual-specific, not hard-wired, and LLM-bias-aware (§8.5). Include redundant signals; prove redundancy empirically later — never assume it (§8.1b).
 

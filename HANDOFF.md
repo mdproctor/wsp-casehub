@@ -61,14 +61,14 @@ The note gives you operational context. The research doc gives you depth. Read t
 
 ## What Needs to Happen Next
 
-### 1. Full Scenario Validation (step 3b)
-Install neocortex with all changes, rebuild wacky-manor, run GENERIC scenario (~300 events), classify with `classify_emotions.py`. Compare to P0 (3.72) and B0 (3.96).
+### 1. Inference-Based Drive Differentiation (§10.10.4)
+During consolidation (sleep), classify drive descriptions through the vocabulary classifier → detect CAPS overlap → trace pathways through formation memories → derive grounded differentiation text. Replaces generic preamble instruction with character-specific, memory-grounded guidance. See §10.10.3-4 for architecture vision.
 
-### 2. Inference-Based Drive Differentiation (§10.10.4)
-During consolidation (sleep), classify drive descriptions through the vocabulary classifier → detect CAPS overlap → trace pathways through formation memories → derive grounded differentiation text. Replaces static D1 table with inference. See §10.10.3-4 for details.
+### 2. Literature Review
+Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment scale. These may provide operationalisation for inference-based drive differentiation. **Do this BEFORE implementing** — the literature may shape the design.
 
-### 3. Literature Review
-Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment scale. These may provide operationalisation for inference-based drive differentiation.
+### 3. Full Scenario Validation (step 3b)
+AFTER the inference system is built. No point running against a configuration we're about to change. Install neocortex, rebuild wacky-manor, run GENERIC scenario (~300 events), classify with `classify_emotions.py`. Compare to P0 (3.72) and B0 (3.96). One run against the final form.
 
 ### 4. Independent Tasks
 | Issue | What |

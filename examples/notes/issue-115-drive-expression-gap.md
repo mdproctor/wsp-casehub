@@ -56,10 +56,10 @@ Results saved: `wacky-manor/docs/eval/layer-b-eval-2026-10-14/`
 
 ## What's Next
 
-1. **Full scenario run** (step 3b) — install neocortex (Layers A+C+preamble), rebuild wacky-manor, run GENERIC scenario (~300 events), classify with `classify_emotions.py`, compare to P0 (3.72) and B0 (3.96)
-2. **Inference-based drive differentiation** — during consolidation, classify drive descriptions through vocabulary classifier → detect CAPS overlap → trace pathways through formation memories → derive grounded differentiation text
-3. **Literature review** — Barrett, Kashdan, Semerari on emotion differentiation / metacognitive monitoring
-4. **Blog** — Part 3 written and committed. Consider dedicated article on drive competition if inference system works.
+1. **Inference-based drive differentiation** (§10.10.4) — during consolidation, classify drive descriptions through vocabulary classifier → detect CAPS overlap → trace pathways through formation memories → derive grounded differentiation text. This replaces the generic preamble instruction with character-specific, memory-grounded guidance.
+2. **Literature review** — Barrett (2017) emotion differentiation, Kashdan et al. (2015) unpacking emotion differentiation, Semerari et al. (2003) metacognition assessment scale. These may provide the operationalisation.
+3. **Full scenario run** (step 3b) — AFTER inference system is built. No point validating against a configuration we're about to change. One run against the final form.
+4. **Blog** — Part 3 written and committed. Dedicated article on drive competition once inference system is validated.
 
 ## What NOT to Re-Derive
 
