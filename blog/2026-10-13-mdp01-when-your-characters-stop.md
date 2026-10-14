@@ -9,6 +9,8 @@ tags: [cognitive-architecture, personality-emergence, CAPS, formation-memories, 
 series: issue-115-drive-expression-gap
 ---
 
+*Drive Expression Gap — Part 1 of 3 ([Part 2](2026-10-13-mdp02-from-authoring-to-architecture.md) · [Part 3](2026-10-14-mdp01-when-drives-compete.md))*
+
 # When Your AI Characters Stop Being Themselves
 
 We've been building a cognitive architecture where LLM-driven characters express personality through emergent behaviour — not through prescriptive instructions that tell them how to act. The personality model feeds drives, memories, and facet scores into a computational pipeline; the pipeline enriches the LLM's context; the LLM produces behaviour that feels psychologically authentic. When it works, a character's scheming or gallantry or loyalty emerges from who they are, not from what we told them to do.

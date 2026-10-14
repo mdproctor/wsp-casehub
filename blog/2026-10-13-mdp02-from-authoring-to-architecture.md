@@ -9,6 +9,8 @@ tags: [cognitive-architecture, autobiographical-memory, Conway-SMS, Singer-SDM, 
 series: issue-115-drive-expression-gap
 ---
 
+*Drive Expression Gap — Part 2 of 3 ([Part 1](2026-10-13-mdp01-when-your-characters-stop.md) · [Part 3](2026-10-14-mdp01-when-drives-compete.md))*
+
 # From Authoring to Architecture
 
 In Part 1, I described how tuning character data — somatic descriptions and formation memories — seemed to improve drive expression until we realised we were doing the pipeline's job for it. The fix isn't better data. It's a testable derivation chain where every step from personality traits to behaviour is independently verifiable.

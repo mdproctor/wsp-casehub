@@ -9,6 +9,8 @@ tags: [cognitive-architecture, CAPS, drive-competition, metacognition, emotion-d
 series: issue-115-drive-expression-gap
 ---
 
+*Drive Expression Gap — Part 3 of 3 ([Part 1](2026-10-13-mdp01-when-your-characters-stop.md) · [Part 2](2026-10-13-mdp02-from-authoring-to-architecture.md))*
+
 # When Drives Compete
 
 In Part 2, we designed the three-layer fix for the drive expression gap: weighted situation vocabulary (Layer A), memory-to-catalogue calibration (Layer B), and drive→CAPS activation injection (Layer C). The derivation chain had seven breaks. The design addressed all of them. This entry covers what happened when we built it — including a discovery that none of the design work anticipated.
