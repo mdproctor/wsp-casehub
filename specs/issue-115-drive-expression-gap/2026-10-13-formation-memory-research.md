@@ -766,25 +766,89 @@ This is Mischel's if-then profile: same situation, different personality substra
 
 This connects to the LLM bias concern (§8.5): extreme characters need extreme psychological substrate to overcome the LLM's tendency toward moderate, socially acceptable responses. A `self_worth` of -0.7 produces qualitatively different attractor patterns than -0.3 — the CAPS network doesn't just scale linearly. Extreme values create attractor basins that the LLM can't escape through generic sanitization.
 
-### 10.10 Drive Competition — Automatic Detection via CAPS Overlap
+### 10.10 Drive Competition and Metacognitive Monitoring
+
+#### 10.10.1 The Problem
 
 Two drives "compete" when they activate overlapping CAPS nodes. Shared activation pathways produce similar felt experience, causing the LLM to conflate them. The LLM defaults to the most concrete/actionable drive, suppressing the more abstract one.
 
-**Discovery:** PP's gallantry (0.9) was consistently suppressed by proving-worth (0.7) in situations that activated both (e.g., stuck door). The gallantry drive description was strong and distinct, the substrate was balanced — but the LLM still defaulted to competence-display over theatrical courtesy.
+**Discovery:** PP's gallantry (0.9) was consistently suppressed by proving-worth (0.7) in situations that activated both (e.g., stuck door). The gallantry drive description was strong and distinct, the substrate was balanced — but the LLM defaulted to competence-display over theatrical courtesy. Score: 2-3/5 gallantry on a 5-point emergence scale.
 
-**Root cause:** The two drives activate overlapping CAPS nodes through their co-existing drives (gallantry + protection share `other_safety`, `approach`). The overlap creates an activation pathway where the more concrete drive (proving-worth → fix the thing) wins over the more abstract one (gallantry → fix it with style).
+**Root cause:** The drives share CAPS activation space through co-existing drives (gallantry + protection share `other_safety`, `approach`). The overlap creates a pathway where the more concrete drive (proving-worth → fix the thing) wins over the more abstract one (gallantry → fix it with style).
 
-**Solution:** `DriveCompetitionDetector` (neocortex caps-api) automatically detects overlapping CAPS activations from the D1 mappings. When competition is detected, a universal meta-instruction is rendered: "Each of these pulls is a distinct felt state... attend to which quality is at the front... Notice which feeling is shaping your response, not just what you do."
+#### 10.10.2 What Was Tried
 
-**Properties:**
-- **Universal** — same instruction for any character, any drives
-- **Drive-driven** — triggered by CAPS node overlap, not declared by config author
-- **Pure meta-reasoning** — tells the LLM HOW to process competing signals, not WHAT to do
-- **Not always-on** — only appears when competition is actually detected (AHM's loyalty+suspicion don't overlap → no instruction)
+**Attempt 1 — Substrate tuning.** Rewrote PP's psychological substrate to include gallantry alongside proving-worth. Multiple iterations:
+- v1 (proving-worth only): 2/5 gallantry, 4/5 differentiation — substrate REINFORCED the wrong drive
+- v2 (gallantry added): 3/5 gallantry, 4/5 differentiation — recovered to P0 baseline
+- v3 (gallantry emphasised as "deeper"): 2/5, 3/5 — WORSE, confused the signal
+- **Conclusion:** Substrate tuning has a ceiling. You can't overcome signal imbalance by rewording the same layer.
 
-**Result:** PP gallantry improved from 3/5 (P0 baseline) to 4-5/5. Differentiation improved from 3/5 to 5/5. The LLM explicitly catches the proving-worth impulse and separates it from gallantry: "Not because she needs her chair pulled out. Because the moment deserves it."
+**Attempt 2 — Per-character drive-meta text.** Hand-authored meta-instruction specific to PP's gallantry/proving-worth distinction. Scored 5/5 on first run, 3/5 on second. Effective but:
+- Character-specific (not universal)
+- Hand-authored (prescriptive, not inferred)
+- References "she" and "how you showed up" — that's briefing, not meta-reasoning
 
-**Architecture principle:** When the cognitive architecture detects that rendered signals could confuse the LLM (overlapping activation pathways), it automatically provides meta-reasoning guidance. The guidance is about HOW to think, not WHAT to think. This is analogous to the CAPS settler's role in resolving competing activations — but operating at the prompt level rather than the network level.
+**Attempt 3 — Universal meta-instruction.** A single instruction added to the "What Pulls at You" section whenever competing drives were detected via D1 CAPS overlap: "Each of these pulls is a distinct felt state... attend to which quality is at the front." Scored 4-5/5 gallantry, 5/5 differentiation across runs. Properties:
+- Universal (same text for any character)
+- Not prescriptive (says HOW to process, not WHAT to feel)
+- Automatically triggered by CAPS overlap detection
+
+**Final form — Preamble-level instruction.** Moved to `CognitivePreambleGenerator` in neocortex cognition module. Always present when drives are enabled. No detection gate needed — the instruction is cheap and harmless when drives don't compete. Lives in the cognitive architecture, not the application layer.
+
+#### 10.10.3 Where This Stands
+
+**What works:** The preamble-level meta-instruction produces consistent improvement (P0 3/5 → 4-5/5 gallantry). It's universal, automatic, and lives in neocortex.
+
+**What's not yet right:**
+
+1. **The D1 mappings are static.** `DriveCompetitionDetector.DRIVE_CAPS_MAPPINGS` is a hard-coded table of 14 drive types. A new world with different drives (nurturing, perfectionism, evangelism) would have no mappings and no detection. The table is world-specific, which contradicts the universality principle.
+
+2. **The meta-instruction is generic.** "Attend to which quality of feeling is at the front" doesn't tell the character what those qualities ARE for their specific drives. A truly grounded system would derive the felt quality of each drive FROM the character's developmental history — formation memories, mediating substrate, CAPS topology state.
+
+3. **Detection should be inferred, not declared.** The drive descriptions already contain vocabulary that the situation classifier can process. During consolidation (sleep), the system could classify each drive's description through the same vocabulary classifier that processes events, discover which CAPS INPUT nodes activate, and detect overlap — without any static mapping table.
+
+#### 10.10.4 The Architecture Vision
+
+**Inference-based drive differentiation during consolidation:**
+
+1. During sleep, for each drive: classify its description through `RuleBasedSituationClassifier` → discover CAPS INPUT node activations
+2. Compare activations across drives → detect overlap pairs
+3. For each competing pair: trace the CAPS activation pathway through MEDIATING nodes → identify which formation memories calibrated those mediating nodes → derive a grounded felt-quality description for each drive
+4. Store the result: competing drives flagged, grounded differentiation text generated
+5. At render time: if competing drives are flagged, include the grounded differentiation text
+
+This produces descriptions that are:
+- **Not arbitrary** — derived from the character's actual CAPS pathways and developmental history
+- **Not declared** — inferred during consolidation, not hard-coded in config
+- **Universal** — works for any drive in any world, using the same vocabulary infrastructure
+- **Grounded** — each drive's felt quality is traced back to specific formation memories through specific mediating nodes
+
+Example for PP: instead of generic "attend to which quality," the system would derive: "One of these pulls traces through your competence — the bridge that held, the project that earned the grade. The other traces through your father's grace — the way he knelt, the way the stranger shook hands. They're both real. They're not the same."
+
+This is the inference system the cognitive architecture needs — but it requires the consolidation pipeline, the CAPS topology, and the formation-memory-to-catalogue-entry wiring (Layer B) all working together.
+
+#### 10.10.5 Literature
+
+The drive competition problem maps to established constructs:
+
+**Goal/motive conflict:**
+- Lewin, K. (1935). *A Dynamic Theory of Personality.* — Force field analysis: competing approach-approach conflicts where multiple positive goals activate. Resolution requires differentiating the QUALITY of each pull.
+- Carver, C.S. & Scheier, M.F. (1998). *On the Self-Regulation of Behavior.* — Self-regulatory feedback loops where multiple reference values (goals/drives) compete for behavioral control. Hierarchical priority resolution.
+
+**Metacognitive monitoring (most directly relevant):**
+- Dimaggio, G. & Lysaker, P.H. (2010). *Metacognition and Severe Adult Mental Disorders.* — Metacognitive monitoring as the ability to DISTINGUISH between different internal states. Deficits cause state confusion (can't tell anxiety from excitement). Our meta-instruction is training metacognitive monitoring.
+- Semerari, A., Carcione, A., Dimaggio, G. et al. (2003). "How to Evaluate Metacognitive Functioning in Psychotherapy? The Metacognition Assessment Scale and its Applications." — Metacognition Assessment Scale specifically measures the ability to differentiate between mental states. The "differentiation" subscale is directly relevant.
+- Wells, A. (2009). *Metacognitive Therapy for Anxiety and Depression.* — Metacognitive beliefs about internal states shape how they're processed. "Attending to which quality is at the front" is a metacognitive strategy.
+
+**CAPS-specific:**
+- Mischel, W. & Shoda, Y. (1995). "A Cognitive-Affective System Theory of Personality." — Multiple if-then units compete; settling dynamics resolve competition. But does not address subjective experience of the settling.
+- Read, S.J. & Miller, L.C. (2002). "Virtual Personalities: A Neural Network Model of Personality." — Parallel constraint satisfaction with multiple competing goals/needs. Network settles, but the EXPERIENCE of settling (which the LLM must simulate) requires attending to qualitative differences.
+
+**To investigate (not yet reviewed):**
+- Gross, J.J. (2015). "Emotion regulation: Current status and future prospects." — Emotion differentiation as a regulatory capacity. People who can differentiate emotions more finely have better regulation outcomes. Granularity of emotional distinction → granularity of behavioral response.
+- Barrett, L.F. (2017). *How Emotions Are Made.* — Constructed emotion theory: emotional granularity predicts psychological health. The ability to make fine-grained distinctions between similar-seeming emotional states (our exact problem) is a measurable skill.
+- Kashdan, T.B., Barrett, L.F. & McKnight, P.E. (2015). "Unpacking Emotion Differentiation." *Current Directions in Psychological Science.* — Direct review of emotion differentiation as a construct. Should contain operationalisation we can map to CAPS.
 
 ---
 
