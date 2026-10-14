@@ -2,53 +2,87 @@
 
 ## Last Session
 
-Fixed the drive discrimination pipeline end-to-end (neocortex #584, #585, #586) and established the strength-order rendering meta-rule (examples #122). Ran a full 900-event GENERIC scenario with pipeline-generated multi-channel descriptions. Results written up in `wacky-manor/docs/eval/multichannel-pipeline-2026-10-14/RESULTS.md`.
+Fixed the drive discrimination pipeline end-to-end and discovered the
+reactive-drive problem is about appraisal-based filtering, not
+description quality or rendering order.
 
 ### What was done
 
-1. **neocortex #584**: DriveProfileDerivationPhase graceful degradation — works without SituationClassifier/CapsTopology via catalogue-entry overlap
-2. **neocortex #586**: Cross-phase pipeline verification — Phase 1 → Phase 2 data flow confirmed end-to-end
-3. **neocortex #585**: Multi-channel prompts — Barrett (2017) 4-channel constructed emotion replaces somatic-only
-4. **Pipeline observability**: per-agent logging for profile derivation, competition detection, description generation timing
-5. **Strength-order rendering**: drives render by intensity regardless of activation status
-6. **Full scenario run**: 900 events, cognitive dumps for 5 primary characters, classified at 300 and 900 event windows
+**Pipeline fixes (neocortex #584, #585, #586):**
+- DriveProfileDerivationPhase graceful degradation without CAPS deps
+- Cross-phase pipeline verification (Phase 1 → Phase 2)
+- Multi-channel prompts (Barrett 4-channel constructed emotion)
+- Ambient+acute generation prompt (to be superseded by appraisal filtering)
+- Pipeline observability logging (per-phase timing, per-agent progress)
 
-### Key findings
+**Rendering fixes (examples #122):**
+- Drives render by intensity regardless of activation status
+- Formation memories render by salience (|pleasure| + arousal), not age
+- Norms already rendered by priority (verified with test)
+- All ordering rules unit tested
 
-- **Multi-channel descriptions work**: gallantry and proving-worth have genuinely different vocabulary across somatic, attentional, temporal, and action tendency channels
-- **Micro test 4/5**: PP gallantry door-stuck scores well in isolation (up from 2/5 pre-pipeline)
-- **Full scenario 2.50**: gap is not description quality but reactive drive opportunity — gallantry needs someone in trouble, but most events are proving-worth territory
-- **Score decay past 300**: all drives decay without a termination signal. Needs boredom/satiation mechanism
-- **Below-par pattern**: gallantry (2.50), gloating (2.37, 2.85), adventure (2.84) are all reactive drives. Proactive drives (scheming 5.0, curiosity 4.45) score well
+**Key finding — the reactive-drive problem:**
+- Reactive drives (gallantry, gloating, adventure) score 2.3-2.8 in full scenarios
+- Proactive drives (scheming, curiosity, proving-worth) score 4.0-5.0
+- Micro tests score 4/5 — descriptions are good enough
+- Root cause: drive descriptions rendered in EVERY event regardless of situational relevance. PP alone in the library reads gallantry text about "the person exposed" — irrelevant, LLM ignores it, scores 1
+- Ambient coloring was attempted (prompt asks for background+acute) but is the wrong fix
+- **Correct fix: appraisal-based drive filtering** — only render drives whose profile inputs overlap with the current situation's classifier activations
 
-### Meta-rule: strength-ordered rendering
+### Next Session: Appraisal-Based Drive Filtering
 
-Within any multi-item section of the cognitive observation, items must appear in strength/priority order. LLM primacy bias means position matters. Currently applied to drives. Should extend to beliefs, social rules.
+**The architecture already exists.** `selectSituationPrimedMemories` in
+CharacterCognition does exactly this for memories:
+1. SituationClassifier classifies current situation → CAPS input activations
+2. DriveProfileInferred links drives to CAPS inputs
+3. Overlap determines relevance
+
+Apply the same pattern to drive rendering:
+1. Classify the situation text
+2. Check which drive profiles overlap with situation activations
+3. Only render overlapping drives in "What Pulls at You"
+
+**Before implementing:** revert the ambient+acute prompt change (commit
+`cf3b0fa3` on neocortex). Appraisal filtering makes ambient coloring
+unnecessary — when a drive IS rendered, the acute multi-channel
+description is correct. When it's NOT rendered, no description is better
+than an irrelevant one.
+
+**TDD approach:**
+1. RED: test that gallantry is NOT rendered when PP is alone (no social inputs in situation)
+2. RED: test that gallantry IS rendered when Clara is present (acceptance/sharing inputs match)
+3. GREEN: implement appraisal filtering in `renderInternalState`
+4. Verify: run PP gallantry micro tests, then fresh 300-event scenario
+
+**Meta-rule (established this session):** within any multi-item
+observation section, items render in strength/priority/salience order.
+Unit tested for drives, norms, formation memories.
 
 ## Branch State
 
-- `issue-115-drive-expression-gap` (examples) — active, 24 commits ahead of main
-- `issue-115-weighted-situation-vocabulary` (neocortex) — active, 4 new commits this session
-- Paused branch stack has this examples branch
+- `issue-115-drive-expression-gap` (examples) — active, 26 commits ahead of main
+- `issue-115-weighted-situation-vocabulary` (neocortex) — active, 6 commits this session
+- Paused branch stack: `issue-115-drive-expression-gap`
 
 ## Neocortex Commits This Session
 
 All on branch `issue-115-weighted-situation-vocabulary`:
 - `33235928` fix(#584): DriveProfileDerivationPhase works without SituationClassifier/CapsTopology
 - `9c7ddea6` fix(#585,#586): multi-channel drive discrimination + cross-phase pipeline verification
-- `dd65ac70` wip: add pipeline observability logging — phase timing + per-agent progress
+- `dd65ac70` wip: pipeline observability logging — phase timing
 - `8b519bbb` wip: pipeline observability — per-agent profile/competition/description logging
+- `cf3b0fa3` fix(#585): ambient+acute prompt — **revert before implementing appraisal filtering**
 
-## Immediate Next Steps
+## Examples Commits This Session
 
-1. **Strength-order all sections** — apply meta-rule to beliefs and social rules
-2. **Re-run with strength-order fix** — need fresh 300-event comparison (fix was applied after this run)
-3. **Scenario termination signal** — boredom/satiation from neocortex to stop at ~300 events
-4. **Reactive drive scenarios** — ensure scripted playbook includes enough trigger situations for gallantry, gloating, adventure
+On branch `issue-115-drive-expression-gap`:
+- `51f784f` data(#122): multichannel pipeline run — 900 events, cognitive dumps
+- `d55c3ae` fix(#122): render drives in strength order, not activation order
+- `4049c2c` docs(#122): multichannel pipeline run results
+- `0fd3be1` fix(#122): formation memories render by salience, not age
 
-## Baseline Transcripts — DO NOT DELETE
+## Eval Data
 
-See eval directory for all baseline transcripts. Key comparison:
-- B0 baseline: mean 3.96
-- This run @300: mean 3.68
-- This run @900: mean 3.14 (decay)
+- `wacky-manor/docs/eval/multichannel-pipeline-2026-10-14/` — 900-event run, cognitive dumps, RESULTS.md
+- Classification @300 events: mean 3.68 (vs B0 3.96)
+- PP gallantry: 2.50 @300 events, 4/5 in micro test
