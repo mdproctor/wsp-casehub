@@ -77,3 +77,4 @@ write_landed=done
 _blocking_fail=yes
 _blocking_detail=landed_completeness: repos not in .landed: blocks, neocortex; canonical_sync_blocks: no landed SHA for blocks; canonical_sync_neocortex: no landed SHA for neocortex
 elevate_plan=done
+push_and_stack=done
