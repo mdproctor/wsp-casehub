@@ -82,6 +82,11 @@ Deferred.
 - `issue-115-weighted-situation-vocabulary` (neocortex) — active, revert + public constructor
 - Paused branch stack: `issue-115-drive-expression-gap`
 
+## Neocortex Commits This Session
+
+On branch `issue-115-weighted-situation-vocabulary`:
+- `c121607e` fix(#587): disable RuleBasedSituationClassifier — keyword matching produces wrong drive profiles
+
 ## Examples Commits This Session
 
 On branch `issue-115-drive-expression-gap`:
@@ -89,6 +94,7 @@ On branch `issue-115-drive-expression-gap`:
 - `3585f85` test(#122): integration test — real LlmSituationClassifier against scenario text
 - `b410471` data(#122): relevance eval results + integration test revision
 - `81efe3c` docs(#122): Phase 8 findings — relevance eval results, Principles 53-54
+- `266331f` fix(#122): wire LlmSituationClassifier as CDI SituationClassifier
 
 ## Eval Data
 
