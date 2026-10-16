@@ -2,187 +2,101 @@
 
 ## Last Session
 
-Deep investigation into appraisal filtering pipeline. Found and fixed
-multiple bugs. Built test harness for compositional drive testing.
-Blocked on AgentProvider model routing — classifier was using Opus
-instead of Haiku for simple JSON classification.
+Fixed the drive expression pipeline end-to-end: model routing,
+appraisal filtering, and profile derivation. Arrived at a compositional
+solution through five iterations.
 
 ### What was done
 
-**Eval methodology fix (Principle 53):**
-- `classify_emotions.py` two-part relevance mode (default)
-- Re-classified 215 events: PP gallantry quality 2.65 at 72% trigger
-- Proactive drives (scheming, curiosity) 100% trigger — always-on confirmed
+**Model routing (platform repo):**
+- `ClaudeAgentClient.buildCliOptions()` now passes `config.model()` to CLI
+- `RoutingAgentProvider.resolve()` passes unrecognized model strings to default backend
+- `withModel("haiku")` now reaches the Claude CLI as `--model haiku`
 
-**Root cause chain (neocortex#589):**
-1. Rule-based classifier keyword-matches narrative memory text → wrong
-   profile inputs (gallantry got `dominance:0.80` from "bullied")
-2. Disabled rule-based, wired LLM classifier for consolidation
-3. LLM classifier was accidentally using Opus (no model specified in
-   AgentSessionConfig) → 20-30s per call, frequent timeouts
-4. Added fail-fast (ClassificationException) + resumable derivation
-5. Added drive description classification alongside memories
-6. Added relationship metadata to classify calls
-7. Fixed model to haiku — but AgentProvider isn't routing it correctly
+**Appraisal filter redesign (examples repo):**
+- Binary overlap (`> 0`) → relative overlap (`overlap/profileTotal >= 0.15`)
+- `context: social` field added then REMOVED — replaced by topology-inferred gating
+- `resolveAdaptedDrives()` preserves context/triggers from original config
 
-**Pipeline test harness (DriveProfilePipelineTest):**
-- Parameterized: seed all characters once, run scenarios as data rows
-- Tests full chain: seed → derive profiles → classify situation → filter → assert
-- 5 PP gallantry scenarios defined (social, solo, mixed, danger)
-- Currently blocked by classifier timeouts — model routing needs investigation
+**Discriminative profile derivation (neocortex repo):**
+- `DriveProfileDerivationPhase.deriveProfiles()` passes discrimination metadata
+- Classifier sees other drives as contrast: "return features distinctive to
+  this drive, not shared with the others"
+- First attempt: gallantry narrowed 7→5 nodes, acceptance became top node,
+  but physical_threat and competence_recognition leaked through
 
-**Reproducer tests (SituationClassifierIntegrationTest):**
-- Real scenario event text classification
-- Fix candidate comparison (richer text vs metadata vs threshold)
-- Metadata with relationship context doubles confidence (0.30→0.50)
+**Test harness:**
+- `DriveRenderingUnitTest` — 13-scenario cross-matrix, 3 characters,
+  solo/social/competing-signals, 0.2s. Fixed profiles, mock classifiers.
+- `DriveProfilePipelineTest` — real LLM derivation + classification,
+  PP + HC, ~10min. Scoped to tested agents only.
+- `ClassifierModelComparisonTest` — diagnostic: haiku vs opus activations
 
-**Key unknown: which model was used for previous baselines?**
-- B0: no classifier
-- LLM classifier runs: accidentally Opus (not Haiku as assumed)
-- Python eval: explicitly Haiku via Vertex
-- This means scenario run results and eval results used DIFFERENT models
+**Documentation:**
+- Principles 59-64 in CHARACTER-EMERGENCE-FINDINGS.md
+- Blog: "Why Every Drive Looked the Same (and What Fixed It)"
 
-### Current Failure to Reproduce
+### Current State
 
-**Test:** `DriveProfilePipelineTest` (parameterized pipeline harness)
-**Run:** `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pllm-eval -Dtest="DriveProfilePipelineTest" -s .mvn/slot-settings.xml`
-**What happens:** `ClassificationException` during `@BeforeAll` profile derivation. The `LlmSituationClassifier` times out on formation memory classification. 3 retry attempts all fail.
-**Root cause:** `AgentSessionConfig.withModel("haiku")` is not routing to Haiku. The CLI still uses Opus (confirmed by stderr: "Opus 5.5 not available — using Opus 4.6"). Opus takes 20-30s per classification call; the 30s timeout is too tight.
+**Architecture proven, prompt needs iteration.**
 
-**The deeper failure we haven't reproduced as a red test:**
-In the full scenario run (run4, `/tmp/wacky-manor-run4.log` if server still running), gallantry was filtered in 83% of PP events. The dominant situation activation was `modeling_observed:0.70` — the classifier returns this for almost every social interaction event. Gallantry's profile doesn't include `modeling_observed`, so no overlap, gallantry filtered.
+Unit test matrix: 13/13 pass with discriminative profiles (hand-curated
+to represent what good derivation output looks like).
 
-We wrote tests for this (`SituationClassifierIntegrationTest` reproducer scenarios, `DriveProfilePipelineTest`) but they passed because they ran separate LLM derivation runs that produced different (better) profile inputs than the scenario. **The tests don't reproduce the actual failure because profile derivation is non-deterministic across LLM runs.**
+Pipeline test: 4/8 pass with LLM-derived discriminative profiles.
+The discrimination metadata improved output but didn't fully constrain it.
+Gallantry still gets physical_threat:0.850 and competence_recognition:0.750
+alongside the correct acceptance:0.800.
 
-**To make progress, the next session must:**
-1. Determine what model string routes to Haiku through the AgentProvider. Check `ClaudeAgentProvider` or `BackendInstanceCoordinator` in the platform repo. The classifier is in `neocortex/caps-llm-classifier/.../LlmSituationClassifier.java` line 78.
-2. Once Haiku works: run `DriveProfilePipelineTest` — it should pass reliably (Haiku is fast, no timeouts).
-3. Then check: does the test FAIL if you revert the metadata fix (`buildSituationMetadata` in `CharacterCognition`)? If not, the test doesn't cover the bug.
-4. Separately: consider whether LLM non-determinism in profile derivation means the pipeline needs Ollama (deterministic, local, fast) rather than an API-based model.
+### Immediate Next Step
 
-**Key files:**
-- `neocortex/caps-llm-classifier/.../LlmSituationClassifier.java` — classifier, model selection (line 78)
-- `examples/wacky-manor/.../CharacterCognition.java` — `appraisalFilterDrives`, `buildSituationMetadata`
-- `examples/wacky-manor/.../DriveProfilePipelineTest.java` — parameterized test harness
-- `examples/wacky-manor/.../SituationClassifierIntegrationTest.java` — reproducer + fix candidate tests
-- `neocortex/mindmap-intelligence/.../DriveProfileDerivationPhase.java` — profile derivation with description classification
-- `examples/wacky-manor/.../CapsProducer.java` — CDI bean producing LlmSituationClassifier
+Iterate on the discriminative derivation prompt in neocortex
+`DriveProfileDerivationPhase.buildDiscriminationMetadata()`. Options:
 
-## Branch State
+1. **Constrain output count** — "classify into AT MOST 4-5 input nodes"
+2. **Provide explicit contrast** — "competence_recognition is NOT
+   distinctive to gallantry because proving-worth also has it"
+3. **Two-pass derivation** — first pass gets raw profile, second pass
+   prunes shared nodes using IDF-style discrimination
 
-- `issue-115-drive-expression-gap` (examples) — active
-- `issue-115-weighted-situation-vocabulary` (neocortex) — active
+Test with `DriveProfilePipelineTest` (PP + HC, ~10min). Target: 8/8.
 
-## Neocortex Commits This Session
+### What NOT to do
 
-On branch `issue-115-weighted-situation-vocabulary`:
-- `c121607e` fix(#589): disable RuleBasedSituationClassifier
-- `65bd9d08` chore(#589): label commit
-- `2ccc7f8b` fix(#589): fail fast on classification timeout
-- `3e63bfba` fix(#589): resumable drive profile derivation
-- `934897f1` feat(#589): classify drive description alongside memories
-- `8cdcb5d5` fix(#589): make DriveProfileDerivationPhase constructor public
-- `cbd814c9` fix(#589): use haiku model for classification
-
-## Last Session
-
-Fixed the eval methodology — two-part relevance gating separates drive
-quality from trigger frequency. Ran the integration test that exercises
-the REAL LlmSituationClassifier against scenario text.
-
-### What was done
-
-**Eval methodology fix (Principle 53):**
-- `classify_emotions.py` updated with two modes: `flat` (original) and
-  `relevance` (new default). Relevance mode asks: "Is this drive
-  relevant to this situation? If yes, score 1-5."
-- Reports quality-when-triggered and trigger-rate as independent metrics
-- Re-classified 215 events from the LLM classifier transcript
-
-**Relevance eval results (key numbers):**
-- PP gallantry: quality 2.65 at 72% trigger rate (B0 was 4.50 via contamination)
-- HC scheming: quality 4.70 at 100% trigger rate (always-on proactive drive)
-- HC gloating: quality 2.50 at 28% trigger rate (genuinely reactive)
-- Pen curiosity: quality 4.55 at 100% trigger rate (always-on)
-- Pen adventure: quality 2.93 at 71% trigger rate (situational)
-
-**Integration test — SituationClassifierIntegrationTest (7/7 pass):**
-- Exercises REAL `LlmSituationClassifier` with real `CapsTopology`
-- Covers: social warmth, physical struggle, competence, investigation,
-  competition, neutral, and cross-scenario differentiation
-- Retry logic for LLM non-determinism (up to 3 attempts for empty results)
-
-**Design principles established (Principles 53-54):**
-- #53: Eval must use two-part relevance gating before scoring expression
-- #54: Classifier uses subject's experiential perspective, not observer's
-  appraisal — DriveProfileInferred inputs must match this perspective
-
-**Integration test finding (Principle 54):**
-The classifier classifies from the SUBJECT's experiential perspective:
-- "Clara struggling with door" → `powerlessness/failure/physical_threat`
-  (Clara's experience)
-- "Clara welcomes you warmly" → `acceptance/secure_attachment`
-  (social warmth — the gallantry territory)
-This means gallantry renders only in genuinely warm social interactions,
-not in physical distress scenarios. Protection renders for distress.
-The distinction is architecturally correct but DriveProfileInferred
-inputs must be structured to match the classifier's perspective.
-
-### What was NOT done
-
-**Priority 2 from previous session** — filter observability correlation
-(run a short scenario, correlate `[appraisal-filter]` log lines with
-per-event eval scores). Not attempted this session — the relevance eval
-already provides the honest metric. This remains useful for debugging
-false negatives but is no longer the critical path.
-
-**Ollama/Gemma exploration** — local classification for latency reduction.
-Deferred.
-
-### Next Session
-
-1. **Address the gallantry quality gap** — quality 2.65 when triggered
-   is below the 3.0 "clearly present" threshold. The issue isn't trigger
-   frequency (fixed by relevance eval) but expression quality even in
-   relevant situations. Investigate: are the multi-channel descriptions
-   too abstract? Does the drive intensity (0.9) translate to strong
-   expression?
-
-2. **Consider filter observability correlation** — run a short scenario,
-   capture `[appraisal-filter]` log lines, cross-reference with relevance
-   eval scores. Confirm rendered events score 3+ and filtered events
-   would have scored 1-2. If a rendered event scores 1, the description
-   is the problem. If a filtered event would have scored 3+, the filter
-   is too aggressive.
-
-3. **Establish BASELINE1** — the four regressions from L1 emotional echo
-   (PP protection -1.13, DD gloating -0.48, DD recognition -0.37,
-   Pen social-harmony -0.33) still need recovery. Richer drive
-   descriptions, intensity tuning, or selective tendency restoration.
+- Don't re-add `context: social` as an authored field — social gating
+  should be inferred from profile category concentration
+- Don't add authored triggers — the system should be fully emergent
+- Don't run all 17 characters in the pipeline test — scope to tested agents
 
 ## Branch State
 
-- `issue-115-drive-expression-gap` (examples) — active, ~40 commits ahead of main
-- `issue-115-weighted-situation-vocabulary` (neocortex) — active, revert + public constructor
-- Paused branch stack: `issue-115-drive-expression-gap`
+- `issue-115-drive-expression-gap` (examples) — active, 12 commits this session
+- `issue-115-weighted-situation-vocabulary` (neocortex) — active, 1 commit this session
+- `fix/claude-agent-model-passthrough` (platform) — active, 3 commits
 
-## Neocortex Commits This Session
+## Key Files
 
-On branch `issue-115-weighted-situation-vocabulary`:
-- `c121607e` fix(#587): disable RuleBasedSituationClassifier — keyword matching produces wrong drive profiles
+- `examples/wacky-manor/.../DriveRenderingUnitTest.java` — fast cross-matrix
+- `examples/wacky-manor/.../DriveProfilePipelineTest.java` — full LLM pipeline
+- `examples/wacky-manor/.../CharacterCognition.java` — appraisalFilterDrives, computeInputOverlap
+- `neocortex/mindmap-intelligence/.../DriveProfileDerivationPhase.java` — discriminative derivation
+- `platform/agent-claude-core/.../ClaudeAgentClient.java` — model passthrough
+- `examples/wacky-manor/docs/CHARACTER-EMERGENCE-FINDINGS.md` — Principles 59-64
+- `wsp-casehub/blog/2026-10-16-mdp01-discriminative-drive-profiles.md` — diary entry
 
-## Examples Commits This Session
+## Platform Commits
 
-On branch `issue-115-drive-expression-gap`:
-- `98d32b6` feat(#122): two-part eval — relevance gate separates quality from trigger rate
-- `3585f85` test(#122): integration test — real LlmSituationClassifier against scenario text
-- `b410471` data(#122): relevance eval results + integration test revision
-- `81efe3c` docs(#122): Phase 8 findings — relevance eval results, Principles 53-54
-- `266331f` fix(#122): wire LlmSituationClassifier as CDI SituationClassifier
+On `fix/claude-agent-model-passthrough`:
+- `f69aed35` fix(#589): pass model from AgentSessionConfig to CLI options
+- `e3236da7` test(#589): haiku alias resolves to FAST-tier claude model
+- `531d4d31` fix(#589): pass unrecognized model strings to default backend
 
-## Eval Data
+## Neocortex Commits
 
-- `wacky-manor/docs/eval/appraisal-filtering-2026-10-15/` — 321-event run, rule-based classifier
-- `wacky-manor/docs/eval/llm-classifier-2026-10-15/` — 306-event run, LLM classifier
-- `wacky-manor/docs/eval/llm-classifier-2026-10-15/relevance-results.json` — relevance eval (215 events)
-- `wacky-manor/target/experiment-results/situation-classifier-*.json` — integration test results (not committed)
+On `issue-115-weighted-situation-vocabulary`:
+- `0c69e4df` fix(#589): discriminative profile derivation — contrast other drives
+
+## Stashed Work
+
+`authored-triggers-wip` stash in examples — the triggers approach that
+was abandoned in favour of emergent inference. Drop it.
