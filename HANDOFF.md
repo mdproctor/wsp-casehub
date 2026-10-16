@@ -2,6 +2,84 @@
 
 ## Last Session
 
+Deep investigation into appraisal filtering pipeline. Found and fixed
+multiple bugs. Built test harness for compositional drive testing.
+Blocked on AgentProvider model routing — classifier was using Opus
+instead of Haiku for simple JSON classification.
+
+### What was done
+
+**Eval methodology fix (Principle 53):**
+- `classify_emotions.py` two-part relevance mode (default)
+- Re-classified 215 events: PP gallantry quality 2.65 at 72% trigger
+- Proactive drives (scheming, curiosity) 100% trigger — always-on confirmed
+
+**Root cause chain (neocortex#589):**
+1. Rule-based classifier keyword-matches narrative memory text → wrong
+   profile inputs (gallantry got `dominance:0.80` from "bullied")
+2. Disabled rule-based, wired LLM classifier for consolidation
+3. LLM classifier was accidentally using Opus (no model specified in
+   AgentSessionConfig) → 20-30s per call, frequent timeouts
+4. Added fail-fast (ClassificationException) + resumable derivation
+5. Added drive description classification alongside memories
+6. Added relationship metadata to classify calls
+7. Fixed model to haiku — but AgentProvider isn't routing it correctly
+
+**Pipeline test harness (DriveProfilePipelineTest):**
+- Parameterized: seed all characters once, run scenarios as data rows
+- Tests full chain: seed → derive profiles → classify situation → filter → assert
+- 5 PP gallantry scenarios defined (social, solo, mixed, danger)
+- Currently blocked by classifier timeouts — model routing needs investigation
+
+**Reproducer tests (SituationClassifierIntegrationTest):**
+- Real scenario event text classification
+- Fix candidate comparison (richer text vs metadata vs threshold)
+- Metadata with relationship context doubles confidence (0.30→0.50)
+
+**Key unknown: which model was used for previous baselines?**
+- B0: no classifier
+- LLM classifier runs: accidentally Opus (not Haiku as assumed)
+- Python eval: explicitly Haiku via Vertex
+- This means scenario run results and eval results used DIFFERENT models
+
+### Next Session
+
+1. **Fix AgentProvider model routing** — "haiku" string not picked up.
+   Check what model strings the Claude CLI backend accepts. May need
+   `claude-haiku-5-5` or similar. Check `BackendInstanceCoordinator`
+   and `ClaudeAgentProvider` for model routing logic.
+
+2. **Get pipeline test green** — once model routing works, the
+   parameterized test should pass reliably with haiku (1-2s per call,
+   no timeouts). This is the gate for everything else.
+
+3. **Run compositional test suite** — extend scenarios for all
+   characters/drives. Work through failures one at a time.
+
+4. **Ollama exploration** — local model for classification. Eliminates
+   API dependency, sub-second, deterministic at temperature 0.
+
+5. **Record model in baselines** — add classifier model column to
+   the results tables in CHARACTER-EMERGENCE-FINDINGS.md.
+
+## Branch State
+
+- `issue-115-drive-expression-gap` (examples) — active
+- `issue-115-weighted-situation-vocabulary` (neocortex) — active
+
+## Neocortex Commits This Session
+
+On branch `issue-115-weighted-situation-vocabulary`:
+- `c121607e` fix(#589): disable RuleBasedSituationClassifier
+- `65bd9d08` chore(#589): label commit
+- `2ccc7f8b` fix(#589): fail fast on classification timeout
+- `3e63bfba` fix(#589): resumable drive profile derivation
+- `934897f1` feat(#589): classify drive description alongside memories
+- `8cdcb5d5` fix(#589): make DriveProfileDerivationPhase constructor public
+- `cbd814c9` fix(#589): use haiku model for classification
+
+## Last Session
+
 Fixed the eval methodology — two-part relevance gating separates drive
 quality from trigger frequency. Ran the integration test that exercises
 the REAL LlmSituationClassifier against scenario text.
