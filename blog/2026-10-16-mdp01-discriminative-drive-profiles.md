@@ -83,10 +83,18 @@ Gallantry at 0.000 in solo scenarios — not because a social gate blocked it, b
 
 The entire cross-matrix runs in 0.2 seconds. No LLM, no Quarkus boot. Fixed profiles, mock classifiers, deterministic assertions. The pipeline test with real LLM classification adds ~5 minutes — one LLM call per scenario, no profile derivation at runtime.
 
+## Pipeline validation — the gap that remains
+
+The discriminative prompt improved the LLM output. Gallantry's profile narrowed from seven nodes to five, and `acceptance:0.800` became the top node — the right signal in the right place. But `physical_threat:0.850` and `competence_recognition:0.750` survived. The LLM understood the intent but didn't fully constrain its output. Four of eight pipeline scenarios passed; four failed because generic nodes still leaked through.
+
+The unit test matrix with hand-curated discriminative profiles passes 13/13. The pipeline test with LLM-derived profiles passes 4/8. The gap is prompt engineering: the discrimination metadata nudges the LLM in the right direction but doesn't force the output to match the structure the filter needs. Constraining the output count ("at most 4-5 nodes") or providing explicit contrast examples ("acceptance is distinctive to gallantry; competence_recognition is not, because proving-worth also responds to it") are the next iterations.
+
+This is the derive-and-pin workflow in practice. Run the derivation. Inspect the profiles. Pin the ones that work. Iterate on the prompt for the ones that don't. The fast test matrix validates in 0.2 seconds; the pipeline test validates the full LLM chain when the prompt is ready.
+
 ## The question that changed the answer
 
 The difference between a kitchen-sink profile and a discriminative profile is one sentence in the classifier's metadata:
 
 > "Return only the situation features that are distinctive to this drive — features that would NOT equally activate the other drives."
 
-Classification asks "what's here?" Discrimination asks "what distinguishes this from that?" The profiles were broad because the question was broad. Narrow the question, narrow the profile. The LLM was always capable of discrimination — it just wasn't being asked.
+Classification asks "what's here?" Discrimination asks "what distinguishes this from that?" The profiles were broad because the question was broad. Narrow the question, narrow the profile. The LLM was capable of discrimination — it just wasn't being asked. The prompt got it 60% of the way. The remaining 40% is refining how strongly the discrimination constraint is expressed.
