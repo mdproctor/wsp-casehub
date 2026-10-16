@@ -42,25 +42,31 @@ instead of Haiku for simple JSON classification.
 - Python eval: explicitly Haiku via Vertex
 - This means scenario run results and eval results used DIFFERENT models
 
-### Next Session
+### Current Failure to Reproduce
 
-1. **Fix AgentProvider model routing** — "haiku" string not picked up.
-   Check what model strings the Claude CLI backend accepts. May need
-   `claude-haiku-5-5` or similar. Check `BackendInstanceCoordinator`
-   and `ClaudeAgentProvider` for model routing logic.
+**Test:** `DriveProfilePipelineTest` (parameterized pipeline harness)
+**Run:** `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pllm-eval -Dtest="DriveProfilePipelineTest" -s .mvn/slot-settings.xml`
+**What happens:** `ClassificationException` during `@BeforeAll` profile derivation. The `LlmSituationClassifier` times out on formation memory classification. 3 retry attempts all fail.
+**Root cause:** `AgentSessionConfig.withModel("haiku")` is not routing to Haiku. The CLI still uses Opus (confirmed by stderr: "Opus 5.5 not available — using Opus 4.6"). Opus takes 20-30s per classification call; the 30s timeout is too tight.
 
-2. **Get pipeline test green** — once model routing works, the
-   parameterized test should pass reliably with haiku (1-2s per call,
-   no timeouts). This is the gate for everything else.
+**The deeper failure we haven't reproduced as a red test:**
+In the full scenario run (run4, `/tmp/wacky-manor-run4.log` if server still running), gallantry was filtered in 83% of PP events. The dominant situation activation was `modeling_observed:0.70` — the classifier returns this for almost every social interaction event. Gallantry's profile doesn't include `modeling_observed`, so no overlap, gallantry filtered.
 
-3. **Run compositional test suite** — extend scenarios for all
-   characters/drives. Work through failures one at a time.
+We wrote tests for this (`SituationClassifierIntegrationTest` reproducer scenarios, `DriveProfilePipelineTest`) but they passed because they ran separate LLM derivation runs that produced different (better) profile inputs than the scenario. **The tests don't reproduce the actual failure because profile derivation is non-deterministic across LLM runs.**
 
-4. **Ollama exploration** — local model for classification. Eliminates
-   API dependency, sub-second, deterministic at temperature 0.
+**To make progress, the next session must:**
+1. Determine what model string routes to Haiku through the AgentProvider. Check `ClaudeAgentProvider` or `BackendInstanceCoordinator` in the platform repo. The classifier is in `neocortex/caps-llm-classifier/.../LlmSituationClassifier.java` line 78.
+2. Once Haiku works: run `DriveProfilePipelineTest` — it should pass reliably (Haiku is fast, no timeouts).
+3. Then check: does the test FAIL if you revert the metadata fix (`buildSituationMetadata` in `CharacterCognition`)? If not, the test doesn't cover the bug.
+4. Separately: consider whether LLM non-determinism in profile derivation means the pipeline needs Ollama (deterministic, local, fast) rather than an API-based model.
 
-5. **Record model in baselines** — add classifier model column to
-   the results tables in CHARACTER-EMERGENCE-FINDINGS.md.
+**Key files:**
+- `neocortex/caps-llm-classifier/.../LlmSituationClassifier.java` — classifier, model selection (line 78)
+- `examples/wacky-manor/.../CharacterCognition.java` — `appraisalFilterDrives`, `buildSituationMetadata`
+- `examples/wacky-manor/.../DriveProfilePipelineTest.java` — parameterized test harness
+- `examples/wacky-manor/.../SituationClassifierIntegrationTest.java` — reproducer + fix candidate tests
+- `neocortex/mindmap-intelligence/.../DriveProfileDerivationPhase.java` — profile derivation with description classification
+- `examples/wacky-manor/.../CapsProducer.java` — CDI bean producing LlmSituationClassifier
 
 ## Branch State
 
