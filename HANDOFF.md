@@ -1,83 +1,81 @@
-# Session Handover — issue-409-scenario-format
-
-**Branch:** `issue-409-scenario-format` (project + workspace)
-**Issue:** casehubio/parent#409 — Scenario format specification — YAML schema and semantics
-**Epic:** casehubio/parent#408 — Cross-platform Scenario Engine
+# HANDOFF — casehub-examples
 
 ## Last Session
 
-Brainstormed a v2 scenario format spec with GraphQL-first action model, ARIA-based
-UI automation, and distributed fragment execution. Wrote a full design spec, then ran
-a light design review that found 6 HIGH-priority issues — the spec was written without
-visibility into the pages repo implementation. **The spec needs to be rewritten from
-scratch — design the best architecture first, then propose how to get there.**
+**Landed on main:** `cfc6152` (#98) + `090d7c2` (#99)
 
-## Design Decisions (still valid — carry forward)
+### What was done
 
-These decisions were confirmed by the user and remain the design intent:
+1. Multi-repo rebase + .m2 rebuild (all 8 repos)
+2. Engine package rename fix (#98) — `engine.internal` → `engine.runtime` in CDI exclusions and test imports
+3. Old vs new briefing comparison runs
+4. Generic character ablation test (#99) — proves taxonomy drives behavior, not model priors
+5. Style-directive ablation — "lean into colloquialisms" beats prescribed catchphrases for 4/5 archetypes
 
-- **D1:** GraphQL is the canonical API surface for MCP tooling and scenario automation. REST remains alongside it for external integration. Every CaseHub service must expose GraphQL — enforced at build time.
-- **D2:** Three action types — GraphQL (server), ARIA (frontend), HTTP (third-party). No "delivery modes."
-- **D3:** Direct ARIA references (role + accessible name). No CSS selectors.
-- **D4:** Distributed execution — backend sends YAML script fragments to executors, batching as much as possible per executor boundary. Each executor runs its fragment locally.
-- **D5:** YAML scenarios submitted to execution server via GraphQL mutation.
+### Key findings
 
-## User Guardrails (MANDATORY — read before writing anything)
+- **Taxonomy is load-bearing.** Generic characters (no pop-culture refs) exhibit identical behavioral patterns to Wacky Races counterparts.
+- **Prescribe structure, not content.** Style-directive ("lean into Southern colloquialisms") produces richer voice than prescribed catchphrases.
+- **Exception: non-regional archetypes.** Theatrical villain didn't spontaneously generate an evil laugh — keep 1-2 prescribed anchors for archetypes without strong regional grounding.
 
-1. **Design the best architecture first** — do NOT constrain the spec by what code currently exists. The spec should propose the ideal format, execution model, and capabilities. Compactness matters — less verbose is better. The scope is the whole system (YAML format, execution model, dispatch protocol), not just the YAML syntax.
-2. **Do NOT read the v1 spec** (`parent/docs/platform/scenario-format.md`) — it will anchor you to the old delivery-mode model (rest/ui-form/simulated) which is superseded. The design decisions below already capture what was wrong with it.
-3. **Reconcile means clean up** — read the two implemented formats (A and B below) and the distributed executor protocol to understand what's running. "Reconcile" does not mean preserve everything — it means converge on one canonical format and **remove superseded parsers, specs, and dead code**. If Format A's parser is orphaned, the spec should say "delete it." Present findings to the user: what exists, what's live, what's dead, what the canonical format should be.
-4. **Distributed invocation model** — the coordinator sends YAML scripts to executors, not individual commands. It should batch as much as possible for each executor's boundary. The current implementation sends structured JSON `dispatch-sequence` messages over WebSocket — reconcile with the user's intent (YAML fragment distribution).
+## Baseline Transcripts — DO NOT DELETE
 
-## Existing Formats (read for reconciliation, not as constraints)
+These transcripts are the comparison baselines for the #97 iterative pare-back. Every future ablation run compares against these. They live in `wacky-manor/docs/eval/` on main:
 
-**Format A — early parser** (`backend/scenario/` module):
-Flat steps, ARIA shorthand inline, GraphQL via `delivery: graphql` + `domain` + `operation`.
-Parser: `ScenarioParser.java`, executor: `ScenarioExecutor.java`, dispatcher: `GraphQLDispatcher.java`.
-Test YAML: `backend/scenario/src/test/resources/scenarios/*.yaml`.
-**Possibly orphaned** — the distributed executor protocol (Format B) may have superseded
-this parser. Investigate whether anything still uses it or if it's dead code.
+| Transcript | Events | What it tests | Profile |
+|---|---|---|---|
+| `old-briefings-20261002/transcript.json` | 327 | Verbose briefings (pre-rewrite) — behavioral ceiling | BASELINE |
+| `new-briefings-20261002/transcript.json` | 333 | Directive-minimal (post-rewrite) — parity confirmation | BASELINE |
+| `generic-briefings-20261002/transcript.json` | 306 | Generic chars + prescribed catchphrases — taxonomy validation | GENERIC |
+| `generic-colloquial-20261002/transcript.json` | 310 | Generic chars + style-directive only — emergence validation | GENERIC |
+| `directive-minimal-20261002/partial-events.json` | 25 | Partial earlier run (kept for historical reference) | COMPOSITE |
 
-**Format B — distributed executor protocol** (spec for #418, production):
-Hierarchical (chapters → sections → steps → commands), `target` field for executor routing,
-`@ScenarioAction` CDI handlers on services, `dispatch-sequence` WebSocket messages.
-Spec: `pages/wksp/specs/issue-408-scenario-engine/2026-08-20-distributed-executor-protocol-design.md`
-Blog: `2026-08-21-mdp01-protocol-to-proof.md`, `2026-08-20-mdp02-distributed-executor-protocol.md`
-This is what's running in production.
+**How to run a comparison:** start quarkus:dev with the desired profile, POST `/manor/start`, poll `/manor/events`, save transcript alongside these baselines. Compare character voice distinctiveness and behavioral patterns.
 
-**Do NOT read:** `parent/docs/platform/scenario-format.md` (v1 spec — superseded, will anchor to old model).
+```bash
+# Run with GENERIC profile
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml quarkus:dev -s .mvn/slot-settings.xml -Dquarkus.http.port=8180 -Dmanor.scenario.profile=generic -Dmaven.test.skip=true
 
-**Platform GraphQL (for D1 context):**
-- `platform/graphql-generator/.../GraphQLResolverProcessor.java`
-- Annotations: `@McpDomain`, `@PlatformQuery`, `@PlatformMutation`
+# Start scenario and poll
+curl -4 -s -X POST http://127.0.0.1:8180/manor/start
+curl -4 -s http://127.0.0.1:8180/manor/events
+```
 
-**TypeScript types:**
-- `packages/pages-aria/src/scenario/types.ts`
+## Immediate Next Steps
 
-## Review Findings Summary
+### 1. Iterative pare-back (#97 Phase 1)
 
-Full review: `/Users/mdproctor/reviews/casehub-parent,/issue-409-scenario-format-v2-20260824-043729/`
+Using the generic colloquial transcript as the baseline, progressively strip tendencies from `descriptors-generic.yaml` and `social-config-generic.yaml` to find the minimum taxonomy:
 
-HIGH:
-- **R1-02:** Distributed execution model doesn't match reality (WebSocket push wire, not YAML fragments)
-- **R1-03:** Three existing YAML formats — spec introduced a fourth without reconciling
-- **R1-04:** Missing `domain` routing field for multi-service GraphQL dispatch
-- **R1-05:** `injectMessage` mutation doesn't exist — simulated uses `@ScenarioAction`
-- **R1-06:** `@ScenarioAction` service executor architecture ignored
-- **R1-07:** Production uses chapters/sections/steps/commands hierarchy
+1. Remove tendencies one at a time
+2. Re-run generic scenario (~10 min, ~300 events)
+3. Compare against `generic-colloquial-20261002/transcript.json` for behavioral drift
+4. Find the floor — smallest set that maintains distinct characters
 
-MEDIUM insights worth carrying:
-- **R1-08:** Variable syntax: `${stepName.field}` (existing) not `${steps.name.result.field}`
-- **R1-09:** ARIA vocabulary must include `assert`, `expand`, `collapse` from existing code
-- **R1-10:** Error model missing — v1 had a strong one, carry forward
-- **R1-18:** Single `graphql:` key simpler than separate `mutation:`/`query:`
+**Villain laugh investigation:** Can `theatrical-menace: 0.9` drive + tendency "you express triumph through dramatic vocalisation" produce an evil laugh without prescribing one? Test with Vincent Marsh.
 
-## Workspace Artifacts
+### 2. Phase 2 — Memory-seeded personality emergence
 
-- `specs/issue-409-scenario-format/decisions.md` — 5 decisions (carry forward)
-- `specs/issue-409-scenario-format/2026-08-24-scenario-format-v2-design.md` — DISCARD, rewrite
-- `specs/issue-409-scenario-format/pipeline.state` — reset to CONTEXT_GATHERING
+After pare-back establishes the minimum taxonomy, feed into neocortex memory seeding (#398–#402).
 
-## Immediate Next Step
+## Build Notes
 
-Start brainstorming from scratch in a fresh session. Design the ideal architecture first (D1–D5 as intent), then read Formats A and B for reconciliation. Present the existing formats to the user before proposing a canonical format. Investigate whether Format A's parser is orphaned code.
+**Correct build order:**
+```
+platform → eidos → engine (-Dmaven.test.skip=true) → work/progress-api → qhorus → neocortex → blocks (exclude engine-adapter) → wacky-manor (-f wacky-manor/pom.xml)
+```
+
+**Known cross-repo issues (as of 2026-10-02):**
+- Engine test code references stale neocortex CBR APIs — skip test compile
+- Blocks engine-adapter-core references old `engine.internal.executor` package — exclude from build
+- Blocks blocks-core has `MemoryDomain` type mismatch with neocortex — exclude from build
+
+## Issues Created This Session
+
+- **casehubio/examples#98** — CLOSED — engine.internal→engine.runtime package rename fix
+- **casehubio/examples#99** — CLOSED — generic character ablation test
+
+## Branch State
+
+- `fix/098-engine-package-rename` — landed as cfc6152 + 090d7c2 on main
+- `backup/pre-squash-fix/098-engine-package-rename-20261002` — pre-squash backup (9 commits)
