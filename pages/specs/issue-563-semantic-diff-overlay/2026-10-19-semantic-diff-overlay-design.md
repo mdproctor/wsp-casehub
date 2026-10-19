@@ -104,18 +104,27 @@ index.ts:2 (re-export source), index.ts:31 (re-export source).
 
 ### Step Identity Model (Matching)
 
-The diff algorithm walks both step trees and matches steps for comparison:
+The diff algorithm walks both step trees and matches steps for comparison.
+Matching is **two-pass** within each scope — name matching takes priority
+over position matching:
 
-1. **Named steps** (`step: X`) match by name within their parent container
-2. **Unnamed steps** match by position within their parent container's child array
-3. **Named branches** in parallel steps and select steps match by branch name
-4. **Unnamed parallel children** (no `branches` field — children in flat `steps`
-   array) match by position, same as rule 2
-5. **Kind changes** at the same position are treated as remove + add
-6. **Named steps with kind change**: when a named step matches by name (rule 1)
-   but differs in kind, it is treated as remove + add (same semantics as rule 5,
-   but triggered by name match rather than position match)
-7. **Renames** show as remove + add (no heuristic rename detection in v1)
+1. **Name pass:** match all named steps (`step: X`) by name within their
+   parent container. Named branches in parallel steps and select steps
+   also match by branch name. This pass establishes name-based pairings
+   regardless of position.
+2. **Position pass:** match remaining unnamed steps by position among the
+   unmatched slots left after the name pass.
+3. **Kind changes** at the same position (unnamed) or with the same name
+   (named) are treated as remove + add.
+4. **Unnamed parallel children** (no `branches` field — children in flat
+   `steps` array) match by position, same as pass 2.
+5. **Renames** show as remove + add (no heuristic rename detection in v1).
+
+The two-pass approach prevents mismatches when named and unnamed steps are
+interleaved. Example: old `[step:A, unnamed:X, step:B]` → new
+`[step:B, unnamed:Y, step:A]`. Name pass matches A↔A and B↔B by name.
+Position pass matches X↔Y among the remaining unnamed slots. A naive
+single-pass sequential comparison would incorrectly pair A↔B by position.
 
 Each container's child arrays are independent matching scopes:
 - `if-else`: `thenSteps` and `elseSteps` are separate scopes
@@ -132,9 +141,30 @@ regenerate entire sections rather than surgically insert.
 ### Field-Level Diff
 
 For modified steps, the diff algorithm pre-computes field changes and
-includes them in `DiffNode.fieldChanges`:
+includes them in `DiffNode.fieldChanges`. The algorithm compares **all
+scalar fields** on the step interface — not just `params` and
+`decorators`. Any scalar or optional-scalar field that differs between
+old and new produces a `FieldChange` entry.
+
+**Field categories:**
 
 - **Scalar parameter changes:** any scalar value in `params` that differs
+  (PluginStep only)
+- **Container structural fields:** all scalar fields on container step
+  interfaces. Cross-referenced against walker.ts:
+
+  | Step type | Field | Type |
+  |-----------|-------|------|
+  | IfElseStep | `condition` | `string` |
+  | MatchStep | `scrutinee` | `string` |
+  | ParallelStep | `advanceAfter` | `number?` |
+  | ParallelStep | `cancelRemaining` | `boolean?` |
+  | ParallelStep | `collectionTimeout` | `number?` |
+  | BarrierStep | `timeout` | `number?` |
+  | QuorumStep | `required` | `number` |
+  | QuorumStep | `timeout` | `number?` |
+  | DelayStep | `duration` | `number` |
+
 - **Derived scalar changes:** for array-type fields, the algorithm emits
   synthetic scalar entries for the array length when it changes. Examples:
   - `{field: "awaitSteps.length", oldValue: 3, newValue: 4}` — barrier count
@@ -146,7 +176,14 @@ includes them in `DiffNode.fieldChanges`:
   `decorators: Record<string, unknown>`. A step with changed decorators is
   `modified`; the specific changes appear as field changes (e.g.,
   `{field: "decorators.retry", oldValue: 2, newValue: 3}`)
-- **Structural metadata:** name changes, action changes
+- **Structural metadata:** `name` and `kind` changes (all step types),
+  `entry.qualifiedName` changes (PluginStep)
+- **Invoke spec (shallow):** for InvokeStep, the algorithm performs a
+  shallow first-level comparison of `invokeSpec: Record<string, unknown>`.
+  Scalar first-level values (URL, method) produce FieldChange entries.
+  Nested object values (body, headers) are compared by reference —
+  any change produces a single `{field: "invokeSpec.{key}"}` entry
+  without drilling into the nested structure.
 
 v1 emits all field changes (no filtering). v2 will introduce collapsing
 for noise fields based on observed real-world patterns.
@@ -222,10 +259,23 @@ field name labels with `old → new` for each changed field:
 <span class="field-name">threshold</span>: <span class="old-value">5</span> → <span class="new-value">10</span>
 ```
 
-- `field-name`: muted text, uses the last segment of the dot-path
-  (e.g., `params.threshold` → `threshold`, `awaitSteps.length` → `count`)
+- `field-name`: muted text, derived from the field path (see display
+  name rules below)
 - `old-value`: red text, strikethrough
 - `new-value`: green text
+
+**Display name rules:** The label shown in `field-name` uses the last
+segment of the dot-path by default (e.g., `params.threshold` →
+`threshold`, `decorators.retry` → `retry`). Synthetic derived fields
+use a display name override table to match what the component renders:
+
+| Field path | Display name | Rationale |
+|------------|-------------|-----------|
+| `awaitSteps.length` | `count` | barrier-bar renders `count: N` |
+| `ofSteps.length` | `of` | barrier-bar renders `N of M` |
+| `steps.length` | `steps` | child step count |
+
+All other fields use the last dot-path segment as-is.
 
 Field name labels prevent ambiguity when a step has multiple field
 changes — the user sees which field each `old → new` span represents.
@@ -416,6 +466,10 @@ at the type level by `DiffStatState = Exclude<DiffState, 'unchanged'>`.
 - Multi-scope containers (if-else, try-catch) → correct scope keys
 - Decorator changes → field-level diff entries
 - Parameter changes → field-level diff entries
+- Container structural fields (condition, scrutinee, duration, timeout, required) → FieldChange
+- InvokeStep.invokeSpec shallow diff → first-level scalar FieldChange entries
+- Two-pass matching: named steps matched by name before unnamed by position
+- Interleaved named/unnamed steps → correct pairings (name pass, then position pass)
 - Array-length derived changes (awaitSteps.length) → synthetic FieldChange
 - Empty old tree (all added) / empty new tree (all removed)
 - Removed steps appear at correct interleaved positions in merged sequence
