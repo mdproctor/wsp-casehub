@@ -1,0 +1,15 @@
+# Work Plan — issue-656-cdi-null-session-pipeline
+
+## State
+branch: issue-656-cdi-null-session-pipeline
+state: scaffolded
+project-sha: 
+date: 
+issue-repo: casehubio/neocortex
+covers: 656
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+
+## Queue
+- [ ] casehubio/neocortex#656 — Issue #656 ← active
