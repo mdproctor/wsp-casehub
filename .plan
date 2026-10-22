@@ -1,0 +1,12 @@
+# Work Plan — examples
+
+## Queue
+- [ ] casehubio/neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation ← active
+
+## State
+branch: examples
+state: scaffolded
+issue-repo: casehubio/neocortex
+covers: casehubio/neocortex#661
+Current: casehubio/neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation
+date: 2026-10-22
