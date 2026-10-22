@@ -2,136 +2,96 @@
 
 ## Current Work
 
-**Branch:** `main` (elastic session scheduler epic closed)
-**Next:** neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation
-**Plan:** `.plan` scaffolded with #661 as first priority
+**Branch:** `issue-116-manor-cognitive-pipeline-builder` (examples)
+**Issue:** casehubio/examples#116 — Extract CognitivePipelineBuilder for composable, testable pipeline assembly
+**Status:** Core infrastructure delivered, refactoring and dead-end regression tests remain
 
 ## START HERE — What's Next
 
-Run `work start` to begin neocortex#661. Branch: `issue-661-monotonic-consolidation-trigger`.
+Continue examples#116. The builder and result type are working (6 tests pass, 628 fast suite green). Two tasks remain:
 
-The issue has full literature citations and a three-part design:
-1. **Event count** (monotonic, no decay) — Park et al.'s baseline. Fire at 5-10 un-processed interactions.
-2. **Divergence accumulation** (monotonic, weighted by novelty) — CLS 2016's key insight. Weight by appraisal divergence from consolidated model.
-3. **Time ceiling** — existing `interval-ticks`, unchanged.
+### 1. Refactor PlaybookOrchestrator to use ManorCognitivePipelineBuilder
 
-Key constraint: `DegreeAccumulator` stays valid for CAPS classification (detecting behavioural shifts). Only consolidation scheduling gets the new mechanism.
+PlaybookOrchestrator.runScenario() lines 169-317 duplicate the orchestrator creation and seeding that the builder now encapsulates. Replace the inline assembly with:
 
-Literature review: `wacky-manor/docs/research/consolidation-trigger-literature-2026-10-22.md`
-Blog entry: `wsp-casehub/blog/2026-10-22-mdp01-consolidation-trigger-decay.md`
-Parameter tuning report: `wacky-manor/docs/eval/tuned-run-2026-10-22/PARAMETER-TUNING.md`
+```java
+var pipeline = ManorCognitivePipelineBuilder
+    .create(mmStore, ManorConstants.TENANCY_ID, cbrRecordStore)
+    .sessionPipeline(sessionPipeline)
+    .config(config)
+    .capsEngine(capsEngine)
+    .experienceRecorder(experienceRecorder)
+    .agentRegistry(agentRegistry)
+    .socialConfigs(socialConfigs)
+    .build();
+var cognitionCore = pipeline.cognitionCore();
+var cognitions = pipeline.cognitions();
+```
+
+The builder already handles all seeding steps. Key difference: PlaybookOrchestrator also creates services (observation, experience, reflection, goals, plans) that the builder doesn't handle — those stay in PlaybookOrchestrator.
+
+### 2. Dead-end regression tests from #115
+
+The 4 fixed dead ends from #115 need regression tests in ManorCognitivePipelineTest:
+- Boundary 1: Drives → DriveAdaptationPhase (verify drive nodes found)
+- Boundary 2: Formation memories → BehavioralPromptSection (verify behavioralEnabled reaches prompt)
+- Boundary 3: seedCapsState called in production (verify CAPS state exists after seeding)
+- Boundary 4: seedPeople called in production (verify social subgraph exists) — DONE (test already exists)
+
+Use the same InMemoryMindMapStore + ManorSocialConfigLoader pattern as the existing tests.
 
 ## What was completed this session
 
-### Elastic session scheduler epic — CLOSED (15 issues)
+### Issue triage and closure — 7 issues closed
 
-**examples#138 — Scenario run and parameter tuning (complete)**
-- Ran baseline + tuned 50-tick GENERIC scenarios with all cognitive components
-- Identified and fixed: session pool starvation, disabled appraisal, 4h mood decay, accumulator thresholds
-- Mood dynamic range improved 66x; character differentiation working
-- Externalized mood config, accumulator thresholds, appraisal toggle
+**neocortex#661** — monotonic consolidation trigger. Verified complete: SignificanceAccumulator is fully monotonic, DegreeAccumulator only in caps-engine for CAPS classification.
 
-**platform#655 — Pool semaphore decoupled from session lifecycle (complete)**
-- Semaphore removed from SessionPool — session creation now free
-- AIMD controls active prompt execution (the expensive resource)
-- Picked up from canonical main, rebased slot repos
+**neocortex#653** — CognitivePipelineBuilder. Cherry-picked 6 commits from `issue-650-elastic-session-scheduler` branch, squashed into `e0d8a3ea`, merged to main. Constructor-inject SessionPipeline in 11 orchestrators + CognitionCore. 424 cognition tests pass.
 
-**platform#650, #652, #653 — Epic issues closed**
-- Branch squashed (14→7 commits), fast-forward merged to main, stamped
+**neocortex#641** — DegreeAccumulator externalization. Cherry-picked 1 commit, merged as `307dc2ca`. DegreeAccumulatorConfig record, dual-rate accumulator (fast CUSUM + slow integration), externalized to application.properties. 62 caps-engine tests pass.
 
-### Design discovery: consolidation trigger decay is wrong
+**neocortex#444** — CognitionCore self-wiring. Verified functionally complete — CognitionCoreFactory and CognitivePipelineBuilder handle all configure*() calls internally.
 
-Found during parameter tuning — character drives static across 50 ticks because CUSUM decay suppresses slow-building personality changes. Literature review confirmed: Park et al. (2023), SCM (Shinde 2026), CLS theory (McClelland/Kumaran 2016) all converge on monotonic accumulation with no decay. Filed as neocortex#661.
+**examples#133, #136** — agentProvider.invoke migration. Verified all 7 production callers migrated to SessionPipeline.
 
-## Previous Session
+**neocortex#662, #663, #664** — previously closed, confirmed.
 
-Fixed the drive expression pipeline end-to-end: model routing,
-appraisal filtering, and profile derivation.
+### examples#116 — ManorCognitivePipeline (in progress)
 
-**Appraisal filter redesign (examples repo):**
-- Binary overlap (`> 0`) → relative overlap (`overlap/profileTotal >= 0.15`)
-- `context: social` field added then REMOVED — replaced by topology-inferred gating
-- `resolveAdaptedDrives()` preserves context/triggers from original config
+Created 3 new files on branch `issue-116-manor-cognitive-pipeline-builder`:
+- `ManorCognitivePipeline.java` — result type with structure queries (hasDriveNodes, hasBehavioralNodes, hasSocialSubgraph, hasCognitiveSubgraph, driveNodeCount, seededDriveNames)
+- `ManorCognitivePipelineBuilder.java` — composable builder with per-seed-step toggles
+- `ManorCognitivePipelineTest.java` — 6 structure verification tests
 
-**Discriminative profile derivation (neocortex repo):**
-- `DriveProfileDerivationPhase.deriveProfiles()` passes discrimination metadata
-- Classifier sees other drives as contrast: "return features distinctive to
-  this drive, not shared with the others"
-- First attempt: gallantry narrowed 7→5 nodes, acceptance became top node,
-  but physical_threat and competence_recognition leaked through
+Also fixed 3 existing test files for neocortex#653 constructor change (added SessionPipeline param).
 
-**Test harness:**
-- `DriveRenderingUnitTest` — 13-scenario cross-matrix, 3 characters,
-  solo/social/competing-signals, 0.2s. Fixed profiles, mock classifiers.
-- `DriveProfilePipelineTest` — real LLM derivation + classification,
-  PP + HC, ~10min. Scoped to tested agents only.
-- `ClassifierModelComparisonTest` — diagnostic: haiku vs opus activations
+### Neocortex commits pushed to all remotes
 
-**Documentation:**
-- Principles 59-64 in CHARACTER-EMERGENCE-FINDINGS.md
-- Blog: "Why Every Drive Looked the Same (and What Fixed It)"
+Both #653 and #641 pushed to origin (fork), upstream (casehubio), and canonical (local).
 
-### Current State
+## Still Open — Verified Incomplete
 
-**Architecture proven, prompt needs iteration.**
-
-Unit test matrix: 13/13 pass with discriminative profiles (hand-curated
-to represent what good derivation output looks like).
-
-Pipeline test: 4/8 pass with LLM-derived discriminative profiles.
-The discrimination metadata improved output but didn't fully constrain it.
-Gallantry still gets physical_threat:0.850 and competence_recognition:0.750
-alongside the correct acceptance:0.800.
-
-### Immediate Next Step
-
-Iterate on the discriminative derivation prompt in neocortex
-`DriveProfileDerivationPhase.buildDiscriminationMetadata()`. Options:
-
-1. **Constrain output count** — "classify into AT MOST 4-5 input nodes"
-2. **Provide explicit contrast** — "competence_recognition is NOT
-   distinctive to gallantry because proving-worth also has it"
-3. **Two-pass derivation** — first pass gets raw profile, second pass
-   prunes shared nodes using IDF-style discrimination
-
-Test with `DriveProfilePipelineTest` (PP + HC, ~10min). Target: 8/8.
-
-### What NOT to do
-
-- Don't re-add `context: social` as an authored field — social gating
-  should be inferred from profile category concentration
-- Don't add authored triggers — the system should be fully emergent
-- Don't run all 17 characters in the pipeline test — scope to tested agents
+**examples#116** — broader pipeline builder vision. Core done, refactoring + dead-end tests remain.
+**neocortex#656** — CDI path: orchestrators get null SessionPipeline. CDI-created beans have null pipeline as final field. Needs either @Produces SessionPipeline or factory re-creates orchestrators.
 
 ## Branch State
 
-- `issue-115-drive-expression-gap` (examples) — active, 12 commits this session
-- `issue-115-weighted-situation-vocabulary` (neocortex) — active, 1 commit this session
-- `fix/claude-agent-model-passthrough` (platform) — active, 3 commits
+- `issue-116-manor-cognitive-pipeline-builder` (examples) — active, 2 commits
+- `issue-653-cognitive-pipeline-builder` (neocortex) — stamped closed, landed as e0d8a3ea
+- `issue-641-degree-accumulator-config` (neocortex) — stamped closed, landed as 307dc2ca
 
 ## Key Files
 
-- `examples/wacky-manor/.../DriveRenderingUnitTest.java` — fast cross-matrix
-- `examples/wacky-manor/.../DriveProfilePipelineTest.java` — full LLM pipeline
-- `examples/wacky-manor/.../CharacterCognition.java` — appraisalFilterDrives, computeInputOverlap
-- `neocortex/mindmap-intelligence/.../DriveProfileDerivationPhase.java` — discriminative derivation
-- `platform/agent-claude-core/.../ClaudeAgentClient.java` — model passthrough
-- `examples/wacky-manor/docs/CHARACTER-EMERGENCE-FINDINGS.md` — Principles 59-64
-- `wsp-casehub/blog/2026-10-16-mdp01-discriminative-drive-profiles.md` — diary entry
+- `examples/wacky-manor/.../ManorCognitivePipeline.java` — result type with structure queries
+- `examples/wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder
+- `examples/wacky-manor/.../ManorCognitivePipelineTest.java` — 6 structure tests
+- `examples/wacky-manor/.../PlaybookOrchestrator.java` — lines 169-317 to refactor
+- `neocortex/cognition/.../CognitivePipelineBuilder.java` — neocortex-level CognitionCore builder
+- `neocortex/caps-engine/.../DegreeAccumulator.java` — dual-rate with config record
 
-## Platform Commits
+## Important: neocortex JARs
 
-On `fix/claude-agent-model-passthrough`:
-- `f69aed35` fix(#589): pass model from AgentSessionConfig to CLI options
-- `e3236da7` test(#589): haiku alias resolves to FAST-tier claude model
-- `531d4d31` fix(#589): pass unrecognized model strings to default backend
-
-## Neocortex Commits
-
-On `issue-115-weighted-situation-vocabulary`:
-- `0c69e4df` fix(#589): discriminative profile derivation — contrast other drives
-
-## Stashed Work
-
-`authored-triggers-wip` stash in examples — the triggers approach that
-was abandoned in favour of emergent inference. Drop it.
+The neocortex cognition and caps-engine modules were installed locally (`mvn install -pl cognition,caps-engine -am`) to pick up #653 and #641 changes. If compilation fails in a new session, re-run:
+```bash
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f /Users/mdproctor/claude/casehub/slots/196/neocortex/pom.xml install -Dmaven.test.skip=true -pl cognition,caps-engine -am -q
+```
