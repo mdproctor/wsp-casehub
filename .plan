@@ -1,12 +1,15 @@
-# Work Plan — examples
+# Work Plan — issue-116-manor-cognitive-pipeline-builder
 
 ## State
-branch: issue-661-monotonic-consolidation-trigger
+branch: issue-116-manor-cognitive-pipeline-builder
 state: scaffolded
-issue-repo: casehubio/neocortex
-covers: casehubio/neocortex#661
-Current: casehubio/neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation
-date: 2026-10-22
+project-sha: 
+date: 
+issue-repo: casehubio/examples
+covers: casehubio/examples#116
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
 
 ## Queue
-- [ ] casehubio/neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation ← active
+- [ ] casehubio/examples#116 — Issue #116 ← active
