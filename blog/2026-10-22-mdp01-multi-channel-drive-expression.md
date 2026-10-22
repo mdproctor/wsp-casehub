@@ -39,8 +39,28 @@ The fix was a single prompt change. Instead of "Start there — in the body, not
 
 I verified that all seventeen drive entries across the five characters already have serving formation memories — every drive has at least one experiential episode anchoring it. The pipeline is complete end to end.
 
+## What the characters actually produce
+
+A 128-event smoke test with the GENERIC profile — no pop-culture priors, pure taxonomy validation. Five characters, 43 dialogue events with thinking. Here's what the first-turn thinking looks like across the four channels:
+
+| Character | Primary drives | Somatic | Attentional | Temporal | Action tendency |
+|-----------|---------------|---------|-------------|----------|-----------------|
+| Ant Hill Mob | protection, loyalty | neck prickling, stomach tightening | scanning for threats — Sneekly, exits, corners | temporal comparison to past danger | "staying close to her", "get the lay" |
+| Hooded Claw | scheming, dominance | "mineral weight" settling in chest | cataloguing every person as resource or obstacle | "Time to establish myself" | survey, plan establishment |
+| Peter Perfect | proving-worth, gallantry | "architectural pressure behind ribs" | calculating load-bearing points, Penelope's position | — | gravitating toward Penelope |
+| Penelope Pitstop | social-harmony, curiosity | warmth, stomach settling | "circle is full" — social completeness | — | — |
+| Dick Dastardly | scheming, greed | tightness behind eyes, hollow navel pull | "sweeping the room like an inventory ledger" | "plan forming before I've even—" | "fizzing in fingers" toward treasure |
+
+Every character expresses somatic plus at least one other channel. But the interesting result isn't the channel count — it's the discrimination.
+
+Look at the attentional column. Ant Hill Mob's attention locks onto threats and exits. Hooded Claw catalogues people as resources. Dastardly inventories valuables. Three characters scanning the same room, each one seeing completely different things because their drives filter attention differently. That's Easterbrook in action — attentional narrowing is drive-specific, and it produces signatures that body sensations alone never could.
+
+Action tendency is equally discriminating. "Staying close to her" IS protection — you don't need the word. "Fizzing in fingers toward treasure" IS greed. Frijda was right: the pull is constitutive, not consequential.
+
+The temporal channel is the weakest — three out of five characters express it on the first turn, and the two who don't (Penelope and Peter) are in calm states where temporal distortion is predicted to be minimal. Barrett's model says temporal experience is constructed as part of the brain's predictive model during high-arousal emotion. Social harmony at a pleasant gathering doesn't compress or stretch time. That's consistent.
+
 ## The principle this establishes
 
 Somatic markers are necessary but not sufficient for drive discrimination. Our own eval data confirms the same result Dunn et al. found in the clinical literature: a single channel cannot carry the information needed to distinguish between drives that share similar body signatures. The four-channel model — somatic, attentional, temporal, action tendency — provides the discriminating dimensions.
 
-The next question is whether expression should be uniform across channels or situation-dependent. Easterbrook's work suggests it should vary — attentional narrowing is stronger under high arousal, weaker under calm. A vocabulary classifier that weights channels by situation context would be more faithful to the literature than a fixed four-channel prompt. That's the neocortex side of this epic.
+The next question is whether expression should be uniform across channels or situation-dependent. Easterbrook's work suggests it should vary — attentional narrowing is stronger under high arousal, weaker under calm. The temporal channel's absence in calm states already hints at this. A vocabulary classifier that weights channels by situation context would be more faithful to the literature than a fixed four-channel prompt. That's the neocortex side of this epic.
