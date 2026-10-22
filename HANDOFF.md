@@ -2,21 +2,15 @@
 
 ## Last Session
 
-Closed neocortex#656 + examples#143 — CDI path: orchestrators get null SessionPipeline. Landed, pushed, issues closed. All repos on main, clean.
+Completed examples-side #122: replaced somatic-only thinking prompt with four-channel (somatic, attentional, temporal, action tendency), grounded in literature (Damasio, Easterbrook, Barrett, Frijda, Scherer CPM). Smoke test confirmed all 5 characters express multiple channels — attentional narrowing is the strongest discriminator. Filed neocortex#668 for follow-up.
 
 ## Immediate Next Step
 
-Start examples#122 Batch 1 — Drive expression pipeline (get working). Then:
-1. examples#122 Batch 1 — DriveProfileDerivationPhase not producing profiles (upstream)
-2. examples#111 — CAPS settling dampens too aggressively (downstream, unblocks #102)
-3. examples#112 — Unresolvable disposition modifiers
-4. examples#102 — Pipeline tuning (unblocked by #111)
-
-All pre-run blockers from epic #109 + #122. Fix before next scenario runs.
+Start neocortex#668 — situation-dependent channel weighting. **Read `.notes/NOTES.md` first** — it has the full session findings, literature citations, smoke test observations, and related issues (#607, #587).
 
 ## References
 
-- `wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder
-- `wacky-manor/.../ManorCognitivePipelineTest.java` — 9 tests
-- `wacky-manor/.../PlaybookOrchestrator.java` — refactored to use builder
-- `wsp-casehub/specs/issue-115-drive-expression-gap/` — drive expression research
+- `.notes/NOTES.md` — detailed session notes with literature, findings, and next-step context
+- `JOURNAL.md` — literature review and design rationale for four-channel model
+- `blog/2026-10-22-mdp01-multi-channel-drive-expression.md` — "Why Somatic Markers Aren't Enough"
+- `wacky-manor/docs/eval/multi-channel-smoke-2026-10-22/` — smoke test transcript + summary
