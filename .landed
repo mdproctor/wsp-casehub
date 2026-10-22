@@ -1,5 +1,2 @@
-parent
-engine
-ops
-neocortex
-examples
+examples=b4aaebc
+wsp-casehub=be69977
