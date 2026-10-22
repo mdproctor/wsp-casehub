@@ -1,17 +1,52 @@
-# HANDOFF — casehub-examples
+# HANDOFF — casehub-examples (slot 196)
 
-## Last Session
+## Current Work
+
+**Branch:** `main` (elastic session scheduler epic closed)
+**Next:** neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation
+**Plan:** `.plan` scaffolded with #661 as first priority
+
+## START HERE — What's Next
+
+Run `work start` to begin neocortex#661. Branch: `issue-661-monotonic-consolidation-trigger`.
+
+The issue has full literature citations and a three-part design:
+1. **Event count** (monotonic, no decay) — Park et al.'s baseline. Fire at 5-10 un-processed interactions.
+2. **Divergence accumulation** (monotonic, weighted by novelty) — CLS 2016's key insight. Weight by appraisal divergence from consolidated model.
+3. **Time ceiling** — existing `interval-ticks`, unchanged.
+
+Key constraint: `DegreeAccumulator` stays valid for CAPS classification (detecting behavioural shifts). Only consolidation scheduling gets the new mechanism.
+
+Literature review: `wacky-manor/docs/research/consolidation-trigger-literature-2026-10-22.md`
+Blog entry: `wsp-casehub/blog/2026-10-22-mdp01-consolidation-trigger-decay.md`
+Parameter tuning report: `wacky-manor/docs/eval/tuned-run-2026-10-22/PARAMETER-TUNING.md`
+
+## What was completed this session
+
+### Elastic session scheduler epic — CLOSED (15 issues)
+
+**examples#138 — Scenario run and parameter tuning (complete)**
+- Ran baseline + tuned 50-tick GENERIC scenarios with all cognitive components
+- Identified and fixed: session pool starvation, disabled appraisal, 4h mood decay, accumulator thresholds
+- Mood dynamic range improved 66x; character differentiation working
+- Externalized mood config, accumulator thresholds, appraisal toggle
+
+**platform#655 — Pool semaphore decoupled from session lifecycle (complete)**
+- Semaphore removed from SessionPool — session creation now free
+- AIMD controls active prompt execution (the expensive resource)
+- Picked up from canonical main, rebased slot repos
+
+**platform#650, #652, #653 — Epic issues closed**
+- Branch squashed (14→7 commits), fast-forward merged to main, stamped
+
+### Design discovery: consolidation trigger decay is wrong
+
+Found during parameter tuning — character drives static across 50 ticks because CUSUM decay suppresses slow-building personality changes. Literature review confirmed: Park et al. (2023), SCM (Shinde 2026), CLS theory (McClelland/Kumaran 2016) all converge on monotonic accumulation with no decay. Filed as neocortex#661.
+
+## Previous Session
 
 Fixed the drive expression pipeline end-to-end: model routing,
-appraisal filtering, and profile derivation. Arrived at a compositional
-solution through five iterations.
-
-### What was done
-
-**Model routing (platform repo):**
-- `ClaudeAgentClient.buildCliOptions()` now passes `config.model()` to CLI
-- `RoutingAgentProvider.resolve()` passes unrecognized model strings to default backend
-- `withModel("haiku")` now reaches the Claude CLI as `--model haiku`
+appraisal filtering, and profile derivation.
 
 **Appraisal filter redesign (examples repo):**
 - Binary overlap (`> 0`) → relative overlap (`overlap/profileTotal >= 0.15`)
