@@ -4,94 +4,64 @@
 
 **Branch:** `issue-116-manor-cognitive-pipeline-builder` (examples)
 **Issue:** casehubio/examples#116 — Extract CognitivePipelineBuilder for composable, testable pipeline assembly
-**Status:** Core infrastructure delivered, refactoring and dead-end regression tests remain
+**Status:** All tasks complete. Ready for work end.
 
 ## START HERE — What's Next
 
-Continue examples#116. The builder and result type are working (6 tests pass, 628 fast suite green). Two tasks remain:
+Close #116 via `work end`. All implementation is done:
 
-### 1. Refactor PlaybookOrchestrator to use ManorCognitivePipelineBuilder
+1. **ManorCognitivePipelineBuilder** — composable builder with per-seed-step toggles, now extended with `experienceService`, `cognitiveProfile`, and `situationClassifier` parameters
+2. **ManorCognitivePipeline** — result type with structure queries
+3. **PlaybookOrchestrator refactored** — 105 lines of inline pipeline assembly replaced by builder call (net -59 lines)
+4. **9 tests pass** — 6 structure verification tests + 3 dead-end regression tests
 
-PlaybookOrchestrator.runScenario() lines 169-317 duplicate the orchestrator creation and seeding that the builder now encapsulates. Replace the inline assembly with:
+### Commits on this branch
 
-```java
-var pipeline = ManorCognitivePipelineBuilder
-    .create(mmStore, ManorConstants.TENANCY_ID, cbrRecordStore)
-    .sessionPipeline(sessionPipeline)
-    .config(config)
-    .capsEngine(capsEngine)
-    .experienceRecorder(experienceRecorder)
-    .agentRegistry(agentRegistry)
-    .socialConfigs(socialConfigs)
-    .build();
-var cognitionCore = pipeline.cognitionCore();
-var cognitions = pipeline.cognitions();
-```
+1. `bddb5ff` — ManorCognitivePipeline + ManorCognitivePipelineBuilder + 6 structure tests
+2. `f36b443` — fix compilation for neocortex#653 constructor change
+3. `da3e1fd` — refactor PlaybookOrchestrator to use builder (-105/+46 lines)
+4. `a3eae92` — 3 dead-end regression tests (drives→DriveAdaptationPhase, formation memories→ExperienceRecorder, seedCapsState→CapsEngine)
 
-The builder already handles all seeding steps. Key difference: PlaybookOrchestrator also creates services (observation, experience, reflection, goals, plans) that the builder doesn't handle — those stay in PlaybookOrchestrator.
+### Dead-end regression tests
 
-### 2. Dead-end regression tests from #115
-
-The 4 fixed dead ends from #115 need regression tests in ManorCognitivePipelineTest:
-- Boundary 1: Drives → DriveAdaptationPhase (verify drive nodes found)
-- Boundary 2: Formation memories → BehavioralPromptSection (verify behavioralEnabled reaches prompt)
-- Boundary 3: seedCapsState called in production (verify CAPS state exists after seeding)
-- Boundary 4: seedPeople called in production (verify social subgraph exists) — DONE (test already exists)
-
-Use the same InMemoryMindMapStore + ManorSocialConfigLoader pattern as the existing tests.
+| Boundary | Test | Assertion |
+|----------|------|-----------|
+| Drives → DriveAdaptationPhase | `seeded_drives_have_properties_drive_adaptation_phase_expects` | Drive nodes have `cognitiveKind=drive-intensity`, `drive-type`, `intensity`, `agent-id` in "cognitive" subgraph |
+| Formation memories → BehavioralPromptSection | `seeded_formation_memories_reach_experience_recorder` | ExperienceRecorder receives FormativeExperience events for the character |
+| seedCapsState in production | `seeded_caps_state_exists_after_build` | CapsEngine.loadState returns non-null AgentCapsState with correct agent/tenant |
 
 ## What was completed this session
 
-### Issue triage and closure — 7 issues closed
+### PlaybookOrchestrator refactoring
 
-**neocortex#661** — monotonic consolidation trigger. Verified complete: SignificanceAccumulator is fully monotonic, DegreeAccumulator only in caps-engine for CAPS classification.
+Extended ManorCognitivePipelineBuilder with 3 new fields (`cognitiveProfile`, `experienceService`, `situationClassifier`) so it produces fully-configured CharacterCognition instances matching the orchestrator's original construction.
 
-**neocortex#653** — CognitivePipelineBuilder. Cherry-picked 6 commits from `issue-650-elastic-session-scheduler` branch, squashed into `e0d8a3ea`, merged to main. Constructor-inject SessionPipeline in 11 orchestrators + CognitionCore. 424 cognition tests pass.
+Replaced ~105 lines of inline cognitive pipeline assembly in PlaybookOrchestrator.runScenario() with a 14-line builder call. Capability tag setting (world-state concern) and consolidation cache management stay in PlaybookOrchestrator. seedPeople uses full socialConfigs (including inactive characters) to preserve the complete social knowledge graph.
 
-**neocortex#641** — DegreeAccumulator externalization. Cherry-picked 1 commit, merged as `307dc2ca`. DegreeAccumulatorConfig record, dual-rate accumulator (fast CUSUM + slow integration), externalized to application.properties. 62 caps-engine tests pass.
+### Dead-end regression tests
 
-**neocortex#444** — CognitionCore self-wiring. Verified functionally complete — CognitionCoreFactory and CognitivePipelineBuilder handle all configure*() calls internally.
-
-**examples#133, #136** — agentProvider.invoke migration. Verified all 7 production callers migrated to SessionPipeline.
-
-**neocortex#662, #663, #664** — previously closed, confirmed.
-
-### examples#116 — ManorCognitivePipeline (in progress)
-
-Created 3 new files on branch `issue-116-manor-cognitive-pipeline-builder`:
-- `ManorCognitivePipeline.java` — result type with structure queries (hasDriveNodes, hasBehavioralNodes, hasSocialSubgraph, hasCognitiveSubgraph, driveNodeCount, seededDriveNames)
-- `ManorCognitivePipelineBuilder.java` — composable builder with per-seed-step toggles
-- `ManorCognitivePipelineTest.java` — 6 structure verification tests
-
-Also fixed 3 existing test files for neocortex#653 constructor change (added SessionPipeline param).
-
-### Neocortex commits pushed to all remotes
-
-Both #653 and #641 pushed to origin (fork), upstream (casehubio), and canonical (local).
+Added 3 tests verifying the boundaries fixed in #115 are connected through the builder path. All 9 ManorCognitivePipelineTest tests pass.
 
 ## Still Open — Verified Incomplete
 
-**examples#116** — broader pipeline builder vision. Core done, refactoring + dead-end tests remain.
 **neocortex#656** — CDI path: orchestrators get null SessionPipeline. CDI-created beans have null pipeline as final field. Needs either @Produces SessionPipeline or factory re-creates orchestrators.
 
 ## Branch State
 
-- `issue-116-manor-cognitive-pipeline-builder` (examples) — active, 2 commits
+- `issue-116-manor-cognitive-pipeline-builder` (examples) — active, 4 commits
 - `issue-653-cognitive-pipeline-builder` (neocortex) — stamped closed, landed as e0d8a3ea
 - `issue-641-degree-accumulator-config` (neocortex) — stamped closed, landed as 307dc2ca
 
 ## Key Files
 
 - `examples/wacky-manor/.../ManorCognitivePipeline.java` — result type with structure queries
-- `examples/wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder
-- `examples/wacky-manor/.../ManorCognitivePipelineTest.java` — 6 structure tests
-- `examples/wacky-manor/.../PlaybookOrchestrator.java` — lines 169-317 to refactor
-- `neocortex/cognition/.../CognitivePipelineBuilder.java` — neocortex-level CognitionCore builder
-- `neocortex/caps-engine/.../DegreeAccumulator.java` — dual-rate with config record
+- `examples/wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder (3 new fields added)
+- `examples/wacky-manor/.../ManorCognitivePipelineTest.java` — 9 tests (6 structure + 3 regression)
+- `examples/wacky-manor/.../PlaybookOrchestrator.java` — refactored to use builder
 
 ## Important: neocortex JARs
 
-The neocortex cognition and caps-engine modules were installed locally (`mvn install -pl cognition,caps-engine -am`) to pick up #653 and #641 changes. If compilation fails in a new session, re-run:
+The neocortex cognition and caps-engine modules were installed locally. If compilation fails in a new session, re-run:
 ```bash
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f /Users/mdproctor/claude/casehub/slots/196/neocortex/pom.xml install -Dmaven.test.skip=true -pl cognition,caps-engine -am -q
 ```
