@@ -2,15 +2,27 @@
 
 ## Last Session
 
-Closed examples#116 — ManorCognitivePipelineBuilder. Extended the builder with `experienceService`, `cognitiveProfile`, `situationClassifier` fields, then refactored PlaybookOrchestrator to use it (105→14 lines of pipeline assembly). Added 3 dead-end regression tests for #115 boundaries. Resolved a CognitionCore constructor merge conflict during landing. Fixed agency repo's `local`/`canonical` remotes (still pointed to old `blocks` path). All 4 repos synced to both remotes.
+Working on neocortex#656 + examples#143 — CDI path: orchestrators get null SessionPipeline.
+
+**neocortex** (branch `issue-656-cdi-null-session-pipeline`):
+- Removed backward-compatible constructors from 5 orchestrators (InnerLife, UserModel, MentalModel, StrategyLearning, NarrativeContentSummariser) — single canonical constructor per class
+- CognitionCoreFactory: inject `Instance<SessionPipeline>` directly, removed pipeline parameter from `create()`
+- CognitionDefaultBeans: added `Clock` producer
+- Updated 3 test files for new constructor signatures
+- 424 cognition tests pass
+
+**examples** (branch `issue-656-cdi-null-session-pipeline`):
+- Updated ManorCognitivePipelineBuilder: added `Clock.systemUTC()` for MentalModel/Strategy constructors
+- Updated CognitiveActivationTest, DirectiveMinimalIntegrationTest, CharacterCognitionTest for new constructors
+- 631 fast tests pass
 
 ## Immediate Next Step
 
-No active work. Start next issue with `work start`.
+Both branches ready for review. Neither pushed yet.
 
 ## Cross-Module
 
-neocortex#656 — CDI path: orchestrators get null SessionPipeline. Not blocking current work but affects production CDI wiring.
+neocortex#656 + examples#143 are companions — neocortex changes must land first.
 
 ## References
 
