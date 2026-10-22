@@ -2,30 +2,21 @@
 
 ## Last Session
 
-Working on neocortex#656 + examples#143 — CDI path: orchestrators get null SessionPipeline.
-
-**neocortex** (branch `issue-656-cdi-null-session-pipeline`):
-- Removed backward-compatible constructors from 5 orchestrators (InnerLife, UserModel, MentalModel, StrategyLearning, NarrativeContentSummariser) — single canonical constructor per class
-- CognitionCoreFactory: inject `Instance<SessionPipeline>` directly, removed pipeline parameter from `create()`
-- CognitionDefaultBeans: added `Clock` producer
-- Updated 3 test files for new constructor signatures
-- 424 cognition tests pass
-
-**examples** (branch `issue-656-cdi-null-session-pipeline`):
-- Updated ManorCognitivePipelineBuilder: added `Clock.systemUTC()` for MentalModel/Strategy constructors
-- Updated CognitiveActivationTest, DirectiveMinimalIntegrationTest, CharacterCognitionTest for new constructors
-- 631 fast tests pass
+Closed neocortex#656 + examples#143 — CDI path: orchestrators get null SessionPipeline. Landed, pushed, issues closed. All repos on main, clean.
 
 ## Immediate Next Step
 
-Both branches ready for review. Neither pushed yet.
+Start examples#122 Batch 1 — Drive expression pipeline (get working). Then:
+1. examples#122 Batch 1 — DriveProfileDerivationPhase not producing profiles (upstream)
+2. examples#111 — CAPS settling dampens too aggressively (downstream, unblocks #102)
+3. examples#112 — Unresolvable disposition modifiers
+4. examples#102 — Pipeline tuning (unblocked by #111)
 
-## Cross-Module
-
-neocortex#656 + examples#143 are companions — neocortex changes must land first.
+All pre-run blockers from epic #109 + #122. Fix before next scenario runs.
 
 ## References
 
-- `wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder with 3 new fields
-- `wacky-manor/.../ManorCognitivePipelineTest.java` — 9 tests (6 structure + 3 regression)
+- `wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder
+- `wacky-manor/.../ManorCognitivePipelineTest.java` — 9 tests
 - `wacky-manor/.../PlaybookOrchestrator.java` — refactored to use builder
+- `wsp-casehub/specs/issue-115-drive-expression-gap/` — drive expression research
