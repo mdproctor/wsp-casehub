@@ -1,12 +1,15 @@
-# Work Plan — examples
+# Work Plan — issue-126-findfirst-drops-differentiation
 
 ## State
-branch: issue-661-monotonic-consolidation-trigger
+branch: issue-126-findfirst-drops-differentiation
 state: scaffolded
-issue-repo: casehubio/neocortex
-covers: casehubio/neocortex#661
-Current: casehubio/neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation
-date: 2026-10-22
+project-sha: 
+date: 
+issue-repo: casehubio/examples
+covers: 126
+design-repo: 
+design-section-hashes: 
+flyway-next-v: none
 
 ## Queue
-- [ ] casehubio/neocortex#661 — Replace decay-based consolidation trigger with monotonic divergence accumulation ← active
+- [ ] casehubio/examples#126 — Issue #126 ← active
