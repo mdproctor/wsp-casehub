@@ -6,6 +6,10 @@ Issue: casehubio/examples#144
 Complete inventory of cognitive architecture research content across all CaseHub repos,
 with cross-reference against era journals to identify what's genuinely un-consolidated.
 
+**Follow-up issues filed:**
+- examples#145 — Era2 gap: 7 un-consolidated blog entries from issue-115 series
+- examples#146 — Pre-era and cross-repo cognitive research consolidation
+
 ---
 
 ## Cross-Reference Summary — What's NOT In Any Era
