@@ -2,11 +2,16 @@
 
 ## Last Session
 
-Completed examples-side #122: replaced somatic-only thinking prompt with four-channel (somatic, attentional, temporal, action tendency), grounded in literature (Damasio, Easterbrook, Barrett, Frijda, Scherer CPM). Smoke test confirmed all 5 characters express multiple channels — attentional narrowing is the strongest discriminator. Filed neocortex#668 for follow-up.
+Closed neocortex#669 (LLM access audit). All direct LLM access now routes through SessionPipeline — fixed LlmSituationClassifier (SessionPool → SessionPipeline), LlmReflectionSynthesizer (AgentProvider → SessionPipeline), deleted dead neocortex ParallelLlmExecutor. Added ClearingPolicy overload to platform SessionPipeline, made classifier model configurable.
+
+Cross-repo commits this session:
+- platform main `12e4b486` — SessionPipeline.openSession accepts ClearingPolicy
+- neocortex issue-668 branch `063f4d12`, `816add87` — LLM routing fix + configurable model
+- examples issue-122 branch `d3bb4f3`, `a83f013` — wacky-manor caller updates + model comparison fix
 
 ## Immediate Next Step
 
-Start neocortex#668 — situation-dependent channel weighting. **Read `.notes/NOTES.md` first** — it has the full session findings, literature citations, smoke test observations, and related issues (#607, #587).
+neocortex#668 (situation-dependent channel weighting) is still open on branch `issue-668-situation-channel-weighting`. The #669 fixes ride on the same branch.
 
 ## References
 
