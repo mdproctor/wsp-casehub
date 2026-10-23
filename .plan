@@ -1,0 +1,15 @@
+# Work Plan — issue-144-relocate-cognitive-research-docs
+
+## State
+branch: issue-144-relocate-cognitive-research-docs
+state: scaffolded
+project-sha: 
+date: 
+issue-repo: casehubio/examples
+covers: 144
+design-repo: 
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/examples#144 — Issue #144 ← active
