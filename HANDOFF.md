@@ -2,7 +2,17 @@
 
 ## Last Session
 
-examples#146 — Consolidate pre-era and cross-repo cognitive research content.
+examples#144-#148 — Cognitive research relocation and consolidation (all closed, merged, pushed).
+
+### Summary
+- **#144** — Relocated 15 research files from examples + agency → neocortex. Era3 consolidated with Phases 4-7 (P89-P93). Merged to main.
+- **#145** — Consolidated 6 blog entries into era2 Journals 1-6. References 8→33. Merged to main.
+- **#146** — Relocated 3 pre-era research files + 12 cognitive blog entries to neocortex. Cross-references added to era2/era3. Merged to main.
+- **#147** — Full audit: 28/28 PASS. Inventory updated. Closed.
+- **#148** — Agency cleanup: 11 originals removed, RELOCATED.md added. Merged and pushed to agency main.
+
+### Still deferred
+- Engine cognitive stack inventory (engine issue-1104) — engine not in slot 196
 
 ### What was done
 - **neocortex repo** (branch `issue-146-consolidate-pre-era-cross-repo-research`, rebased on #145 → #144):
