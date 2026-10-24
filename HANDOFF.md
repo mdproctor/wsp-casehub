@@ -2,19 +2,25 @@
 
 ## Last Session
 
-examples#145 — Consolidate era2 gap: 7 un-consolidated blog entries from issue-115 series.
+examples#146 — Consolidate pre-era and cross-repo cognitive research content.
 
 ### What was done
-- **neocortex repo** (branch `issue-145-consolidate-era2-blog-entries`, rebased on `issue-144-relocate-cognitive-research-docs`):
-  - Consolidated 6 blog entries from `wsp-casehub` branch `issue-115-drive-expression-gap` into era2 journal (`docs/research/drive-expression-evaluation-research.md`)
-  - Added "Drive Expression Gap Investigation" section with Journals 1-6 covering: subsystem wiring, formation memory audit, serves annotations, metacognitive monitoring, discriminative classification, encoding gap
-  - Entry 7 (Regression That Wasn't) confirmed already in era2 Phase 4-5 — skipped
-  - Expanded references from 8 to 35 citations
-  - Deduplication audit verified all content is unique (not in era1, era2 phases, or era3)
+- **neocortex repo** (branch `issue-146-consolidate-pre-era-cross-repo-research`, rebased on #145 → #144):
+  - Relocated 3 pre-era research files from wsp-casehub blog to `docs/research/`:
+    - needs-pyramid (2026-09-19), wiring-problem (2026-09-20), proving-emergence (2026-09-28)
+  - Relocated 5 cognitive architecture blog entries to `docs/blog/`:
+    - unified-relational-personality-model (from examples, project tag updated)
+    - the-mind-that-reads-minds, the-social-brain, the-mood-that-colours-memory (from agency)
+    - your-agent-doesnt-know-how-it-feels (from agency)
+  - Added Supporting Research Files section to era2 (7 cross-references)
+  - Added 3 entries to era3 Supporting Research Files table
+  - Deduplication audit verified: all 6 pre-era entries UNIQUE, all 3 neocortex blog entries UNIQUE, agency findings already relocated (#144), agency blog subset of findings spec
 
 ### Not yet done
-- Neither #144 nor #145 branches merged — #145 depends on #144
-- examples repo branch `issue-145-consolidate-era2-blog-entries` created but no changes there (work is in neocortex)
+- Source repos (examples, agency) still have the original copies — removal deferred until merge
+- Engine cognitive stack inventory (issue-1104) — engine not in slot, deferred
+- ~10 more agency blog entries might be NEOCORTEX but need deeper review
+- #144, #145, #146 branches not merged — chain dependency: #146 → #145 → #144
 
 ---
 
