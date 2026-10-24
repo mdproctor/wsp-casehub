@@ -100,7 +100,9 @@ These contain findings, literature, or measurements that would be **lost** if no
 
 ---
 
-## Already Relocated (this session)
+## Already Relocated
+
+### By #144 (initial relocation — examples + agency → neocortex)
 
 | File | From | To |
 |---|---|---|
@@ -114,8 +116,61 @@ These contain findings, literature, or measurements that would be **lost** if no
 | memory-retrieval-models-research.md | examples wacky-manor/docs/research/ | neocortex docs/research/ |
 | psychopathy-models-research.md | examples wacky-manor/docs/research/ | neocortex docs/research/ |
 | consolidation-trigger-literature-2026-10-22.md | examples wacky-manor/docs/research/ | neocortex docs/research/ |
+| structured-personality-composition-in-llm-agents.md | examples wacky-manor/docs/ | neocortex docs/research/ |
+| llm-autonomy-landscape-2026.md | examples wacky-manor/docs/ | neocortex docs/research/ |
+| SESSION-LOG-20261007.md | examples wacky-manor/docs/ | neocortex docs/research/ |
+| 2026-09-23-computational-emotion-research.md | agency specs/issue-296 | neocortex docs/research/ |
+| 2026-09-14-measurement-driven-cognition-findings.md | agency specs/issue-261 | neocortex docs/research/ |
 
 Phase 10 added to CHARACTER-EMERGENCE-FINDINGS with principles renumbered P85-P88.
+Era3 expanded with Phases 4-7 (P89-P93): multi-channel, discriminative profiles, consolidation trigger, channel weighting.
+
+### By #145 (era2 consolidation — 6 blog entries → era2 journal)
+
+Content consolidated into `drive-expression-evaluation-research.md` as Journals 1-6:
+- Wiring the Missing Connections (2026-10-09) → Journal 1
+- When Characters Stop (2026-10-13) → Journal 2
+- From Authoring to Architecture (2026-10-13) → Journal 3
+- When Drives Compete (2026-10-14) → Journal 4
+- Teaching LLM Drive Uniqueness (2026-10-17) → Journal 5
+- Classifier Couldn't See Triumph (2026-10-18) → Journal 6
+
+Entry 7 (Regression That Wasn't) already in era2 Phase 4-5 — skipped.
+Era2 references expanded from 8 to 33. Supporting Research Files section added (7 cross-references).
+
+### By #146 (pre-era + cross-repo relocation)
+
+**Research files:**
+
+| File | From | To |
+|---|---|---|
+| pre-era-needs-pyramid-2026-09-19.md | wsp-casehub blog | neocortex docs/research/ |
+| pre-era-wiring-problem-2026-09-20.md | wsp-casehub blog | neocortex docs/research/ |
+| pre-era-proving-emergence-2026-09-28.md | wsp-casehub blog | neocortex docs/research/ |
+
+**Cognitive blog entries (re-labelled to neocortex):**
+
+| File | From | To |
+|---|---|---|
+| unified-relational-personality-model (2026-10-07) | examples blog | neocortex docs/blog/ |
+| the-mind-that-reads-minds (2026-08-20) | agency blog | neocortex docs/blog/ |
+| the-social-brain (2026-08-21) | agency blog | neocortex docs/blog/ |
+| the-mood-that-colours-memory (2026-08-21) | agency blog | neocortex docs/blog/ |
+| your-agent-doesnt-know-how-it-feels (2026-09-24) | agency blog | neocortex docs/blog/ |
+| the-drift-that-stays-in-bounds (2026-08-20) | agency blog | neocortex docs/blog/ |
+| what-does-the-agent-want (2026-08-21) | agency blog | neocortex docs/blog/ |
+| the-agent-that-wants (2026-08-21) | agency blog | neocortex docs/blog/ |
+| the-agent-that-remembers-its-story (2026-08-24) | agency blog | neocortex docs/blog/ |
+| the-group-that-decides-to-want (2026-08-25) | agency blog | neocortex docs/blog/ |
+| from-wanting-to-doing (2026-09-01) | agency blog | neocortex docs/blog/ |
+| the-goal-that-earns-its-rank (2026-09-01) | agency blog | neocortex docs/blog/ |
+
+3 entries added to era3 Supporting Research Files table.
+
+### Deferred (#148)
+
+- Source repo cleanup (remove originals from examples, agency after merge)
+- Engine cognitive stack inventory (issue-1104) — engine not in slot
 
 ---
 
@@ -134,12 +189,15 @@ These are app-specific eval run outputs. The research findings they contain shou
 
 ## Counts
 
-| Category | Count |
-|---|---|
-| Un-consolidated (unique findings/citations) | 24 |
-| Already consolidated (covered by eras) | 4 |
-| Already in correct location | 10+ |
-| Already relocated this session | 10 |
-| Eval results (stay in examples) | 4 |
-| Design specs (not research, stay) | ~12 |
-| **Total documents audited** | **~57** |
+| Category | Count | Status |
+|---|---|---|
+| Relocated to neocortex/docs/research/ | 19 | Done (#144, #146) |
+| Relocated to neocortex/docs/blog/ | 12 | Done (#146) |
+| Consolidated into era2 journals | 6 | Done (#145) |
+| Already consolidated (covered by eras) | 4 | No action needed |
+| Already in correct location | 10+ | No action needed |
+| Eval results (stay in examples) | 4 | No action needed |
+| Design specs (not research, stay) | ~12 | No action needed |
+| Cross-cutting blog entries (stay in source) | 10 | No action needed |
+| Deferred (#148) | 2 | Source cleanup + engine inventory |
+| **Total documents audited** | **~57** | |
