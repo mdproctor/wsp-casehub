@@ -67,7 +67,7 @@ These contain findings, literature, or measurements that would be **lost** if no
 
 | # | Source | Location | Key unique content |
 |---|---|---|---|
-| 21 | Cognitive Stack Inventory (engine issue-1104) | engine specs | Complete type-system inventory of ALL cognitive types in blocks + neocortex. Reference document |
+| 21 | Cognitive Stack Inventory | engine specs | Complete type-system inventory of ALL cognitive types in blocks + neocortex. Reference document. **Note:** issue-1104 reference was incorrect (that's the Hive Mind epic). No engine issue exists for this — needs manual verification of whether the spec file exists in engine. |
 
 #### Examples (not yet relocated)
 
@@ -170,7 +170,7 @@ Era2 references expanded from 8 to 33. Supporting Research Files section added (
 ### Deferred (#148)
 
 - Source repo cleanup (remove originals from examples, agency after merge)
-- Engine cognitive stack inventory (issue-1104) — engine not in slot
+- Engine cognitive stack inventory — issue-1104 reference was incorrect (that's Hive Mind epic). Verify whether the spec file exists in engine before creating a relocation issue.
 
 ---
 
