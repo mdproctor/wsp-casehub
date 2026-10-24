@@ -1,15 +1,16 @@
 # Work Plan — issue-144-relocate-cognitive-research-docs
 
 ## State
-branch: issue-144-relocate-cognitive-research-docs
-state: scaffolded
+branch: issue-145-consolidate-era2-blog-entries
+state: active
 project-sha: 
 date: 
 issue-repo: casehubio/examples
-covers: 144
+covers: 145
 design-repo: 
 design-section-hashes: 
 flyway-next-v: none
 
 ## Queue
-- [ ] casehubio/examples#144 — Issue #144 ← active
+- [x] casehubio/examples#144 — Issue #144
+- [ ] casehubio/examples#145 — Consolidate era2 gap ← active
