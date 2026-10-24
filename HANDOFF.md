@@ -19,8 +19,13 @@ examples#146 — Consolidate pre-era and cross-repo cognitive research content.
 ### Not yet done
 - Source repos (examples, agency) still have the original copies — removal deferred until merge
 - Engine cognitive stack inventory (issue-1104) — engine not in slot, deferred
-- ~10 more agency blog entries might be NEOCORTEX but need deeper review
+- 7 CROSS-CUTTING agency blog entries stay in agency (cognitive concept but tightly coupled to blocks framework)
 - #144, #145, #146 branches not merged — chain dependency: #146 → #145 → #144
+
+### Relocation totals for #146
+- 3 pre-era research files (wsp-casehub → neocortex/docs/research/)
+- 12 cognitive blog entries (1 examples + 11 agency → neocortex/docs/blog/)
+- Cross-references added to era2 (7 entries) and era3 (3 entries) Supporting Research Files
 
 ---
 
