@@ -2,7 +2,7 @@
 
 ## State
 branch: 
-state: closing:review
+state: active
 project-sha: 
 date: 2026-10-25
 issue-repo: casehubio/examples
@@ -14,8 +14,8 @@ evidence-era: true
 
 ## Queue
 - [x] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes
-- [ ] casehubio/neocortex#688 — Fix attribute format mismatch ← active
-- [ ] casehubio/examples#111 — CAPS settling dampens too aggressively
+- [x] casehubio/neocortex#688 — Fix attribute format mismatch
+- [ ] casehubio/examples#111 — CAPS settling dampens too aggressively ← active
 - [ ] casehubio/neocortex#684 — Import goal_coherence as goal-goal edges
 - [ ] casehubio/examples#142 — Per-character NeedSatisfactionConfig overrides
 - [ ] casehubio/examples#131 — Externalize SessionPipeline clearAtTokens
