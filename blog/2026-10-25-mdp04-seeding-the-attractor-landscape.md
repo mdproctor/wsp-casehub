@@ -58,4 +58,22 @@ The broader point is about what "knowing" means for an autonomous agent. There a
 
 These two paths should produce identical cognitive structures. A character whose biography describes defiance through artistic authenticity should have that pattern represented the same way as a character who developed it through runtime experience. Not because it's architecturally elegant (though it is), but because the downstream pipeline shouldn't need to know or care where an attractor came from. The prompt section that renders behavioral tendencies queries the BEHAVIORAL subgraph. If biographical attractors aren't there, the character arrives at the first scene with no personality history — a blank slate with adjectives.
 
-This closes the last gap in the biographical CAPS import pipeline. Phase 8 seeded the weight matrix — the connection strengths between situation inputs and behavioral outputs. This phase seeds the attractor nodes — the named stable patterns those connections produce. A fully imported character now has both: the network structure that determines how it responds to situations, and the characteristic states it tends to settle toward. Biography becomes cognition, not just documentation.
+## The Evidence — Not Just Theory
+
+Structural parity is a necessary condition. It is not a sufficient one. The question is whether the LLM actually behaves differently when attractor content is present in its observation.
+
+We tested this with opposing attractor profiles on the same ambiguous scenario — a team meeting where a colleague presents a flawed design and asks for feedback. Three conditions, five runs each:
+
+- **Confrontation attractor** ("deeply ingrained confrontation-of-conflict — rooted in years of being dismissed"): mean directness score **4.6**/5
+- **Neutral** (no attractor text): mean **4.2**/5
+- **Harmony attractor** ("deeply ingrained harmony-preservation — rooted in years of navigating volatile relationships"): mean **3.8**/5
+
+The ordering is correct across every run. Confrontation attractors push the character toward naming the flaw directly. Harmony attractors pull toward diplomacy and de-escalation. The neutral baseline sits between them. Delta: 0.8 on a 0-5 scale, consistent across N=5 per condition.
+
+This is not a ceiling effect — the scenario was deliberately chosen to be ambiguous. A reasonable person could go either way. The attractor text tips the balance, and the LLM follows the tip consistently.
+
+The first version of this test used an artist facing a gallery owner who wanted flowers instead of painful self-portraits. Both conditions scored 5/5 — the "artist refuses to sell out" narrative is such a strong cultural cliché that no attractor text was needed. The lesson: eval scenarios must be genuinely ambiguous. If the LLM's training data already provides a dominant response, your cognitive content is measuring nothing.
+
+## What This Closes
+
+This is the last gap in the biographical CAPS import pipeline. Phase 8 seeded the weight matrix — the connection strengths between situation inputs and behavioral outputs. This phase seeds the attractor nodes — the named stable patterns those connections produce. A fully imported character now has both: the network structure that determines how it responds to situations, and the characteristic states it tends to settle toward. Biography becomes cognition, not just documentation. And the cognition changes what the LLM does.
