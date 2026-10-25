@@ -24,6 +24,8 @@ Our CAPS topology implements exactly this: 30 input nodes grounded in Bowlby, Gr
 
 But disposition is the *trait-level* personality. The disposition mapper says "this character is bold, so BAS connections are amplified." It does not say "this character has been betrayed repeatedly and learned to assert autonomy in response." Disposition gives you the temperament. Biography gives you the learned patterns. Without biographical seeding, a character with a rich history of betrayal-driven autonomy assertion settles identically to one who has never been betrayed. The life experience is filed away as documentation. The CAPS engine operates as if the character were born yesterday.
 
+![Before and after: from inert string properties to CAPS engine weight seeding](images/caps-data-flow-gap.svg)
+
 ## The Data Flow Gap
 
 The enrichment pipeline produces patterns like this from corpus data:
@@ -68,6 +70,8 @@ The fix has three parts, each at a different layer.
 - `reinforcementSchedule` — variable ratio (biographical patterns don't reinforce on a fixed schedule)
 
 After all patterns are applied, `saveState()` persists the result.
+
+![Same betrayal input, different settling: the effect of biographical weight seeding](images/caps-biographical-settling.svg)
 
 ## What Changes at Runtime
 
