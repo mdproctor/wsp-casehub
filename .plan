@@ -1,7 +1,7 @@
 # Work Plan — issue-144-relocate-cognitive-research-docs
 
 ## State
-branch: 
+branch: issue-658-stub-session-pipeline
 state: active
 project-sha: 
 date: 
@@ -18,8 +18,8 @@ flyway-next-v: none
 - [x] casehubio/examples#147 — Audit cognitive research relocation and consolidation
 - [x] casehubio/examples#148 — Clean up source repos after cognitive research relocation
 - [x] casehubio/neocortex#655 — Remove remaining AgentProvider usage
-- [ ] casehubio/neocortex#658 — Generic stub SessionPipeline for testing ← active
-- [ ] casehubio/blocks#352 — Fix BlocksAutoConfiguration for SessionPipeline migration
+- [x] casehubio/neocortex#658 — Generic stub SessionPipeline for testing
+- [ ] casehubio/blocks#352 — Fix BlocksAutoConfiguration for SessionPipeline migration ← active
 - [ ] casehubio/examples#135 — Full scenario run with all cognitive components enabled
 - [ ] casehubio/neocortex#685 — Import caps_patterns — seed CAPS weights from biography
 - [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes
