@@ -1,7 +1,7 @@
 # Work Plan — pre-run-cognitive-readiness
 
 ## State
-branch: issue-686-behavioral-attractor-subgraph
+branch: 
 state: closing:review
 project-sha: 
 date: 2026-10-25
@@ -10,11 +10,11 @@ covers: 149
 design-repo: 
 design-section-hashes: 
 flyway-next-v: none
-
 evidence-era: true
+
 ## Queue
-- [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes ← active
-- [ ] casehubio/neocortex#688 — Fix attribute format mismatch
+- [x] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes
+- [ ] casehubio/neocortex#688 — Fix attribute format mismatch ← active
 - [ ] casehubio/examples#111 — CAPS settling dampens too aggressively
 - [ ] casehubio/neocortex#684 — Import goal_coherence as goal-goal edges
 - [ ] casehubio/examples#142 — Per-character NeedSatisfactionConfig overrides
