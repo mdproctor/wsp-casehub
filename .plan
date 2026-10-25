@@ -1,12 +1,12 @@
 # Work Plan — issue-144-relocate-cognitive-research-docs
 
 ## State
-branch: issue-658-stub-session-pipeline
+branch: 
 state: active
 project-sha: 
 date: 
-issue-repo: casehubio/neocortex
-covers: 655
+issue-repo: casehubio/blocks
+covers: 352
 design-repo: 
 design-section-hashes: 
 flyway-next-v: none
