@@ -73,3 +73,5 @@ journal_entry_attempt=1
 journal_entry=done
 journal_entry_produced=1
 handoff_write_attempt=1
+handoff_write=done
+handoff_write_produced=1
