@@ -4,3 +4,7 @@
 - branch: issue-122-drive-expression-pipeline
   issue: 122
   paused: 2026-10-25T06:29:50Z
+- branch: issue-688-fix-attribute-format-mismatch
+  issue: 149
+  paused: 2026-10-25T20:58:05Z
+  epic_active_issue: casehubio/neocortex#686
