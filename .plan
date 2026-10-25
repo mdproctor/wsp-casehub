@@ -1,7 +1,7 @@
 # Work Plan — issue-144-relocate-cognitive-research-docs
 
 ## State
-branch: issue-655-remove-agent-provider
+branch: 
 state: active
 project-sha: 
 date: 
@@ -17,8 +17,8 @@ flyway-next-v: none
 - [x] casehubio/examples#146 — Consolidate pre-era and cross-repo cognitive research
 - [x] casehubio/examples#147 — Audit cognitive research relocation and consolidation
 - [x] casehubio/examples#148 — Clean up source repos after cognitive research relocation
-- [ ] casehubio/neocortex#655 — Remove remaining AgentProvider usage
-- [ ] casehubio/neocortex#658 — Generic stub SessionPipeline for testing
+- [x] casehubio/neocortex#655 — Remove remaining AgentProvider usage
+- [ ] casehubio/neocortex#658 — Generic stub SessionPipeline for testing ← active
 - [ ] casehubio/blocks#352 — Fix BlocksAutoConfiguration for SessionPipeline migration
 - [ ] casehubio/examples#135 — Full scenario run with all cognitive components enabled
 - [ ] casehubio/neocortex#685 — Import caps_patterns — seed CAPS weights from biography
