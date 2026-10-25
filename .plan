@@ -1,0 +1,22 @@
+# Work Plan — pre-run-cognitive-readiness
+
+## State
+branch: main
+state: scaffolded
+project-sha: 
+date: 2026-10-25
+issue-repo: casehubio/examples
+covers: 149
+design-repo: 
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes ← active
+- [ ] casehubio/neocortex#688 — Fix attribute format mismatch
+- [ ] casehubio/examples#111 — CAPS settling dampens too aggressively
+- [ ] casehubio/neocortex#684 — Import goal_coherence as goal-goal edges
+- [ ] casehubio/examples#142 — Per-character NeedSatisfactionConfig overrides
+- [ ] casehubio/examples#131 — Externalize SessionPipeline clearAtTokens
+- [ ] casehubio/examples#110 — Code review findings
+- [ ] casehubio/examples#135 — Full scenario run with all cognitive components
