@@ -1,7 +1,7 @@
 # Work Plan — issue-144-relocate-cognitive-research-docs
 
 ## State
-branch: issue-685-import-caps-patterns
+branch: 
 state: active
 project-sha: 
 date: 
@@ -21,13 +21,8 @@ flyway-next-v: none
 - [x] casehubio/neocortex#658 — Generic stub SessionPipeline for testing
 - [x] casehubio/blocks#352 — Fix BlocksAutoConfiguration for SessionPipeline migration
 - [x] casehubio/examples#135 — Full scenario run with all cognitive components enabled
-- [ ] casehubio/neocortex#685 — Import caps_patterns — seed CAPS weights from biography ← active
-  - [x] Batch 1: Schema+Pipeline
-    - [x] Task 1: Extend CapsPattern and convert_corpus
-    - [x] Task 2: Update enrichment prompt
-  - [x] Batch 2: CAPS Seeding
-    - [x] Task 3: EntityEnrichmentHandler CAPS seeding
-- [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes
+- [x] casehubio/neocortex#685 — Import caps_patterns — seed CAPS weights from biography
+- [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes ← active
 - [ ] casehubio/examples#122 — Drive expression pipeline — get working + multi-channel
 - [ ] casehubio/neocortex#668 — Situation-dependent channel weighting
 - [ ] casehubio/neocortex#607 — Frijda action tendencies literature
