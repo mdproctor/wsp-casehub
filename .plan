@@ -5,7 +5,7 @@ branch:
 state: active
 project-sha: 
 date: 
-issue-repo: casehubio/blocks
+issue-repo: casehubio/agency
 covers: 352
 design-repo: 
 design-section-hashes: 
