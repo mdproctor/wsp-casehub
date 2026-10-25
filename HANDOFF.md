@@ -1,54 +1,50 @@
-# HANDOFF — casehub-examples (slot 196)
+# Session Handover — casehub-examples (slot 196)
 
-## Last Session
+**Date:** 2026-10-25
+**Epic:** casehubio/examples#149 — Pre-run cognitive readiness
 
-Working through Batch 1 (SessionPipeline migration). neocortex#655, neocortex#658 done previously. agency#352 (CognitionStack fix) committed on branch `issue-352-fix-cognition-stack` — needs push and PR.
+## What was done
 
-## Immediate Next Step
+### Closed issues (fixes already landed, issues stale)
+- neocortex#668 — Situation-dependent channel weighting (work-end, all repos pushed)
+- neocortex#607 — Frijda action readiness — drive descriptions with action tendencies
+- neocortex#584, #585, #586 — DriveProfileDerivation, generation prompt, somatic discrimination
+- neocortex#659 — InnerLifeOrchestrator.observe() wiring (already on main: db92713)
+- examples#102 — Cognitive pipeline tuning (all 6 items verified done)
+- examples#122 — Drive expression pipeline epic (branch landed: 1ae4de3)
 
-Push agency#352 branch, create PR, then `work next` to advance to examples#135 (Batch 2: full scenario run).
+### Code changes this session
+- **CapsProducer.java** — wired `LlmSituationClassifier` replacing `RuleBasedSituationClassifier` (examples, #668)
+- **social-config.yaml + social-config-generic.yaml** — added Frijda action tendencies to 9 drive descriptions, fixed gallantry/proving-worth bleed in GENERIC (examples, #607)
+- **issue-122 branch** — rebased onto main, landed (multi-channel thinking prompt, pipeline wiring, SessionPipeline test migration, ChannelWeightingEvalTest)
 
-## Implementation Path (10 issues, 5 batches)
+### Created
+- Epic casehubio/examples#149 with .plan queue of 8 issues
 
-### Batch 1: SessionPipeline migration — COMPLETE
-| # | Repo | Title | Scale | Status |
-|---|------|-------|-------|--------|
-| 655 | neocortex | Remove remaining AgentProvider usage | S | done |
-| 658 | neocortex | Generic stub SessionPipeline for testing | S | done |
-| 352 | agency | Fix CognitionStack for SessionPipeline migration | S | branch ready |
+## What the next session must do
 
-### Batch 2: Scenario validation gate
-| # | Repo | Title | Scale |
-|---|------|-------|-------|
-| 135 | examples | Full scenario run with all cognitive components enabled | M |
+### Epic #149 queue — in priority order
 
-### Batch 3: Drive expression pipeline (examples#122 Batch 1 — get working)
-| # | Repo | Title | Scale |
-|---|------|-------|-------|
-| 685 | neocortex | Import caps_patterns — seed CAPS weights from biography | M |
-| 686 | neocortex | Import behavioural_attractors as BEHAVIORAL subgraph nodes | M |
-| 122 | examples | Drive expression pipeline — get working + multi-channel | L |
+1. **casehubio/neocortex#686** — Import behavioural_attractors as BEHAVIORAL subgraph nodes
+   - Branch `issue-686-import-behavioural-attractors` has 2 commits (not on main)
+   - Neocortex repo, caps-related work
 
-### Batch 4: Multi-channel expression (examples#122 Batch 2)
-| # | Repo | Title | Scale |
-|---|------|-------|-------|
-| 668 | neocortex | Situation-dependent channel weighting | M |
-| 607 | neocortex | Frijda action tendencies literature | S |
+2. **casehubio/neocortex#688** — Fix attribute format mismatch — CSV vs indexed EnrichmentAttributeKeys
+   - No commits anywhere, needs investigation
 
-### Batch 5: Tuning
-| # | Repo | Title | Scale |
-|---|------|-------|-------|
-| 102 | examples | Cognitive pipeline tuning — graduated nodes, attractor strength, per-character differentiation | M |
+3. **casehubio/examples#111** — CAPS settling dampens too aggressively
+   - WIP commit on main (b566f98), needs finishing
+   - Part of epic #109 (cognitive pipeline hardening)
 
-## Cross-Module
+4. **casehubio/neocortex#684** — Import goal_coherence as goal→goal edges
+   - No commits, needs investigation
 
-- Batch 1 spans neocortex + blocks
-- Batch 3 spans neocortex + examples
-- All batches are sequential — each depends on the prior batch
+5–7. Quality items: examples#142, #131, #110
 
-## References
+8. **casehubio/examples#135** — Full scenario run with all cognitive components enabled
+   - The finish line — run after all above are done
 
-- `.plan` — queue with 10 issues in dependency order
-- `cognitive-research-inventory.md` — 57-document audit (context for implementation)
-- `neocortex/docs/research/` — era1, era2, era3 journals (the research behind the implementation)
-- `JOURNAL.md` — session journal
+### Repo state
+- examples: main, pushed to origin + upstream
+- neocortex: main, pushed to origin + upstream + canonical
+- Both workspaces on main
