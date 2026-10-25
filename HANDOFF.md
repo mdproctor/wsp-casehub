@@ -2,81 +2,21 @@
 
 ## Last Session
 
-examples#144-#148 — Cognitive research relocation and consolidation (all closed, merged, pushed).
-
-### Summary
-- **#144** — Relocated 15 research files from examples + agency → neocortex. Era3 consolidated with Phases 4-7 (P89-P93). Merged to main.
-- **#145** — Consolidated 6 blog entries into era2 Journals 1-6. References 8→33. Merged to main.
-- **#146** — Relocated 3 pre-era research files + 12 cognitive blog entries to neocortex. Cross-references added to era2/era3. Merged to main.
-- **#147** — Full audit: 28/28 PASS. Inventory updated. Closed.
-- **#148** — Agency cleanup: 11 originals removed, RELOCATED.md added. Merged and pushed to agency main.
-
-### Still deferred
-- Engine cognitive stack inventory (engine issue-1104) — engine not in slot 196
-
-### What was done
-- **neocortex repo** (branch `issue-146-consolidate-pre-era-cross-repo-research`, rebased on #145 → #144):
-  - Relocated 3 pre-era research files from wsp-casehub blog to `docs/research/`:
-    - needs-pyramid (2026-09-19), wiring-problem (2026-09-20), proving-emergence (2026-09-28)
-  - Relocated 5 cognitive architecture blog entries to `docs/blog/`:
-    - unified-relational-personality-model (from examples, project tag updated)
-    - the-mind-that-reads-minds, the-social-brain, the-mood-that-colours-memory (from agency)
-    - your-agent-doesnt-know-how-it-feels (from agency)
-  - Added Supporting Research Files section to era2 (7 cross-references)
-  - Added 3 entries to era3 Supporting Research Files table
-  - Deduplication audit verified: all 6 pre-era entries UNIQUE, all 3 neocortex blog entries UNIQUE, agency findings already relocated (#144), agency blog subset of findings spec
-
-### Not yet done
-- Source repos (examples, agency) still have the original copies — removal deferred until merge
-- Engine cognitive stack inventory (issue-1104) — engine not in slot, deferred
-- 7 CROSS-CUTTING agency blog entries stay in agency (cognitive concept but tightly coupled to blocks framework)
-- #144, #145, #146 branches not merged — chain dependency: #146 → #145 → #144
-
-### Relocation totals for #146
-- 3 pre-era research files (wsp-casehub → neocortex/docs/research/)
-- 12 cognitive blog entries (1 examples + 11 agency → neocortex/docs/blog/)
-- Cross-references added to era2 (7 entries) and era3 (3 entries) Supporting Research Files
-
----
-
-## Prior Session
-
-examples#144 — Relocate cognitive research docs from wacky-manor to neocortex.
-
-### What was done
-- **examples repo** (branch `issue-144-relocate-cognitive-research-docs`):
-  - Removed 13 research files from `wacky-manor/docs/` and `wacky-manor/docs/research/`
-  - Added `research/RELOCATED.md` pointer
-  - Updated CLAUDE.md: research/journals go to foundation repo
-
-- **neocortex repo** (branch `issue-144-relocate-cognitive-research-docs`):
-  - Added 15 research files to `docs/research/` (10 from examples, 3 more from examples, 2 from agency)
-  - Phase 10 added to CHARACTER-EMERGENCE-FINDINGS with principles renumbered P85-P88
-  - Era3 consolidated with 4 new phases (P89-P93): multi-channel expression, discriminative profiles, consolidation trigger, channel weighting
-  - Supporting research file links added to era3
-
-- **workspace** (branch `issue-144-relocate-cognitive-research-docs`):
-  - `cognitive-research-inventory.md` — complete audit of 57 documents across 8 repos
-
-### Issues filed
-- examples#145 — Era2 gap: 7 un-consolidated blog entries from issue-115 series
-- examples#146 — Pre-era and cross-repo cognitive research consolidation
-
-### Not yet done
-- Neither branch merged to main yet — needs review
-- Engine cognitive-stack-inventory not relocated (engine not in this slot)
+Cognitive research consolidation arc complete (#144-#148, all closed). Consolidated 19 research files + 12 cognitive blog entries into neocortex. Era2 expanded with 6 journal entries (drive expression gap investigation). Era3 expanded with 4 phases (P89-P93). Agency cleaned up (11 originals removed). Full audit passed 28/28.
 
 ## Immediate Next Step
 
-Review and merge #144 branches in both examples and neocortex. Then continue with:
-1. examples#122 Batch 1 — Drive expression pipeline (get working)
-2. examples#111 — CAPS settling dampens too aggressively
-3. examples#112 — Unresolvable disposition modifiers
-4. examples#102 — Pipeline tuning (unblocked by #111)
+Begin cognitive implementation: neocortex#657 (SessionPipeline migration — 3 remaining: #655, #658, blocks#352) → examples#135 (full scenario run) → examples#122 (drive expression pipeline) → examples#102 (tuning).
+
+## Cross-Module
+
+- neocortex#655 — Remove remaining AgentProvider usage (CommunitySummaryPhase, LlmReflectionSynthesizer)
+- neocortex#658 — Generic stub SessionPipeline for testing
+- blocks#352 — Fix BlocksAutoConfiguration for #640 migration
 
 ## References
 
-- `wacky-manor/.../ManorCognitivePipelineBuilder.java` — composable builder
-- `wacky-manor/.../ManorCognitivePipelineTest.java` — 9 tests
-- `wacky-manor/.../PlaybookOrchestrator.java` — refactored to use builder
-- `wsp-casehub/specs/issue-115-drive-expression-gap/` — drive expression research
+- `wsp-casehub/cognitive-research-inventory.md` — full 57-document audit
+- `neocortex/docs/research/` — 19 research files (era1, era2, era3, supporting)
+- `neocortex/docs/blog/` — 12 relocated cognitive blog entries
+- `wsp-casehub/JOURNAL.md` — session journal entry 2026-10-24
