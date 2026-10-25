@@ -84,3 +84,6 @@ _exec_ok:tick_github=yes
 tick_github=done
 _exec_ok:context_refresh=yes
 context_refresh=done
+_exec_ok:pop_stack=yes
+pop_stack=done
+checkout_branches_mechanical_attempt=1
