@@ -2,20 +2,20 @@
 
 ## Last Session
 
-Cognitive research consolidation arc complete (#144-#148, all closed). Set up implementation queue for cognitive pipeline work.
+Working through Batch 1 (SessionPipeline migration). neocortex#655, neocortex#658 done previously. agency#352 (CognitionStack fix) committed on branch `issue-352-fix-cognition-stack` — needs push and PR.
 
 ## Immediate Next Step
 
-`work start neocortex#655` — first issue in the queue.
+Push agency#352 branch, create PR, then `work next` to advance to examples#135 (Batch 2: full scenario run).
 
 ## Implementation Path (10 issues, 5 batches)
 
-### Batch 1: SessionPipeline migration (neocortex#657 remaining)
-| # | Repo | Title | Scale |
-|---|------|-------|-------|
-| 655 | neocortex | Remove remaining AgentProvider usage (CommunitySummaryPhase, LlmReflectionSynthesizer) | S |
-| 658 | neocortex | Generic stub SessionPipeline for testing | S |
-| 352 | blocks | Fix BlocksAutoConfiguration for SessionPipeline migration | S |
+### Batch 1: SessionPipeline migration — COMPLETE
+| # | Repo | Title | Scale | Status |
+|---|------|-------|-------|--------|
+| 655 | neocortex | Remove remaining AgentProvider usage | S | done |
+| 658 | neocortex | Generic stub SessionPipeline for testing | S | done |
+| 352 | agency | Fix CognitionStack for SessionPipeline migration | S | branch ready |
 
 ### Batch 2: Scenario validation gate
 | # | Repo | Title | Scale |
