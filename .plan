@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-686-behavioral-attractor-subgraph
-state: active
+state: closing:review
 project-sha: 
 date: 2026-10-25
 issue-repo: casehubio/examples
@@ -11,6 +11,7 @@ design-repo:
 design-section-hashes: 
 flyway-next-v: none
 
+evidence-era: true
 ## Queue
 - [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes ← active
 - [ ] casehubio/neocortex#688 — Fix attribute format mismatch
