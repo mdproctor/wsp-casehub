@@ -1,8 +1,8 @@
 # Work Plan — pre-run-cognitive-readiness
 
 ## State
-branch: main
-state: scaffolded
+branch: issue-686-behavioral-attractor-subgraph
+state: active
 project-sha: 
 date: 2026-10-25
 issue-repo: casehubio/examples
