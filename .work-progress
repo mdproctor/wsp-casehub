@@ -76,3 +76,5 @@ handoff_write_produced=1
 journal_entry_attempt=1
 journal_entry=done
 journal_entry_produced=3
+_exec_ok:wip_commit=yes
+wip_commit=done
