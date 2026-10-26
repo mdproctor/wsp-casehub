@@ -5,7 +5,7 @@ date: 2026-10-26
 entry_type: note
 subtype: diary
 projects: [casehubio/examples]
-tags: [wacky-manor, neocortex, cognitive, need-satisfaction, disposition, SPI, goal-coherence, mindmap]
+tags: [wacky-manor, neocortex, cognitive, need-satisfaction, disposition, SPI, goal-coherence, mindmap, performance, tick-rate]
 ---
 
 # When Villains Decay Differently
@@ -66,3 +66,19 @@ The corpus extraction pipeline produces `goal_coherence` data per entity — con
 The gap was a three-layer pipeline hole. The Python enrichment script produced the data. The Python converter (`convert_corpus.py`) silently dropped it — `_map_entity_enrichment()` handled drive baselines, CAPS patterns, behavioural attractors, and relationship stages, but had no case for `goal_coherence`. The Java record (`EntityEnrichmentEntry`) had no field for it. The Java handler had no processing for it. The `field-registry.yaml` even marked it as `status: gap` across all three stages.
 
 The fix mirrors the gap: add the passthrough in the Python converter, add `GoalCoherence` and `GoalRelation` records to the Java entry, and add `storeGoalCoherence()` to the handler. Conflicts become `blocks` edges. Synergies become `enables` edges. A new `aspires-to` edge type in `GoalVocabulary` connects the person node to every goal in the subgraph. The 56 orphaned goals are now reachable — and the conflict/synergy structure gives the cognitive workbench something meaningful to visualize beyond isolated nodes floating in space.
+
+## The Tick That Took Too Long
+
+With all five issues landed, the full cognitive run finally happened: 303 events across 23 ticks, all cognitive paths active, completion at DAWN. Five characters, balanced participation, every orchestrator firing. The pipeline works.
+
+But it took 50 seconds per tick. At that rate, 300 ticks would take over four hours.
+
+The bottleneck isn't the agent query — five characters respond in parallel in about 10-15 seconds. The bottleneck is what happens after. For each agent that produced dialogue, the system makes two sequential LLM calls: mood appraisal (truncated 200-char interaction → PAD deltas) and BDI extraction (truncated 500-char utterance → beliefs/desires/intentions about the dialogue target). Five agents × two calls × 3-5 seconds each = 30 seconds of sequential work that can't overlap.
+
+The first instinct — fold the mood and BDI fields into the main agent response — made things 27% worse. The LLM spent extra time generating structured fields it wasn't trained to produce, AND the fallback calls still fired because the fields weren't reliably returned.
+
+The real insight came from first-principles analysis. The mood appraisal doesn't need an LLM at all. We already have the `SituationAssessment` from inline classification — acceptance, abandonment, competition, agency_granted — dimensions that map directly to PAD deltas via Scherer's appraisal theory. A mechanical function replaces the LLM call with deterministic computation: zero latency, zero variance, grounded in the same literature the rest of the pipeline uses.
+
+The BDI extraction doesn't need to be synchronous. The mental model isn't read until the next tick's observation assembly. There's no data dependency — it can run in the background while the next tick starts.
+
+Combined: 10 LLM calls off the critical path, 50 seconds down to maybe 20. That's the difference between a four-hour run and a session you can leave running while you make coffee. The implementation is tracked — the interesting part will be getting the mechanical appraisal coefficients right.
