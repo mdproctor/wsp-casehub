@@ -1,0 +1,17 @@
+# Work Plan — main
+
+## State
+branch: main
+state: scaffolded
+project-sha: f9137f0af546d8aac4c7e8840d4d937a178f9919
+date: 2026-10-26
+issue-repo: casehubio/examples
+covers: 149
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+
+## Queue
+- [ ] casehubio/examples#149 — Issue #149 ← active
+- [ ] casehubio/neocortex#684 — Import goal_coherence as goal-goal edges
+- [ ] casehubio/examples#135 — Full scenario run with all cognitive components enabled
