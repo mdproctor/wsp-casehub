@@ -5,7 +5,7 @@ date: 2026-10-26
 entry_type: note
 subtype: diary
 projects: [casehubio/examples]
-tags: [wacky-manor, neocortex, cognitive, need-satisfaction, disposition, SPI]
+tags: [wacky-manor, neocortex, cognitive, need-satisfaction, disposition, SPI, goal-coherence, mindmap]
 ---
 
 # When Villains Decay Differently
@@ -56,3 +56,13 @@ The same session addressed four long-standing code review findings: a `BufferedW
 The session also externalized the `clearAtTokens` parameter that controls when the session pipeline clears its context. Three call sites hardcoded `80_000`. Now it's a config property with format parsing — `80k`, `80000`, or `40%` of the model's context window all resolve to the same integer at startup.
 
 Small things. But resource leaks in a 300-event scenario compound, and hardcoded values in configurable systems are how you end up debugging the wrong layer.
+
+## Fifty-Six Orphaned Goals
+
+A separate data integrity problem surfaced from the cognitive workbench: 56 goals in the GOAL subgraph with zero edges between them. The 3D ego view couldn't reach any of them from the subject person node — BFS from the ego found 2 goals out of 56.
+
+The corpus extraction pipeline produces `goal_coherence` data per entity — conflicts and synergies between goals, each with a natural-language description of the relationship. Frida Kahlo has four conflicts (e.g., pursuing motherhood vs. transforming pain into art — physical constraints from the 1925 accident make both impossible simultaneously) and four synergies (artistic autonomy enabling self-expression, which enables international recognition).
+
+The gap was a three-layer pipeline hole. The Python enrichment script produced the data. The Python converter (`convert_corpus.py`) silently dropped it — `_map_entity_enrichment()` handled drive baselines, CAPS patterns, behavioural attractors, and relationship stages, but had no case for `goal_coherence`. The Java record (`EntityEnrichmentEntry`) had no field for it. The Java handler had no processing for it. The `field-registry.yaml` even marked it as `status: gap` across all three stages.
+
+The fix mirrors the gap: add the passthrough in the Python converter, add `GoalCoherence` and `GoalRelation` records to the Java entry, and add `storeGoalCoherence()` to the handler. Conflicts become `blocks` edges. Synergies become `enables` edges. A new `aspires-to` edge type in `GoalVocabulary` connects the person node to every goal in the subgraph. The 56 orphaned goals are now reachable — and the conflict/synergy structure gives the cognitive workbench something meaningful to visualize beyond isolated nodes floating in space.
