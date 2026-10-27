@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-153-audit-response-format-directives
-state: closing:verified
+state: closing:promoted
 project-sha: f9137f0af546d8aac4c7e8840d4d937a178f9919
 date: 2026-10-26
 issue-repo: casehubio/examples
