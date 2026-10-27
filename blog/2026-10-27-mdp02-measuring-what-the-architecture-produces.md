@@ -10,7 +10,7 @@ tags: [wacky-manor, cognitive-architecture, evaluation, thinking-field, phenomen
 
 # Measuring What the Architecture Produces
 
-We've been building cognitive architecture for characters for a month now — drives, CAPS topology, consolidation, appraisal filtering, multi-channel descriptions, Theory of Mind. The pipeline keeps getting richer. But until today, we had no way to measure the quality of what comes out the other end: the character's private inner monologue. We measured *which drives activate*. We never measured *how the character experiences them*.
+We've been building cognitive architecture for characters for a month now — drives, CAPS topology, consolidation, appraisal filtering, multi-channel descriptions, Theory of Mind. The pipeline keeps getting richer. We have eval instruments for drive expression quality, relational model coherence, and sleep-derived cognitive defaults. But none of them measure the phenomenological quality of the character's private inner monologue — whether it reads as lived experience or filed report. We measured *which drives activate* and *how strongly*. We never measured *how the character experiences them*.
 
 That's the gap this work fills. A thinking-field quality eval with four scoring dimensions: register (phenomenological vs mechanical), uncertainty (ambivalence and confusion), channel coverage (body, attention, time, action pull), and thinking/dialogue separation (is the inner voice raw or performed?). Two instruments — a controlled A/B test for isolating variables, and a transcript scorer for measuring quality across full scenario runs.
 
