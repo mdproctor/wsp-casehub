@@ -1,74 +1,86 @@
 # Session Handover — casehub-examples (slot 196)
 
-**Date:** 2026-10-26
+**Date:** 2026-10-27
+**Branch:** `issue-153-audit-response-format-directives`
 **Epic:** casehubio/examples#149 — Pre-run cognitive readiness
 
 ## What was done this session
 
-### Issues closed
+### Issue #153 — Audit response format directives
 
-| Issue | What | How |
-|-------|------|-----|
-| casehubio/neocortex#686 | Import behavioural_attractors as BEHAVIORAL subgraph nodes | `EntityEnrichmentHandler` creates proper BEHAVIORAL subgraph nodes instead of flat properties. Corpus `trigger`, `response`, `strength` fields now captured. Eval: opposing attractors produce delta=0.8 directness (N=5). |
-| casehubio/examples#111 | CAPS settling dampens activations too aggressively | Disposition-seeded resting activations added as persistent personality baselines. `CapsSettler.extractAttractors()` sums settled + resting. `DispositionWeightMapper.setRestingActivations()` gains OUTPUT node biases with additive semantics. Competitive/cooperative now produce different dominant attractors (>0.7 tier). Literature: Read et al. (2010), Gray (1982), Mischel & Shoda (1995). |
-| casehubio/examples#115 | Epic: Close the drive expression gap | 118 commits landed across ERA3 phases 1-10. All cognitive layers implemented and validated. |
+Audited `CharacterAgentLoop.RESPONSE_FORMAT_INSTRUCTION` — classified each field instruction as schema (JSON structure/types/ranges) or behavioral (how to introspect, how to appraise mood). The audit surfaced a design principle that blocked the obvious fix and led to a different, correct approach.
 
-### Branches cleaned up
+**Classification result:**
+- `thinking` field: 100-word multi-channel introspection essay → behavioral (response format calibration)
+- `moodImpact` "Be honest — negative is valid" → behavioral (anti-bias calibration)
+- Everything else (ranges, types, field descriptions) → schema
 
-- `issue-688-fix-attribute-format-mismatch` (examples) — rebased, stamped closed, popped from pause stack
-- `issue-122-drive-expression-pipeline` (examples) — rebased, stamped closed (was already stamped), popped
-- `issue-115-drive-expression-gap` (examples) — rebased, stamped closed, popped
-- `issue-686-behavioral-attractor-subgraph` (neocortex) — rebased onto main, 6 commits landed via ff-merge, stamped closed
-- Pause stack emptied (was 3 entries, now 0)
+**First approach (wrong):** Moved behavioral content to `[APPRAISAL]` and `[MOOD]` block tags via `CharacterCognition.renderTaggedSections()`. Compiled and passed tests. Reverted after first-principles analysis found:
+1. Category error — field calibration ≠ character behavioral guidance. Block tags handle character state/identity, not output field formatting
+2. Semantic collision — mixed meta-instructions with pipeline state data in the same tag
+3. Severed field connection — instruction at prompt top, output field at prompt bottom
+4. Non-cognitive regression — tagged sections only flow through cognitive path
 
-### Code changes (neocortex, on main)
+**Corrected approach:** Condensed verbose prose to concise calibration keeping all cues near the fields they target. Key design choice: "attend to what feels vivid" defers to `ChannelEmphasisPromptSection` dynamic channel modulation instead of statically saying "Notice body" (which contradicts "Background your somatic").
 
-- **CapsSettler.java** — `extractAttractors()` adds resting activation (tonic baseline) to settled activation (phasic modulation)
-- **DispositionWeightMapper.java** — `setRestingActivations()` extended with OUTPUT node biases (approach/fight/assert for competitive; cautious_approach/trust/proximity_seek for cooperative), additive semantics via `addResting()`, mediating values increased from 0.1-0.2 to 0.2-0.3
-- **DispositionAttractorDifferentiationTest.java** — 3 tests verifying competitive vs cooperative produce different dominant attractors
-- **EntityEnrichmentHandler.java** — biographical attractors as BEHAVIORAL subgraph nodes (from earlier session, rebased and landed)
-- **EntityEnrichmentHandlerTest.java** — 1 test verifying imported attractors visible to BehavioralSynthesisPhase query
+**Adversarial review** confirmed the corrected approach. One open finding: embodiment framing shift (interrogative → parenthetical) may produce more mechanical inner monologue. No eval instrument exists to test this — a thinking-field quality eval is needed as follow-up.
+
+**New finding P103:** Response format calibration ≠ character behavioral guidance. Field-specific calibration stays near the field.
+
+### Pre-existing fixes (from #150)
+
+- `RegulationTrackerTest` + `CharacterCognitionTest` — added 8th constructor arg for `AgentResponse.MoodImpact` (compilation was broken on main)
+- `AgentResponse.parse()` — falls back to `idle()` when deserialized response has null action (empty JSON `{}` case)
 
 ### Documentation
 
-- **ERA3 journal** — Phase 10 added (disposition-seeded attractor baselines), capability plan table updated with phases 10-11
-- **Blog** — `2026-10-26-mdp03-the-baseline-that-wasnt-there.md` with non-inline SVG diagram
-- **Epic #149** — issue body updated with all critical blockers checked off
+- **Blog:** `2026-10-27-mdp01-the-field-that-wasnt-behavioral.md` — full session narrative with category error analysis, adversarial review findings, P103
+- **ERA3 journal:** Entry 16 — response format audit findings and P103
 
-### Repo state
+### Commits on branch (examples)
 
-- examples: main, clean. Neocortex dependency unchanged (no pom.xml update needed — changes are in caps-engine and memory-seeding, resolved via slot settings)
-- neocortex: main, 6 commits ahead of origin — **needs push**
-- wsp-casehub: main, blog + handoff committed
-- wsp-casehub-neocortex: unchanged
+| # | Message |
+|---|---------|
+| 1 | `fix(#150): update tests for AgentResponse MoodImpact field` |
+| 2 | `refactor(#153): separate behavioral directives from response format schema` (superseded by 3) |
+| 3 | `refactor(#153): concise response format — keep calibration near fields` |
+| 4 | `fix(#153): defer to dynamic channel emphasis, restore confusion permission` |
 
-## What the next session must do
+Commits 2 and 3 should squash at work-end (2 is the wrong approach, 3 is the correction).
 
-### Epic #149 — remaining queue (priority order)
+### Commits on neocortex (main)
 
-All critical blockers are resolved. The remaining work is quality improvements before the full scenario run.
+| # | Message |
+|---|---------|
+| 1 | `docs(#153): ERA3 Entry 16 — response format audit findings and P103` |
 
-1. **casehubio/neocortex#684** — Import goal_coherence as goal→goal edges
-   - Same pattern as #686: corpus data stored flat, needs graph edges
-   - 56 goals in GOAL subgraph with zero edges — all orphaned
-   - Neocortex repo, memory-seeding module
+### Commits on wsp-casehub (branch)
 
-2. **casehubio/examples#142** — Per-character NeedSatisfactionConfig overrides
-   - Disposition-aware need dynamics (competitive characters have different need profiles)
-   - Examples repo
+| # | Message |
+|---|---------|
+| 1 | `blog(#153): the field that wasn't behavioral — response format audit` |
 
-3. **casehubio/examples#131** — Externalize SessionPipeline clearAtTokens
-   - Configurable context budget (currently hardcoded 80k)
-   - Should be percentage of model context window (40-60%)
+## Repo state
 
-4. **casehubio/examples#110** — Code review findings
-   - Resource leaks, JSON escaping, dead code
-   - Cleanup pass
+- **examples:** `issue-153-audit-response-format-directives`, clean. 4 commits ahead of main. 644 fast tests pass.
+- **neocortex:** `main`, clean. 14 commits ahead of origin — **needs push**.
+- **wsp-casehub:** `issue-153-audit-response-format-directives`, clean.
 
-5. **casehubio/examples#135** — Full scenario run
-   - The finish line — run after all above are done
-   - 300+ event GENERIC evaluation with all cognitive components enabled
+## What the next session should do
+
+### To close #153
+
+1. **Decide on work-end** — the structural audit is complete. The branch can be closed. Squash commits 2+3 (wrong approach + correction) during work-end.
+2. **File follow-up issue** — thinking-field quality eval instrument. Fixed scenario inputs, scored on register (phenomenological vs mechanical), embodiment, and uncertainty expression. This validates or refutes Finding 3 (embodiment framing shift).
+
+### Epic #149 queue (remaining)
+
+| Position | Issue | Repo | What |
+|----------|-------|------|------|
+| done | casehubio/examples#153 | examples | Response format audit (this session) |
+| next | casehubio/neocortex#684 | neocortex | Import goal_coherence as goal→goal edges |
+| queued | casehubio/examples#135 | examples | Full scenario run with all cognitive components |
 
 ### Push needed
 
-- `git -C /Users/mdproctor/claude/casehub/slots/196/neocortex push origin main` — 6 commits (#686 import + #111 baselines + ERA3 docs)
+- `git -C /Users/mdproctor/claude/casehub/slots/196/neocortex push origin main` — 14 commits (prior sessions + ERA3 Entry 16)
