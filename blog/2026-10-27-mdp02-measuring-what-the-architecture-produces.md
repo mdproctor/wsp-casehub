@@ -76,10 +76,26 @@ The verbose thinking-field text was telling the character "Notice your body. Not
 
 Whether it was empirically correct — whether the dynamic system alone produces the same quality as the static instruction plus the dynamic system — is an open question. And now we have the instrument to answer it.
 
+## B0 Was Never That Good
+
+We re-scored BASELINE0 with the new multi-dimensional eval. The headline number — 3.93 flat mean — had been the target for a month. Every improvement was measured against it. Every shortfall felt like a regression from a known-good state.
+
+B0's register scores: 1.0 to 1.7 across every drive. Pure report mode. "I feel protective of Clara. I should intervene." High drive activation accuracy, zero phenomenological depth. The flat eval couldn't see this — it scored "I feel protective" the same as "something pulls between me and the door before I know I've moved." Both get protection quality 4. Only register distinguishes them.
+
+PP gallantry in B0: quality 2.40, register 1.0, differentiation 1.6. The "B0 was better at gallantry" belief was wrong. The flat method gave gallantry credit on events where it wasn't even steering behavior — drive contamination from hand-authored descriptions that bled across irrelevant scenes.
+
+PP gallantry now (V2, full pipeline): quality 4.00, register 3.4, differentiation 3.6. Every dimension improved. We weren't falling short of B0 — we'd passed it without realising, because the old eval couldn't measure what changed.
+
+## What's Still Weak
+
+The three-way comparison (B0 → B1 → V2) exposed five drives where the architecture still underperforms:
+
+DD gloating dropped from quality 3.50 in B0 to 2.40 in V2. DD recognition has been stuck at register 1.0-1.5 for the entire month — the architecture has never produced discovered-feeling recognition for Dick Dastardly. PP social-harmony is degrading within runs. HC dominance sits at register 2.5. PP proving-worth has low differentiation against gallantry.
+
+Each of these is a specific gap in the cognitive content — formation memories that aren't rich enough, Barrett 4-channel descriptions that are too cognitive, discrimination texts that don't distinguish well enough. Each is testable with a 30-event eval in five minutes.
+
 ## Where This Goes
 
-The gap to the original briefed baseline is a wrong question. The briefed baseline was inflated — BASELINE0's mean of 3.93 reflected drive contamination, not genuine quality. Once relevance-gated evaluation exposed this, the target shifted from "match the old number" to "raise genuine expression quality."
+Not more 300-tick runs. The eval is now sharp enough for short iterative cycles: check the cognitive content for a weak drive, make a targeted change, run a short scenario, score 30 events, compare. Ten-minute iteration cycles, each proving one improvement.
 
-The real remaining gap is expression quality when triggered. Gallantry, when it correctly activates, scores 2.65 quality. The character knows to be gallant, places itself correctly in the scene, but the felt experience of gallantry is thin. The pipeline delivers the right drive to the right moment. The thinking-field description sets the right register. What's missing is richer cognitive content — more for the character to draw on when it experiences that chest-filling warmth.
-
-That's the work ahead. Not more prompt engineering. Not more pipeline plumbing. More cognitive content, empirically validated, one layer at a time.
+The pipeline works. The thinking-field register works. The eval now sees dimensions that were invisible for a month. The remaining work is filling in the cognitive content that individual drives need to express as lived experience rather than filed reports — and we finally have the instrument to measure whether each change lands.
