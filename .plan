@@ -1,16 +1,24 @@
-# Work Plan — issue-154-thinking-field-eval
+# Work Plan — 
 
 ## State
-branch: issue-154-thinking-field-eval
-state: closing:merged
+branch: 
+state: active
 project-sha: 
 date: 
-issue-repo: casehubio/examples
-covers: 154
+issue-repo: casehubio/neocortex
+covers: 655
 design-repo: 
 design-section-hashes: 
-flyway-next-v: 
+flyway-next-v: none
 
-evidence-era: true
 ## Queue
-- [ ] casehubio/examples#154 — Issue #154 ← active
+- [ ] casehubio/neocortex#655 — Remove remaining AgentProvider usage ← active
+- [ ] casehubio/neocortex#658 — Generic stub SessionPipeline for testing
+- [ ] casehubio/blocks#352 — Fix BlocksAutoConfiguration for SessionPipeline migration
+- [ ] casehubio/examples#135 — Full scenario run with all cognitive components enabled
+- [ ] casehubio/neocortex#685 — Import caps_patterns — seed CAPS weights from biography
+- [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes
+- [ ] casehubio/examples#122 — Drive expression pipeline — get working + multi-channel
+- [ ] casehubio/neocortex#668 — Situation-dependent channel weighting
+- [ ] casehubio/neocortex#607 — Frijda action tendencies literature
+- [ ] casehubio/examples#102 — Cognitive pipeline tuning
