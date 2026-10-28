@@ -1,96 +1,68 @@
 # Session Handover — casehub-examples (slot 196)
 
 **Date:** 2026-10-28
-**Branch:** main (examples), issue-714-barrett-personality-profiles (neocortex)
+**Branch:** issue-156-computed-mode-quality (examples)
 
 ## What was done this session
 
-### Barrett 4-Channel Architecture (replacing prose templating)
+### Phase 1 — Quick fixes (#164, #165)
 
-Discovered that `social-config-generic.yaml` had accumulated ~640 lines of hand-crafted prose briefing injected verbatim into the LLM prompt. This bypasses the cognitive architecture. Replaced with:
+1. **#165 Ungate formation memories** — removed `briefingMode` guard from formation memory rendering in `CharacterCognition.renderCognitiveSections()`. Formation memories are biographical data, not prose templates — they should render in both modes.
 
-1. **Barrett 4-channel instruction** (V2) — universal framework for computed drive expression. Tested at 4.7 mean in isolated harness (somatic 5.0, situational 4.9, bespoke 4.5, discovery 4.5).
+2. **#164 GENERIC agentId leak** — multiple fixes:
+   - Entity IDs now use slugified display names (`clara-bellingham`) instead of cartoon agentIds (`penelope-pitstop`)
+   - Added `WorldState.resolveCharacter(ref)` — tries direct agentId, then slug-matched display name
+   - `ActionResolver`, `PlaybookOrchestrator` response parsing, `NarrativeEventBuilder` all use resolved names
+   - Descriptor names now applied to ALL characters at startup (not just active ones)
+   - Non-active characters (Muttley, Prof Pat Pending, etc.) marked inactive so they don't appear in room observations
+   - Result: **zero cartoon name leaks** in 103-event eval run
 
-2. **Briefing-mode toggle** — `manor.cognitive.briefing-mode=false` in application.properties. Wired through ManorConfigProducer → ManorConfig → PlaybookOrchestrator → CharacterCognition. Default `true` preserves current behavior.
+3. **Barrett V3 instruction** — replaced "Do not conclude. Do not explain. Discover." with "FROM BODY TO ACTION" bridge. High-intensity drives now move directly into words and actions without cognitive mediation.
 
-3. **Consolidation phase updated** (neocortex#714) — `DriveDescriptionGenerationPhase` now reads personality facets + attachment from MindMap nodes for personality-aware Barrett profile derivation.
+### Phase 2 — Baseline comparison
 
-4. **Biography engram YAML** — 25 files across 5 characters (per-character directories under `META-INF/eidos/biographies/`), fully enriched: 13 AMPD facets, Jungian stack, DISC, Belbin, TK, SDI, Locus, archetypes, disposition, life events with sub_thoughts, beliefs, relationships, goals. Audited and corrected.
+Cross-baseline scorecard established (B0, B1, V2, Computed, Fixed):
 
-5. **Biography import** wired into PlaybookOrchestrator — per-character directory loading via `BiographyImportRunner`.
+| Baseline | Quality | Register | Notes |
+|----------|---------|----------|-------|
+| B0 (Oct 2) | 3.64 | 1.52 | Original generic colloquial |
+| B1 (Oct 4) | 3.95 | 2.72 | Emotional core baseline |
+| V2 (Oct 26) | 3.88 | 3.35 | Full cognitive run (briefing mode) |
+| Pre-fix computed | 3.78 | 2.94 | Before fixes |
+| Fixed computed | 3.76 | 3.61 | After #164/#165 fixes — **register surpasses V2** |
 
-6. **Barrett test harness** — `wacky-manor/docs/eval/test_barrett_generation.py` with 10 test cases, LLM judge (bespoke/somatic/situational/discovery), A/B version support, `--profile` mode for consolidated profiles.
+### Phase 3 — Iteration (Barrett V3)
 
-### First Computed Run Results
+Barrett V3 iteration running. Eval pending.
 
-30-event eval, 5 characters, `briefing-mode=false`:
+Key remaining gaps vs V2:
+- HC gloating quality: 2.50 vs 4.00 — characters observe somatic gloating but don't express it overtly
+- Peter gallantry quality: 3.00 vs 4.00 — better with formation memories but still below V2
 
-| Change | Drives improved | Drives regressed |
-|---|---|---|
-| **Quality** | AHM prot +0.50, AHM susp +0.50, DD gloat +0.60, PP prov-worth +1.10 | HC gloat -1.50, PP prot -1.77, PP gall -0.67 |
-| **Register** | AHM prot +0.63, AHM susp +0.70, DD scheme +0.67 | PP gall -2.20, PP prot -1.70, HC gloat -2.70 |
+### Commits on branch
 
-Mixed results. Root causes identified and filed as issues.
-
-## Issues filed this session
-
-| # | Title | Priority | Status |
-|---|-------|----------|--------|
-| #156 | Improve five weak drive expressions | Active | Branch exists with toggle + Barrett instruction |
-| #158 | Epic: migrate characters to biography engrams | Active | Engrams written, import wired |
-| #159-#163 | Per-character engram migration | Done | Engram YAML created for all 5 |
-| #164 | GENERIC profile agentId leak | **High** | Filed, not started |
-| #165 | Ungate formation memories in computed mode | **High** | Filed, not started |
-| #166 | Discrimination text personality context | Medium | Filed, not started |
-
-## Immediate Next Steps (for autonomous continuation)
-
-Work in short iterative cycles (~10 min each). Fix the obvious gaps first, eval after each change:
-
-### 1. Fix #165 — Ungate formation memories (HIGHEST IMPACT)
-In `CharacterCognition.renderCognitiveSections()`, let formation memories render in BOTH modes. They're biographical data, not prose templates. This is likely causing Peter's gallantry/protection register drops (3.40→1.20, 4.00→2.30).
-
-### 2. Fix #164 — GENERIC profile agentId leak
-The LLM sees `penelope-pitstop`, `peter-perfect` as agentIds and hallucinates cartoon references ("Muttley", "Peter Perfect"). Fix by ensuring display names are used in all observation text.
-
-### 3. Rerun with both fixes + GENERIC profile
-30-event eval, compare against V2 baseline. This should close the gap on the regressed drives.
-
-### 4. If regressions persist, iterate
-- Check consolidated Barrett profiles (`/manor/cognitive-dump/{character}`) — are they bespoke enough?
-- Check if the "How to Feel" instruction needs tuning for specific drives
-- Run Barrett test harness (`--profile`) to test generation quality in isolation
-
-### 5. When short run looks good, do a full 300-tick run
-- All 5 characters, GENERIC profile, `briefing-mode=false`
-- Save transcript, run full eval
-- Compare against V2 baseline (30-event data in `docs/eval/full-cognitive-run-2026-10-26/`)
-- If the computed pipeline matches or exceeds the prose baseline across all drives, the templating can be removed
+| SHA | Description |
+|-----|-------------|
+| 0804d893 | fix(#164,#165): ungate formation memories + fix GENERIC agentId leak |
+| 173d2d24 | fix(#164): apply descriptor name to CharacterState at startup |
+| 58e6521a | fix(#164): mark non-active characters inactive + apply name overrides to all |
+| 28d464f3 | data(#156): cross-baseline scorecard |
+| 57451552 | data(#156): computed-fixes eval — register 2.94→3.61 |
+| 2edb0799 | feat(#156): Barrett V3 — bridge somatic awareness to behavioral expression |
 
 ## Key References
 
-- Barrett instruction V2: `CharacterCognition.java` lines 208-244 (in `!briefingMode` block)
-- Barrett test harness: `wacky-manor/docs/eval/test_barrett_generation.py`
-- Engrams: `wacky-manor/src/main/resources/META-INF/eidos/biographies/{character}/`
-- V2 baseline eval: `wacky-manor/docs/eval/full-cognitive-run-2026-10-26/full-eval-v2.json`
-- Computed run eval: `wacky-manor/docs/eval/computed-engram-run-20261028/full-eval.json`
-- Era 4 journal: `neocortex/docs/research/era4-measurement-methodology-research.md` (Entry 3)
-- Consolidation phase: `neocortex/mindmap-intelligence/.../DriveDescriptionGenerationPhase.java`
+- Barrett instruction: `CharacterCognition.java` lines 208-248 (in `!briefingMode` block)
+- WorldState.resolveCharacter: `WorldState.java` line 39
+- Entity ID slug: `ManorWorldObservationProvider.java` line 106
+- Scorecard: `wacky-manor/docs/eval/scorecard.json`
+- Fixed eval: `wacky-manor/docs/eval/computed-fixes-run-20261028/`
 - Toggle: `-Dmanor.cognitive.briefing-mode=false`
+- Active chars: `-Dmanor.scenario.active-characters=penelope-pitstop,hooded-claw,ant-hill-mob,dick-dastardly,peter-perfect`
 
-## Constraint: NO TEMPLATING
+## Next Steps
 
-Do NOT add hand-crafted prose to:
-- Drive descriptions in social-config YAML
-- Personality facet origins
-- Formation memory episode text (as somatic scripting)
-- Psychological substrate paragraphs
-- Any text that gets injected verbatim into the LLM prompt
-
-The Barrett instruction + consolidation-derived profiles + structured engram data should produce all drive expression content. If quality is low, improve the instruction or the consolidation prompt — do not fall back to hand-crafted descriptions.
-
-## Repo State
-
-- **examples:** main, needs push. `issue-156-weak-drive-improvements` branch has toggle + Barrett instruction (needs merge to main).
-- **neocortex:** `issue-714-barrett-personality-profiles` branch, needs push. Era 4 Entry 3 committed.
-- **Server:** wacky-manor may be running on port 8180. Check before starting.
+1. Evaluate Barrett V3 results
+2. If HC gloating quality remains low: investigate consolidated drive profile vs V2 prose
+3. If Peter gallantry quality remains low: check formation memory rendering + consolidated profile
+4. Full 300-tick run when short runs match or exceed V2
