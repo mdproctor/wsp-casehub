@@ -13,11 +13,11 @@ flyway-next-v: unknown
 
 ## Queue
 - [ ] casehubio/examples#175 — Issue #175 ← active
-  - [ ] Batch 1: Pipeline
-    - [ ] Task 1: Schema-aware description generation
-  - [ ] Batch 2: Appraisal
-    - [ ] Task 2: TargetedDrive model and target resolution
-  - [ ] Batch 3: Composition
-    - [ ] Task 3: Render targeted drives
-  - [ ] Batch 4: Coherence
-    - [ ] Task 4: Evolved schema rendering
+  - [x] Batch 1: Pipeline
+    - [x] Task 1: Schema-aware description generation
+  - [x] Batch 2: Appraisal
+    - [x] Task 2: TargetedDrive model and target resolution
+  - [x] Batch 3: Composition
+    - [x] Task 3: Render targeted drives
+  - [x] Batch 4: Coherence
+    - [x] Task 4: Evolved schema rendering
