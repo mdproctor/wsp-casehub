@@ -1,0 +1,23 @@
+# Work Plan — wip/era5-relational-eval
+
+## State
+branch: wip/era5-relational-eval
+state: scaffolded
+project-sha: 19fe98809f1be66c0cd10e42fa25a8173b113c0c
+date: 2026-10-29
+issue-repo: casehubio/examples
+covers: 175
+design-repo: project
+design-section-hashes: 
+flyway-next-v: unknown
+
+## Queue
+- [ ] casehubio/examples#175 — Issue #175 ← active
+  - [ ] Batch 1: Pipeline
+    - [ ] Task 1: Schema-aware description generation
+  - [ ] Batch 2: Appraisal
+    - [ ] Task 2: TargetedDrive model and target resolution
+  - [ ] Batch 3: Composition
+    - [ ] Task 3: Render targeted drives
+  - [ ] Batch 4: Coherence
+    - [ ] Task 4: Evolved schema rendering
