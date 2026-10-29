@@ -8,7 +8,9 @@
 
 Era 4 computed-mode quality work is **complete**. All aggregate metrics exceed V2 prose baseline. A ceiling was identified on reactive drives — requires #477 relational schemas (Era 5) to close.
 
-**DO NOT sync neocortex with canonical main yet.** Slot 211 landed #477 relational schemas on neocortex main. Merge to this slot only when Era 5 begins.
+**Rebase complete.** Neocortex rebased onto local canonical main (28 new commits including #587 CAPS situation CBR). Examples adapted to `SituationClassifier` 3-arg API. 648 tests pass.
+
+**#477 relational schemas MERGED.** The rebase onto local canonical main picked up all of #477 (#716-#720). Relational schemas, appraisal wiring, two-channel prompt, dynamic evolution, and CAPS biasing are all in this slot. Ready for Era 5 eval.
 
 ## Results
 
@@ -143,8 +145,30 @@ python3 classify_emotions.py <transcript_dir> --mode full --limit 30 --output <d
 
 ## Next session: Era 5
 
-1. Merge #477 relational schemas from slot 211's neocortex main
-2. Delete consolidation cache (schemas change consolidation output)
-3. Run 30-event eval — compare reactive drive quality
-4. If reactive drives improve → 300-tick validation
-5. If not → add explicit trigger conditions alongside relational context
+### Pre-flight
+- Neocortex rebased onto local canonical main — #587 (CAPS CBR) AND #477 (relational schemas, #716-#720) all landed
+- Examples adapted to 3-arg `SituationClassifier` API — 648 tests pass
+- All code merged and building
+
+### Steps
+1. Delete consolidation cache at `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` — schemas change consolidation output
+2. Rebuild examples (`mvn install -Dmaven.test.skip=true`)
+3. Run 30-event eval — compare reactive drive quality (HC gloating, Peter gallantry/protection, DD greed) against Era 4 baseline
+7. Run metacognitive awareness eval — verify relational prompt doesn't leak system state
+8. If reactive drives improve → 300-tick validation
+9. If not → add explicit trigger conditions (`context` field on drives, rendered alongside Barrett descriptions)
+
+### What to measure
+- **Reactive drive quality** — the 4 regressed drives vs Era 4 and V2 baselines
+- **Relational consistency** — does character treat prey differently from ally?
+- **Metacognitive awareness** — does OtherModelPromptSection leak trust scores or role labels?
+- **Session degradation** — do relational signals hold over 300 ticks or fade?
+
+### Key references for Era 5
+- Era 5 research doc: `neocortex/docs/research/era5-relational-cognition-research.md`
+- #477 spec: `/Users/mdproctor/claude/casehub/slots/211/wsp-casehub-neocortex/specs/issue-477-relational-schemas/`
+- #477 child issues: #716-#720 (all landed)
+- Two-channel prompt: #718 — OtherModelPromptSection renders phenomenological only
+- CAPS biasing: #720 — trust modulates CAPS input activations
+- DriveQualityEvalTest: targeted probes for each regressed drive
+- MetacognitiveAwarenessEvalTest: simulation awareness detection
