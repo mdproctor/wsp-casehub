@@ -1,87 +1,150 @@
 # Session Handover — casehub-examples (slot 196)
 
-**Date:** 2026-10-28
-**Branch:** issue-156-computed-mode-quality (examples)
+**Date:** 2026-10-29
+**Branch:** issue-156-computed-mode-quality (examples), main (neocortex)
+**Era:** 4 complete → Era 5 ready to start
+
+## Status
+
+Era 4 computed-mode quality work is **complete**. All aggregate metrics exceed V2 prose baseline. A ceiling was identified on reactive drives — requires #477 relational schemas (Era 5) to close.
+
+**DO NOT sync neocortex with canonical main yet.** Slot 211 landed #477 relational schemas on neocortex main. Merge to this slot only when Era 5 begins.
+
+## Results
+
+| Metric | V2 (prose) | 300-tick clean | Delta |
+|--------|-----------|---------------|-------|
+| Quality | 3.88 | **3.92** | +0.04 |
+| Register | 3.35 | **3.74** | +0.39 |
+| Differentiation | 3.67 | **3.74** | +0.07 |
+| Trigger rate | — | **87%** | — |
+| Cartoon contamination | 27+ hits | **0** | — |
+| Metacognitive leaks | 27+ hits | **0** | — |
+
+### Reactive drive ceiling (what Era 5 must address)
+
+| Drive | V2 Q | Now Q | V2 R | Now R | Issue |
+|-------|------|-------|------|-------|-------|
+| HC gloating | 4.00 | 2.40 | 4.50 | 3.20 | No relational trigger |
+| Peter protection | 4.60 | 3.80 | 4.00 | 3.80 | Needs threat context |
+| DD greed | 4.33 | 3.80 | 3.83 | 3.60 | No situational trigger |
+| Peter gallantry | 4.00 | 3.67 | 3.40 | 3.00 | Needs relational context |
+
+Targeted probes confirm the code WORKS: HC gloating 4.33, Peter gallantry 5.00 in ideal scenarios. The gap is in complex, long-context conditions where the relational trigger connection is missing.
 
 ## What was done this session
 
-### Phase 1 — Quick fixes (#164, #165) — COMPLETE
+### Fixes (all committed, all tested, 648 fast tests pass)
 
-1. **#165 Ungate formation memories** — removed `briefingMode` guard from formation memory rendering in `CharacterCognition.renderCognitiveSections()`. Formation memories are biographical data, not prose templates — they render in both modes now.
+1. **#165** — Formation memories ungated in computed mode
+2. **#164** — GENERIC agentId leak (6 sites + ExchangeRunner)
+3. **Drive type labels** — `GLOATING (0.7):` prepended to generated descriptions (neocortex)
+4. **Immersion overhaul** — section headers, action results, thinking instruction
+5. **ID rewrite at import** — cartoon IDs eliminated from runtime in GENERIC mode
+6. **EXAMINE affordance** — INTERACT → EXAMINE in both ActionDescriptor and entity Affordance
+7. **ActionType.verb()** — enum name never reaches LLM-visible text
+8. **ExchangeRunner** — PULL_ASIDE events now use display names
+9. **Non-active characters** — marked inactive, don't appear in observations
+10. **Auto-pause on API failure** — health-check recovery every 30s (#172)
 
-2. **#164 GENERIC agentId leak** — 6 leak points fixed:
-   - Entity IDs: slugified display names (`clara-bellingham`) instead of cartoon agentIds
-   - `WorldState.resolveCharacter(ref)`: tries direct agentId → slug-matched display name
-   - `ActionResolver`, `PlaybookOrchestrator` response parsing use resolved names
-   - `NarrativeEventBuilder.describeRich/describeDirectedDialogue` use display names
-   - Descriptor names applied to ALL characters at startup (not just active ones)
-   - Non-active characters marked inactive → don't appear in room observations
-   - **Result: zero cartoon name leaks** in eval runs
+### Key finding: the hybrid
 
-### Phase 2 — Baseline comparison — COMPLETE
+Label + degree + somatic prose is the working combination:
+- Label alone → simulation awareness (Era 1 P13, Era 4 Oct 6-9)
+- Somatic alone → quality 3.76, drives lack conceptual anchor
+- **Hybrid → quality 3.99, zero metacognitive leaks**
 
-Cross-baseline scorecard (B0, B1, V2, Pre-fix, Fixed):
+The somatic text is protective — it prevents the label from triggering metacognitive reasoning.
 
-| Baseline | Quality | Register | Notes |
-|----------|---------|----------|-------|
-| B0 (Oct 2) | 3.64 | 1.52 | Original generic colloquial |
-| B1 (Oct 4) | 3.95 | 2.72 | Emotional core baseline |
-| V2 (Oct 26) | 3.88 | 3.35 | Full cognitive run (briefing mode) |
-| Pre-fix computed | 3.78 | 2.94 | Computed mode before fixes |
-| **Fixed computed** | **3.76** | **3.61** | **After #164/#165 — register surpasses V2** |
-| Barrett V3 | 3.70 | 3.47 | Instruction change regressed — reverted |
+### Issues filed
 
-### Phase 3 — Barrett V3 iteration — TESTED, REVERTED
+| # | Repo | Title |
+|---|------|-------|
+| #167 | examples | Eval: metacognitive awareness check |
+| #168 | examples | Eval: action-format awareness check |
+| #169 | examples | Rename INTERACT affordance label (DONE) |
+| #170 | examples | Character name tokenization |
+| #172 | examples | Resilient scenario execution |
+| #173 | examples | Session auto-reconnect after eviction |
+| neocortex #721 | neocortex | Unified entity linking (design) |
+| neocortex #722 | neocortex | Performance optimization |
 
-Barrett V3 ("FROM BODY TO ACTION" bridge replacing "Do not conclude. Do not explain. Discover.") was tested and reverted. It reduced register (3.61→3.47) and didn't improve quality on target drives. The eval's small N per drive (3-6) makes single-run differences unreliable.
+### Tests created
 
-### Key Fix1 improvements vs pre-fix computed (the shipped configuration):
+| Test | Type | What it checks |
+|------|------|---------------|
+| `ActionResolverTest` (2 tests) | Unit, fast | INTERACT results are experiential |
+| `WorldStateTest` (2 tests) | Unit, fast | ID remapping works |
+| `MetacognitiveAwarenessEvalTest` | llm-eval | Simulation awareness in LLM responses |
+| `DriveQualityEvalTest` (5 tests) | llm-eval | Targeted drive quality probes |
 
-| Drive | Metric | Pre-fix | Fixed | Δ |
-|-------|--------|---------|-------|---|
-| Peter gallantry | register | 1.17 | 3.50 | **+2.33** |
-| HC gloating | register | 1.75 | 3.17 | **+1.42** |
-| PP social-harmony | register | 2.67 | 4.00 | **+1.33** |
-| DD recognition | register | 1.00 | 2.20 | **+1.20** |
-| Peter protection | register | 2.33 | 3.50 | **+1.17** |
-| Peter proving-worth | register | 2.33 | 3.50 | **+1.17** |
+## Eval data — where everything lives
 
-### Commits on branch
+All eval data is under `wacky-manor/docs/eval/`:
 
-| SHA | Description |
-|-----|-------------|
-| 0804d893 | fix(#164,#165): ungate formation memories + fix GENERIC agentId leak |
-| 173d2d24 | fix(#164): apply descriptor name to CharacterState at startup |
-| 58e6521a | fix(#164): mark non-active characters inactive + apply name overrides |
-| 28d464f3 | data(#156): cross-baseline scorecard |
-| 57451552 | data(#156): computed-fixes eval — register 2.94→3.61 |
-| 2edb0799 | feat(#156): Barrett V3 (reverted) |
-| df7bf48d | data(#156): Barrett V3 eval data |
-| 2979519a | Revert Barrett V3 |
+### Transcripts and results
 
-## Remaining quality gaps
+| Directory | Events | Profile | Mode | Notes |
+|-----------|--------|---------|------|-------|
+| `generic-colloquial-20261002/` | 310 | GENERIC | Briefing | B0 baseline |
+| `emotional-core-baseline1-generic-20261004/` | 336 | GENERIC | Briefing | B1 baseline |
+| `full-cognitive-run-2026-10-26/` | 303 | GENERIC | Briefing | **V2 baseline** (prose) |
+| `computed-engram-run-20261028/` | 48 | GENERIC | Computed | Pre-fix computed (broken) |
+| `computed-fixes-run-20261028/` | 103 | GENERIC | Computed | Fix1 — formation memories + names |
+| `label-fix-run-20261028/` | 30 | GENERIC | Computed | Label fix — quality 3.99 |
+| `barrett-v3-run-20261028/` | 45 | GENERIC | Computed | Barrett V3 (regressed, reverted) |
+| `300-tick-opus-baseline-20261028/` | 2300 | GENERIC | Computed | Contaminated (ExchangeRunner leak) |
+| `300-tick-clean-opus-20261029/` | 851 | GENERIC | Computed | **Clean baseline** — quality 3.92, register 3.74 |
 
-| Drive | V2 quality | Fixed quality | Gap |
-|-------|-----------|---------------|-----|
-| HC gloating | 4.00 | 2.50 | -1.50 |
-| Peter gallantry | 4.00 | 3.00 | -1.00 |
-| Peter protection | 4.60 | 3.33 | -1.27 |
+### Eval result files
 
-These are QUALITY gaps (not register). The consolidated drive descriptions are good (rich Barrett-style somatic profiles) but the character doesn't translate somatic awareness into explicitly evaluable behavior. This might resolve with larger N in a 300-tick run, or might need targeted improvements to the consolidation prompt for these specific drives.
+Each directory contains:
+- `transcript.json` — raw events from the scenario run
+- `full-eval.json` or `full-eval-v2.json` — Haiku-judged eval (quality, register, differentiation, trigger rate, trends, flags)
+- Some have `transcript-for-eval.json` — ID-remapped version for eval compatibility
 
-## Next Steps (for continuation)
+### Scorecard
 
-1. **Full 300-tick run** — use Fix1 config (Barrett V2 instruction, formation memories ungated, GENERIC names). Start with: `-Dmanor.cognitive.briefing-mode=false -Dmanor.scenario.profile=generic -Dmanor.scenario.mode=autonomous -Dmanor.scenario.max-turns=300 -Dmanor.scenario.active-characters=penelope-pitstop,hooded-claw,ant-hill-mob,dick-dastardly,peter-perfect`
-2. **If quality gaps persist at scale** — investigate consolidated drive profiles for HC gloating and Peter gallantry/protection in `DriveDescriptionGenerationPhase` (neocortex). The somatic descriptions are rich but might not translate to evaluable behavior.
-3. **Branch closure** — when 300-tick results are satisfactory, squash and merge to main via work-end.
+`scorecard.json` — cross-baseline comparison table (B0, B1, V2, Pre-fix, Fix1)
 
-## Key References
+### Eval script
 
-- Barrett instruction: `CharacterCognition.java` lines 208-242 (in `!briefingMode` block)
-- WorldState.resolveCharacter: `WorldState.java` line 39
-- Entity ID slug: `ManorWorldObservationProvider.java` line 106
-- Scorecard: `wacky-manor/docs/eval/scorecard.json`
-- Fixed eval: `wacky-manor/docs/eval/computed-fixes-run-20261028/`
-- V3 eval: `wacky-manor/docs/eval/barrett-v3-run-20261028/`
-- Toggle: `-Dmanor.cognitive.briefing-mode=false`
-- Active chars: `-Dmanor.scenario.active-characters=penelope-pitstop,hooded-claw,ant-hill-mob,dick-dastardly,peter-perfect`
+`classify_emotions.py` — the Haiku eval instrument. Three modes: `flat`, `relevance`, `full` (default).
+```bash
+python3 classify_emotions.py <transcript_dir> --mode full --limit 30 --output <dir>/full-eval.json
+```
+
+**Note:** When using ID-rewritten transcripts (generic IDs like `clara-bellingham`), the eval script needs cartoon IDs to match against `social-config-generic.yaml` drive definitions. Use `transcript-for-eval.json` (ID-remapped) or remap before running.
+
+## Research documents
+
+| Doc | Repo | What it covers |
+|-----|------|---------------|
+| `era4-measurement-methodology-research.md` | neocortex | Entry 4: full session writeup — immersion, hybrid, ceiling |
+| `era5-relational-cognition-research.md` | neocortex | Opening doc — #477 hypothesis, measurement plan |
+
+## Blog
+
+`blog/2026-10-29-mdp01-the-label-the-body-and-the-wall.md` — diary entry covering the hybrid finding, immersion audit, reactive drive wall, relational answer.
+
+## Key references
+
+| What | Where |
+|------|-------|
+| Barrett instruction | `CharacterCognition.java` lines 208-248 (`!briefingMode` block) |
+| Drive label rendering | `CognitionObservationBuilder.java` line 139 (neocortex) |
+| ID rewrite | `PlaybookOrchestrator.java` lines 188-220 |
+| ActionType.verb() | `ActionType.java` |
+| Entity slug | `WorldState.slug()` + `WorldState.resolveCharacter()` |
+| Auto-pause | `PlaybookOrchestrator.java` after query phase |
+| Eval script | `wacky-manor/docs/eval/classify_emotions.py` |
+| Scorecard | `wacky-manor/docs/eval/scorecard.json` |
+| Consolidation cache | `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` |
+
+## Next session: Era 5
+
+1. Merge #477 relational schemas from slot 211's neocortex main
+2. Delete consolidation cache (schemas change consolidation output)
+3. Run 30-event eval — compare reactive drive quality
+4. If reactive drives improve → 300-tick validation
+5. If not → add explicit trigger conditions alongside relational context
