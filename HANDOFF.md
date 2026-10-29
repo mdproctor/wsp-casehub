@@ -1,174 +1,106 @@
 # Session Handover — casehub-examples (slot 196)
 
 **Date:** 2026-10-29
-**Branch:** issue-156-computed-mode-quality (examples), main (neocortex)
-**Era:** 4 complete → Era 5 ready to start
+**Branch:** wip/era5-relational-eval (examples), main (neocortex)
+**Era:** 5 — relational cognition, attention competition finding
 
 ## Status
 
-Era 4 computed-mode quality work is **complete**. All aggregate metrics exceed V2 prose baseline. A ceiling was identified on reactive drives — requires #477 relational schemas (Era 5) to close.
+Era 5 investigation complete. #477 relational schemas are merged and operational — all five layers (schemas, appraisal, two-channel prompt, evolution, CAPS biasing) are wired. The CognitiveDerivationEngine generates emerged somatic descriptions (17 drives across 5 characters in 54 seconds).
 
-**Rebase complete.** Neocortex rebased onto local canonical main (28 new commits including #587 CAPS situation CBR). Examples adapted to `SituationClassifier` 3-arg API. 648 tests pass.
+**Key finding:** Adding relational context as SEPARATE prompt sections degrades somatic register from 3.74 to 3.13. Attention is finite and competitive — cognitive sections steal focus from the Barrett somatic instruction. The fix is compositional: fold relational context INTO drive labels as directional anchors (`→ Name`), not as separate sections.
 
-**#477 relational schemas MERGED.** The rebase onto local canonical main picked up all of #477 (#716-#720). Relational schemas, appraisal wiring, two-channel prompt, dynamic evolution, and CAPS biasing are all in this slot. Ready for Era 5 eval.
+## Era 5 Eval Results
 
-## Results
+| Run | Events | Quality | Register | Diff |
+|-----|--------|---------|----------|------|
+| Era 4 baseline | 300 | **3.92** | **3.74** | **3.74** |
+| Era 5 + YAML briefing fallback | 30 | 3.84 | 3.27 | 3.70 |
+| Era 5 label+degree only | 30 | 3.88 | 3.34 | 3.61 |
+| Era 5 full pipeline (emerged descriptions) | 105 | 3.84 | 3.13 | 3.57 |
 
-| Metric | V2 (prose) | 300-tick clean | Delta |
-|--------|-----------|---------------|-------|
-| Quality | 3.88 | **3.92** | +0.04 |
-| Register | 3.35 | **3.74** | +0.39 |
-| Differentiation | 3.67 | **3.74** | +0.07 |
-| Trigger rate | — | **87%** | — |
-| Cartoon contamination | 27+ hits | **0** | — |
-| Metacognitive leaks | 27+ hits | **0** | — |
+Register degraded progressively with more relational content. Quality held but didn't improve. Reactive drives (HC gloating, Peter gallantry) did not recover.
 
-### Reactive drive ceiling (what Era 5 must address)
+## Bugs Found and Fixed This Session
 
-| Drive | V2 Q | Now Q | V2 R | Now R | Issue |
-|-------|------|-------|------|-------|-------|
-| HC gloating | 4.00 | 2.40 | 4.50 | 3.20 | No relational trigger |
-| Peter protection | 4.60 | 3.80 | 4.00 | 3.80 | Needs threat context |
-| DD greed | 4.33 | 3.80 | 3.83 | 3.60 | No situational trigger |
-| Peter gallantry | 4.00 | 3.67 | 3.40 | 3.00 | Needs relational context |
+### 1. SessionPipeline not wired in scripted mode (TDD)
+`consolidationScheduler.setSessionPipeline()` was inside `if (mode == AUTONOMOUS)`. In SCRIPTED mode, all LLM-calling consolidation phases (drive-description-generation, other-model-derivation, self-standard-derivation) silently skipped. Characters got YAML briefing prose or bare labels instead of emerged somatic descriptions.
 
-Targeted probes confirm the code WORKS: HC gloating 4.33, Peter gallantry 5.00 in ideal scenarios. The gap is in complex, long-context conditions where the relational trigger connection is missing.
+**Test:** `ScriptedConsolidationPipelineTest` — structural assertion, red→green.
+**Fix:** moved `setSessionPipeline` before the mode conditional.
 
-## What was done this session
+### 2. YAML briefing prose fallback
+`CognitionObservationBuilder` fell back to hand-authored YAML descriptions when no generated descriptions existed. This was cognitive narrative that contaminated the Barrett instruction.
 
-### Fixes (all committed, all tested, 648 fast tests pass)
+**Fix:** fallback now renders label+degree only (`GLOATING (0.7)`).
 
-1. **#165** — Formation memories ungated in computed mode
-2. **#164** — GENERIC agentId leak (6 sites + ExchangeRunner)
-3. **Drive type labels** — `GLOATING (0.7):` prepended to generated descriptions (neocortex)
-4. **Immersion overhaul** — section headers, action results, thinking instruction
-5. **ID rewrite at import** — cartoon IDs eliminated from runtime in GENERIC mode
-6. **EXAMINE affordance** — INTERACT → EXAMINE in both ActionDescriptor and entity Affordance
-7. **ActionType.verb()** — enum name never reaches LLM-visible text
-8. **ExchangeRunner** — PULL_ASIDE events now use display names
-9. **Non-active characters** — marked inactive, don't appear in observations
-10. **Auto-pause on API failure** — health-check recovery every 30s (#172)
+### 3. ConditionMatcher NPE (#174)
+Trigger conditions referenced cartoon IDs that don't exist after GENERIC ID rewrite. Null-safed — triggers return false for unknown characters.
 
-### Key finding: the hybrid
+### 4. hasSessionPipeline() added to ConsolidationScheduler
+Testability API — reports whether LLM-calling phases will function.
 
-Label + degree + somatic prose is the working combination:
-- Label alone → simulation awareness (Era 1 P13, Era 4 Oct 6-9)
-- Somatic alone → quality 3.76, drives lack conceptual anchor
-- **Hybrid → quality 3.99, zero metacognitive leaks**
+## Next Session: Implement Targeted Somatic Drives
 
-The somatic text is protective — it prevents the label from triggering metacognitive reasoning.
+### The change
 
-### Issues filed
+Replace separate cognitive sections with directional annotations on drives:
 
-| # | Repo | Title |
-|---|------|-------|
-| #167 | examples | Eval: metacognitive awareness check |
-| #168 | examples | Eval: action-format awareness check |
-| #169 | examples | Rename INTERACT affordance label (DONE) |
-| #170 | examples | Character name tokenization |
-| #172 | examples | Resilient scenario execution |
-| #173 | examples | Session auto-reconnect after eviction |
-| neocortex #721 | neocortex | Unified entity linking (design) |
-| neocortex #722 | neocortex | Performance optimization |
+**Before (current — register 3.13):**
+```
+== What Pulls at You ==
+GLOATING (0.7): [somatic description]
 
-### Tests created
+== How You Feel About Those Present ==
+**Reginald:** Prey. Trust 0.1. Predictable.
 
-| Test | Type | What it checks |
-|------|------|---------------|
-| `ActionResolverTest` (2 tests) | Unit, fast | INTERACT results are experiential |
-| `WorldStateTest` (2 tests) | Unit, fast | ID remapping works |
-| `MetacognitiveAwarenessEvalTest` | llm-eval | Simulation awareness in LLM responses |
-| `DriveQualityEvalTest` (5 tests) | llm-eval | Targeted drive quality probes |
-
-## Eval data — where everything lives
-
-All eval data is under `wacky-manor/docs/eval/`:
-
-### Transcripts and results
-
-| Directory | Events | Profile | Mode | Notes |
-|-----------|--------|---------|------|-------|
-| `generic-colloquial-20261002/` | 310 | GENERIC | Briefing | B0 baseline |
-| `emotional-core-baseline1-generic-20261004/` | 336 | GENERIC | Briefing | B1 baseline |
-| `full-cognitive-run-2026-10-26/` | 303 | GENERIC | Briefing | **V2 baseline** (prose) |
-| `computed-engram-run-20261028/` | 48 | GENERIC | Computed | Pre-fix computed (broken) |
-| `computed-fixes-run-20261028/` | 103 | GENERIC | Computed | Fix1 — formation memories + names |
-| `label-fix-run-20261028/` | 30 | GENERIC | Computed | Label fix — quality 3.99 |
-| `barrett-v3-run-20261028/` | 45 | GENERIC | Computed | Barrett V3 (regressed, reverted) |
-| `300-tick-opus-baseline-20261028/` | 2300 | GENERIC | Computed | Contaminated (ExchangeRunner leak) |
-| `300-tick-clean-opus-20261029/` | 851 | GENERIC | Computed | **Clean baseline** — quality 3.92, register 3.74 |
-
-### Eval result files
-
-Each directory contains:
-- `transcript.json` — raw events from the scenario run
-- `full-eval.json` or `full-eval-v2.json` — Haiku-judged eval (quality, register, differentiation, trigger rate, trends, flags)
-- Some have `transcript-for-eval.json` — ID-remapped version for eval compatibility
-
-### Scorecard
-
-`scorecard.json` — cross-baseline comparison table (B0, B1, V2, Pre-fix, Fix1)
-
-### Eval script
-
-`classify_emotions.py` — the Haiku eval instrument. Three modes: `flat`, `relevance`, `full` (default).
-```bash
-python3 classify_emotions.py <transcript_dir> --mode full --limit 30 --output <dir>/full-eval.json
+== How You Bond ==
+You don't need people. Closeness is vulnerability.
 ```
 
-**Note:** When using ID-rewritten transcripts (generic IDs like `clara-bellingham`), the eval script needs cartoon IDs to match against `social-config-generic.yaml` drive definitions. Use `transcript-for-eval.json` (ID-remapped) or remap before running.
+**After (targeted — expect register recovery):**
+```
+== What Pulls at You ==
+GLOATING (0.7) → Reginald: [somatic description]
+SCHEMING (0.9) → Clara: [somatic description]
+```
 
-## Research documents
+### Implementation steps
 
-| Doc | Repo | What it covers |
-|-----|------|---------------|
-| `era4-measurement-methodology-research.md` | neocortex | Entry 4: full session writeup — immersion, hybrid, ceiling |
-| `era5-relational-cognition-research.md` | neocortex | Opening doc — #477 hypothesis, measurement plan |
+1. **`CognitionObservationBuilder.renderInternalState()`** (neocortex) — for drives with `context: social`, resolve the relational target from nearby agents + relational schemas. Annotate the label: `DRIVE (intensity) → DisplayName`.
 
-## Blog
+2. **`CharacterCognition.renderCognitiveSections()`** (examples) — remove calls to:
+   - `renderRelationalSchemas()` (line 259-264)
+   - `renderAttachmentStyle()` (line 266-268)
+   - Trust sections (`renderTrustSections()`, line 270-273)
 
-`blog/2026-10-29-mdp01-the-label-the-body-and-the-wall.md` — diary entry covering the hybrid finding, immersion audit, reactive drive wall, relational answer.
+3. **Tests** — update any assertions that reference removed sections. Add test for `→ Name` annotation.
 
-## Key references
+4. **Eval** — delete consolidation cache, rebuild, run 30-event eval. Compare register against Era 4 baseline (3.74). If register recovers → 300-tick validation.
+
+### Key files
 
 | What | Where |
 |------|-------|
-| Barrett instruction | `CharacterCognition.java` lines 208-248 (`!briefingMode` block) |
-| Drive label rendering | `CognitionObservationBuilder.java` line 139 (neocortex) |
-| ID rewrite | `PlaybookOrchestrator.java` lines 188-220 |
-| ActionType.verb() | `ActionType.java` |
-| Entity slug | `WorldState.slug()` + `WorldState.resolveCharacter()` |
-| Auto-pause | `PlaybookOrchestrator.java` after query phase |
-| Eval script | `wacky-manor/docs/eval/classify_emotions.py` |
-| Scorecard | `wacky-manor/docs/eval/scorecard.json` |
+| Drive rendering (neocortex) | `cognition/src/main/java/.../CognitionObservationBuilder.java:139` |
+| Section composition (examples) | `wacky-manor/src/.../CharacterCognition.java:259-273` |
+| Relational schemas (YAML) | `wacky-manor/src/main/resources/META-INF/eidos/social-config-generic.yaml` |
+| SocialConfig.Drive.context | `wacky-manor/src/.../SocialConfig.java:87` — `requiresSocialContext()` |
+| Era 5 research doc | `neocortex/docs/research/era5-relational-cognition-research.md` |
+| Blog entry | `wsp-casehub/blog/2026-10-29-mdp02-the-body-doesnt-listen.md` |
+| Eval data | `wacky-manor/docs/eval/era5-full-pipeline-105-20261029/` |
 | Consolidation cache | `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` |
 
-## Next session: Era 5
+### Constraints
 
-### Pre-flight
-- Neocortex rebased onto local canonical main — #587 (CAPS CBR) AND #477 (relational schemas, #716-#720) all landed
-- Examples adapted to 3-arg `SituationClassifier` API — 648 tests pass
-- All code merged and building
+- **No hand-crafted prose in social-config.** The `→ Name` annotation is computed, not authored.
+- **Delete consolidation cache before eval.** Schemas change consolidation output.
+- **Commit after every substantial change.** WIP commits, squash later.
 
-### Steps
-1. Delete consolidation cache at `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` — schemas change consolidation output
-2. Rebuild examples (`mvn install -Dmaven.test.skip=true`)
-3. Run 30-event eval — compare reactive drive quality (HC gloating, Peter gallantry/protection, DD greed) against Era 4 baseline
-7. Run metacognitive awareness eval — verify relational prompt doesn't leak system state
-8. If reactive drives improve → 300-tick validation
-9. If not → add explicit trigger conditions (`context` field on drives, rendered alongside Barrett descriptions)
+## Commits This Session
 
-### What to measure
-- **Reactive drive quality** — the 4 regressed drives vs Era 4 and V2 baselines
-- **Relational consistency** — does character treat prey differently from ally?
-- **Metacognitive awareness** — does OtherModelPromptSection leak trust scores or role labels?
-- **Session degradation** — do relational signals hold over 300 ticks or fade?
-
-### Key references for Era 5
-- Era 5 research doc: `neocortex/docs/research/era5-relational-cognition-research.md`
-- #477 spec: `/Users/mdproctor/claude/casehub/slots/211/wsp-casehub-neocortex/specs/issue-477-relational-schemas/`
-- #477 child issues: #716-#720 (all landed)
-- Two-channel prompt: #718 — OtherModelPromptSection renders phenomenological only
-- CAPS biasing: #720 — trust modulates CAPS input activations
-- DriveQualityEvalTest: targeted probes for each regressed drive
-- MetacognitiveAwarenessEvalTest: simulation awareness detection
+| Repo | Branch | Key commits |
+|------|--------|-------------|
+| examples | `wip/era5-relational-eval` | ConditionMatcher fix (#174), SessionPipeline TDD fix, test updates, eval data (3 runs) |
+| neocortex | `main` | briefing prose fallback fix, hasSessionPipeline, research doc update |
+| wsp-casehub | `main` | blog: "The Body Doesn't Listen When You Talk About People" |
