@@ -1,5 +1,30 @@
 # Design Journal — wip/era5-relational-eval
 
+## 2026-10-30 — Pipeline implementation and LLM compliance gap (#175)
+
+### What was done
+
+Steps 1-5 implemented: relational schema seeding (overlay + cognitive nodes + subgraph name fix), drive-first rendering with body-location anchors, P22 prompt with contrast/discovery verbs/channel emphasis, Barrett instruction with structural guidance, two eval runs.
+
+### The compliance finding
+
+P22 generates golden-prose-quality descriptions (verified via direct API call). The rendering layer correctly wraps them with `**body-location** — DRIVE` anchors. But the LLM writes analytical prose ("dusty, grand, full of people I need to manage") instead of using the somatic vocabulary from its own prompt ("chest settles", "spine finds its vertical").
+
+The prompt is right. The LLM doesn't follow it. This reframes the remaining work: it's not about better descriptions or better rendering — it's about making the Barrett instruction strong enough that the LLM USES the somatic palette already in its context.
+
+### Register trajectory
+
+R: 3.13 → 3.33 (v1, body-location anchors) → 3.47 (v2, contrast + discovery verbs). Each structural addition helps, but diminishing returns without solving compliance.
+
+### Infrastructure notes
+
+- `ClassificationResult` API changed — caps-api `classify()` now returns `ClassificationResult` not `List<SituationActivation>`. Fixed in 4 test files.
+- `BulkReExtractionService` from upstream #730 needs CDI exclusion.
+- GENERIC profile uses renamed agent IDs (vincent-marsh not hooded-claw) — classifier needs `GENERIC_ID_MAP`.
+- P22 skips consolidation tick 1 ("no SessionPipeline") — descriptions only available after tick 2.
+
+---
+
 ## 2026-10-29 — Pipeline re-architecture for targeted somatic drives (#175)
 
 ### The problem
