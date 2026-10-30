@@ -48,27 +48,27 @@ Read these in order:
 - `barrett-v3-confrontation/` — v3 instruction, confrontation event 5
 - `barrett-v5-confrontation-no-gloating/` — v5c experiment, gloating drive removed
 
-## Next Step — Dynamic Drive Activation
+## Next Step — Continue the Event Queue
 
-The Barrett instruction is as good as instruction tuning can get for HC. The remaining gap (gloating under threat) requires the pipeline to modulate which drives are presented based on the situation:
+The Barrett v5 instruction works for non-threat scenarios. Don't block on dynamic drive activation — continue the event queue with events that don't require drive suppression.
 
-1. **Design the mechanism** — When a character is under direct threat (exits blocked, confrontation), the pipeline should either:
-   - Suppress gloating drive (remove from "What Pulls at You")
-   - Reduce its intensity to near-zero
-   - Or add a situational modifier: "SUPPRESSED — body under threat"
+**Do this now:**
 
-2. **Where in the pipeline** — `CognitionObservationBuilder.renderInternalState()` or the appraisal step before it. The drives are seeded in MindMap with fixed intensities. A situational layer needs to modulate what's presented.
+1. **HC in library (event 2, aside).** HC alone, territorial claim, inscription discovery. No threat → gloating is fine. Create smoke test, generate thinking via subagent, do full-transcript comparison against golden prose (lines 20-25 of `golden-prose-20261030/transcript.json`). Check structure (bold anchors, multi-paragraph), drive blending, own words, performance cost (mask drops when alone). This tests instruction generalisation to a different room.
 
-3. **After that** — continue the event queue (events 3, 4 in different rooms, then different characters DD/PP, then full 300-tick eval).
+2. **Different character — DD entrance hall (event 10, dialogue).** Reginald Foxworth arriving. Different drives (recognition, acquisitiveness), different personality (impulsive, reactive). No bold anchors in golden prose — DD experiences as continuous flow. This tests whether the v5 instruction's "you MAY bold" correctly allows DD to skip them.
+
+3. **After those two pass:** file an issue for dynamic drive activation in neocortex (`CognitionObservationBuilder.renderInternalState()` — modulate presented drives based on situational context). That work can be a separate branch.
 
 ### Event queue
 
 1. ~~HC aside, entrance hall (event 1)~~ — Q=4.25 R=4.50 D=4.0
 2. ~~HC dialogue, entrance hall (event 0)~~ — Q=4.50 R=4.0 D=4.25
 3. ~~HC confrontation, entrance hall (event 5)~~ — near-golden with v5c
-4. HC in different room (library, kitchen) — instruction generalisation
-5. Different character (DD or PP) — different personality/attachment
-6. Full 300-tick eval
+4. **HC aside, library (event 2)** ← do this next
+5. **DD dialogue, entrance hall (event 10)** ← then this
+6. File issue for dynamic drive activation (neocortex)
+7. Full 300-tick eval after 5+ events at golden standard
 
 ### Session technique note
 
