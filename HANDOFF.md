@@ -7,17 +7,92 @@
 
 ## Status
 
-Golden prose corpus complete. All 5 original per-drive differentiation targets fixed through 12 systematic classifier iterations. The corpus is now the verified target for pipeline rendering.
+Pipeline infrastructure complete (Steps 1-5). Golden prose corpus is the verified target. P22 prompt VERIFIED to produce golden-prose-quality descriptions (contrast formulas, discovery verbs, body-location territories). Rendering layer correctly wraps them with bold anchors and paragraph structure.
 
-**Golden prose (v12):** 51 events, 5 characters. Per-drive scores all at or above 4.0 except HC dominance R=3.9 (noise boundary — achieved 4.2 in earlier runs with same prose).
+**Current gap:** The LLM ignores the structural guidance and writes analytical prose instead of somatic prose. The prompt is right — the LLM compliance is the remaining problem. Two eval runs show steady improvement (R: 3.13→3.33→3.47) but still far from golden (4.20).
 
-**Neocortex rebased:** Slot's neocortex main rebased onto canonical main. Now includes 22 upstream commits (#721 entity annotations, #725 classification learning, #727 observability-api, #730 bulk re-extraction, #731 cognitive pipeline wiring). Era5 commits sit on top — no conflicts.
+**Next step:** Iterate on ONE smoke test until the LLM output matches golden prose event 2. This is experimental prompt engineering — tweaking the Barrett instruction, section ordering, and description format until the LLM follows the somatic structure. See "How to Iterate" below.
 
-**Next step:** Pipeline implementation — make the backend generate equivalent structured output. Steps 9-14 in the era5 research doc's Immediate Plan. Must account for new upstream capabilities (#721, #731) that change the pipeline landscape.
+## How to Iterate (for next session)
 
-## What Was Accomplished This Session
+The approach is NOT full scenario eval runs. It's focused, one-event-at-a-time comparison:
 
-### The differentiation problem (resolved)
+### 1. The Smoke Test
+
+Run `PipelineToRenderingTest#goldenScenario_hcEntranceHall_fullPromptDump`. This test:
+- Reproduces golden prose event 2 conditions (HC in entrance hall, all characters present)
+- Seeds all 4 HC drives with golden-prose-quality P22 descriptions (contrast, discovery verbs)
+- Dumps the COMPLETE prompt the LLM receives — every section, every drive description
+- Runs in ~5 seconds (no LLM call)
+
+```bash
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pfast -Dtest="PipelineToRenderingTest#goldenScenario*" -s .mvn/slot-settings.xml
+```
+
+### 2. Send the Prompt to the LLM
+
+Take the dumped prompt and send it to Haiku 4.5 via Vertex API. Compare the thinking output against the golden prose target (event 2 in `golden-prose-20261030/transcript.json`, character "hooded-claw", second event with thinking).
+
+### 3. Compare Line by Line
+
+The golden prose event 2 thinking has THREE structural elements the pipeline must reproduce:
+1. **Bold entity anchors**: `**Clara signs the guest book**`, `**Behind my sternum**`, `**Hartwell hovers near Clara**`
+2. **Body-location paragraphs**: each paragraph grounded in anatomy (sternum warmth, spine vertical, ears tracking)
+3. **Contrast text**: "not the spine's territorial claim, not the attention's angular mapping, but the slow private sweetness"
+
+The v2 pipeline output LACKS all three. The LLM writes: "Dusty, grand, full of people I need to manage" — analytical planning, not somatic discovery.
+
+### 4. What to Tweak
+
+The pipeline components that affect LLM output (in order of likely impact):
+
+| Component | File | What It Controls |
+|-----------|------|-----------------|
+| **Barrett instruction** | `CharacterCognition.java:208-242` | "How to Feel" section — tells LLM HOW to write thinking |
+| **Drive descriptions** | Seeded in smoke test (from P22) | "What Pulls at You" — the somatic palette |
+| **Section ordering** | `CharacterCognition.renderCognitiveSections()` | Which sections come first/last |
+| **P22 system prompt** | `DriveDescriptionGenerationPhase.java:43-66` | How P22 generates descriptions |
+| **Body-location table** | `CognitionObservationBuilder.DRIVE_BODY_LOCATIONS` | Anchor text per drive |
+
+The Barrett instruction is the most likely fix — it needs to be MORE DIRECTIVE about using body-location anchors. Currently "give each active pull its own paragraph" is a suggestion. It might need to be: "Your aside MUST be structured as paragraphs starting with bold body locations from the drives above."
+
+### 5. Iterate
+
+Change one thing → re-run smoke test → send prompt to LLM → compare → repeat. Each iteration is ~30 seconds (5s test + 25s LLM call). NOT a full scenario eval.
+
+Only run full eval (classify_emotions.py) AFTER the single-event output matches golden prose patterns.
+
+## What Was Accomplished This Session (session 2 — pipeline implementation)
+
+### Pipeline Steps 1-5 complete
+
+| Step | What | Status |
+|------|------|--------|
+| 0 | Entity integration decision | Deferred — filed neocortex#732, #733 |
+| 1 | Seed relational schemas into MindMap | Done — overlay nodes + cognitive nodes + subgraph name fix |
+| 2 | Drive-first rendering with body-location anchors | Done — `DRIVE_BODY_LOCATIONS` in CognitionObservationBuilder |
+| 3 | Body-location constraints in P22 | Done — body territory, channel emphasis, contrast context |
+| 4 | Structural rendering in Barrett instruction | Done — paragraph structure, discovery verbs, woven clauses |
+| 5 | Eval against golden corpus | Done — v1 and v2 evals, golden scenario smoke test |
+
+### Key findings
+
+1. **P22 generates golden-prose-quality descriptions** when given the updated prompt (verified via direct Vertex API call). The system prompt now includes: body territory constraint, explicit contrast formula, discovery verbs, 3-5 sentences.
+
+2. **The rendering layer correctly wraps descriptions** with bold body-location anchors (`**sternum, breastbone** — GLOATING`), paragraph separation, and contrast text.
+
+3. **The LLM doesn't follow structural guidance.** Despite the Barrett instruction saying "give each active pull its own paragraph starting with its bold body-location anchor", the LLM writes analytical prose ("full of people I need to manage") instead of somatic prose ("chest settles into architectural stillness"). This is the core remaining problem.
+
+4. **Register recovering steadily:** R went from 3.13 → 3.33 → 3.47 across two iterations. The structural changes ARE helping, but the LLM compliance gap remains.
+
+### Fixes made along the way
+
+- ClassificationResult API migration (4 test files — caps-api changed `classify()` return type)
+- BulkReExtractionService CDI exclusion (new from upstream #730)
+- GENERIC_ID_MAP in classifier (maps renamed character IDs for eval)
+- 657 tests pass (16s fast suite)
+
+### Previous session: The differentiation problem (resolved)
 
 Five per-drive dimensions were below 4.0 at session start:
 
@@ -184,31 +259,36 @@ Per-tick pipeline is almost entirely mechanical. Only LLM call is situation clas
 | Era 4 baseline | 300 | 3.92 | 3.74 | 3.74 | — |
 | Era 5 targeted (5-arg) | 30 | 3.87 | 3.46 | 3.53 | — |
 | Era 5 full pipeline | 105 | 3.84 | 3.13 | 3.57 | — |
-| **Era 5 pipeline v1** | **350** | **3.83** | **3.33** | **3.66** | Body-location anchors, channel emphasis, structural rendering |
+| Era 5 pipeline v1 | 350 | 3.83 | 3.33 | 3.66 | Body-location anchors, channel emphasis, structural rendering |
+| **Era 5 pipeline v2** | **858** | **3.86** | **3.47** | **3.72** | Improved P22 prompt: contrast, discovery verbs, 3-5 sentences |
 
 ## Key Files
 
+### Iteration files (the ones you need for the next session)
+
 | What | Where |
 |------|-------|
-| Golden prose corpus | `examples/wacky-manor/docs/eval/golden-prose-20261030/` |
-| Eval results (12 runs) | `golden-prose-20261030/full-eval-v*.json` |
-| Regression gate | `golden-prose-20261030/verify_golden.py` |
-| Splice tool | `golden-prose-20261030/splice_revisions.py` |
-| Era 5 research (full methodology) | `neocortex/docs/research/era5-relational-cognition-research.md` |
+| **Golden scenario smoke test** | `examples/wacky-manor/src/test/java/.../agent/PipelineToRenderingTest.java` → `goldenScenario_hcEntranceHall_fullPromptDump` |
+| **Golden prose corpus** | `examples/wacky-manor/docs/eval/golden-prose-20261030/transcript.json` — event 2 (aside) for "hooded-claw" is the target |
+| **Barrett instruction** | `examples/wacky-manor/src/.../agent/CharacterCognition.java` lines 208-242 — "How to Feel" section |
+| **P22 system prompt** | `neocortex/mindmap-intelligence/src/.../consolidation/DriveDescriptionGenerationPhase.java` lines 43-66 |
+| **Body-location table** | `neocortex/cognition/src/.../observation/CognitionObservationBuilder.java` → `DRIVE_BODY_LOCATIONS` |
+| **Drive rendering** | `neocortex/cognition/src/.../observation/CognitionObservationBuilder.java` → `renderInternalState()` |
+| **Social config (GENERIC)** | `examples/wacky-manor/src/main/resources/META-INF/eidos/social-config-generic.yaml` |
+
+### Infrastructure files
+
+| What | Where |
+|------|-------|
 | Classifier | `examples/wacky-manor/docs/eval/classify_emotions.py` |
-| CharacterCognition | `examples/wacky-manor/src/.../agent/CharacterCognition.java` |
-| CognitionObservationBuilder | `neocortex/cognition/src/.../observation/CognitionObservationBuilder.java` |
+| Pipeline v1 eval | `examples/wacky-manor/docs/eval/era5-pipeline-v1/full-eval.json` |
+| Pipeline v2 eval | `examples/wacky-manor/docs/eval/era5-pipeline-v2/full-eval.json` |
 | ManorCognitiveSeeder | `examples/wacky-manor/src/.../agent/ManorCognitiveSeeder.java` |
 | DriveDescriptionGenerationPhase | `neocortex/mindmap-intelligence/src/.../consolidation/DriveDescriptionGenerationPhase.java` |
-| CognitionCore (pipeline wiring) | `neocortex/cognition/src/.../CognitionCore.java` |
-| CognitivePipelineBuilder | `neocortex/cognition/src/.../CognitivePipelineBuilder.java` |
-| CognitionCoreFactory | `neocortex/cognition/src/.../CognitionCoreFactory.java` |
-| CognitiveProfileParticipant | `neocortex/cognition/src/.../CognitiveProfileParticipant.java` |
-| EntityKnowledgePromptSection | `neocortex/cognition/src/.../EntityKnowledgePromptSection.java` |
-| annotation-api (entity refs) | `neocortex/annotation-api/` |
-| annotation-sqlite | `neocortex/annotation-sqlite/` |
-| Design journal | `wsp-casehub/JOURNAL.md` |
+| CognitionObservationBuilder | `neocortex/cognition/src/.../observation/CognitionObservationBuilder.java` |
 | Consolidation cache | `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` |
+| Era 5 research | `neocortex/docs/research/era5-relational-cognition-research.md` |
+| Design journal | `wsp-casehub/JOURNAL.md` |
 
 ## Constraints
 
