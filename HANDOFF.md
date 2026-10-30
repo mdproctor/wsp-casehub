@@ -11,7 +11,9 @@ Golden prose corpus complete. All 5 original per-drive differentiation targets f
 
 **Golden prose (v12):** 51 events, 5 characters. Per-drive scores all at or above 4.0 except HC dominance R=3.9 (noise boundary — achieved 4.2 in earlier runs with same prose).
 
-**Next step:** Pipeline implementation — make the backend generate equivalent structured output. Steps 9-14 in the era5 research doc's Immediate Plan.
+**Neocortex rebased:** Slot's neocortex main rebased onto canonical main. Now includes 22 upstream commits (#721 entity annotations, #725 classification learning, #727 observability-api, #730 bulk re-extraction, #731 cognitive pipeline wiring). Era5 commits sit on top — no conflicts.
+
+**Next step:** Pipeline implementation — make the backend generate equivalent structured output. Steps 9-14 in the era5 research doc's Immediate Plan. Must account for new upstream capabilities (#721, #731) that change the pipeline landscape.
 
 ## What Was Accomplished This Session
 
@@ -49,9 +51,59 @@ Documented in full in `neocortex/docs/research/era5-relational-cognition-researc
 
 Haiku 4.5 has ±0.2 noise per drive dimension per run on identical prose. Drives at 4.0 boundary oscillate 3.9-4.1. This was confirmed by multiple re-runs on unchanged transcripts. Pipeline eval should target means of 4.2+ to survive noise, or average multiple runs.
 
-## Pipeline Implementation (next session)
+## Upstream Neocortex Capabilities (now available)
 
-The pipeline must generate structured thinking-field output matching the golden prose patterns. Five implementation steps:
+The slot's neocortex main was rebased onto canonical main. 22 commits spanning 6 issues are now in the history beneath the era5 work. Three are directly relevant to pipeline implementation:
+
+### #721 — Entity Annotations (10 commits)
+
+Full entity reference resolution system:
+- **annotation-api** — SPI, value types, span resolver, anchor parser
+- **annotation-sqlite/inmem** — persistence with Flyway migrations, in-memory for tests
+- **MindMapExtractor** extended with entity mention spans
+- **Extraction pipeline** wired to produce entity annotations from memories
+- **Entity-aware salience** — retrieval modulated by entity relevance
+- **Entity-scoped reflection** — belief revision and Theory of Mind per entity
+- **Biography anchor syntax** — entity references in memory text resolved to specific people
+
+**Relevance to pipeline:** The golden prose implicitly exercises entity knowledge — HC references Clara's trust, Hartwell's competence, Danny's suspicion. #721 provides the infrastructure to resolve this knowledge SYSTEMATICALLY per-tick rather than relying on the LLM to generate it ad hoc. Entity-scoped memories could enrich drive descriptions with specific, grounded knowledge about each person.
+
+### #731 — Cognitive Pipeline Wiring (1 commit)
+
+Reconnects three features lost during blocks→agency rename:
+- **CognitiveProfileParticipant** at TERMINAL — renders EntityKnowledgePromptSection (what the agent knows about entities in conversation) and SocialComparisonPromptSection (how multiple agents perceive the same entity)
+- **DomainActivationParticipant** at TERMINAL — renders DomainActivationPromptSection (cross-domain emotional correlations via DTW on PAD time series)
+- All gate on CognitionConfig flags (already true in `CognitionConfig.all()`)
+
+**Relevance to pipeline:** These three sections add cognitive content to the prompt. The era5 attention competition finding showed that separate cognitive sections compete with somatic register. Decision needed: should EntityKnowledge/SocialComparison/DomainActivation be rendered as SEPARATE sections (attention competition risk) or FOLDED INTO drive paragraphs (matching the "relational information folds INTO drives" architecture decision)?
+
+### #727 — Cognitive Observability API (2 commits)
+
+GraphMutation types extracted to tier-1 module. Foundation for runtime observation of cognitive state changes.
+
+### Decision Point: Entity Integration First?
+
+**Key question for next session:** Should the pipeline implementation START by integrating #721 entity annotations into the rendering methodology, BEFORE restructuring the prompt sections?
+
+Arguments for entity-first:
+- Entity knowledge feeds into what each drive paragraph can reference about specific people
+- Per-entity ToM and memories could make drive descriptions more specific and grounded (matching golden prose)
+- The #731 sections (EntityKnowledge, SocialComparison) need a decision about folding vs separate — better to make this decision with full understanding of what entity data is available
+
+Arguments for render-first:
+- The golden prose target is already defined — get the rendering structure right first, then enrich with entity data
+- Entity integration adds complexity that might delay the first eval comparison
+
+## Pipeline Implementation Steps
+
+Revised to account for upstream capabilities:
+
+### Step 0 (new): Assess entity integration
+
+Review #721 entity-scoped reflection, #731 prompt sections. Decide:
+- Does EntityKnowledgePromptSection fold into drive paragraphs or stay separate?
+- Does entity-aware salience feed into drive description generation?
+- Does per-entity ToM enrich the relational schema used for drive targeting?
 
 ### Step 1: Seed relational schemas into MindMap
 
@@ -59,14 +111,15 @@ The pipeline must generate structured thinking-field output matching the golden 
 
 ### Step 2: Restructure renderCognitiveSections
 
-Replace 5 fragmented relational sections with drive-first paragraph blocks. Each active drive gets its own paragraph with bold body-location anchor, ordered by drive hierarchy (dominance → gloating → scheming → action drives). Pervasive drives (self-pres) woven as subordinate clauses, not separate sections.
+Replace fragmented relational sections with drive-first paragraph blocks. Integrate entity knowledge into drive paragraphs if Step 0 decides fold-in. Bold body-location anchors, ordered by drive hierarchy, pervasive drives as woven threads.
 
 ### Step 3: Update DriveDescriptionGenerationPhase
 
-- Add body-location constraints per drive (lookup table)
-- Add contrast text generation — for each drive×event, negate co-occurring drives' channels
-- Add channel emphasis hints per drive×role
-- Add pervasive-drive threading template for drives at ≥90% trigger rate
+- Body-location constraints per drive (lookup table)
+- Contrast text generation per drive×event
+- Channel emphasis hints per drive×role
+- Pervasive-drive threading template (trigger rate ≥90%)
+- Entity-specific enrichment if Step 0 decides integration
 
 ### Step 4: Add structural rendering to thinking field
 
@@ -146,6 +199,13 @@ Per-tick pipeline is almost entirely mechanical. Only LLM call is situation clas
 | CognitionObservationBuilder | `neocortex/cognition/src/.../observation/CognitionObservationBuilder.java` |
 | ManorCognitiveSeeder | `examples/wacky-manor/src/.../agent/ManorCognitiveSeeder.java` |
 | DriveDescriptionGenerationPhase | `neocortex/mindmap-intelligence/src/.../consolidation/DriveDescriptionGenerationPhase.java` |
+| CognitionCore (pipeline wiring) | `neocortex/cognition/src/.../CognitionCore.java` |
+| CognitivePipelineBuilder | `neocortex/cognition/src/.../CognitivePipelineBuilder.java` |
+| CognitionCoreFactory | `neocortex/cognition/src/.../CognitionCoreFactory.java` |
+| CognitiveProfileParticipant | `neocortex/cognition/src/.../CognitiveProfileParticipant.java` |
+| EntityKnowledgePromptSection | `neocortex/cognition/src/.../EntityKnowledgePromptSection.java` |
+| annotation-api (entity refs) | `neocortex/annotation-api/` |
+| annotation-sqlite | `neocortex/annotation-sqlite/` |
 | Design journal | `wsp-casehub/JOURNAL.md` |
 | Consolidation cache | `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` |
 

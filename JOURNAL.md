@@ -92,9 +92,27 @@ Each iteration was isolated: one variable changed, one classifier run, compare p
 - Pervasive vs discrete drive classification (trigger rate ≥90% → woven thread)
 - Structured thinking field with markdown paragraph breaks
 
+### Neocortex rebase — 22 upstream commits
+
+Slot's neocortex main rebased onto canonical main. Three major upstream features now available:
+
+**#721 Entity Annotations (10 commits).** Full entity reference resolution: annotation-api SPI, SQLite/in-memory persistence, MindMapExtractor extended with entity mention spans, entity-aware salience (retrieval modulated by entity relevance), entity-scoped reflection (belief revision and Theory of Mind per entity), biography anchor syntax. This provides the infrastructure for entity-specific knowledge in drive descriptions — the golden prose implicitly exercises this (HC references Clara's trust, Hartwell's competence) but the pipeline plan didn't account for it.
+
+**#731 Cognitive Pipeline Wiring (1 commit).** Reconnects CognitiveProfileParticipant and DomainActivationParticipant — three prompt sections (EntityKnowledge, SocialComparison, DomainActivation) that were compiled but never registered in the pipeline. Now fire at TERMINAL phase. These add cognitive content to the prompt — the attention competition question from era5 applies.
+
+**#727 Cognitive Observability API (2 commits).** GraphMutation types extracted to tier-1 module.
+
+### Key decision for next session
+
+Should the pipeline implementation START with entity integration (#721, #731) or with rendering structure?
+
+The entity system changes what the pipeline CAN reference in drive paragraphs. Per-entity ToM, entity-scoped memories, and entity-aware salience could make drive descriptions more specific and grounded. But the #731 prompt sections (EntityKnowledge, SocialComparison) add content that risks attention competition — the exact problem era5 diagnosed.
+
+The architecture decision "relational information folds INTO drives" suggests these sections should fold into drive paragraphs rather than stand alongside. But this needs verification with the actual section content.
+
 ### What's next
 
-Pipeline implementation steps 9-14 in the era5 research doc. The pipeline must generate structured thinking-field output matching the golden prose patterns: paragraph breaks, bold anchors, body-location constraints, contrast formulas, woven threads for pervasive drives.
+Pipeline implementation with revised step sequence (see HANDOFF.md). Step 0 is the entity integration decision. Steps 1-5 follow with the structural rendering methodology from the golden prose work.
 
 ---
 
