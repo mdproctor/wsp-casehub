@@ -1,107 +1,109 @@
 # Session Handover — casehub-examples (slot 196)
 
-**Date:** 2026-10-29
+**Date:** 2026-10-30
 **Branch:** wip/era5-relational-eval (examples), main (neocortex)
 **Era:** 5 — relational cognition, targeted somatic drives
 **Issue:** #175 — Re-architect cognitive pipeline for targeted somatic drives
 
-## Last Session
+## This Session
 
-Re-architected the cognitive pipeline to produce targeted somatic drives. The problem: Era 5's relational schemas (#477) degraded somatic register from 3.74 to 3.13 when added as separate prompt sections. The diagnosis went through three layers:
+Deep first-principles investigation of register gap (3.46 vs 3.74 Era 4 baseline). Created golden prose corpus as pipeline regression target.
 
-1. **Redundancy** — relational info scattered across 4+ sections
-2. **Instruction competition** — cognitive-analytical sections ("Prey. Trust 0.1.") gave the LLM an easier register than Barrett somatic, and it took the easier path
-3. **Phenomenological category error** — drives and targets rendered as independent dimensions, forcing LLM cross-reference under attention pressure
+### Key Findings
 
-**Critical design correction:** Initial approach was removing cognitive sections (relational schemas, attachment, trust). User corrected: those sections represent cognitive abilities — removing them lobotomizes the character. The fix is better wiring (targeted prose + correct appraisal), not less cognition.
+1. **Section structure is identical between Era 4 and Era 5.** All 15 cognitive section slots existed in Era 4. The problem is not new sections — it's what goes INTO them.
 
-**Key technical finding:** `DriveDescriptionGenerationPhase` (P22) received zero relational context despite running AFTER `RelationalSchemaEvolutionPhase` (P20). Somatic descriptions were personality-grounded but completely target-agnostic. `OtherModelDerivationPhase` (P25) already demonstrated the pattern of reading schemas during consolidation — P22 just didn't do it.
+2. **Relational schemas NOT seeded into MindMap.** `seedPeople()` creates overlays with only PAD values. No role/trust/intimacy/utility. Consequence: P20 has nothing to evolve (0ms), P22 finds 0 schemas, per-role descriptions never generated.
 
-**Additional finding:** `renderRelationalSchemas()` in CharacterCognition was reading static YAML config, never the evolved overlay data from P20. Relationship evolution was computed but invisible to the prompt.
+3. **"What Pulls at You" grows from 9→25 parts** after consolidation (4 drives + 4 self-standards + 5 attractors + 6 differentiation + 6 priority signatures). Register degrades as content volume increases — Era 4 also shows this degradation over time.
 
-## What Was Built (all tests green)
+4. **Era 5 drops action readiness channel to zero.** Era 4 had action readiness in every aside (1.9 markers avg). Era 5 has zero. The analytical relational sections provide ready-made labels that short-circuit action readiness.
 
-| # | Component | Repo | What |
-|---|-----------|------|------|
-| 1 | `DriveDescriptionGenerationPhase` | neocortex/mindmap-intelligence | Reads relational schemas, generates per-drive-per-role Barrett descriptions (21 tests) |
-| 2 | `TargetedDrive` record | neocortex/cognition | Drive + optional target agent/display name/role |
-| 3 | `resolveRelationalTargets()` | neocortex/cognition | Scene-level drive→target via overlay schemas + drive-role salience (10 tests) |
-| 4 | `renderInternalState()` 5-arg overload | neocortex/cognition | Renders `DRIVE (0.7) → Penelope: [targeted description]` |
-| 5 | `readGeneratedDriveDescriptions()` | neocortex/cognition | Returns role-keyed entries alongside untargeted |
-| 6 | `renderRelationalSchemas()` | examples/wacky-manor | Reads evolved overlay data, YAML fallback (46 tests) |
-| 7 | Wiring | examples/wacky-manor | `renderCognitiveSections` calls 5-arg overload with `agentNames` |
+5. **Barrett 4-channel selection is per drive×role×situation**, not exhaustive. Each drive has a primary and secondary channel. The target role modulates which channels foreground.
 
-Pipeline is connected end-to-end. No eval has been run yet.
+### Golden Prose Corpus
 
-## What Worked
+51 events, 5 characters, 10 situations each. **Q=4.35, R=4.37, D=4.12** — beats Era 4 baseline on all dimensions.
 
-- **Per-drive-per-role generation** — one LLM call per drive (same as before), schemas as context. LLM returns `{"description": "...", "targeted": {"role": "..."}}` and both are stored. Idempotent rerun skips existing descriptions.
-- **Backward-compatible overload** — 5 callers of `renderInternalState` untouched. New 5-arg overload adds targeting. Old 4-arg delegates with empty map.
-- **Drive-role salience** — `computeDriveRoleSalience()` switch statement maps drive types to compatible schema roles. Deterministic, no LLM needed at render time. Returns 0.0 for non-social drives (curiosity, adventure), leaving them untargeted.
+Location: `wacky-manor/docs/eval/golden-prose-20261030/`
+Regression gate: `python3 verify_golden.py [--verbose]`
 
-## What Needs Scrutiny
+**Per-drive gaps still open (sub-4.0):**
 
-- **`computeDriveRoleSalience` is hardcoded** — maps gloating→prey/rival, gallantry→beloved/ward, etc. Works for current character set but is brittle. May need to become data-driven or LLM-resolved during consolidation.
-- **`parseTargeted` uses regex on LLM JSON** — no JSON library, consistent with existing `parseField` approach. Fragile if LLM returns nested or escaped content.
-- **Theory of Mind sections untouched** — if register doesn't fully recover, these are the next candidate. They also reference nearby characters (empathic sensing) but in a more somatic register than the relational/trust sections.
-- **`DriveQualityEvalTest.java`** was accidentally committed with the evolved schema rendering change (was untracked from previous session). Review for appropriateness.
+| Character | Drive | Q | R | D |
+|-----------|-------|:-:|:-:|:-:|
+| dick-dastardly | scheming | 3.62 | 3.88 | 3.38 |
+| hooded-claw | scheming | 4.44 | 3.89 | 4.44 |
+| hooded-claw | self-preservation | 3.80 | 4.20 | 4.00 |
+| hooded-claw | gloating | 4.50 | 4.50 | 3.75 |
 
-## Eval Results
+Over-trigger reduction was tried and FAILED for both villains — their drives are identity-level. Needs a different approach: adding genuinely non-scheming events rather than subtracting scheming from existing ones.
 
-30-event targeted somatic drives eval completed. Register recovered +0.33.
+### Methodology Established
 
-| Run | Events | Quality | Register | Diff |
-|-----|--------|---------|----------|------|
-| Era 4 baseline | 300 | **3.92** | **3.74** | **3.74** |
-| Era 5 + YAML briefing fallback | 30 | 3.84 | 3.27 | 3.70 |
-| Era 5 label+degree only | 30 | 3.88 | 3.34 | 3.61 |
-| Era 5 full pipeline (emerged descriptions) | 105 | 3.84 | 3.13 | 3.57 |
-| **Era 5 targeted somatic drives** | **30** | **3.87** | **3.46** | **3.53** |
+Every cognitive extension must follow: **describe contribution to rendered output → test it scores above threshold → then implement the backend**. Not the reverse.
 
-Register gap to Era 4: 0.28 remaining. Quality held. Differentiation flat.
+### Architecture Agreed
 
-## Immediate Next Step
+**Drive-first rendering structure:**
+```
+DRIVE (intensity) → Target Name
+[Barrett channel-selected description — 1-2 channels, not all 4]
+```
 
-1. **300-tick validation run** — register recovered in 30-event sample; confirm at scale
-2. If register holds at scale → branch is ready for work-end
-3. If register doesn't recover at 300 → Theory of Mind sections are the next candidate
+**Channel selection is mechanical** — lookup table:
+- Drive type → primary/secondary channel
+- Target role → channel boost
+- No LLM needed for selection
 
-## Neocortex Issue Housekeeping
+**Relational information integrates INTO drives**, not alongside:
+- Trust → shapes intensity within channels
+- ToM → integrates into drive expression
+- Social awareness → becomes felt, not classified
+- Relational schema → provides the role that selects channels
 
-Closed three open issues whose work was already landed on neocortex main:
-- **#714** (DriveDescriptionGenerationPhase: Barrett 4-channel profiles) — committed 5d7eaec0 + 1d520d46
-- **#716** (RelationalSchema + PersonalityProfile types) — foundation consumed by #717–#720
-- **#717** (Wire relational context into AppraisalContext) — 5 commits 37a7116d–f44793c7
+**Per-tick pipeline is almost entirely mechanical.** Only LLM call is situation classification. Appraisal, filtering, targeting, rendering — all deterministic.
 
-## Cross-Module
+### Pipeline Principles Discovered
 
-- **neocortex main** — 3 commits for #175 (schema-aware descriptions, target resolution, targeted rendering). Not pushed to origin yet. Push before closing examples branch.
-- **examples wip/era5-relational-eval** — 3 commits for #175 (evolved schema rendering, wiring, eval data). On top of era5 investigation commits.
+1. **Body-location differentiation** — each drive needs unique body location
+2. **Trigger-rate modulation** — fewer triggers at higher quality beats ubiquitous low quality (but doesn't apply to identity-level drives)
+3. **Temporal discovery ordering** — "first...then" beats co-present description
+4. **Drives peak when owning events** — competing drives dilute savoring
+5. **Channel selection by situation** — same drive, different channels in different contexts
+
+## Immediate Next Steps
+
+1. **Get golden prose to all-4.0+ per drive** — villains need different approach (new events, not subtraction). Fresh session recommended.
+2. **Seed relational schemas into MindMap** — write role/trust/intimacy/utility into overlay properties in `seedPeople()`
+3. **Restructure renderCognitiveSections** — consolidate 5 fragmented relational sections into drive-first integrated blocks
+4. **Update DriveDescriptionGenerationPhase** — include channel emphasis hints per drive×role
+5. **Run eval** — compare pipeline output against golden corpus scores
 
 ## Commits This Session
 
 | Repo | Branch | Key commits |
 |------|--------|-------------|
-| neocortex | main | schema-aware DriveDescriptionGeneration (#175), TargetedDrive + resolveRelationalTargets (#175), targeted renderInternalState (#175) |
-| examples | wip/era5-relational-eval | evolved renderRelationalSchemas (#175), wire 5-arg renderInternalState (#175), era5-targeted eval data (#175) |
-| wsp-casehub | wip/era5-relational-eval | handover update |
+| examples | wip/era5-relational-eval | era5-targeted eval data, ideal prose baseline, golden prose corpus (3 iterations), methodology |
+| wsp-casehub | wip/era5-relational-eval | handover updates |
+| neocortex | main | (no changes this session) |
 
 ## Key Files
 
 | What | Where |
 |------|-------|
-| DriveDescriptionGenerationPhase | `neocortex/mindmap-intelligence/src/.../consolidation/DriveDescriptionGenerationPhase.java` |
-| TargetedDrive | `neocortex/cognition/src/.../observation/TargetedDrive.java` |
-| CognitionObservationBuilder | `neocortex/cognition/src/.../observation/CognitionObservationBuilder.java` |
-| CharacterCognition | `examples/wacky-manor/src/.../agent/CharacterCognition.java` |
-| Implementation plan | `wsp-casehub/plans/2026-10-29-targeted-somatic-drives.md` |
-| Design journal | `wsp-casehub/JOURNAL.md` |
+| Golden prose corpus | `examples/wacky-manor/docs/eval/golden-prose-20261030/` |
+| Regression gate | `golden-prose-20261030/verify_golden.py` |
+| Methodology | `golden-prose-20261030/methodology.md` |
+| Channel selection tables | This handover (Architecture Agreed section) |
+| Pipeline principles | This handover (Pipeline Principles section) |
+| Format evolution issue | casehubio/examples#176 (Traitors/Big Brother) |
 | Era 5 research | `neocortex/docs/research/era5-relational-cognition-research.md` |
-| Consolidation cache | `~/claude/casehub/consolidation-cache/consolidation-cache-generic.json` |
-| Eval data | `examples/wacky-manor/docs/eval/` |
 
 ## Constraints
 
-- **Delete consolidation cache before eval.** The per-role descriptions only generate when descriptions don't exist yet (idempotent). Old cache has target-agnostic descriptions.
-- **Install neocortex before running examples.** Changes are on neocortex main, need `mvn install` for examples to pick up.
-- **Do not remove cognitive sections.** Relational schemas, attachment, trust, theory of mind — all stay. These represent abilities, not noise.
+- **Do NOT remove cognitive sections.** They represent abilities. Fix the rendering, not the cognition.
+- **Do NOT accept regressions.** Golden means every dimension improves or holds.
+- **Describe → test → implement.** Every cognitive extension proves its contribution to rendered output before backend work.
+- **Delete consolidation cache before eval runs.** Old cache has target-agnostic descriptions.
+- **Install neocortex before running examples.** Changes on neocortex main need `mvn install`.
