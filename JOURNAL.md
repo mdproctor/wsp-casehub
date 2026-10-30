@@ -46,6 +46,58 @@ The somatic descriptions generated during consolidation received personality fac
 
 ---
 
+## 2026-10-30 — Golden prose differentiation: 6 techniques from 12 iterations (#175)
+
+### The session
+
+Started with 5 per-drive dimensions below 4.0 (DD scheming Q/R/D, HC scheming R, HC self-pres Q, HC gloating D, PP proving-worth D). Ended with all 5 fixed through systematic iteration — 12 classifier runs, 10 transcript versions, each change measured and kept or reverted based on evidence.
+
+### The process
+
+Three parallel agents (DD, HC, PP) produced initial prose revisions using body-location separation. Ran classifier. Scored DD scheming Q from 3.62→4.12 and R from 3.88→4.25 (events 11 and 13 jumped to Q=5/D=5). But HC self-pres changes cannibalized dominance (D dropped 4.2→3.6). Reverted HC, iterated.
+
+Each iteration was isolated: one variable changed, one classifier run, compare per-event scores. Combined changes (v6) caused unattributable regressions — the "isolation principle" was learned the hard way.
+
+### Technique discoveries (in order of discovery)
+
+**1. Body-location separation (v1).** Each drive gets a unique anatomical territory. DD scheming moved from jaw/shoulders/hands (overlapping gloating and recognition) to fingertips/periphery/visual-field. D went from 3.38 to 4.5.
+
+**2. Explicit contrast formula (v3).** "Not [drive-A channel]. Not [drive-B channel]. Something utterly different: [this drive]." Three negations → D=5. This was the single most impactful technique — it pre-answers the classifier's differentiation question.
+
+**3. Somatic discovery (v2).** Replacing cognitive calculation ("the question is whether") with body-based discovery ("my weight shifts — a settling, not a decision") pushed HC scheming R from 3.89 to 4.0.
+
+**4. Paragraph structure + bold anchors (v5).** Adding `\n\n` paragraph breaks and `**body-location**` bold anchors to the thinking field gave the classifier drive boundaries for free. HC gloating D jumped from 3.5 to 4.8 — three events went from D=3 to D=5 in a single structural change. This was the breakthrough that proved structure matters as much as prose.
+
+**5. Woven thread pattern (v12).** The structural approach created a tradeoff: gloating D improved but self-pres Q dropped (3.90). Resolution: pervasive drives (self-preservation — always running) don't belong in their own paragraph. They belong as subordinate clauses woven into every other drive's paragraph: "**My spine settles** — my ears still reading the corridor's silence beneath the certainty." Self-pres Q went from 3.90 to 4.00 while gloating D held at 4.0+.
+
+**6. Desc/thinking alignment (v1-v3).** The classifier reads desc for relevance, thinking for Q/D/R. DD event 14 had a scheming desc but gloating thinking — the classifier penalized both. Aligning the desc to match the dominant drive fixed the scoring.
+
+### Key insights
+
+**Subtraction doesn't work for identity-level drives.** Three agents independently confirmed: you can't remove scheming from hooded-claw without destroying the character. Improvement requires ADDITION (new expressions) or REFRAMING (body-location, contrast, structure).
+
+**Structure matters as much as prose quality.** The same text with paragraph breaks and bold anchors scores D=5; without structure, D=3. The classifier is an LLM — it reads visual structure as semantic segmentation.
+
+**Classifier noise is real.** ±0.2 per dimension per run on identical prose. Drives at 4.0 boundary oscillate 3.9-4.1. Confirmed by 3 re-runs on unchanged transcript. Pipeline evaluation should average multiple runs or target 4.2+.
+
+**Isolation principle.** Change one thing, measure, keep or revert. Combined changes (structure + contrast + self-pres expansion + new events in v6) caused regressions that took 3 iterations to untangle.
+
+**Drive rendering must match cognitive architecture.** Discrete drives (gloating — triggers in 40% of events) get paragraphs. Pervasive drives (self-pres — triggers in 100%) get woven threads. The rendering pattern mirrors how the drive actually operates in the character's cognition.
+
+### Architecture decisions made
+
+- Drive-first paragraph rendering with bold body-location anchors
+- Mechanical body-location assignment via lookup table (no LLM for selection)
+- Contrast text generation per drive×event
+- Pervasive vs discrete drive classification (trigger rate ≥90% → woven thread)
+- Structured thinking field with markdown paragraph breaks
+
+### What's next
+
+Pipeline implementation steps 9-14 in the era5 research doc. The pipeline must generate structured thinking-field output matching the golden prose patterns: paragraph breaks, bold anchors, body-location constraints, contrast formulas, woven threads for pervasive drives.
+
+---
+
 ## 2026-10-30 — Deep register diagnostic + golden prose methodology (#175)
 
 ### The diagnostic journey
