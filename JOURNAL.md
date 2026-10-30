@@ -1,5 +1,63 @@
 # Design Journal — wip/era5-relational-eval
 
+## 2026-10-30 — Barrett v3→v5: Full-transcript iteration and dynamic drive activation finding (#175)
+
+### The methodology shift
+
+Previous session used the classifier (Q/R/D scores on drive expression snippets) to validate Barrett v3. This session shifted to **full-transcript structural comparison against golden prose** — comparing structure, paragraph form, bold anchor usage, drive blending, prose quality, relational texture, formation memory echoes, and performance cost (Pemberton/Vincent mask). The classifier scores were necessary but not sufficient — v3 scored Q=4.25 R=4.50 D=4.0 on the classifier but had 5 structural gaps when compared as complete prose against the golden standard.
+
+### What was done
+
+1. Created smoke tests for HC dialogue (event 0) and HC confrontation (event 5) — both render the full prompt and dump it for inspection (~5s each)
+2. Generated thinking via Opus 4.6 subagents for 3 events (aside, dialogue, confrontation)
+3. Full structural comparison against golden prose: identified 5 gaps (dialogue/aside form, bold anchor character specificity, drive cataloguing, P22 echo, performance cost)
+4. Iterated Barrett instruction v3→v4→v5 with targeted fixes for each gap
+5. Discovered that **gloating under threat is a pipeline problem**, not an instruction problem
+
+### The five gaps and how they were fixed
+
+| Gap | v3 Problem | Fix Version | Resolution |
+|-----|-----------|-------------|------------|
+| Dialogue form | Bold anchors everywhere | v4 | "Speaking: one dense paragraph, no anchors" |
+| Drive cataloguing | One paragraph per drive | v4 | "Blend drives — one moment, not three paragraphs" |
+| P22 echo | Near-verbatim echo of descriptions | v4 | "Palette, not script. Do not echo them back" |
+| Performance cost | No mask split shown | v5 | "When performing a face... notice the cost" |
+| Conclusions about others | "they don't know whose house this is" | v5 | "Never state what others think, know, or fail to see" |
+
+### The key finding: dynamic drive activation
+
+After 5 iterations of the instruction, gloating persisted under threat. Three regenerations of the confrontation scenario (v5, v5b, v5c) each channeled HC's superiority differently despite explicit prohibitions. The model finds gloating because the gloating drive (0.7 intensity) is PRESENT in the prompt.
+
+**Experiment:** Removed gloating drive description from the confrontation prompt. Result: pure survival + performance cost. "Hands want to close. Hands want to become fists. Hands stay open, soft, Pemberton's hands." No sternum warmth. Near-golden quality.
+
+**Conclusion:** When a drive description is present, the model activates it regardless of instruction. The fix is pipeline-level dynamic drive activation — the appraisal or rendering layer should suppress/reduce drives that the situation would naturally quiet.
+
+### Bold anchors are character-specific
+
+Full-transcript analysis revealed: HC uses bold anchors in asides (compartmentalised attention), but DD and PP NEVER use bold anchors — they experience as continuous flow. This is characterological, not structural. The instruction was changed from "bold the scene anchor" (mandatory) to "you may bold scene anchors" (optional) — HC's personality naturally reaches for them, DD/PP's doesn't.
+
+### What's working now (v5 instruction)
+
+- Dialogue/aside form distinction
+- Drive blending (one moment, not three paragraphs)
+- Own language (palette not script)
+- Performance cost (Pemberton/Vincent split)
+- Discovery verbs
+- Anti-conclusion rules (mostly effective)
+
+### What remains
+
+- Dynamic drive activation (pipeline, not instruction)
+- Occasional analytical moments — diminishing returns on instruction rules
+- Formation memory echoes — golden prose weaves age references more than generated output
+- Bold anchor quality — golden anchors on FEELINGS, generated anchors on events
+
+### Session technique
+
+Used subagents for generation, but pulled too much generated prose into main context for comparison. Next session should delegate comparison work to subagents that report summaries.
+
+---
+
 ## 2026-10-30 — Pipeline implementation and LLM compliance gap (#175)
 
 ### What was done
