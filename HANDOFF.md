@@ -6,13 +6,32 @@
 
 ## Status
 
-Pipeline infrastructure complete (Steps 1-5). P22 generates golden-prose-quality descriptions (verified). Rendering layer wraps them correctly. **The LLM ignores the structural guidance and writes analytical prose.** This is the remaining problem.
+Pipeline infrastructure complete (Steps 1-5). **Barrett v3 breaks the LLM compliance gap.** Single-event smoke test hits golden standard: Q=4.25, R=4.50, D=4.0 — register jumped +1.03 from pipeline v2 (3.47 → 4.50).
 
-Register improving: 3.13 → 3.33 → 3.47 (golden target: 4.20).
+Root cause was the Barrett instruction asking for a drive-catalog format the golden prose never used. Fix: reframe "STRUCTURE IN YOUR ASIDE" as scene-discovery instead of drive-catalog. Three key shifts: "body discovering" framing, scene anchors replacing body-location anchors, relaxed paragraph structure.
 
-## Next Step — Single-Event Iteration
+## Next Step — Iterate Next Golden Prose Event
 
-Pick ONE golden prose event. Reproduce its scenario in a smoke test. Iterate on the pipeline until the LLM output matches golden prose.
+Pick event 0 (HC dialogue, entrance hall). Reproduce as a smoke test. Iterate until the LLM output matches golden prose. Classify. Confirm Q/R/D ≥ 4.0.
+
+### Event queue
+
+1. ~~HC aside, entrance hall (event 1)~~ — Q=4.25 R=4.50 D=4.0
+2. **HC dialogue, entrance hall (event 0)** ← next
+3. HC confrontation, entrance hall (event 5) — self-preservation under threat
+4. HC in different room — instruction generalisation
+5. Different character (PP or AHM) — different personality/attachment
+
+After 5+ events at golden standard → full 300-tick eval.
+
+### The iteration loop
+
+1. Create smoke test reproducing the golden event scenario
+2. Run test (5s) → dumps full prompt
+3. Send prompt to LLM → get output
+4. Compare against golden prose target
+5. If gap exists: tweak ONE pipeline component → repeat from 2
+6. When output matches: classify → confirm Q/R/D ≥ 4.0 → move to next event
 
 ### The test
 
@@ -21,41 +40,46 @@ JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f wacky-manor/pom.xml test -Pfast
   -Dtest="PipelineToRenderingTest#goldenScenario*" -s .mvn/slot-settings.xml
 ```
 
-This dumps the COMPLETE prompt HC receives — all sections. Compare against golden prose event 2 (hooded-claw aside in `golden-prose-20261030/transcript.json`).
-
-### The gap
-
-**Pipeline v2 output:** "The entrance hall. Dusty, grand, full of people I need to manage..." — analytical planning.
-
-**Golden prose target:** "My chest settles into that architectural stillness... My spine finds its vertical before I've decided to stand straight..." — body-first discovery.
-
 ### What to tweak (ordered by likely impact)
 
 | Component | File |
 |-----------|------|
-| Barrett instruction ("How to Feel") | `CharacterCognition.java:208-242` |
+| Barrett instruction ("How to Feel") | `CharacterCognition.java:208-248` |
 | Section ordering | `CharacterCognition.renderCognitiveSections()` |
 | Drive descriptions (seeded in test) | `PipelineToRenderingTest.goldenScenario*` |
 | P22 system prompt | `DriveDescriptionGenerationPhase.java:43-66` |
 | Body-location table | `CognitionObservationBuilder.DRIVE_BODY_LOCATIONS` |
 
-### Iteration loop
+## What Barrett v3 Changed
 
-Tweak one thing → run test (5s) → send prompt to LLM (25s) → compare → repeat. No full evals until single-event output matches golden prose patterns.
+Previous instruction: "give each active pull its own paragraph starting with its bold body-location anchor" — asked for drive-catalog format.
+
+New instruction: "Write as the body discovering this scene — not as a mind analysing it. Bold the scene anchor — **a person acting**, **a sensation arriving**, **a body territory waking** — and let the drives surface as reactions to what is happening, not as a catalog."
+
+Three shifts:
+1. "Body discovering" vs "give each pull its own paragraph" — experiencing vs cataloging
+2. "Scene anchor" vs "body-location anchor" — anchors to what's happening, not drive labels
+3. "Multiple drives can share a paragraph" — removes rigid one-drive-per-paragraph
+
+## Known Gaps
+
+- **Gloating D=3** on event 1 — paragraph blends into dominance without contrast clause. May need P22 contrast fix if it recurs.
+- **N=1** — single event, single character, single model (Opus 4.6). Production uses Gemini.
+- **Section ordering** — prompt still front-loads analytical content before embodied instruction. Not yet tested whether reordering matters.
 
 ## Key Files
 
 | What | Where |
 |------|-------|
-| **Smoke test** | `examples/.../agent/PipelineToRenderingTest.java` → `goldenScenario_hcEntranceHall_fullPromptDump` |
+| **Smoke test** | `examples/.../agent/PipelineToRenderingTest.java` → `goldenScenario*` |
 | **Golden prose** | `examples/wacky-manor/docs/eval/golden-prose-20261030/transcript.json` |
-| **Barrett instruction** | `examples/.../agent/CharacterCognition.java` lines 208-242 |
+| **Barrett v3 eval** | `examples/wacky-manor/docs/eval/barrett-v3-single/transcript.json` |
+| **Barrett instruction** | `examples/.../agent/CharacterCognition.java` lines 208-248 |
+| **Era 5 research** | `neocortex/docs/research/era5-relational-cognition-research.md` (see §Barrett v3) |
+| **Classifier** | `examples/wacky-manor/docs/eval/classify_emotions.py` |
 | **P22 system prompt** | `neocortex/.../consolidation/DriveDescriptionGenerationPhase.java` lines 43-66 |
 | **Body-location table** | `neocortex/.../observation/CognitionObservationBuilder.java` → `DRIVE_BODY_LOCATIONS` |
-| **Drive rendering** | `neocortex/.../observation/CognitionObservationBuilder.java` → `renderInternalState()` |
-| **Classifier** | `examples/wacky-manor/docs/eval/classify_emotions.py` |
 | **Social config** | `examples/.../resources/META-INF/eidos/social-config-generic.yaml` |
-| **Era 5 research** | `neocortex/docs/research/era5-relational-cognition-research.md` |
 
 ## Eval History
 
@@ -65,17 +89,8 @@ Tweak one thing → run test (5s) → send prompt to LLM (25s) → compare → r
 | Era 4 baseline | 300 | 3.92 | 3.74 | 3.74 | — |
 | Era 5 full pipeline | 105 | 3.84 | 3.13 | 3.57 | — |
 | Era 5 pipeline v1 | 350 | 3.83 | 3.33 | 3.66 | Body-location anchors |
-| **Era 5 pipeline v2** | **858** | **3.86** | **3.47** | **3.72** | Contrast, discovery verbs |
-
-## Session 2 Summary
-
-Steps 1-5 implemented. Two eval iterations. Three key findings:
-
-1. **P22 produces golden-quality descriptions** — verified via direct Vertex API call. Body territory, contrast formula, discovery verbs all present. Description quality is NOT the bottleneck.
-2. **LLM compliance gap** — the LLM ignores "give each pull its own paragraph starting with bold body-location anchor" and writes its natural analytical style instead. The prompt is right; the LLM doesn't follow it.
-3. **Consolidation timing** — P22 skips tick 1 (no SessionPipeline), so early events have no descriptions. Biases eval averages down.
-
-Also: ClassificationResult API migration (4 tests), BulkReExtractionService CDI exclusion, GENERIC_ID_MAP in classifier. 657 tests pass (16s).
+| Era 5 pipeline v2 | 858 | 3.86 | 3.47 | 3.72 | Contrast, discovery verbs |
+| **Barrett v3 (1 event)** | **1** | **4.25** | **4.50** | **4.00** | Scene-discovery instruction |
 
 ## Constraints
 
