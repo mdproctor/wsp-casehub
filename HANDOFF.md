@@ -184,6 +184,7 @@ Per-tick pipeline is almost entirely mechanical. Only LLM call is situation clas
 | Era 4 baseline | 300 | 3.92 | 3.74 | 3.74 | — |
 | Era 5 targeted (5-arg) | 30 | 3.87 | 3.46 | 3.53 | — |
 | Era 5 full pipeline | 105 | 3.84 | 3.13 | 3.57 | — |
+| **Era 5 pipeline v1** | **350** | **3.83** | **3.33** | **3.66** | Body-location anchors, channel emphasis, structural rendering |
 
 ## Key Files
 
