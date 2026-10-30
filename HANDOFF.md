@@ -10,9 +10,23 @@ Pipeline infrastructure complete (Steps 1-5). **Barrett v3 breaks the LLM compli
 
 Root cause was the Barrett instruction asking for a drive-catalog format the golden prose never used. Fix: reframe "STRUCTURE IN YOUR ASIDE" as scene-discovery instead of drive-catalog. Three key shifts: "body discovering" framing, scene anchors replacing body-location anchors, relaxed paragraph structure.
 
+## Orientation — Start Here
+
+Read these three things first:
+
+1. **Golden prose target** — `examples/wacky-manor/docs/eval/golden-prose-20261030/transcript.json`. This is what the LLM output should look like. Event 0 is the next target (HC dialogue, entrance hall). Read the `thinking` field — that's the golden standard for body-first discovery prose.
+
+2. **The smoke test** — `examples/wacky-manor/src/test/java/io/casehub/examples/manor/agent/PipelineToRenderingTest.java`, method `goldenScenario_hcEntranceHall_fullPromptDump` (line 583). This seeds exact drive intensities and P22 descriptions, renders through `CharacterCognition`, and dumps the FULL prompt the LLM receives. Event 1 (aside) is already covered. You need to add a new test method for event 0 (dialogue).
+
+3. **Barrett v3 instruction** — `examples/wacky-manor/src/main/java/io/casehub/examples/manor/agent/CharacterCognition.java` lines 237-248. This is the "STRUCTURE IN YOUR ASIDE" section that was rewritten this session. It now says "write as the body discovering this scene" instead of "give each pull its own paragraph." This change is what broke the compliance gap.
+
+**The classifier** is at `examples/wacky-manor/docs/eval/classify_emotions.py`. To score a single event: create a `transcript.json` with one event, run `python3 classify_emotions.py <dir> --character hooded-claw --mode full --verbose`.
+
 ## Next Step — Iterate Next Golden Prose Event
 
-Pick event 0 (HC dialogue, entrance hall). Reproduce as a smoke test. Iterate until the LLM output matches golden prose. Classify. Confirm Q/R/D ≥ 4.0.
+**Do not skip ahead.** One event at a time. Get event 0 to golden standard before touching event 5. Get event 5 before trying a different room. The methodology is: reproduce → iterate → classify → confirm → next.
+
+Pick event 0 (HC dialogue, entrance hall). This tests whether the scene-discovery instruction works for DIALOGUE (not just aside). Create a smoke test, iterate, classify, confirm Q/R/D ≥ 4.0.
 
 ### Event queue
 
