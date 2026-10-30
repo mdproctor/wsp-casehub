@@ -46,29 +46,9 @@ Pipeline is connected end-to-end. No eval has been run yet.
 - **Theory of Mind sections untouched** — if register doesn't fully recover, these are the next candidate. They also reference nearby characters (empathic sensing) but in a more somatic register than the relational/trust sections.
 - **`DriveQualityEvalTest.java`** was accidentally committed with the evolved schema rendering change (was untracked from previous session). Review for appropriateness.
 
-## Immediate Next Step
+## Eval Results
 
-**Clear consolidation cache and run eval.**
-
-1. Delete consolidation cache: `rm ~/claude/casehub/consolidation-cache/consolidation-cache-generic.json`
-2. Start server with GENERIC profile, let consolidation rebuild (will now generate per-role descriptions)
-3. Run 30-event scenario, save transcript
-4. Classify with `classify_emotions.py`, compare register against Era 4 baseline (3.74)
-5. If register recovers → 300-tick validation run
-6. If register doesn't recover → investigate Theory of Mind sections as next candidate
-
-**Install neocortex modules first** — the neocortex commits are on `main` but need `mvn install` before the examples app can see them. Run:
-```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/mindmap-intelligence/pom.xml install -Dmaven.test.skip=true -s examples/.mvn/slot-settings.xml
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml install -Dmaven.test.skip=true -s examples/.mvn/slot-settings.xml
-```
-
-## Cross-Module
-
-- **neocortex main** — 3 commits for #175 (schema-aware descriptions, target resolution, targeted rendering). Not pushed to origin yet. Push before closing examples branch.
-- **examples wip/era5-relational-eval** — 2 commits for #175 (evolved schema rendering, wiring). On top of era5 investigation commits.
-
-## Era 5 Eval Results (from previous session — baseline for comparison)
+30-event targeted somatic drives eval completed. Register recovered +0.33.
 
 | Run | Events | Quality | Register | Diff |
 |-----|--------|---------|----------|------|
@@ -76,16 +56,35 @@ JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml ins
 | Era 5 + YAML briefing fallback | 30 | 3.84 | 3.27 | 3.70 |
 | Era 5 label+degree only | 30 | 3.88 | 3.34 | 3.61 |
 | Era 5 full pipeline (emerged descriptions) | 105 | 3.84 | 3.13 | 3.57 |
+| **Era 5 targeted somatic drives** | **30** | **3.87** | **3.46** | **3.53** |
 
-**Target:** Register should recover toward 3.74 with targeted somatic drives. Quality should hold or improve.
+Register gap to Era 4: 0.28 remaining. Quality held. Differentiation flat.
+
+## Immediate Next Step
+
+1. **300-tick validation run** — register recovered in 30-event sample; confirm at scale
+2. If register holds at scale → branch is ready for work-end
+3. If register doesn't recover at 300 → Theory of Mind sections are the next candidate
+
+## Neocortex Issue Housekeeping
+
+Closed three open issues whose work was already landed on neocortex main:
+- **#714** (DriveDescriptionGenerationPhase: Barrett 4-channel profiles) — committed 5d7eaec0 + 1d520d46
+- **#716** (RelationalSchema + PersonalityProfile types) — foundation consumed by #717–#720
+- **#717** (Wire relational context into AppraisalContext) — 5 commits 37a7116d–f44793c7
+
+## Cross-Module
+
+- **neocortex main** — 3 commits for #175 (schema-aware descriptions, target resolution, targeted rendering). Not pushed to origin yet. Push before closing examples branch.
+- **examples wip/era5-relational-eval** — 3 commits for #175 (evolved schema rendering, wiring, eval data). On top of era5 investigation commits.
 
 ## Commits This Session
 
 | Repo | Branch | Key commits |
 |------|--------|-------------|
 | neocortex | main | schema-aware DriveDescriptionGeneration (#175), TargetedDrive + resolveRelationalTargets (#175), targeted renderInternalState (#175) |
-| examples | wip/era5-relational-eval | evolved renderRelationalSchemas (#175), wire 5-arg renderInternalState (#175) |
-| wsp-casehub | main | plan, journal, handover |
+| examples | wip/era5-relational-eval | evolved renderRelationalSchemas (#175), wire 5-arg renderInternalState (#175), era5-targeted eval data (#175) |
+| wsp-casehub | wip/era5-relational-eval | handover update |
 
 ## Key Files
 
