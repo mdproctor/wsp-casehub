@@ -1,157 +1,134 @@
 # Session Handover — casehub-examples (slot 196)
 
 **Date:** 2026-10-31
-**Branch:** main (all repos merged and pushed)
-**Issue:** #175 — CLOSED. Pipeline validated.
+**Branch:** `issue-737-tiered-memory-architecture` (neocortex), `main` (examples)
+**Issue:** neocortex#737 — Three-tier context memory (in progress, research phase)
+**ERA:** Transitioning ERA5 → ERA6
 
 ## Status
 
-**Barrett v5 pipeline validated.** Micro-tests (8 scenarios, 2 characters, 3 forms) score all drives Q≥4 and all 8 cognitive dimensions 4-5 on Opus CLI classifier. Zero simulation contamination.
+**ERA5 complete.** Barrett v5 validated, 300-tick eval done, conclusion: "architecture, not tuning."
 
-**300-tick eval completed** (336 events, saved at `docs/eval/era5-300tick-20261031/`). Reveals two architectural gaps micro-tests can't catch:
+**ERA6 starting: Cognitive Memory Architecture.** Focus shifts from "can characters express personality convincingly" (proved in ERA5) to "can characters maintain coherent identity across context boundaries."
 
-| Weakness | Evidence | Cause |
-|----------|---------|-------|
-| **Echo loss** | Body vocab 75%→51% over 300 ticks | Barrett instruction buried under growing context |
-| **P22 arrival spike** | Analytical narration 45%→75% at tick 50 | P22 descriptions add cognitive content, model shifts to analysis |
-| **No body vocab** | 44% of events have zero body words | Combined effect of echo loss + P22 quality |
-| **Analytical narration** | 53% of events use "I need to", "I should" | Barrett instruction not reinforced at generation time |
-
-**Direction: architecture, not tuning.** More 300-tick runs are pointless — they'll show the same curve. The investment is in context management and P22 quality.
-
-## Orientation — Start Here
-
-Read these in order:
-
-1. **Barrett v5 instruction** — `CharacterCognition.java` lines 237-258. This is what's in the codebase now. Key additions from v3: dialogue/aside form distinction, blend drives, own words (palette not script), anti-conclusion-about-others, performance cost, drive suppression.
-
-2. **Golden prose target** — `docs/eval/golden-prose-20261030/transcript.json`. The full standard. Key structural patterns:
-   - HC asides: bold anchors + multi-paragraph (HC-specific — DD/PP never use bold anchors)
-   - HC dialogues: single dense paragraph, no bold anchors, ~200-230 words
-   - DD/PP everything: continuous flow, single paragraph, no bold anchors
-   - Bold anchors are CHARACTER-SPECIFIC (HC's compartmentalizing mind), not event-type-specific
-
-3. **The v5c confrontation** — `docs/eval/barrett-v5-confrontation-no-gloating/transcript.json`. This is near-golden quality: "Hands want to close. Hands want to become fists. Hands stay open, soft, Pemberton's hands." Achieved by removing gloating drive from the prompt.
-
-4. **All smoke tests** — `PipelineToRenderingTest.java`, methods `goldenScenario*`. Three tests: HC aside (event 1), HC dialogue (event 0), HC confrontation (event 5). All render the full prompt and dump it for inspection. ~5s each.
+**Research phase complete for #737.** This session explored the tiered memory architecture through brainstorming, codebase audit, and literature research. Key finding: most of the infrastructure already exists — the gap is persistence, not computation.
 
 ## What This Session Did
 
-### Barrett Instruction Iteration (v3 → v5)
+### Tiered memory architecture design exploration
 
-| Version | What Changed | What Improved | What Remained |
-|---------|-------------|---------------|---------------|
-| **v3** (previous session) | Scene-discovery over drive-catalog | Q/R/D ≥ 4.0 on classifier | Bold anchors in dialogue, P22 echo, cataloguing, no performance cost |
-| **v4** | Renamed ASIDE→THINKING, dialogue/aside distinction, anti-catalog, anti-echo, anti-conclusion example | Structure fixed, own words, drive blending | Conclusions about others, gloating under threat, no performance cost |
-| **v5** | Anti-conclusion-about-others rule, performance cost instruction, drive suppression clause | Performance cost shown ("muscles holding the smile"), some conclusions eliminated | Gloating still appears under threat, occasional analytical moments |
-| **v5c** (experiment) | Removed gloating drive from prompt entirely | Near-golden output — pure survival + performance cost | Proves fix is pipeline-level, not instruction-level |
+Through iterative brainstorming, arrived at a condensation-chain architecture:
+- The MindMap IS the tiered memory — not a separate store
+- Consolidation produces condensation chains (linked tiers), not in-place replacements
+- Entity references at every tier — the query index
+- Full transcript as immutable backing, never deleted
+- Decay is retrieval priority modulation, not deletion
+- Eviction from memory to disk, reconstructable on demand
 
-### Smoke Tests Created
+### Codebase audit (5 subagent investigations)
 
-- `goldenScenario_hcDialogue_entranceHall_fullPromptDump` — event 0, all guests present
-- `goldenScenario_hcConfrontation_entranceHall_fullPromptDump` — event 5, only Brixton Boys, threat scenario
+| What was audited | Key finding |
+|------------------|-------------|
+| Agency summarisation | `LevelEvent` is entity-blind — no speaker/room/entity fields |
+| Projections & folds | `ConversationFold` is already entity-aware; summarisation accumulators are not |
+| Sub-thoughts | Already entity-referenced, graduation by (entity, type) pairs works |
+| Chat-to-memory pipeline | Only crude one-line descriptions stored; full observation text discarded |
+| Consolidation phases | 10 phases; merge, graduate, community detect all exist. No content condensation. |
+| Per-prompt rendering | `TieredObservationRenderer` computes VERBATIM/GROUPED/SUMMARISED every tick — then discards it |
 
-### Eval Transcripts Saved
+**Critical insight:** The system already computes tiered summaries on every tick and throws them away. The biggest gap is persistence, not computation.
 
-- `barrett-v3-dialogue/` — v3 instruction, dialogue event 0
-- `barrett-v3-confrontation/` — v3 instruction, confrontation event 5
-- `barrett-v5-confrontation-no-gloating/` — v5c experiment, gloating drive removed
+### Literature research
 
-## What This Session Built
+**Primary reference:** TiMem (Li et al., 2026, ACL Findings, arXiv:2601.02845) — 5-level temporal memory tree. Validates the condensation approach.
 
-### Comprehensive cognitive evaluation instrument
-`classify_emotions.py` now scores 4 per-drive dimensions + 8 cross-cutting cognitive dimensions (channel coverage, attachment coloring, theory of mind, formation echo, performance cost, person-specific shifts, drive blending, spatial grounding). CLI backend (`--backend cli`) routes through Opus via `drive-classifier` agent.
+Supporting: Spens & Burgess 2024 (reconstructive recall), ACT-R decay equations, CLS theory, MemGPT/Letta (OS-inspired tiers), PNAS 2022 hippocampal-neocortical model.
 
-### 8 micro-test scenarios validated (all Q≥4 on Opus)
-HC library solo, HC drawing room (all agents), HC dialogue (all agents), DD entrance dialogue, DD gallery wounded, DD kitchen gloating. Plus clean pipeline-only tests proving no coaching needed.
+**Our additions beyond published work:** entity-indexed condensation chains, immutable transcript backing, cognitive-state-filtered reconstructive recall, two reset modes (sleep + context window).
 
-### Pipeline fixes
-- Deleted 17 hand-authored drive descriptions from social-config-generic.yaml (forces P22 dependency)
-- Cache drift detection in PlaybookOrchestrator (warns when stale cache skips P22)
-- CLASSIFY_MODEL env var override for classifier model selection
+### Commercial landscape
 
-### Issues closed: #175, #174, #165, #164, #156, #121, #100
+Mem0, Zep/Graphiti, Letta/MemGPT, MemPalace all shipping. None combines entity-indexed condensation chains with immutable backing and reconstructive recall.
 
-## Next Step — Architecture Investment
+### Commits
 
-**Do NOT run more 300-tick evals.** The degradation curve is measured. Fix the architecture.
+- `0df1e298` on `issue-737-tiered-memory-architecture` (neocortex) — research doc with full audit, literature, and design direction
 
-### Priority 1: Context reset with three-tier memory
-- **examples#183** — per-character context reset synced with consolidation
-- **neocortex#737** — three-tier memory: structured brief + RAG chat logs + sub-agent deep dive
-- Fix: periodic context clear → summariser produces structured brief → fresh Barrett instruction at top of short context → body vocabulary stays at 75%
+## Two Reset Modes (Both Needed)
 
-### Priority 2: Short-run reproduction tests
-- **examples#182** — integration test using real pipeline (not hand-seeded), one consolidation tick, classify output
-- Reproduce weaknesses in 5-10 ticks from a primed scenario state
-- Use saved consolidation cache to skip 50-tick warmup
+| | Sleep reset | Context reset |
+|---|---|---|
+| **When** | Narrative boundary, periodic | Mechanical, when context fills |
+| **Injection** | Morning briefing — condensed history | Scene resume — who's here, what's happening |
+| **Consolidation** | Async during sleep, Haiku | Must be ready before reset, continuous |
+| **Tolerance** | High — "I vaguely remember..." | Zero — can't miss mid-sentence |
 
-### Priority 3: P22 description quality
-- **neocortex#735** — formation echo in dialogue-form descriptions
-- **neocortex#734** — dynamic drive activation (suppress under threat)
+## Gap Table
 
-### All open issues from this session
-| Issue | Repo | Title |
-|:---:|------|-------|
-| #177 | examples | Comprehensive cognitive instrument as CI gate |
-| #178 | examples | Two-tier classification (Haiku→Opus) |
-| #179 | examples | DD formation echo weakness |
-| #180 | examples | Consolidation cache drift detection |
-| #182 | examples | Integration test: P22 quality after consolidation |
-| #183 | examples | Context reset with async summariser |
-| #734 | neocortex | Dynamic drive activation |
-| #735 | neocortex | Formation echo in dialogue-form |
-| #737 | neocortex | Three-tier context memory architecture |
+| Gap | Severity | Notes |
+|-----|----------|-------|
+| Experience recording too thin | High | One-line descriptions, no entity extraction |
+| Per-prompt rendering not persisted | High | Already computing, throwing away |
+| Narrator summaries not stored | Medium | Already doing async LLM summarisation, discarding |
+| No transcript persistence | High | Full observation text consumed and discarded |
+| No content condensation phase | High | CommunitySummaryPhase is skeleton, needs LLM |
+| No condensation chain edges | High | No `condensed-from` edge type |
+| No persistent entity index | Medium | Per-run accumulation only |
+| LevelEvent entity-blind | Medium | No speaker/room/entity fields |
+| No context reset injection | High | New capability |
 
-### Session technique note
+## Next Steps — ERA6 Roadmap
 
-Use **subagents** for generation and comparison work. This session pulled too much generated prose into the main context. The pattern should be:
-- Main context: instruction design, structural analysis, decision-making
-- Subagents: generate thinking, compare against golden prose, report quality scores
-- Fork: when doing side-research that doesn't need to stay in context
+### Phase 1: Empirical test (next session)
+1. Run a scenario for ~100 ticks
+2. Snapshot what the memory system contains
+3. Ask: "if I cleared context now, what would the character know?"
+4. The gaps between need and reality become the real requirements
 
-## What v5 Instruction Fixed (from v3)
+### Phase 2: Persist what's already computed
+- Store per-prompt tiered rendering output as memory nodes
+- Store narrator summaries as memory nodes
+- Enrich experience recording with entity references
 
-| Gap | v3 Problem | v5 Fix |
-|-----|-----------|--------|
-| Dialogue structure | Bold anchors in dialogue events | "Speaking: one dense paragraph. No anchors, no breaks." |
-| Drive cataloguing | One paragraph per drive | "Blend drives. One moment — not three paragraphs." |
-| P22 echo | "warmth pools behind sternum" verbatim | "Own words. The drive descriptions are a palette. Do not echo them back." |
-| Conclusions about others | "they don't know whose house this is" | "Never state what others think, know, or fail to see." |
-| Performance cost | No Pemberton/Vincent split shown | "When performing a face... notice the cost." |
-| Drive suppression | All drives always activate | "Not every drive activates. If a territory is quiet, it is simply not there." — works for instruction-level suppression but not enough for presented drives |
+### Phase 3: Condensation chain
+- Add `condensed-from` edge type to MindMap
+- Extend CommunitySummaryPhase with LLM content condensation
+- Build context reset injection from stored memories
 
-## Known Gaps Still Open
-
-- **Gloating under threat** — instruction can't suppress a drive the pipeline presents as active. Needs pipeline fix.
-- **Occasional analytical moments** — "which means they rehearsed this" type phrases still appear. Diminishing returns on instruction rules.
-- **Formation memory echoes** — golden prose weaves age references; generated output sometimes omits them. May need formation memory section to be more prominent in the prompt.
-- **Bold anchor quality** — HC's golden prose anchors on FEELINGS ("Behind my sternum, the private knowledge settles") not just events. Generated anchors tend toward events only.
+### Phase 4: Full architecture
+- Persistent entity index
+- Decay and eviction policies (ACT-R-based)
+- Reconstructive recall via sub-agents
+- Two reset modes integrated
 
 ## Key Files
 
 | What | Where |
 |------|-------|
+| **Research doc** | `neocortex/docs/research/tiered-memory-architecture-research-2026-10-31.md` |
+| **Issue** | casehubio/neocortex#737 |
 | **Barrett v5 instruction** | `examples/.../agent/CharacterCognition.java` lines 237-258 |
 | **Smoke tests** | `examples/.../agent/PipelineToRenderingTest.java` → `goldenScenario*` |
-| **Golden prose** | `examples/wacky-manor/docs/eval/golden-prose-20261030/transcript.json` |
-| **v5c result (near-golden)** | `examples/wacky-manor/docs/eval/barrett-v5-confrontation-no-gloating/transcript.json` |
 | **Classifier** | `examples/wacky-manor/docs/eval/classify_emotions.py` |
+| **Golden prose** | `examples/wacky-manor/docs/eval/golden-prose-20261030/transcript.json` |
 
-## Eval History
+## Open Issues
 
-| Run | Events | Q | R | D | Notes |
-|-----|--------|:-:|:-:|:-:|-------|
-| **Golden v12 (target)** | **51** | **4.25** | **4.20** | **4.20** | All per-drive targets ≥4.0 |
-| Barrett v3 (aside) | 1 | 4.25 | 4.50 | 4.00 | Scene-discovery instruction |
-| Barrett v3 (dialogue) | 1 | 4.50 | 4.00 | 4.25 | Generalises to dialogue |
-| Barrett v3 (confrontation) | 1 | 4.50 | 4.50 | 4.50 | SP Q=5 under threat |
-| Barrett v5c (no gloat) | 1 | — | — | — | Near-golden structural quality |
+| Issue | Repo | Title | ERA |
+|:---:|------|-------|-----|
+| #737 | neocortex | Three-tier context memory architecture | ERA6 |
+| #183 | examples | Context reset with async summariser | ERA6 |
+| #182 | examples | Integration test: P22 quality after consolidation | ERA5 carryover |
+| #177 | examples | Comprehensive cognitive instrument as CI gate | ERA5 carryover |
+| #178 | examples | Two-tier classification (Haiku→Opus) | ERA5 carryover |
+| #179 | examples | DD formation echo weakness | ERA5 carryover |
+| #734 | neocortex | Dynamic drive activation | ERA5 carryover |
+| #735 | neocortex | Formation echo in dialogue-form | ERA5 carryover |
 
 ## Constraints
 
+- Playbook, simulation data, manifest, and Eidos now available — makes empirical testing viable
 - Do NOT remove cognitive sections — they represent abilities
 - Isolation principle — one change at a time, measure, keep or revert
-- Delete consolidation cache before eval runs
 - Install neocortex before running examples
 - Use subagents for generation/comparison work — keep main context clean
