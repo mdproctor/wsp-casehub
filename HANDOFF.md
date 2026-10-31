@@ -1,14 +1,23 @@
 # Session Handover — casehub-examples (slot 196)
 
-**Date:** 2026-10-30
-**Branch:** wip/era5-relational-eval (examples), main (neocortex)
-**Issue:** #175 — Re-architect cognitive pipeline for targeted somatic drives
+**Date:** 2026-10-31
+**Branch:** main (all repos merged and pushed)
+**Issue:** #175 — CLOSED. Pipeline validated.
 
 ## Status
 
-Barrett instruction iterated from v3 → v5. **Full-transcript structural comparison** against golden prose revealed 5 gaps; 4 fixed in instruction, 1 requires pipeline-level dynamic drive activation.
+**Barrett v5 pipeline validated.** Micro-tests (8 scenarios, 2 characters, 3 forms) score all drives Q≥4 and all 8 cognitive dimensions 4-5 on Opus CLI classifier. Zero simulation contamination.
 
-**Key finding:** When gloating drive (0.7 intensity) is present in the prompt, the model activates it even under threat — no instruction can suppress it. Removing the gloating drive from the threat scenario prompt produces near-golden output. **The fix is pipeline-level dynamic drive activation based on situational context, not instruction tuning.**
+**300-tick eval completed** (336 events, saved at `docs/eval/era5-300tick-20261031/`). Reveals two architectural gaps micro-tests can't catch:
+
+| Weakness | Evidence | Cause |
+|----------|---------|-------|
+| **Echo loss** | Body vocab 75%→51% over 300 ticks | Barrett instruction buried under growing context |
+| **P22 arrival spike** | Analytical narration 45%→75% at tick 50 | P22 descriptions add cognitive content, model shifts to analysis |
+| **No body vocab** | 44% of events have zero body words | Combined effect of echo loss + P22 quality |
+| **Analytical narration** | 53% of events use "I need to", "I should" | Barrett instruction not reinforced at generation time |
+
+**Direction: architecture, not tuning.** More 300-tick runs are pointless — they'll show the same curve. The investment is in context management and P22 quality.
 
 ## Orientation — Start Here
 
@@ -48,27 +57,51 @@ Read these in order:
 - `barrett-v3-confrontation/` — v3 instruction, confrontation event 5
 - `barrett-v5-confrontation-no-gloating/` — v5c experiment, gloating drive removed
 
-## Next Step — Continue the Event Queue
+## What This Session Built
 
-The Barrett v5 instruction works for non-threat scenarios. Don't block on dynamic drive activation — continue the event queue with events that don't require drive suppression.
+### Comprehensive cognitive evaluation instrument
+`classify_emotions.py` now scores 4 per-drive dimensions + 8 cross-cutting cognitive dimensions (channel coverage, attachment coloring, theory of mind, formation echo, performance cost, person-specific shifts, drive blending, spatial grounding). CLI backend (`--backend cli`) routes through Opus via `drive-classifier` agent.
 
-**Do this now:**
+### 8 micro-test scenarios validated (all Q≥4 on Opus)
+HC library solo, HC drawing room (all agents), HC dialogue (all agents), DD entrance dialogue, DD gallery wounded, DD kitchen gloating. Plus clean pipeline-only tests proving no coaching needed.
 
-1. **HC in library (event 2, aside).** HC alone, territorial claim, inscription discovery. No threat → gloating is fine. Create smoke test, generate thinking via subagent, do full-transcript comparison against golden prose (lines 20-25 of `golden-prose-20261030/transcript.json`). Check structure (bold anchors, multi-paragraph), drive blending, own words, performance cost (mask drops when alone). This tests instruction generalisation to a different room.
+### Pipeline fixes
+- Deleted 17 hand-authored drive descriptions from social-config-generic.yaml (forces P22 dependency)
+- Cache drift detection in PlaybookOrchestrator (warns when stale cache skips P22)
+- CLASSIFY_MODEL env var override for classifier model selection
 
-2. **Different character — DD entrance hall (event 10, dialogue).** Reginald Foxworth arriving. Different drives (recognition, acquisitiveness), different personality (impulsive, reactive). No bold anchors in golden prose — DD experiences as continuous flow. This tests whether the v5 instruction's "you MAY bold" correctly allows DD to skip them.
+### Issues closed: #175, #174, #165, #164, #156, #121, #100
 
-3. **After those two pass:** file an issue for dynamic drive activation in neocortex (`CognitionObservationBuilder.renderInternalState()` — modulate presented drives based on situational context). That work can be a separate branch.
+## Next Step — Architecture Investment
 
-### Event queue
+**Do NOT run more 300-tick evals.** The degradation curve is measured. Fix the architecture.
 
-1. ~~HC aside, entrance hall (event 1)~~ — Q=4.25 R=4.50 D=4.0
-2. ~~HC dialogue, entrance hall (event 0)~~ — Q=4.50 R=4.0 D=4.25
-3. ~~HC confrontation, entrance hall (event 5)~~ — near-golden with v5c
-4. **HC aside, library (event 2)** ← do this next
-5. **DD dialogue, entrance hall (event 10)** ← then this
-6. File issue for dynamic drive activation (neocortex)
-7. Full 300-tick eval after 5+ events at golden standard
+### Priority 1: Context reset with three-tier memory
+- **examples#183** — per-character context reset synced with consolidation
+- **neocortex#737** — three-tier memory: structured brief + RAG chat logs + sub-agent deep dive
+- Fix: periodic context clear → summariser produces structured brief → fresh Barrett instruction at top of short context → body vocabulary stays at 75%
+
+### Priority 2: Short-run reproduction tests
+- **examples#182** — integration test using real pipeline (not hand-seeded), one consolidation tick, classify output
+- Reproduce weaknesses in 5-10 ticks from a primed scenario state
+- Use saved consolidation cache to skip 50-tick warmup
+
+### Priority 3: P22 description quality
+- **neocortex#735** — formation echo in dialogue-form descriptions
+- **neocortex#734** — dynamic drive activation (suppress under threat)
+
+### All open issues from this session
+| Issue | Repo | Title |
+|:---:|------|-------|
+| #177 | examples | Comprehensive cognitive instrument as CI gate |
+| #178 | examples | Two-tier classification (Haiku→Opus) |
+| #179 | examples | DD formation echo weakness |
+| #180 | examples | Consolidation cache drift detection |
+| #182 | examples | Integration test: P22 quality after consolidation |
+| #183 | examples | Context reset with async summariser |
+| #734 | neocortex | Dynamic drive activation |
+| #735 | neocortex | Formation echo in dialogue-form |
+| #737 | neocortex | Three-tier context memory architecture |
 
 ### Session technique note
 
