@@ -3,7 +3,36 @@
 **Date:** 2026-10-31
 **Branch:** `issue-737-tiered-memory-architecture` (neocortex), `main` (examples)
 **Issue:** neocortex#737 — Three-tier context memory (in progress, research phase)
-**ERA:** Transitioning ERA5 → ERA6
+**ERA:** ERA6 — Cognitive Memory Architecture
+
+## START HERE — Orientation for Next Session
+
+**What happened:** ERA5 (relational cognition, Barrett v5) is COMPLETE. ERA6 opens: cognitive memory architecture — making characters maintain identity across context boundaries (context resets).
+
+**The core insight:** Most of the infrastructure already exists. The system computes tiered summaries every tick (`TieredObservationRenderer`: VERBATIM/GROUPED/SUMMARISED) and throws them away. Consolidation (sleep) already merges, graduates, and clusters memory nodes. Sub-thoughts already have entity references. The gap is **persistence** — store what's already being computed, add condensation chain links, persist the full transcript.
+
+**Read these two files before doing anything:**
+1. `/Users/mdproctor/claude/casehub/slots/196/neocortex/docs/research/tiered-memory-architecture-research-2026-10-31.md` — full architecture, codebase audit, literature, gap table
+2. `/Users/mdproctor/claude/casehub/slots/196/neocortex/docs/research/era6-cognitive-memory-architecture-research.md` — ERA6 problem statement and phases
+
+**Your immediate task (Phase 1 — empirical test):**
+1. Run a wacky-manor scenario for ~100 ticks (GENERIC profile)
+2. Snapshot what the memory system actually contains — query MindMap nodes, memories, sub-thoughts, consolidation output
+3. Ask: "If I cleared the LLM context right now, what would this character know from memory alone?"
+4. Document what's there vs what's missing — these are the real requirements
+
+**Do NOT:**
+- Start implementing anything before the empirical test
+- Re-design the architecture — it's captured in the research doc
+- Run more Barrett/prose quality evals — ERA5 is done
+
+**Key classes to understand:**
+- `TieredObservationRenderer` (agency) — per-prompt tiered rendering, already computes summaries
+- `CommunitySummaryPhase` (neocortex) — finds dense clusters, creates summary nodes, but only titles not LLM prose
+- `SubThoughtConsolidationPhase` (neocortex) — entity-aware graduation, the template pattern
+- `ExperienceRecorderCore` (neocortex) — stores one-line descriptions per tick, too thin
+- `ObservationService` / `ManorObservationRenderer` (examples) — partitions events, runs compaction
+- `NarratorAgent` (examples) — async LLM summarisation, broadcasts to WebSocket, never stores
 
 ## Status
 
