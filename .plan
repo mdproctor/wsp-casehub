@@ -1,10 +1,10 @@
-# Work Plan — wip/era5-relational-eval
+# Work Plan — issue-191-persist-tiered-rendering
 
 ## State
-branch: main
-state: drained
-project-sha: 19fe98809f1be66c0cd10e42fa25a8173b113c0c
-date: 2026-10-29
+branch: issue-191-persist-tiered-rendering
+state: scaffolded
+project-sha: 
+date: 
 issue-repo: casehubio/examples
 covers: 175
 design-repo: project
@@ -12,12 +12,4 @@ design-section-hashes:
 flyway-next-v: unknown
 
 ## Queue
-- [ ] casehubio/examples#175 — Issue #175 ← active
-  - [x] Batch 1: Pipeline
-    - [x] Task 1: Schema-aware description generation
-  - [x] Batch 2: Appraisal
-    - [x] Task 2: TargetedDrive model and target resolution
-  - [x] Batch 3: Composition
-    - [x] Task 3: Render targeted drives
-  - [x] Batch 4: Coherence
-    - [x] Task 4: Evolved schema rendering
+- [ ] casehubio/examples#191 — Issue #191 ← active
