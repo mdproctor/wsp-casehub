@@ -7,50 +7,32 @@
 
 ## START HERE — Orientation for Next Session
 
-**What happened:** ERA6 Phase 2 empirically validated. All three persistence features work. One bug found and fixed (#193 — observer auto-registration). Phase 3 design direction established.
+**What happened:** ERA6 Phase 3 complete. Three-layer memory architecture implemented: corpus ZIP transcripts (leaf), temporal compaction (derived), segment cache with context-reset injection (hot read). Blog entry written. Empirical validation is next.
 
-**The core result:** 30-tick GENERIC scenario confirmed narrator summaries (9 nodes) and experience enrichment (room 85%, target-agent 44%). Observation persistence was broken under GENERIC profile due to observer registration using pre-remap IDs. Fixed in agency-core — `PartitionedObservationService.publishEvent()` now auto-registers observers via `computeIfAbsent`. Validated with 5-tick re-run: 5 observation subgraphs, 4 nodes each.
+**The core result:** Four commits implementing the three-layer architecture from the "Body Forgets" diagnosis. Raw transcripts persisted via ZipCorpusStore. Observation nodes bounded via temporal compaction during consolidation. Segment cache materialises observation history for injection into prompts as "What You've Experienced" section.
 
-**Phase 3 design direction — three-layer memory architecture:**
+**Three-way tension hypothesis (untested):**
+Context window clear threshold is a three-way optimisation: instruction adherence (wants short context), narrative continuity (wants long context), prompt caching (wants stable prefix). The three-layer architecture resolves all three — stable system prompt + slowly-changing segment cache = cacheable prefix; variable per-tick observation is small; instructions stay near generation point; continuity lives in memory not conversation history. The optimal clear point is hypothesised to be at the "knee" where instruction effectiveness drops sharply. Experiment needed: same scenario at 40k/60k/80k/120k thresholds.
 
-| Layer | Store | Content | Role |
-|-------|-------|---------|------|
-| **Leaf** | Corpus ZIP chain (`neocortex/corpus/zip`) | Raw chat transcripts (prompt + response per tick) | Archive, re-derivation, audit |
-| **Derived** | MindMap ACTIVITY nodes | Rendered observations (tiered), narrator summaries | Source of truth for summaries |
-| **Hot read** | Segment cache (new) | Materialised view over MindMap nodes | Fast injection on context reset |
+**Immediate next steps for empirical validation:**
+1. Run 100+ tick GENERIC scenario with context resets occurring naturally at 80k token threshold
+2. Verify body vocabulary stays above 70% throughout, even across context clears
+3. Verify transcript ZIP chain produces valid, readable archives
+4. Verify observation compaction runs during consolidation and bounds node count
+5. Verify segment cache text appears in prompts after context reset
+6. Measure cache hit rate and latency impact of the stable-prefix architecture
 
-**Key design decisions:**
-1. **Corpus ZIP chain for transcript preservation** — `ZipCorpusStore` with rollover + `Compactor` already exists in `neocortex/corpus/zip`. Raw transcripts are the leaf data from which all derived layers come. Append per-tick, rollover at size threshold, compact old archives.
-2. **MindMap nodes stay for derived summaries** — observation nodes contain the tiered rendering output (a lossy transformation), not just raw data. Can't be cheaply reconstructed from transcripts. MindMap is the source of truth for the rendered/summarised content.
-3. **Temporal compaction for MindMap observation nodes** — nodes grow linearly (~4/character/5-ticks). Need a compaction phase that merges older observation nodes into condensed summary nodes with `condensed-from` edges. Similar to `CommunitySummaryPhase` but temporal instead of graph-structural.
-4. **Lazy segmented cache for injection** — materialise "last N observations" + "condensed history" on demand from MindMap nodes. Cache segments by tick range, extend incrementally when new observations arrive. Context-reset injection reads from cache, never from corpus ZIP.
-
-**Immediate next steps for Phase 3:**
-1. Wire raw transcript persistence via corpus ZIP chain in `PlaybookOrchestrator` — append prompt+response per character per tick
-2. Design temporal compaction phase for observation MindMap nodes — bounded window + merge older nodes
-3. Build segment cache over MindMap observation nodes for context-reset injection
-4. Wire injection into session context-reset path (triggered at 80k tokens via `manor.session.clear-at-tokens`)
-
-**Context-reset injection budget (from 30-tick empirical data):**
-- 34 experience memories per character at ~536 chars each = ~4562 tokens total
-- Last 10 memories = ~1099 tokens (fits budget)
-- Condensed summary of older memories = ~1368 tokens estimated
-- Room-transition preamble = ~100 tokens
-- Available budget for injection: ~2000 tokens
-
-**After Phase 3, remaining candidates:**
-- Node deduplication (#190, cosmetic, low priority)
-- Sequencing summary rendering for context-reset preamble
-
-**Key files modified this session:**
-- `PartitionedObservationService` (agency-core) — auto-register observers in `publishEvent()` via `computeIfAbsent`
-- `ObservationService` (examples) — removed pre-registration loop from `init()`
-- `ObservationServiceTest` (examples) — 2 new tests for ID remap scenario
+**After validation:**
+- Tune compaction parameters (window 10, batch 5) based on empirical data
+- Test clear threshold at 40k/60k/80k/120k
+- Watch for register conflict between segment cache (factual prose) and Barrett instruction (show don't tell)
+- Consider generating cache text in character voice to avoid contamination
 
 **Do NOT:**
+- Re-implement Phase 3 — it's done, four commits on the branch
 - Re-run Phase 2 empirical validation — done, data in `docs/eval/era6-memory-snapshot/`
 - Fix #190 (node duplication) — cosmetic, defer
-- Build the segment cache without first wiring transcript preservation — leaf layer comes first
+- Build condensed-from edges — Phase 3 uses erase-and-replace; linked tiers are Phase 4
 
 ## Status
 
@@ -64,52 +46,77 @@
 - neocortex#739 CLOSED — Action enriched with first-class room/targetAgent
 - examples#193 CLOSED — observer auto-registration fix for GENERIC profile
 
-**ERA6 Phase 3 next.** Transcript preservation (corpus ZIP), temporal compaction, segment cache, context-reset injection.
+**ERA6 Phase 3 complete.** Three-layer memory architecture implemented:
+- Transcript persistence via corpus ZIP chain (leaf layer)
+- Temporal compaction via ObservationCompactionPhase (derived layer)
+- Segment cache with context-reset injection (hot-read layer)
+- Blog: "Three Layers Deep" written and committed
+
+**ERA6 Phase 4 next (deferred).** Condensation chain with linked tiers, persistent entity index, ACT-R decay, reconstructive recall.
 
 **Pre-existing test failure:** `PipelineToRenderingTest.barrettInstruction_includesStructuralGuidance` fails on main — unrelated to ERA6 work.
 
 ## What This Session Did
 
-### Empirical validation (30-tick GENERIC run)
-- Confirmed narrator persistence (#192): 9 nodes in `narrator-summaries` subgraph
-- Confirmed experience enrichment (#739): room 85%, target-agent 44% of memories
-- Found observation persistence (#191) broken under GENERIC profile — 0 observation subgraphs
+### Phase 3 implementation (4 commits)
 
-### Bug fix (#193): observer auto-registration
-- Root cause: `ObservationService.init()` pre-registered observers with original IDs; GENERIC `remapCharacterIds()` changed all IDs; events silently dropped
-- Fix: `PartitionedObservationService.publishEvent()` auto-registers via `computeIfAbsent`; pre-registration removed from `ObservationService.init()`
-- Validated with 5-tick GENERIC re-run: 5 observation subgraphs, 20 nodes total
+**Step 1 — Transcript persistence (fb724a3d):**
+- `TranscriptStore` wraps `ZipCorpusStore` — appends `{tick, agentId, timestamp, prompt, response}` JSON per character per tick
+- Virtual thread writes — off the tick critical path
+- Added `casehub-neocortex-corpus` dependency to wacky-manor
+- Config: `manor.transcript.enabled` (default true), `manor.transcript.storage-path` (default `~/claude/casehub/transcripts`)
+- 5 tests in `TranscriptStoreTest`
+
+**Step 2 — Temporal compaction (c7a54040):**
+- `ObservationCompactionPhase` implements `ConsolidationPhase`, priority 50
+- Per character `observations-<id>` subgraph: keeps last 10 nodes, groups older in batches of 5
+- Concatenates content with `---` separators, tracks rooms, preserves time range
+- `Condensed` trait for idempotency — subsequent passes skip condensed nodes
+- Mechanical — no LLM calls. Follows feedback: prefer deterministic over LLM.
+- Config: `manor.observation.compaction-recent-window` (10), `manor.observation.compaction-batch-size` (5)
+- 6 tests in `ObservationCompactionPhaseTest`
+
+**Step 3-4 — Segment cache + injection (a17de064):**
+- `ObservationSegmentCache` reads condensed + recent observation nodes from MindMap
+- Produces capped text summary per character (token budget = clearAtTokens/40 ≈ 2000 tokens)
+- Formats "Earlier:" section from condensed nodes, "Recently:" from recent nodes, with room tags
+- `ObservationBuilder.withObservationHistory(String)` adds "What You've Experienced" section
+- Wired in `PlaybookOrchestrator`: cache created once, refreshed per tick, history injected into observation builder
+- 6 tests in `ObservationSegmentCacheTest`
+
+### Blog entry (b8051f2)
+- "Three Layers Deep" — diary entry in wsp-casehub/blog/
+- Two SVG diagrams: three-layer-implementation.svg, context-reset-bridge.svg
+- Covers: problem (context windows aren't memory), three-layer solution, three-way tension (instruction adherence vs continuity vs prompt caching), empirical validation plan
 
 ### Repo sync
-- Examples canonical main synced with 61 ERA5+ERA6 commits
-- Neocortex slot rebased onto canonical main (incorporated 7 #736 commits), feature branch rebased (4 commits)
-- Agency fix committed on `issue-193-auto-register-observers`, merged to agency main
-
-### Context-reset injection assessment
-- 34 experience memories per character (~4562 tokens raw, ~1099 for last 10)
-- Room transitions reconstructible from stored attributes (6 rooms visited)
-- Interaction partner tracking working (3 partners, frequency-ranked)
-- Identified three-layer architecture: corpus ZIP (leaf) → MindMap nodes (derived) → segment cache (hot read)
+- Neocortex: local main synced to origin/main (6 new commits from #748, #749 — contextual modulation)
+- Neocortex feature branch rebased onto updated main (clean, 4 commits)
+- Agency: local main synced (5 new commits from #375, #376 — swarm coordination)
+- Platform: local main synced (1 new commit)
+- Connectors: slot-local Maven repo updated (stale 0.4-SNAPSHOT jar missing `Coordinates` class)
+- Neocortex installed to slot-local Maven repo (knowledge-pipeline modules excluded due to pre-existing Coordinates package migration issue from #749)
 
 ## Commits This Session
 
 **examples (issue-191-persist-tiered-rendering):**
-- `a80608bf` — wip: stage Phase 1 eval snapshots (penelope, classification audit)
-- `0b17c92c` — data(era6): Phase 2 empirical validation — 30-tick GENERIC run (#175)
-- `5a112667` — fix: remove pre-registration from ObservationService.init (#193)
-- `ab403b1d` — data(era6): Phase 2 validation — observation persistence confirmed (#193)
+- `fb724a3d` — feat: wire raw transcript persistence via corpus ZIP chain (#737)
+- `c7a54040` — feat: temporal compaction for observation MindMap nodes (#737)
+- `a17de064` — feat: observation segment cache with context-reset injection (#737)
 
-**agency (issue-193-auto-register-observers, merged to main):**
-- `ab7a3488` — feat: auto-register observers in PartitionedObservationService (#193)
+**wsp-casehub (issue-191-persist-tiered-rendering):**
+- `b8051f2` — wip(content): diary — Three Layers Deep Refs #737
+
+**neocortex (issue-737-tiered-memory-architecture):**
+- ERA6 research doc updated with Phase 2+3 completion
 
 ## Open Issues
 
 | Issue | Repo | Title | Status |
 |:---:|------|-------|--------|
-| #737 | neocortex | Three-tier context memory architecture | Phase 2 validated, Phase 3 design ready |
-| #183 | examples | Context reset with async summariser | Phase 3 — needs transcript preservation first |
+| #737 | neocortex | Three-tier context memory architecture | Phase 3 complete, empirical validation next |
+| #183 | examples | Context reset with async summariser | Segment cache wired; full async summariser deferred |
 | #190 | examples | Node duplication from cache/seed | Open (deferred, cosmetic) |
-| #193 | examples | Observer auto-registration for GENERIC profile | CLOSED |
 | #177 | examples | Comprehensive cognitive instrument as CI gate | ERA5 carryover |
 | #178 | examples | Two-tier classification (Haiku→Opus) | ERA5 carryover |
 | #179 | examples | DD formation echo weakness | ERA5 carryover |
@@ -117,11 +124,42 @@
 | #734 | neocortex | Dynamic drive activation | ERA5 carryover |
 | #735 | neocortex | Formation echo in dialogue-form | ERA5 carryover |
 
+## Key Files Modified This Session
+
+**New files (examples):**
+- `TranscriptStore.java` — corpus ZIP wrapper for transcript persistence
+- `TranscriptStoreTest.java` — 5 tests
+- `ObservationCompactionPhase.java` — consolidation phase for temporal compaction
+- `ObservationCompactionPhaseTest.java` — 6 tests
+- `ObservationSegmentCache.java` — materialised view for context-reset injection
+- `ObservationSegmentCacheTest.java` — 6 tests
+
+**Modified files (examples):**
+- `PlaybookOrchestrator.java` — wired TranscriptStore, ObservationSegmentCache into tick loop
+- `ObservationBuilder.java` — added `withObservationHistory(String)` for "What You've Experienced" section
+- `ManorConfig.java` — added TranscriptConfig, extended ObservationConfig with compaction params
+- `ManorConfigProducer.java` — wired transcript + compaction config properties
+- `ManorConsolidationBeans.java` — produces ObservationCompactionPhase CDI bean
+- `wacky-manor/pom.xml` — added casehub-neocortex-corpus dependency
+
+## Hypotheses to Test
+
+1. **Body vocabulary stability across resets:** Does body vocab stay above 70% when context clears at 80k and segment cache injects observation history? (Phase 2 showed 75%→51% degradation WITHOUT resets)
+
+2. **Optimal clear threshold:** Is there a "knee" in the instruction effectiveness curve? Expected: sharp drop somewhere between 40k-80k tokens, with diminishing returns from longer context.
+
+3. **Prompt cache alignment:** Does the stable-prefix architecture (system prompt + segment cache) measurably improve cache hit rate compared to growing conversation history?
+
+4. **Register conflict:** Does factual segment cache text ("You were in the Library") contaminate Barrett instruction effectiveness ("show, don't tell")? Might need character-voice cache generation.
+
+5. **Compaction parameter sensitivity:** Are window=10, batch=5 the right defaults? How does injection quality change if the window is 5 or 20?
+
 ## Constraints
 
-- Install neocortex before running examples
+- Install neocortex before running examples (exclude knowledge-pipeline modules: `-pl '!knowledge-pipeline-api,!knowledge-pipeline'`)
 - Use subagents for generation/comparison work — keep main context clean
 - Isolation principle — one change at a time, measure, keep or revert
 - Do NOT remove cognitive sections — they represent abilities
 - Sync slot repos to canonical mains at session start (feedback memory captured)
 - Snapshot MindMap at tick 3-5 during scenario runs for early validation
+- Save full scenario run transcripts to docs/eval/ before stopping the server
