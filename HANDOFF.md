@@ -12,10 +12,12 @@
 **The core result:** Every tick, `ObservationService.drain()` persists the tiered rendering output (VERBATIM/GROUPED/SUMMARISED) as ACTIVITY nodes with room metadata. `NarratorAgent` stores LLM-generated scene narrations in a shared `narrator-summaries` subgraph. `Action` records now carry `room` and `targetAgent` as first-class fields promoted to reserved attributes in `toMemoryInput()`.
 
 **Your immediate task is empirical validation:**
-1. Run a 30-tick autonomous GENERIC scenario with the new persistence
-2. Snapshot the MindMap store — verify observation nodes, narrator nodes, enriched experience attributes
-3. Compare node counts and attribute quality against Phase 1 baseline (93 seeded, 31 runtime)
-4. Assess whether the stored data is sufficient for context-reset injection (Phase 3)
+1. Run a 30-tick autonomous GENERIC scenario with the new persistence (needs working LLM sessions — dev mode scripted run failed on closed sessions)
+2. Snapshot the MindMap store — verify ACTIVITY subgraphs: `observations-{characterId}` and `narrator-summaries`
+3. Check node properties: content, tier, eventCount, room (observations); content (narrations)
+4. Check experience memory attributes: `room` and `target-agent` as reserved attributes (not metadata)
+5. Compare total node counts against Phase 1 baseline (93 seeded, 31 runtime per character)
+6. Assess whether stored data is sufficient for context-reset injection (Phase 3)
 
 **User design insight (captured, not yet implemented):** When rendering memories for context reset, provide a sequencing summary showing room transitions and significant events as a preamble to tie memories together temporally. Room data is stored per observation node to enable this. Needs empirical testing.
 
