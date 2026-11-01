@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="leafGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8f4f8"/>
+      <stop offset="100%" stop-color="#d1ecf1"/>
+    </linearGradient>
+    <linearGradient id="derivedGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff3cd"/>
+      <stop offset="100%" stop-color="#ffeaa7"/>
+    </linearGradient>
+    <linearGradient id="hotGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8d7da"/>
+      <stop offset="100%" stop-color="#f5c6cb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">Three-Layer Memory Architecture</text>
+
+  <!-- Layer 1: Leaf (Corpus ZIP) -->
+  <rect x="40" y="55" width="640" height="100" rx="8" fill="url(#leafGrad)" stroke="#17a2b8" stroke-width="1.5"/>
+  <text x="60" y="80" font-size="13" font-weight="bold" fill="#0c5460">LEAF — Corpus ZIP Chain</text>
+  <text x="60" y="100" font-size="11" fill="#0c5460">Raw prompt + response per character per tick</text>
+  <text x="60" y="118" font-size="11" fill="#0c5460">Append-only · Auto-rollover at 100MB · Versioned · Archive &amp; audit</text>
+  <text x="60" y="140" font-size="10" fill="#6c757d" font-style="italic">TranscriptStore → ZipCorpusStore → transcripts/&lt;profile&gt;/transcripts-1.zip</text>
+
+  <!-- Arrow: Leaf → Derived -->
+  <line x1="360" y1="155" x2="360" y2="175" stroke="#6c757d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="375" y="168" font-size="9" fill="#6c757d">tiered rendering</text>
+
+  <!-- Layer 2: Derived (MindMap ACTIVITY) -->
+  <rect x="40" y="175" width="640" height="110" rx="8" fill="url(#derivedGrad)" stroke="#ffc107" stroke-width="1.5"/>
+  <text x="60" y="200" font-size="13" font-weight="bold" fill="#856404">DERIVED — MindMap ACTIVITY Nodes</text>
+  <text x="60" y="220" font-size="11" fill="#856404">Tiered observations (VERBATIM/GROUPED/SUMMARISED) + narrator summaries</text>
+  <text x="60" y="238" font-size="11" fill="#856404">Source of truth for rendered content · Compacted during consolidation sleep</text>
+
+  <!-- Compaction box -->
+  <rect x="420" y="248" width="240" height="28" rx="4" fill="#fff" stroke="#e0a800" stroke-width="1"/>
+  <text x="540" y="267" text-anchor="middle" font-size="10" fill="#856404">ObservationCompactionPhase: keep 10, batch 5</text>
+
+  <!-- Arrow: Derived → Hot -->
+  <line x1="360" y1="285" x2="360" y2="305" stroke="#6c757d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="375" y="298" font-size="9" fill="#6c757d">materialise on demand</text>
+
+  <!-- Layer 3: Hot Read (Segment Cache) -->
+  <rect x="40" y="305" width="640" height="100" rx="8" fill="url(#hotGrad)" stroke="#dc3545" stroke-width="1.5"/>
+  <text x="60" y="330" font-size="13" font-weight="bold" fill="#721c24">HOT READ — Segment Cache</text>
+  <text x="60" y="350" font-size="11" fill="#721c24">Materialised view: condensed history + recent observations</text>
+  <text x="60" y="368" font-size="11" fill="#721c24">Token-budgeted · Refreshed per tick · Injected as "What You've Experienced"</text>
+  <text x="60" y="390" font-size="10" fill="#6c757d" font-style="italic">ObservationSegmentCache → ObservationBuilder → prompt assembly</text>
+
+  <!-- Right side: injection arrow -->
+  <rect x="530" y="380" width="140" height="22" rx="4" fill="#fff" stroke="#c0392b" stroke-width="1"/>
+  <text x="600" y="395" text-anchor="middle" font-size="10" fill="#721c24">→ context-reset injection</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#6c757d"/>
+    </marker>
+  </defs>
+
+  <!-- Write path label -->
+  <text x="25" y="230" font-size="10" fill="#6c757d" transform="rotate(-90, 25, 230)" text-anchor="middle">write path ↓</text>
+
+  <!-- Read path label -->
+  <text x="700" y="230" font-size="10" fill="#6c757d" transform="rotate(90, 700, 230)" text-anchor="middle">read path ↑</text>
+</svg>
