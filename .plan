@@ -1,7 +1,7 @@
 # Work Plan — issue-191-persist-tiered-rendering
 
 ## State
-branch: issue-191-persist-tiered-rendering
+branch: 
 state: scaffolded
 project-sha: 
 date: 
@@ -12,4 +12,6 @@ design-section-hashes:
 flyway-next-v: unknown
 
 ## Queue
-- [ ] casehubio/examples#191 — Issue #191 ← active
+- [x] casehubio/examples#191 — Issue #191
+- [x] casehubio/examples#192 — Store narrator summaries as memory nodes
+- [x] casehubio/neocortex#739 — Enrich experience recording with entity references

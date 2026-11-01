@@ -1,95 +1,86 @@
 # Session Handover — casehub-examples (slot 196)
 
-**Date:** 2026-10-31
-**Branch:** `issue-737-tiered-memory-architecture` (neocortex), `main` (examples)
+**Date:** 2026-11-01
+**Branch:** `issue-737-tiered-memory-architecture` (neocortex), `issue-191-persist-tiered-rendering` (examples)
 **Issue:** neocortex#737 — Three-tier context memory architecture
 **ERA:** ERA6 — Cognitive Memory Architecture
 
 ## START HERE — Orientation for Next Session
 
-**What happened:** ERA6 Phase 1 is COMPLETE. Empirical test ran, three bugs found, two fixed. The memory infrastructure is stronger than expected — the gap is persistence, not computation.
+**What happened:** ERA6 Phase 2 is COMPLETE. Three persistence gaps closed — the system now stores observation summaries, narrator prose, and enriched experience records as MindMap nodes every tick.
 
-**The core result:** 93 MindMap nodes seeded per character, 31 new nodes earned at runtime in 30 ticks. The system computes tiered summaries, narrator prose, and experience observations every tick — and throws away the first two. Experience memories ARE stored but couldn't be recalled (domain mismatch, now fixed). Scripted mode now wires experienceService (was null, now fixed).
+**The core result:** Every tick, `ObservationService.drain()` persists the tiered rendering output (VERBATIM/GROUPED/SUMMARISED) as ACTIVITY nodes with room metadata. `NarratorAgent` stores LLM-generated scene narrations in a shared `narrator-summaries` subgraph. `Action` records now carry `room` and `targetAgent` as first-class fields promoted to reserved attributes in `toMemoryInput()`.
 
-**Your immediate task is Phase 2 — persist what's already computed:**
+**Your immediate task is empirical validation:**
+1. Run a 30-tick autonomous GENERIC scenario with the new persistence
+2. Snapshot the MindMap store — verify observation nodes, narrator nodes, enriched experience attributes
+3. Compare node counts and attribute quality against Phase 1 baseline (93 seeded, 31 runtime)
+4. Assess whether the stored data is sufficient for context-reset injection (Phase 3)
 
-1. **examples#191** — Persist tiered rendering output as MindMap nodes. `TieredObservationRenderer` already computes VERBATIM/GROUPED/SUMMARISED every tick. Add a store call to save the output before discarding it.
+**User design insight (captured, not yet implemented):** When rendering memories for context reset, provide a sequencing summary showing room transitions and significant events as a preamble to tie memories together temporally. Room data is stored per observation node to enable this. Needs empirical testing.
 
-2. **examples#192** — Store narrator summaries as memory nodes. `NarratorAgent` already produces LLM scene prose. Add a store call alongside the WebSocket broadcast.
+**After validation, Phase 3 candidates:**
+- **#183** — Context reset with async summariser (condensation chain)
+- Sequencing summary rendering for context-reset injection
+- Node deduplication (#190, cosmetic, low priority)
 
-3. **neocortex#739** — Enrich experience recording with entity references. Room, speaker, and target agent should be first-class attributes, not buried in metadata.
-
-**Read before starting:**
-- `neocortex/docs/research/era6-cognitive-memory-architecture-research.md` — updated with Phase 1 results, issue tracker, empirical gap table
-- `examples/wacky-manor/docs/eval/era6-memory-snapshot/FINDINGS.md` — full empirical findings with data
-
-**Key files for Phase 2:**
-- `TieredObservationRenderer` (agency) — the renderer to tap for #191
-- `ManorObservationRenderer` (examples) — wraps the agency renderer, runs compaction
-- `NarratorAgent` / `NarratorSummariser` (examples) — the narrator pipeline for #192
-- `ExperienceEvents.toMemoryInput()` (neocortex) — where entity enrichment goes for #739
-- `AgentExperienceService` (examples) — now uses `ExperienceEvents.DOMAIN` for recall (fixed)
+**Key files modified in Phase 2:**
+- `ObservationService` (examples) — `drain()` now calls `persistObservation()` with MindMapStore
+- `NarratorAgent` (examples) — 8-param constructor stores narrations alongside broadcast
+- `PlaybookOrchestrator` (examples) — wires MindMapStore into both ObservationService and NarratorAgent
+- `Action` (neocortex memory-api) — `room`/`targetAgent` fields, backwards-compatible 9-param constructor
+- `ExperienceEvents.toMemoryInput()` (neocortex) — promotes room/targetAgent to reserved attributes
+- `ExperienceAttributeKeys` (neocortex) — `ROOM` constant added
 
 **Do NOT:**
-- Re-run the empirical test — Phase 1 is done, findings documented
-- Fix #190 (node duplication) — cosmetic, defer
-- Start Phase 3 (condensation chains) — Phase 2 first
+- Re-run Phase 1 empirical test — Phase 1 findings are documented and Phase 2 builds on them
+- Fix #190 (node duplication) — cosmetic, defer to Phase 3
+- Start condensation chain work (#183) without empirical validation of Phase 2 persistence
 
 ## Status
 
 **ERA5 complete.** Barrett v5 validated, 300-tick eval done.
 
-**ERA6 Phase 1 complete.** Empirical test, three bugs found, two fixed:
-- neocortex#738 FIXED — domain mismatch in experience recall
-- examples#189 FIXED — scripted mode null experienceService
-- examples#190 OPEN — node duplication (cosmetic, deferred)
+**ERA6 Phase 1 complete.** Empirical test, three bugs found, two fixed.
 
-**ERA6 Phase 2 next.** Three issues filed, all depend on #738 (fixed).
+**ERA6 Phase 2 complete.** Three persistence issues closed:
+- examples#191 CLOSED — tiered rendering persisted as ACTIVITY nodes
+- examples#192 CLOSED — narrator summaries stored in shared subgraph
+- neocortex#739 CLOSED — Action enriched with first-class room/targetAgent
+
+**ERA6 Phase 3 next.** Condensation chains, context-reset injection, sequencing summary.
+
+**Pre-existing test failure:** `PipelineToRenderingTest.barrettInstruction_includesStructuralGuidance` fails on main — unrelated to Phase 2 work.
 
 ## What This Session Did
 
-### Empirical memory system assessment
-- Built `MemorySnapshotResource` endpoint to query full MindMap + memory store state
-- Ran 30-tick autonomous GENERIC scenario, captured snapshots at seed and post-run
-- Discovered memory store is InMemoryMemoryStore (not NoOp as initially assumed)
-- Quantified: 93 seeded nodes, 31 runtime nodes, 14 runtime memories stored
-
-### Bug discovery and fixes
-- **Domain mismatch (#738):** `ExperienceRecorderCore` stored in domain "experience", `AgentExperienceService.recall()` queried domain "manor". One-line fix: `MANOR_DOMAIN = ExperienceEvents.DOMAIN`. Regression test: `ExperienceRecallDomainTest`.
-- **Scripted null (#189):** `PlaybookOrchestrator.runScripted()` passed `null` for experienceService. Fix: add parameter, pass real service. Regression test: `ScriptedModeExperienceWiringTest`.
-
-### Blog entry
-- "The Engine Was Already Running" — `wsp-casehub/blog/2026-10-31-mdp03-the-engine-was-already-running.md`
-- Two SVG diagrams: compute-vs-persist flow, cognitive profile breakdown
-
-### Issue filing
-Filed 6 GitHub issues covering bugs (#738, #189, #190) and Phase 2 features (#191, #192, #739).
+### Phase 2 persistence implementation
+- **#191:** `ObservationService.drain()` stores non-empty `ObservationResult` as ACTIVITY subgraph nodes per character (`observations-{characterId}`). Properties: content, tier, eventCount, timeSinceLastDrain, room. Provenance: `tiered-observation-renderer`.
+- **#192:** `NarratorAgent` 8-param constructor stores narrations in shared `narrator-summaries` ACTIVITY subgraph. Backwards-compatible 6-param constructor preserved. Store call sits alongside existing WebSocket/Qhorus dispatch.
+- **#739:** `Action` record gains `room` and `targetAgent` fields. `ExperienceEvents.toMemoryInput()` promotes both to reserved attributes when present. `AgentExperienceService.ingest()` uses new fields instead of metadata entries. `ROOM` constant added to `ExperienceAttributeKeys`.
 
 ## Commits This Session
 
-**examples (main):**
-- `541528b6` — data(era6): Phase 1 empirical memory system assessment (#737)
-- `cf05425d` — fix: align experience recall domain with storage domain (#738)
-- `a7479273` — fix: wire experienceService into scripted mode (#189)
+**examples (issue-191-persist-tiered-rendering):**
+- `e16e6fbb` — feat: persist tiered rendering output as MindMap memory nodes (#191)
+- `bbc3e5ca` — feat: store narrator summaries as MindMap memory nodes (#192)
+- `c8199349` — feat: use first-class room and targetAgent fields on Action (#739)
 
 **neocortex (issue-737-tiered-memory-architecture):**
-- `7c5e3314` — docs(era6): update research doc with Phase 1 results and bug fixes (#737)
-
-**wsp-casehub (main):**
-- `3736802` — wip(content): diary — The Engine Was Already Running
+- `798eadba` — feat: enrich experience recording with entity references (#739)
 
 ## Open Issues
 
 | Issue | Repo | Title | Status |
 |:---:|------|-------|--------|
-| #737 | neocortex | Three-tier context memory architecture | Phase 1 complete, Phase 2 next |
+| #737 | neocortex | Three-tier context memory architecture | Phase 2 complete, Phase 3 next |
 | #738 | neocortex | Domain mismatch in experience recall | FIXED |
-| #739 | neocortex | Enrich experience recording with entity refs | Phase 2 |
+| #739 | neocortex | Enrich experience recording with entity refs | CLOSED |
 | #183 | examples | Context reset with async summariser | Phase 3 |
 | #189 | examples | Scripted mode null experienceService | FIXED |
 | #190 | examples | Node duplication from cache/seed | Open (deferred) |
-| #191 | examples | Persist tiered rendering output | Phase 2 |
-| #192 | examples | Store narrator summaries | Phase 2 |
+| #191 | examples | Persist tiered rendering output | CLOSED |
+| #192 | examples | Store narrator summaries | CLOSED |
 | #177 | examples | Comprehensive cognitive instrument as CI gate | ERA5 carryover |
 | #178 | examples | Two-tier classification (Haiku→Opus) | ERA5 carryover |
 | #179 | examples | DD formation echo weakness | ERA5 carryover |
