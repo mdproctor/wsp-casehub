@@ -2,162 +2,104 @@
 
 **Date:** 2026-10-31
 **Branch:** `issue-737-tiered-memory-architecture` (neocortex), `main` (examples)
-**Issue:** neocortex#737 — Three-tier context memory (in progress, research phase)
+**Issue:** neocortex#737 — Three-tier context memory architecture
 **ERA:** ERA6 — Cognitive Memory Architecture
 
 ## START HERE — Orientation for Next Session
 
-**What happened:** ERA5 (relational cognition, Barrett v5) is COMPLETE. ERA6 opens: cognitive memory architecture — making characters maintain identity across context boundaries (context resets).
+**What happened:** ERA6 Phase 1 is COMPLETE. Empirical test ran, three bugs found, two fixed. The memory infrastructure is stronger than expected — the gap is persistence, not computation.
 
-**The core insight:** Most of the infrastructure already exists. The system computes tiered summaries every tick (`TieredObservationRenderer`: VERBATIM/GROUPED/SUMMARISED) and throws them away. Consolidation (sleep) already merges, graduates, and clusters memory nodes. Sub-thoughts already have entity references. The gap is **persistence** — store what's already being computed, add condensation chain links, persist the full transcript.
+**The core result:** 93 MindMap nodes seeded per character, 31 new nodes earned at runtime in 30 ticks. The system computes tiered summaries, narrator prose, and experience observations every tick — and throws away the first two. Experience memories ARE stored but couldn't be recalled (domain mismatch, now fixed). Scripted mode now wires experienceService (was null, now fixed).
 
-**Read these two files before doing anything:**
-1. `/Users/mdproctor/claude/casehub/slots/196/neocortex/docs/research/tiered-memory-architecture-research-2026-10-31.md` — full architecture, codebase audit, literature, gap table
-2. `/Users/mdproctor/claude/casehub/slots/196/neocortex/docs/research/era6-cognitive-memory-architecture-research.md` — ERA6 problem statement and phases
+**Your immediate task is Phase 2 — persist what's already computed:**
 
-**Your immediate task (Phase 1 — empirical test):**
-1. Run a wacky-manor scenario for ~100 ticks (GENERIC profile)
-2. Snapshot what the memory system actually contains — query MindMap nodes, memories, sub-thoughts, consolidation output
-3. Ask: "If I cleared the LLM context right now, what would this character know from memory alone?"
-4. Document what's there vs what's missing — these are the real requirements
+1. **examples#191** — Persist tiered rendering output as MindMap nodes. `TieredObservationRenderer` already computes VERBATIM/GROUPED/SUMMARISED every tick. Add a store call to save the output before discarding it.
+
+2. **examples#192** — Store narrator summaries as memory nodes. `NarratorAgent` already produces LLM scene prose. Add a store call alongside the WebSocket broadcast.
+
+3. **neocortex#739** — Enrich experience recording with entity references. Room, speaker, and target agent should be first-class attributes, not buried in metadata.
+
+**Read before starting:**
+- `neocortex/docs/research/era6-cognitive-memory-architecture-research.md` — updated with Phase 1 results, issue tracker, empirical gap table
+- `examples/wacky-manor/docs/eval/era6-memory-snapshot/FINDINGS.md` — full empirical findings with data
+
+**Key files for Phase 2:**
+- `TieredObservationRenderer` (agency) — the renderer to tap for #191
+- `ManorObservationRenderer` (examples) — wraps the agency renderer, runs compaction
+- `NarratorAgent` / `NarratorSummariser` (examples) — the narrator pipeline for #192
+- `ExperienceEvents.toMemoryInput()` (neocortex) — where entity enrichment goes for #739
+- `AgentExperienceService` (examples) — now uses `ExperienceEvents.DOMAIN` for recall (fixed)
 
 **Do NOT:**
-- Start implementing anything before the empirical test
-- Re-design the architecture — it's captured in the research doc
-- Run more Barrett/prose quality evals — ERA5 is done
-
-**Key classes to understand:**
-- `TieredObservationRenderer` (agency) — per-prompt tiered rendering, already computes summaries
-- `CommunitySummaryPhase` (neocortex) — finds dense clusters, creates summary nodes, but only titles not LLM prose
-- `SubThoughtConsolidationPhase` (neocortex) — entity-aware graduation, the template pattern
-- `ExperienceRecorderCore` (neocortex) — stores one-line descriptions per tick, too thin
-- `ObservationService` / `ManorObservationRenderer` (examples) — partitions events, runs compaction
-- `NarratorAgent` (examples) — async LLM summarisation, broadcasts to WebSocket, never stores
+- Re-run the empirical test — Phase 1 is done, findings documented
+- Fix #190 (node duplication) — cosmetic, defer
+- Start Phase 3 (condensation chains) — Phase 2 first
 
 ## Status
 
-**ERA5 complete.** Barrett v5 validated, 300-tick eval done, conclusion: "architecture, not tuning."
+**ERA5 complete.** Barrett v5 validated, 300-tick eval done.
 
-**ERA6 starting: Cognitive Memory Architecture.** Focus shifts from "can characters express personality convincingly" (proved in ERA5) to "can characters maintain coherent identity across context boundaries."
+**ERA6 Phase 1 complete.** Empirical test, three bugs found, two fixed:
+- neocortex#738 FIXED — domain mismatch in experience recall
+- examples#189 FIXED — scripted mode null experienceService
+- examples#190 OPEN — node duplication (cosmetic, deferred)
 
-**Research phase complete for #737.** This session explored the tiered memory architecture through brainstorming, codebase audit, and literature research. Key finding: most of the infrastructure already exists — the gap is persistence, not computation.
+**ERA6 Phase 2 next.** Three issues filed, all depend on #738 (fixed).
 
 ## What This Session Did
 
-### Tiered memory architecture design exploration
+### Empirical memory system assessment
+- Built `MemorySnapshotResource` endpoint to query full MindMap + memory store state
+- Ran 30-tick autonomous GENERIC scenario, captured snapshots at seed and post-run
+- Discovered memory store is InMemoryMemoryStore (not NoOp as initially assumed)
+- Quantified: 93 seeded nodes, 31 runtime nodes, 14 runtime memories stored
 
-Through iterative brainstorming, arrived at a condensation-chain architecture:
-- The MindMap IS the tiered memory — not a separate store
-- Consolidation produces condensation chains (linked tiers), not in-place replacements
-- Entity references at every tier — the query index
-- Full transcript as immutable backing, never deleted
-- Decay is retrieval priority modulation, not deletion
-- Eviction from memory to disk, reconstructable on demand
+### Bug discovery and fixes
+- **Domain mismatch (#738):** `ExperienceRecorderCore` stored in domain "experience", `AgentExperienceService.recall()` queried domain "manor". One-line fix: `MANOR_DOMAIN = ExperienceEvents.DOMAIN`. Regression test: `ExperienceRecallDomainTest`.
+- **Scripted null (#189):** `PlaybookOrchestrator.runScripted()` passed `null` for experienceService. Fix: add parameter, pass real service. Regression test: `ScriptedModeExperienceWiringTest`.
 
-### Codebase audit (5 subagent investigations)
+### Blog entry
+- "The Engine Was Already Running" — `wsp-casehub/blog/2026-10-31-mdp03-the-engine-was-already-running.md`
+- Two SVG diagrams: compute-vs-persist flow, cognitive profile breakdown
 
-| What was audited | Key finding |
-|------------------|-------------|
-| Agency summarisation | `LevelEvent` is entity-blind — no speaker/room/entity fields |
-| Projections & folds | `ConversationFold` is already entity-aware; summarisation accumulators are not |
-| Sub-thoughts | Already entity-referenced, graduation by (entity, type) pairs works |
-| Chat-to-memory pipeline | Only crude one-line descriptions stored; full observation text discarded |
-| Consolidation phases | 10 phases; merge, graduate, community detect all exist. No content condensation. |
-| Per-prompt rendering | `TieredObservationRenderer` computes VERBATIM/GROUPED/SUMMARISED every tick — then discards it |
+### Issue filing
+Filed 6 GitHub issues covering bugs (#738, #189, #190) and Phase 2 features (#191, #192, #739).
 
-**Critical insight:** The system already computes tiered summaries on every tick and throws them away. The biggest gap is persistence, not computation.
+## Commits This Session
 
-### Literature research
+**examples (main):**
+- `541528b6` — data(era6): Phase 1 empirical memory system assessment (#737)
+- `cf05425d` — fix: align experience recall domain with storage domain (#738)
+- `a7479273` — fix: wire experienceService into scripted mode (#189)
 
-**Primary reference:** TiMem (Li et al., 2026, ACL Findings, arXiv:2601.02845) — 5-level temporal memory tree. Validates the condensation approach.
+**neocortex (issue-737-tiered-memory-architecture):**
+- `7c5e3314` — docs(era6): update research doc with Phase 1 results and bug fixes (#737)
 
-Supporting: Spens & Burgess 2024 (reconstructive recall), ACT-R decay equations, CLS theory, MemGPT/Letta (OS-inspired tiers), PNAS 2022 hippocampal-neocortical model.
-
-**Our additions beyond published work:** entity-indexed condensation chains, immutable transcript backing, cognitive-state-filtered reconstructive recall, two reset modes (sleep + context window).
-
-### Commercial landscape
-
-Mem0, Zep/Graphiti, Letta/MemGPT, MemPalace all shipping. None combines entity-indexed condensation chains with immutable backing and reconstructive recall.
-
-### Commits
-
-- `0df1e298` on `issue-737-tiered-memory-architecture` (neocortex) — research doc with full audit, literature, and design direction
-
-## Two Reset Modes (Both Needed)
-
-| | Sleep reset | Context reset |
-|---|---|---|
-| **When** | Narrative boundary, periodic | Mechanical, when context fills |
-| **Injection** | Morning briefing — condensed history | Scene resume — who's here, what's happening |
-| **Consolidation** | Async during sleep, Haiku | Must be ready before reset, continuous |
-| **Tolerance** | High — "I vaguely remember..." | Zero — can't miss mid-sentence |
-
-## Gap Table
-
-| Gap | Severity | Notes |
-|-----|----------|-------|
-| Experience recording too thin | High | One-line descriptions, no entity extraction |
-| Per-prompt rendering not persisted | High | Already computing, throwing away |
-| Narrator summaries not stored | Medium | Already doing async LLM summarisation, discarding |
-| No transcript persistence | High | Full observation text consumed and discarded |
-| No content condensation phase | High | CommunitySummaryPhase is skeleton, needs LLM |
-| No condensation chain edges | High | No `condensed-from` edge type |
-| No persistent entity index | Medium | Per-run accumulation only |
-| LevelEvent entity-blind | Medium | No speaker/room/entity fields |
-| No context reset injection | High | New capability |
-
-## Next Steps — ERA6 Roadmap
-
-### Phase 1: Empirical test (next session)
-1. Run a scenario for ~100 ticks
-2. Snapshot what the memory system contains
-3. Ask: "if I cleared context now, what would the character know?"
-4. The gaps between need and reality become the real requirements
-
-### Phase 2: Persist what's already computed
-- Store per-prompt tiered rendering output as memory nodes
-- Store narrator summaries as memory nodes
-- Enrich experience recording with entity references
-
-### Phase 3: Condensation chain
-- Add `condensed-from` edge type to MindMap
-- Extend CommunitySummaryPhase with LLM content condensation
-- Build context reset injection from stored memories
-
-### Phase 4: Full architecture
-- Persistent entity index
-- Decay and eviction policies (ACT-R-based)
-- Reconstructive recall via sub-agents
-- Two reset modes integrated
-
-## Key Files
-
-| What | Where |
-|------|-------|
-| **Research doc** | `neocortex/docs/research/tiered-memory-architecture-research-2026-10-31.md` |
-| **Issue** | casehubio/neocortex#737 |
-| **Barrett v5 instruction** | `examples/.../agent/CharacterCognition.java` lines 237-258 |
-| **Smoke tests** | `examples/.../agent/PipelineToRenderingTest.java` → `goldenScenario*` |
-| **Classifier** | `examples/wacky-manor/docs/eval/classify_emotions.py` |
-| **Golden prose** | `examples/wacky-manor/docs/eval/golden-prose-20261030/transcript.json` |
+**wsp-casehub (main):**
+- `3736802` — wip(content): diary — The Engine Was Already Running
 
 ## Open Issues
 
-| Issue | Repo | Title | ERA |
-|:---:|------|-------|-----|
-| #737 | neocortex | Three-tier context memory architecture | ERA6 |
-| #183 | examples | Context reset with async summariser | ERA6 |
-| #182 | examples | Integration test: P22 quality after consolidation | ERA5 carryover |
+| Issue | Repo | Title | Status |
+|:---:|------|-------|--------|
+| #737 | neocortex | Three-tier context memory architecture | Phase 1 complete, Phase 2 next |
+| #738 | neocortex | Domain mismatch in experience recall | FIXED |
+| #739 | neocortex | Enrich experience recording with entity refs | Phase 2 |
+| #183 | examples | Context reset with async summariser | Phase 3 |
+| #189 | examples | Scripted mode null experienceService | FIXED |
+| #190 | examples | Node duplication from cache/seed | Open (deferred) |
+| #191 | examples | Persist tiered rendering output | Phase 2 |
+| #192 | examples | Store narrator summaries | Phase 2 |
 | #177 | examples | Comprehensive cognitive instrument as CI gate | ERA5 carryover |
 | #178 | examples | Two-tier classification (Haiku→Opus) | ERA5 carryover |
 | #179 | examples | DD formation echo weakness | ERA5 carryover |
+| #182 | examples | Integration test: P22 quality after consolidation | ERA5 carryover |
 | #734 | neocortex | Dynamic drive activation | ERA5 carryover |
 | #735 | neocortex | Formation echo in dialogue-form | ERA5 carryover |
 
 ## Constraints
 
-- Playbook, simulation data, manifest, and Eidos now available — makes empirical testing viable
-- Do NOT remove cognitive sections — they represent abilities
-- Isolation principle — one change at a time, measure, keep or revert
 - Install neocortex before running examples
 - Use subagents for generation/comparison work — keep main context clean
+- Isolation principle — one change at a time, measure, keep or revert
+- Do NOT remove cognitive sections — they represent abilities
