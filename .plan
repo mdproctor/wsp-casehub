@@ -1,17 +1,24 @@
-# Work Plan — wip/era5-relational-eval
+# Work Plan — 
 
 ## State
 branch: 
-state: closing:stamped
-project-sha: 19fe98809f1be66c0cd10e42fa25a8173b113c0c
-date: 2026-10-29
+state: active
+project-sha: 
+date: 
 issue-repo: casehubio/neocortex
-covers: 175
-design-repo: project
+covers: 655
+design-repo: 
 design-section-hashes: 
-flyway-next-v: unknown
+flyway-next-v: none
 
-evidence-era: true
 ## Queue
-- [x] casehubio/examples#175 — Issue #175
-- [ ] casehubio/neocortex#774 — Blocking consolidation ← active
+- [ ] casehubio/neocortex#655 — Remove remaining AgentProvider usage ← active
+- [ ] casehubio/neocortex#658 — Generic stub SessionPipeline for testing
+- [ ] casehubio/blocks#352 — Fix BlocksAutoConfiguration for SessionPipeline migration
+- [ ] casehubio/examples#135 — Full scenario run with all cognitive components enabled
+- [ ] casehubio/neocortex#685 — Import caps_patterns — seed CAPS weights from biography
+- [ ] casehubio/neocortex#686 — Import behavioural_attractors as BEHAVIORAL subgraph nodes
+- [ ] casehubio/examples#122 — Drive expression pipeline — get working + multi-channel
+- [ ] casehubio/neocortex#668 — Situation-dependent channel weighting
+- [ ] casehubio/neocortex#607 — Frijda action tendencies literature
+- [ ] casehubio/examples#102 — Cognitive pipeline tuning
