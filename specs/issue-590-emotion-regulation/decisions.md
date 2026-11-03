@@ -47,3 +47,29 @@
 **Sources:** CognitionCore tick phase architecture; AppraisalTickParticipant pattern
 **Exploration:** quick
 **Status:** captured
+
+## D5: Personality-strategy connection
+
+**Choice:** Both personality-trait tendencies and current-state intensity/load as structured prompt context. The LLM integrates them rather than a mechanical priority rule.
+**Alternatives:**
+- Personality-primary (traits set default, intensity overrides only at extremes) — more predictable per-character but may miss dynamic moments
+- Intensity-primary (Petter model drives selection, personality tilts tie-breakers) — more responsive but characters feel personality-less in regulation
+**Rationale:** Consistent with D2 (quality first). Both dimensions are empirically validated — personality tendencies (Soleimani & Kobti extension of Bosse) and intensity-driven selection (Petter 2025). Letting the LLM integrate avoids premature mechanical weighting.
+**Trade-offs:** Less predictable than a hard rule; regulation may vary across runs for same personality+intensity
+**Depends on:** D2 (computation approach)
+**Sources:** Petter et al. 2025 intensity model; Big Five → regulation strategy literature; Soleimani & Kobti personality-parameterized Bosse model
+**Exploration:** quick
+**Status:** captured
+
+## D6: Rendering in internal state
+
+**Choice:** Regulation section + modified drives. A new 'Regulation' ObservationSection shows active regulation (strategy deployed, target emotion, effectiveness). Drive snapshot text is also modified to reflect dampening ("you feel the pull but hold it back").
+**Alternatives:**
+- Regulation section only — drives unchanged, regulation advisory only. Simpler but drives feel disconnected from regulation
+- Modified drives only — regulation baked into drive descriptions. Saves prompt tokens but regulation becomes invisible as a distinct cognitive process
+**Rationale:** Both channels reinforce the regulation signal. The separate section makes regulation observable and testable (eval can check for regulation presence). Modified drives ensure the character LLM doesn't ignore regulation when acting on drives.
+**Trade-offs:** More prompt tokens per tick; requires coordination between regulation output and drive rendering
+**Depends on:** D3 (RegulationGenerationPhase produces the content), D4 (pipeline placement determines data flow)
+**Sources:** Issue #590 "regulation-colored drive text"; CognitionObservationBuilder.renderInternalState() architecture
+**Exploration:** quick
+**Status:** captured
