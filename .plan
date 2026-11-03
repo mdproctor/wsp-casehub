@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-735-formation-memory-grounding
-state: closing:pushed
+state: closing:merged
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
