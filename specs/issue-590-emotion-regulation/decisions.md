@@ -24,7 +24,19 @@
 **Exploration:** quick
 **Status:** captured
 
-## D3: Pipeline placement
+## D3: LLM integration pattern
+
+**Choice:** Dedicated RegulationGenerationPhase — LLM call in the regulation participant producing structured regulation output (strategy chosen, intensity dampening, narrative). Same pattern as DriveDescriptionGenerationPhase.
+**Alternatives:**
+- Prompt-only (no generation call) — add regulation to renderInternalState() prompt sections, let character LLM handle it implicitly. Cheaper but regulation becomes unobservable and untestable
+- Multi-phase generation (separate calls for identification, selection, implementation) — most faithful to Gross 2015 cycle but 3x token cost per tick
+**Rationale:** Follows established generation phase pattern. Produces observable, testable regulation output stored on MindMap. Single LLM call balances quality with cost. Strategy identification + selection can be combined in one prompt.
+**Trade-offs:** One extra LLM call per tick; regulation narrative quality depends on prompt engineering
+**Sources:** DriveDescriptionGenerationPhase pattern; Gross 2015 extended process model
+**Exploration:** quick
+**Status:** captured
+
+## D4: Pipeline placement
 
 **Choice:** New RegulationTickParticipant in DERIVED phase, after AppraisalTickParticipant
 **Alternatives:**
