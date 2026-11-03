@@ -1,19 +1,15 @@
-# Work Plan — issue-735-formation-memory-grounding
+# Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-735-formation-memory-grounding
-state: closing:stamped
+branch: issue-590-emotion-regulation
+state: scaffolded
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 735
+covers: 590
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
 
-evidence-era: true
 ## Queue
-- [ ] casehubio/neocortex#735 — Issue #735 ← active
-  - [x] Batch 1: Prompts
-    - [x] Task 1: Restructure SYSTEM_PROMPT
-    - [x] Task 2: Update user prompt somatic rendering
+- [ ] casehubio/neocortex#590 — Issue #590 ← active
