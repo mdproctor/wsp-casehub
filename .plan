@@ -13,6 +13,6 @@ flyway-next-v:
 
 ## Queue
 - [ ] casehubio/neocortex#735 — Issue #735 ← active
-  - [ ] Batch 1: Prompts
-    - [ ] Task 1: Restructure SYSTEM_PROMPT
-    - [ ] Task 2: Update user prompt somatic rendering
+  - [x] Batch 1: Prompts
+    - [x] Task 1: Restructure SYSTEM_PROMPT
+    - [x] Task 2: Update user prompt somatic rendering
