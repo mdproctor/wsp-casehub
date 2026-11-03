@@ -47,17 +47,19 @@ No instruction on *how* to render them. The LLM had the memory text but no guida
 
 ## The fix: merge, not just reorder
 
-The obvious move would be to put formation memory at the top and push everything else down. But the problem wasn't just ordering — it was that the prompt treated formation memory and body territory as separate concerns. Four independent sections competing for 3-5 sentences. The LLM satisfied them sequentially and ran out of budget before reaching the last one.
+The obvious move would be to put formation memory at the top and push everything else down. But reordering alone doesn't fix it. The old prompt listed four independent sections — body territory, contrast, channels, formation memory — with no explicit relationship between them. The LLM treated each as a separate requirement to satisfy. Four sections, 3-5 sentences, and the last one loses.
 
-The restructured prompt *merges* formation memory and body territory into one integrated concept:
+The real fix was making the *relationships between the concepts* explicit. The old prompt said: here's where the pull lives (body territory), here's how to differentiate it (contrast), here are the channels, and here are the memories. Four flat targets. The LLM had to infer how they connect — and under a tight sentence budget, it didn't bother. It satisfied them in order and dropped whatever didn't fit.
+
+The restructured prompt merges the concepts and spells out what points to what:
 
 > FORMATION MEMORY: START with what the body LEARNED from them — not what happened, but the somatic imprint left behind.
 
 > BODY TERRITORY: Anchor the description in that territory — the formation memory echo lives HERE, in this part of the body.
 
-The body territory is no longer a standalone instruction about *where* the pull lives. It's the location *of the formation echo*. "Your chest opens the way it first opened at ten" satisfies both — formation memory as a somatic pattern, anchored in the assigned territory. One sentence, two requirements, no trade-off.
+"The formation memory echo lives HERE." That's the relationship made explicit. Body territory isn't a standalone instruction about location — it's the *target* for the formation echo. The territory is where the memory's somatic imprint lands. "Your chest opens the way it first opened at ten" satisfies both in one sentence because the prompt told the LLM they're the same thing: the echo lives in the territory.
 
-Contrast dropped from "the single most important differentiator" with its own detailed instruction block to a brief note: "note the contrast briefly." The four Barrett channels remain unchanged — they were never the problem.
+Contrast likewise becomes a relationship — not a standalone differentiator, but a brief spatial reference: "Not the [other-location] — this is [body-territory]." The channels remain as texture that gets woven through. Everything now has a clear target: formation memory → body territory → channels as texture → contrast as brief spatial note. No orphaned instructions competing for budget.
 
 The user prompt now gives per-memory rendering instructions:
 
@@ -73,8 +75,8 @@ The arrow cue per memory forces the LLM to think about somatic encoding rather t
 
 Anyone building agents with personality persistence — characters that carry formative experiences across interactions — will hit this problem. The issue isn't whether the LLM *can* produce somatic body-memory prose. It clearly can; the aside-form scores prove that. The issue is whether the prompt *asks* for it in a way the LLM treats as primary rather than optional.
 
-Prompt emphasis hierarchy is not about adding more instructions. It's about which instructions the LLM treats as load-bearing and which it treats as garnish. Position in the prompt, strength of phrasing, imperative vs suggestive verbs, bold headers vs inline text — these structural signals determine what the LLM optimises for when it can't satisfy everything in a constrained output window.
+Prompt structure for LLM generation isn't a flat list of requirements. It's a dependency graph. When the prompt spells out what points to what — this concept *targets* that concept, this instruction *contains* that one — the LLM produces integrated output even under tight constraints. When the prompt lists independent sections, the LLM satisfies them sequentially and drops whatever doesn't fit.
 
-A 3-5 sentence budget forces trade-offs. The LLM will hit body territory, hit contrast, hit channels, and run out of room before it reaches "ground in memories where possible." Invert the hierarchy, and the same budget produces descriptions that start from the body's learned response and anchor it in the assigned territory — formation echo and body location in the same sentence, instead of one displacing the other.
+A 3-5 sentence budget forces trade-offs. Four independent sections means the last one loses. But merge the sections by making their relationships explicit — formation memory *targets* body territory, channels *texture* the result, contrast *differentiates* from neighbours — and the same budget produces descriptions where every sentence serves multiple requirements simultaneously. Formation echo and body location in the same sentence, not one displacing the other.
 
 The principle generalises: when an LLM-generated description must carry personality in compressed form, the formative content has to be structurally primary in the prompt. Optional grounding produces optional personality.l
