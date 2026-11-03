@@ -45,13 +45,19 @@ Formation memories that shaped this pull:
 
 No instruction on *how* to render them. The LLM had the memory text but no guidance that it should surface as a body sensation rather than a narrative reference. So it defaulted to the natural language pattern for connecting present to past: simile. "Like when you were ten."
 
-## The fix: invert the hierarchy
+## The fix: merge, not just reorder
 
-The restructured prompt puts formation memory first — not as an addition, but as the organising principle:
+The obvious move would be to put formation memory at the top and push everything else down. But the problem wasn't just ordering — it was that the prompt treated formation memory and body territory as separate concerns. Four independent sections competing for 3-5 sentences. The LLM satisfied them sequentially and ran out of budget before reaching the last one.
 
-> FORMATION MEMORY: When formation memories are listed, START with what the body LEARNED from them — not what happened, but the somatic imprint left behind. Each description must include at least one formation memory rendered as a body sensation. NOT "like when you were ten" — instead describe what the body does NOW because of that memory.
+The restructured prompt *merges* formation memory and body territory into one integrated concept:
 
-Body territory stays required, but as the container for the formation echo rather than the opening beat. Contrast drops from "single most important differentiator" to "note briefly." The four channels remain unchanged — they were never the problem.
+> FORMATION MEMORY: START with what the body LEARNED from them — not what happened, but the somatic imprint left behind.
+
+> BODY TERRITORY: Anchor the description in that territory — the formation memory echo lives HERE, in this part of the body.
+
+The body territory is no longer a standalone instruction about *where* the pull lives. It's the location *of the formation echo*. "Your chest opens the way it first opened at ten" satisfies both — formation memory as a somatic pattern, anchored in the assigned territory. One sentence, two requirements, no trade-off.
+
+Contrast dropped from "the single most important differentiator" with its own detailed instruction block to a brief note: "note the contrast briefly." The four Barrett channels remain unchanged — they were never the problem.
 
 The user prompt now gives per-memory rendering instructions:
 
@@ -61,7 +67,7 @@ Formation memories — describe what the body LEARNED from each, not what happen
    → What does your body do NOW when this pull arrives, because of this memory?
 ```
 
-The arrow instruction for each memory forces the LLM to think about somatic encoding rather than narrative reference. The question "what does your body do NOW" is the Barrett prediction loop made explicit — the body doesn't recall the memory, it runs the learned pattern.
+The arrow cue per memory forces the LLM to think about somatic encoding rather than narrative reference. "What does your body do NOW" is Barrett's prediction loop made explicit — the body doesn't recall the memory, it runs the learned pattern.
 
 ## Why this matters beyond this project
 
@@ -71,4 +77,4 @@ Prompt emphasis hierarchy is not about adding more instructions. It's about whic
 
 A 3-5 sentence budget forces trade-offs. The LLM will hit body territory, hit contrast, hit channels, and run out of room before it reaches "ground in memories where possible." Invert the hierarchy, and the same budget produces descriptions that start from the body's learned response and anchor it in the assigned territory — formation echo and body location in the same sentence, instead of one displacing the other.
 
-The principle generalises: when an LLM-generated description must carry personality in compressed form, the formative content has to be structurally primary in the prompt. Optional grounding produces optional personality.
+The principle generalises: when an LLM-generated description must carry personality in compressed form, the formative content has to be structurally primary in the prompt. Optional grounding produces optional personality.l
