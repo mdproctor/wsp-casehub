@@ -2,14 +2,19 @@
 
 ## Last Session
 
-Landed #762 (observability interfaces) across neocortex, platform, and examples — all three branches merged, stamped, pushed. Fixed #774 (blocking consolidation) by making `consolidateNow()` submit to the background executor instead of blocking the tick thread. Fixed a stale test in PipelineToRenderingTest. Issue archaeology on epic 109: found 3 of 5 open items were stale duplicates of already-closed neocortex issues; transferred the 2 genuine ones (now neocortex#783 disposition modifiers, neocortex#784 cache drift). Identified cognitive richness as the next frontier — dynamic drive activation (#734) is the top candidate.
+Closed epic #109 (cognitive pipeline hardening). All 10 child issues verified CLOSED on GitHub (#102–108, #111, #115, neocortex#783). Branch `issue-109-cognitive-pipeline-hardening` stamped and left in place. No unmerged commits — all work had landed on main via individual issue branches.
+
+Audited signal propagation test coverage across the cognitive pipeline. Found 8 of 14 personality data types have end-to-end regression tests, 3 have intermediate-only tests (seed but not render), and 3 have zero coverage (attachment style, AMPD facet scores, relational schemas). Filed neocortex#791 for full TDD regression coverage. Scaffolded .plan in wsp-casehub-neocortex.
+
+Wrote blog article "Signal Starvation" — standalone essay arguing that AI agent personality needs a cognitive pipeline, not prompt adjectives. Covers CAPS theory, pipeline architecture, the 9-of-14 dead-end finding, Barrett four-channel embodiment, and practical implications. Two SVG diagrams. In `wsp-casehub/blog/2026-11-03-mdp01-signal-starvation.md`.
 
 ## Immediate Next Step
 
-Plan and implement neocortex#783 (disposition modifiers — 7 unresolvable CAPS axes) and #784 (consolidation cache drift — capability manifest + selective re-seeding + integration test). Both are S-scale, close out epic 109.
+**neocortex#791** — TDD regression tests for all 14 signal propagation paths. Scaffolded in `wsp-casehub-neocortex/.plan`. Extend `PropagationBoundaryTest` to cover all 14 data types end-to-end (seed → pipeline → render → assert on prompt text). Three zero-coverage gaps are highest priority: attachment style, AMPD facet scores, relational schemas.
 
 ## References
 
-- `wsp-casehub/blog/2026-11-02-mdp01-dont-stop-the-world.md` — async consolidation blog
+- `wsp-casehub/blog/2026-11-03-mdp01-signal-starvation.md` — signal starvation essay
 - `wsp-casehub/blog/2026-11-02-mdp02-the-plumbing-is-done.md` — cognitive richness frontier blog
-- `examples/wacky-manor/docs/eval/era6-three-layer-validation/FINDINGS.md` — ERA6 evidence
+- `wsp-casehub-neocortex/.plan` — scaffolded plan for neocortex#791
+- neocortex#791 issue body has full coverage matrix and specific test methods needed
