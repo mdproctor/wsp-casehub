@@ -23,3 +23,15 @@
 **Sources:** Bosse et al. 2010 quantitative model; Petter et al. 2025 strategy choice; prior keyword filtering experience
 **Exploration:** quick
 **Status:** captured
+
+## D3: Pipeline placement
+
+**Choice:** New RegulationTickParticipant in DERIVED phase, after AppraisalTickParticipant
+**Alternatives:**
+- Inside AppraisalTickParticipant — conflates emotion construction with regulation, grows an already complex class
+- New phase between DERIVED and TERMINAL — maximum isolation but adds pipeline complexity, and regulation needs data from within DERIVED (CAPS output)
+**Rationale:** Same pattern as existing participants. Clean separation of concerns — appraisal constructs, regulation modulates. Reads AppraisalResult, writes RegulationResult to MindMap for downstream consumption by DriveOrchestrator and renderInternalState().
+**Trade-offs:** Ordering dependency within DERIVED phase — must run after appraisal
+**Sources:** CognitionCore tick phase architecture; AppraisalTickParticipant pattern
+**Exploration:** quick
+**Status:** captured
