@@ -75,7 +75,7 @@ Same participant. Same LLM call. Same data model. Two downstream consumers. The 
 
 ## What This Actually Produces
 
-The implementation is complete — nine classes across two modules, 1283 tests passing. Here is the concrete difference it makes:
+Here is the concrete difference it makes:
 
 ![Reactive agent vs. regulated agent — same situation, different behaviour paths](images/reactive-vs-regulated.svg)
 
@@ -88,6 +88,24 @@ It selects response modulation — suppression. The character's "dominance" driv
 Compare that with a high-openness character in the same situation. Same anger. But this character reappraises — cognitive change. The anger is reframed as competitive motivation. The "scheming" drive shifts from hostile to strategic. The narrative feels different because the personality is different, and the LLM has the structured context to produce that difference.
 
 This is what mechanical computation cannot give you. The specific somatic texture of holding back. The difference between someone who suppresses because they can't do anything else and someone who reappraises because they see a better frame. These aren't different parameters to the same equation — they're fundamentally different experiences that need different language.
+
+## The Silent Failure That Wasn't a Failure
+
+The system was complete. The wiring was correct — I proved that with mechanical tests that stubbed the LLM and ran the full tick pipeline: appraisal participant fires, regulation participant reads the result, generation phase produces a strategy. Four tests, all passing. The pipeline worked perfectly with stubbed data.
+
+But when we ran it with actual LLM calls, regulation never activated. The appraisal participant was called. The LLM returned a response. And the result was zero emotions, null narrative. Every time.
+
+The trap was double exception suppression. `LlmAppraisalStrategy.appraise()` wraps its LLM call in a try-catch that returns `AppraisalResult.empty()` on any exception. Then `CognitionCore.safeRun()` wraps the entire participant tick in another try-catch that logs and continues. Two layers of "fail silently and carry on." The system never crashed, never logged an error at a level anyone would notice, never showed any sign of distress. It just quietly produced nothing.
+
+Claude and I built a reproducer — three tests comparing the same backend through three different paths: fire-and-forget `invoke()`, session pipeline `openSession()`, and bare `backend.openSession()`. All three returned valid text. The session layer was not the problem.
+
+The response from `openSession()` started with ` ```json `. Markdown code fences. The Claude CLI wraps JSON responses in code fences when running as a session — a formatting choice that's invisible to the caller until the caller tries to parse the raw response as JSON.
+
+The appraisal strategy passed the raw response directly to Jackson: `MAPPER.readTree(response)`. Jackson hit the backtick prefix and threw `JsonProcessingException`. Caught silently. Empty result stored. Regulation saw empty emotions. Returned early.
+
+The regulation generation phase — the other LLM consumer in the same pipeline — already handled this. Its `parseResponse()` extracted JSON between `{` and `}` before parsing. One component was resilient to formatting variation. The other wasn't. A one-line fix.
+
+The lesson is not "always extract JSON." The lesson is that `catch (Exception e) { return empty(); }` is the worst debugging pattern in a multi-component pipeline. The system appears healthy. The data flows. Nothing crashes. And the component that silently produces nothing looks identical to a component that correctly determined there's nothing to produce. You can stare at the architecture diagram for hours and never find it, because the architecture is correct. The bug is in parsing, not wiring — but the exception handling makes them indistinguishable from the outside.
 
 ## The Activation Gate That Wasn't in the Paper
 
@@ -133,11 +151,29 @@ The implementation demonstrated here is specific to the CaseHub cognitive archit
 
 The science exists. The computational models exist. The engineering is straightforward. The gap is adoption.
 
+## The Intensity Problem: When Your System Works But Nobody Can Tell
+
+The micro-scenarios are verified. Betrayal routed through shame. Mortal danger through fear. Public humiliation through reproach. Each pathway fires regulation and selects an appropriate strategy — cognitive change for moderate anger, attentional deployment for high fear, response modulation for public shame. The mechanical pipeline tests prove the wiring. The LLM eval tests prove the strategy selection.
+
+Then we ran the real scenario. Three hundred events. Five characters. A manor full of secrets, schemes, and interpersonal tension. Regulation enabled.
+
+The classification report came back: sparse drive triggering, most characters at zero triggered events. No visible difference between the regulation-enabled run and the baseline. Regulation was firing — the tick tests proved that — but the EmotionMapper was producing intensities so low that the classifier couldn't distinguish regulated behaviour from unregulated behaviour in the dialogue output.
+
+The culprit is the intensity formula. The EmotionMapper uses different factor counts for different emotions. Anger is a three-factor product: `relevance × |conduciveness| × controllability`. Shame and reproach are two-factor: `relevance × (1 - standards)`. With the same LLM appraisal dimensions, shame produces double the intensity of anger.
+
+![Emotion intensity by mapping formula — the three-factor anger product systematically underestimates compared to two-factor shame and reproach](images/intensity-compression.svg)
+
+With a typical moderate appraisal — relevance 0.7, conduciveness -0.6, controllability 0.55 — anger computes to 0.23. That's below the 0.3 baseline. No discrepancy. No regulation effort. The character should be angry about a betrayal, but the formula says they barely register it. Meanwhile, shame from the same appraisal hits 0.46. Same situation, same LLM assessment, but the two-factor product reaches the operating range where regulation matters and the three-factor product doesn't.
+
+This is not a bug in regulation. It's a bug in the emotion-to-intensity mapping that predates the regulation system. But regulation makes it visible, because regulation is the first consumer that actually cares whether emotions cross a meaningful intensity threshold. Drive rendering will show "anger" regardless of intensity. Regulation needs intensity to exceed the baseline before it has anything to regulate.
+
+The fix is in the EmotionMapper — either a weighted combination instead of a product, or the OCC model's max-based formula. But the deeper lesson applies to anyone building on appraisal-based emotion models: if you multiply three normalised values, the result converges toward zero. Every factor you add compresses the range. Two factors give you useful intensity variation. Three factors give you a system that never activates.
+
 ## What's Next
 
-The next step is targeted micro-scenarios — specific emotional situations that test each regulation pathway through the full cognitive pipeline. Betrayal routed through shame (internal standards violation). Mortal danger routed through fear. Public humiliation routed through reproach. The EmotionMapper has different intensity formulas for each emotion type — shame and reproach use two-factor products and reach high intensities more easily than anger's three-factor product. The micro-tests need to exercise each pathway separately, verifying both that regulation fires and that the strategy selection is personality-appropriate.
+The intensity mapping needs fixing before regulation becomes visible in full scenario runs. Once emotions reach the operating range consistently, the scenario itself needs engineering — scripted beats that create confrontation early enough to exercise the regulation pathways within the first hundred events, rather than letting characters explore independently for two hundred ticks before anything emotionally charged happens.
 
-Beyond evaluation, social regulation is the natural extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These are the most dramatically interesting regulation strategies, and they require the intrapersonal system implemented here to exist first.
+Beyond that, social regulation is the natural extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These are the most dramatically interesting regulation strategies, and they require the intrapersonal system implemented here to exist first.
 
 The design is extensible. The strategy enum accepts new families. The LLM prompt structure accommodates new guidance. The rendering pipeline handles new narrative types. When social regulation arrives, it plugs into the same decision layer.
 
