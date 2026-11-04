@@ -2,15 +2,19 @@
 
 ## Last Session
 
-Implemented emotion regulation system for neocortex#590 (9/10 tasks, 6/7 batches). Full implementation across neocortex cognition-api and cognition modules: data model (EmotionRegulationStrategy enum, EmotionRegulationResult record), tick participant with Bosse et al. 2010 discrepancy threshold gating, LLM generation phase with Gross 1998 literature-structured system prompt and Petter et al. 2025 strategy selection factors, MindMap persistence adapter, CognitionCore wiring (DERIVED phase after appraisal), regulation-aware drive rendering in observation builder, environmental strategy goal participant (TERMINAL phase), and wacky-manor configuration integration.
+Found and fixed a config wiring bug where `CognitionConfig.all()` defaults `appraisalEnabled=false` — both `AppraisalTickParticipant` and `EmotionRegulationTickParticipant` were registered but silently short-circuited on every tick. Fixed with 3-line change in `ManorCognitivePipelineBuilder` to propagate appraisal+salience flags from `ManorConfig`.
 
-Also discovered and filed cross-slot contamination bug (Hortora/soredium#494, #495) — previous session embedded slot 211 paths in HANDOFF and plan. Cleaned up references.
+Replaced the binary activation threshold (0.4 discrepancy, no literature basis) with the Bosse et al. 2010 proportional regulation model: `effort = α × d / d_max`. Regulation effort now scales continuously with emotional displacement. The binary gate is replaced by a noise floor (0.01) as a cost optimization.
+
+Added `RegulationConfigWiringTest` (5 tests) verifying config translation ManorConfig → CognitionConfig. Added `EmotionRegulationActivationEvalTest` (4 LLM eval tests) confirming appraisal produces high-relevance dimensions (0.97-1.0) and regulation LLM selects valid Gross 1998 strategies. Direct generation phase verified: COGNITIVE_CHANGE selected for moderate anger, effectiveness 0.45.
 
 ## Immediate Next Step
 
-**Task 10: A/B evaluation baseline run.** Start wacky-manor with `manor.regulation.enabled=false` (baseline) then `manor.regulation.enabled=true` (regulation-enabled), GENERIC profile, 300+ events each. Save transcripts to `docs/eval/`, classify with `classify_emotions.py`, compare scores. Check for regressions against existing drive expression baselines.
+**Investigate appraisal-within-CognitionCore.tick() failure in test harness.** The `LlmAppraisalStrategy` call via `CognitionCoreTestBuilder` + `EvalTestSupport.sessionPipeline()` doesn't produce results — likely a `SessionPipeline.openSession("llm-appraisal")` routing/pool issue. The same `sessionPipeline` works for `AgentProvider.invoke()` and direct `EmotionRegulationGenerationPhase.generate()` calls. This blocks the `EmotionRegulationTickEvalTest` end-to-end tick test.
 
-Deferred from spec review:
+After that: design targeted micro-test scenarios for regulation (betrayal → shame pathway, mortal danger → fear, public humiliation → reproach) using the full pipeline, not just LLM-level tests.
+
+Deferred from previous session:
 - R3-03: Cognitive load has no measurement signal — excluded from system prompt until a proxy exists
 - File social regulation as separate issue referenced from #590
 
@@ -18,5 +22,6 @@ Deferred from spec review:
 
 - `wsp-casehub/specs/issue-590-emotion-regulation/2026-11-04-emotion-regulation-design.md` — design spec
 - `wsp-casehub/plans/2026-11-04-emotion-regulation.md` — implementation plan (9/10 tasks complete)
-- Neocortex branch: `issue-590-emotion-regulation` (10 commits)
-- Examples branch: `issue-590-emotion-regulation` (1 commit — wacky-manor config)
+- Neocortex branch: `issue-590-emotion-regulation` (14 commits — includes Bosse formula)
+- Examples branch: `issue-590-emotion-regulation` (4 commits — config fix + wiring test)
+- Key finding: EmotionMapper ANGER uses 3-factor product (compresses intensity); SHAME/REPROACH use 2-factor (better activation path for betrayal/humiliation scenarios)
