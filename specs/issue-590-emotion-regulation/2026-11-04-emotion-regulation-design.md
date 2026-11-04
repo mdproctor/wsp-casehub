@@ -166,8 +166,6 @@ REGULATION STRATEGIES (Gross 1998):
 STRATEGY SELECTION FACTORS (Petter 2025):
 - High intensity emotions → attentional deployment (distraction)
 - Low-moderate intensity → cognitive change (reappraisal)
-- Cognitive load high → simpler strategies (distraction, suppression)
-- Cognitive load low → complex strategies (reappraisal, situation modification)
 
 CHARACTER PERSONALITY:
 [Big Five scores with regulation tendency mappings]
@@ -185,7 +183,9 @@ Note: repeated suppression increases physiological strain (Gross empirical findi
 Adaptation: strategies used repeatedly become less effective (Bosse 2010 ζ parameter).
 
 Respond with JSON: {strategy, targetEmotions[], targetDrives[], peakOriginalIntensity, 
-regulatedIntensity, effectiveness, narrative}
+regulatedIntensity, effectiveness, narrative,
+regulationAxis (required for SITUATION_SELECTION/SITUATION_MODIFICATION, null otherwise),
+environmentalDirective (required for SITUATION_SELECTION/SITUATION_MODIFICATION, null otherwise)}
 ```
 
 ### Data Model
@@ -198,7 +198,11 @@ record EmotionRegulationResult(
     double peakOriginalIntensity,        // highest emotion intensity before regulation
     double regulatedIntensity,           // regulated intensity target
     double effectiveness,                // 0.0-1.0 how well the strategy worked
-    String narrative                     // character-experience text for prompt rendering
+    String narrative,                    // character-experience text for prompt rendering
+
+    // Environmental strategy fields — non-null when isEnvironmentalStrategy() is true
+    @Nullable DriveAxis regulationAxis,          // which DriveAxis the goal maps to
+    @Nullable String environmentalDirective      // actionable goal text (e.g. "Avoid being alone with Muttley")
 ) {
     public boolean isEnvironmentalStrategy() {
         return strategy == EmotionRegulationStrategy.SITUATION_SELECTION
@@ -214,6 +218,33 @@ enum EmotionRegulationStrategy {
     RESPONSE_MODULATION        // Gross strategy 5 — suppress/amplify expression
 }
 ```
+
+**Environmental strategy fields:** When the LLM selects SITUATION_SELECTION or SITUATION_MODIFICATION, the JSON response includes two additional fields:
+
+- `regulationAxis` — the `DriveAxis` this environmental goal relates to. The LLM infers this from emotional context:
+  - Social avoidance/approach → `AFFILIATION`
+  - Avoiding/modifying competitive or performance contexts → `COMPETENCE`
+  - Avoiding/modifying threatening or constraining environments → `AUTONOMY`
+  - Avoiding/modifying stimulation or novelty → `CURIOSITY`
+- `environmentalDirective` — actionable goal text for `DriveGoalProposal.goalDescription()` (e.g., "Avoid being alone with Muttley", "Suggest moving the conversation to a different topic")
+
+`EmotionRegulationGoalParticipant.toGoalProposal()` reads these fields to construct a valid `DriveGoalProposal`:
+
+```java
+private DriveGoalProposal toGoalProposal(EmotionRegulationResult regulation) {
+    return new DriveGoalProposal(
+            regulation.regulationAxis(),
+            "regulation-" + regulation.strategy().name().toLowerCase(),
+            regulation.environmentalDirective(),
+            "Emotion regulation: " + regulation.strategy(),
+            Math.min(1.0, regulation.peakOriginalIntensity()),
+            GoalPriority.MEDIUM,
+            Map.of("source", "emotion-regulation",
+                   "targetEmotions", String.join(",", regulation.targetEmotions())));
+}
+```
+
+`peakOriginalIntensity` is used as `driveIntensity` for proposal prioritization — the emotional intensity that triggered regulation is the appropriate urgency signal for the goal system.
 
 The `EmotionRegulation` prefix distinguishes intrapersonal regulation (this system — a character regulating their OWN emotions) from the existing `RegulationTracker` classes in neocortex (`io.casehub.neocortex.cognition.prompt.observation.RegulationTracker`) and wacky-manor (`io.casehub.examples.manor.agent.RegulationTracker`), which track interpersonal emotion trajectories (OTHER characters' distress levels via Theory of Mind).
 
@@ -259,7 +290,7 @@ Effectiveness: moderate — the reframe holds but the sting persists.
 
 Two distinct access patterns, following existing conventions:
 
-**Same-tick (in-memory accessor):** `EmotionRegulationTickParticipant` holds the current tick's result in a `ConcurrentHashMap<String, EmotionRegulationResult>`, exposed via `currentResult(String agentId, String tenantId)`. This is the same pattern as `AppraisalTickParticipant.currentResult()`. Consumers in the same tick (e.g., `renderInternalState()`, `RegulationAwareDriveGoalFormationStrategy`) read from this accessor — no MindMap round-trip.
+**Same-tick (in-memory accessor):** `EmotionRegulationTickParticipant` holds the current tick's result in a `ConcurrentHashMap<String, EmotionRegulationResult>`, exposed via `currentResult(String agentId, String tenantId)`. This is the same pattern as `AppraisalTickParticipant.currentResult()`. Consumers in the same tick (e.g., `renderInternalState()`, `EmotionRegulationGoalParticipant`) read from this accessor — no MindMap round-trip.
 
 **Cross-tick (MindMap history):** After computing the regulation result, the participant writes it to MindMap as a node in `SubgraphTypes.COGNITIVE` with the properties defined below. History is retrieved following the existing `AppraisalTickParticipant.loadDriveIntensityNodes()` pattern — `MindMapQuery.withType()` filters by **subgraph type** (not by node property), then node properties are filtered in-memory:
 
@@ -288,6 +319,8 @@ mindMapStore.search(MindMapQuery.of(tenantId, limit).withType(SubgraphTypes.COGN
 | `regulatedIntensity` | String | Double as string (e.g. `"0.45"`) |
 | `effectiveness` | String | Double as string (e.g. `"0.6"`) |
 | `narrative` | String | Regulation narrative text for prompt rendering |
+| `regulationAxis` | String (nullable) | `DriveAxis` enum name — present only for environmental strategies |
+| `environmentalDirective` | String (nullable) | Actionable goal text — present only for environmental strategies |
 
 This mirrors the `EmotionRegulationResult` record fields. All values are strings — consistent with MindMap's `Map<String, String> properties()` contract. Timestamp-based ordering is done in-memory after the query since `MindMapQuery.withUpdatedAfter()` provides filtering but not sorting guarantees.
 
@@ -324,8 +357,9 @@ Both personality-trait tendencies and current-state factors are provided as stru
 
 **State factors (per-tick):**
 - Emotion intensity (Petter 2025): high → distraction, low → reappraisal
-- Cognitive load: high → simpler strategies, low → complex strategies
 - Regulation history: repeated strategy → declining effectiveness (Bosse 2010)
+
+**Deferred: Cognitive load.** Petter et al. (2025) include cognitive load as a strategy selection dimension (high load → simpler strategies like distraction/suppression, low load → complex strategies like reappraisal). No cognitive load signal currently exists in the codebase. A future enhancement could estimate it as a proxy from active drive count + active goal count + Theory of Mind tracking targets. Filed as a future enhancement — not included in the system prompt until a measurement signal exists.
 
 ## Evaluation Strategy
 
