@@ -26,15 +26,15 @@
 
 ## D3: LLM integration pattern
 
-**Choice:** Dedicated RegulationGenerationPhase — LLM call in the regulation participant producing structured regulation output (strategy chosen, intensity dampening, narrative). Same pattern as DriveDescriptionGenerationPhase.
+**Choice:** Per-tick LLM call in the regulation participant producing structured regulation output (strategy chosen, intensity dampening, narrative). Pattern: `CognitionCore.appraiseMood()` — uses `SessionPipeline.openSession()` with system prompt, streams response, parses JSON, with decay-based fallback for call failures.
 **Alternatives:**
 - Prompt-only (no generation call) — add regulation to renderInternalState() prompt sections, let character LLM handle it implicitly. Cheaper but regulation becomes unobservable and untestable
 - Multi-phase generation (separate calls for identification, selection, implementation) — most faithful to Gross 2015 cycle but 3x token cost per tick
-**Rationale:** Follows established generation phase pattern. Produces observable, testable regulation output stored on MindMap. Single LLM call balances quality with cost. Strategy identification + selection can be combined in one prompt.
-**Trade-offs:** One extra LLM call per tick; regulation narrative quality depends on prompt engineering
-**Sources:** DriveDescriptionGenerationPhase pattern; Gross 2015 extended process model
+**Rationale:** Produces observable, testable regulation output stored on MindMap. Single LLM call balances quality with cost. Must include fallback logic (decay toward no-regulation when LLM call fails/times out), same as mood appraisal pattern.
+**Trade-offs:** One extra LLM call per tick; regulation narrative quality depends on prompt engineering; per-tick LLM calls are unreliable (must handle failure gracefully)
+**Sources:** CognitionCore.appraiseMood() per-tick LLM pattern; Gross 2015 extended process model
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-02: corrected pattern reference from ConsolidationPhase to per-tick LLM pattern)
 
 ## D4: Pipeline placement
 
@@ -103,17 +103,17 @@
 ## D9: Distributed execution model
 
 **Choice:** Unified decision, distributed execution. The RegulationTickParticipant selects from all five strategies and writes RegulationResult to MindMap. Two downstream consumer categories:
-- **Internal strategies (3-5):** attentional deployment, cognitive change, response modulation → consumed by DriveOrchestrator and renderInternalState() to modify drive rendering
-- **Environmental strategies (1-2):** situation selection, situation modification → consumed by GoalFormationStrategy as regulation-informed constraints (avoidance) or goal generation (situation change)
+- **Internal strategies (3-5):** attentional deployment, cognitive change, response modulation → consumed by `CognitionObservationBuilder.renderInternalState()` at render time. Integration point is `resolveAdaptedDrives()` and `appraisalFilterDrives()`, which read drive-intensity nodes from MindMap. Regulation modifies the *rendering* of character drives (scheming, gloating, etc.), not the `DriveAxis`-level computation in `DriveOrchestrator`.
+- **Environmental strategies (1-2):** situation selection, situation modification → consumed by goal pipeline. Requires API extension to `DriveGoalFormationContext` (or a new regulation-aware goal formation strategy) to accept avoidance constraints and situation-change directives.
 **Alternatives:**
 - Separate regulation participants for internal vs environmental strategies — violates the insight that regulation is a single decision layer
 - All execution within the regulation participant — crosses pipeline boundaries, regulation participant would need to know about goals
-**Rationale:** First-principles analysis: regulation decides, existing pipeline components execute. GoalFormationStrategy already accepts contextual input; reading regulation-emitted avoidance constraints is a natural extension. DriveOrchestrator already applies modulation layers; regulation-driven dampening follows the same pattern.
-**Trade-offs:** Two downstream consumer integration points instead of one; GoalFormationStrategy must learn to read RegulationResult
+**Rationale:** First-principles analysis: regulation decides, existing pipeline components execute. `ModulationLayer` operates on `DriveAxis` (4 fundamental axes), NOT character-level drives — regulation must integrate at the rendering layer where character drives are resolved from MindMap. Goal pipeline integration requires explicit API changes (not a "natural extension").
+**Trade-offs:** Two downstream consumer integration points; GoalFormationStrategy API must be extended; renderInternalState() must learn to read RegulationResult from MindMap
 **Depends on:** D1 (unified scope), D4 (pipeline placement), D7 (structured fields include strategy type for routing)
-**Sources:** Gross 1998 process model; GoalFormationStrategy SPI; DriveOrchestrator ModulationLayer pattern
+**Sources:** Gross 1998 process model; CognitionObservationBuilder.resolveAdaptedDrives(); DriveGoalFormationContext record
 **Exploration:** quick
-**Status:** captured
+**Status:** revised (R1-04: corrected integration point from DriveOrchestrator to renderInternalState(); R1-05: acknowledged GoalFormationStrategy API change requirement)
 
 ## D10: Evaluation strategy
 
@@ -138,5 +138,19 @@
 **Trade-offs:** Requires a sensible initial threshold before empirical tuning; too high = regulation never fires, too low = fires every tick (same as always-on)
 **Depends on:** D5 (personality connection), D10 (A/B eval provides the tuning signal)
 **Sources:** Bosse et al. 2010 homeostatic baseline/norm deviation concept; Petter et al. 2025 intensity thresholds
+**Exploration:** quick
+**Status:** captured
+
+## D12: Regulation target — emotions trigger, drives are modulated
+
+**Choice:** Regulation is TRIGGERED by `CognitiveEmotion` from appraisal (the discrepancy detection reads emotion intensity) but MODULATES character-level drives in rendering. The flow: appraisal constructs emotion → regulation identifies emotion exceeding threshold → regulation selects strategy → strategy output modifies how character drives are rendered (e.g., suppression dampens "gloating" drive text, reappraisal reframes "scheming" drive).
+**Alternatives:**
+- Regulate emotions directly (modify AppraisalResult) — changes the appraisal output, but downstream systems that read AppraisalResult would see the regulated version, losing the original emotional signal
+- Regulate drives at DriveAxis level (modify DriveOrchestrator output) — wrong granularity; DriveAxis has 4 axes, character drives have 10+ types
+- Regulate emotions AND drives independently — over-specified; emotions are the trigger, drives are the expression surface
+**Rationale:** Aligns with Gross: regulation operates on the emotional RESPONSE (how the feeling manifests), not on the appraisal itself. In the architecture, character drives ARE the emotional response — they're how emotions manifest as motivational pulls. CognitiveEmotion is the appraisal output (what was felt); character drives are the behavioral surface (how it pulls). Regulation sits between: reads what was felt, modifies how it pulls.
+**Trade-offs:** D7 data model needs `targetEmotion` (trigger) AND `targetDrives` (what gets modulated) as separate fields
+**Depends on:** D4 (pipeline placement), D7 (data model — needs field revision)
+**Sources:** R1-13 review finding; CognitionObservationBuilder.resolveAdaptedDrives(); AppraisalTickParticipant.AppraisalResult
 **Exploration:** quick
 **Status:** captured
