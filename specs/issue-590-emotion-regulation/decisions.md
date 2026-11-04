@@ -2,12 +2,12 @@
 
 ## D1: Strategy scope
 
-**Choice:** All five Gross strategies — design for the complete process model
+**Choice:** All five Gross strategies in a unified decision layer — no batching. Regulation is a decision system, not an execution system. The RegulationTickParticipant selects from all five strategy families; downstream consumers implement based on strategy type (drive rendering for strategies 3-5, goal pipeline for strategies 1-2).
 **Alternatives:**
 - Three post-appraisal only (distraction, reappraisal, suppression) — simpler but incomplete model, paints into a corner if goal-level strategies need different abstractions later
 - Two core only (reappraisal + suppression) — misses distraction which Petter et al. show dominates at high intensity
-**Rationale:** Designing for the full model ensures the abstraction handles both post-appraisal (pipeline-level) and antecedent (goal-level) strategies cleanly. Implementation batched: Batch 1 = post-appraisal three, Batch 2 = goal-level two.
-**Trade-offs:** Larger design scope; goal-level strategies touch GoalFormationStrategy which is a different pipeline integration point
+- All five but batched (post-appraisal first, goal-level second) — unnecessary split; first-principles analysis shows all five trigger post-appraisal and differ only in implementation target
+**Rationale:** From first principles: all five strategies share the same trigger (post-appraisal discrepancy detection). The difference is where implementation targets — internal state vs environment. A unified decision layer handles all five cleanly with distributed execution. No need for separate integration points.
 **Sources:** Gross 1998 five-strategy process model; casehubio/neocortex#590 issue body
 **Exploration:** quick
 **Status:** captured
@@ -97,5 +97,20 @@
 **Trade-offs:** Depends on MindMap retention of regulation history; prompt length grows with regulation history window
 **Depends on:** D7 (structured fields stored on MindMap enable history retrieval)
 **Sources:** Gross 2015 monitoring cycle; Bosse et al. 2010 adaptation dynamics; MindMap memory architecture
+**Exploration:** quick
+**Status:** captured
+
+## D9: Distributed execution model
+
+**Choice:** Unified decision, distributed execution. The RegulationTickParticipant selects from all five strategies and writes RegulationResult to MindMap. Two downstream consumer categories:
+- **Internal strategies (3-5):** attentional deployment, cognitive change, response modulation → consumed by DriveOrchestrator and renderInternalState() to modify drive rendering
+- **Environmental strategies (1-2):** situation selection, situation modification → consumed by GoalFormationStrategy as regulation-informed constraints (avoidance) or goal generation (situation change)
+**Alternatives:**
+- Separate regulation participants for internal vs environmental strategies — violates the insight that regulation is a single decision layer
+- All execution within the regulation participant — crosses pipeline boundaries, regulation participant would need to know about goals
+**Rationale:** First-principles analysis: regulation decides, existing pipeline components execute. GoalFormationStrategy already accepts contextual input; reading regulation-emitted avoidance constraints is a natural extension. DriveOrchestrator already applies modulation layers; regulation-driven dampening follows the same pattern.
+**Trade-offs:** Two downstream consumer integration points instead of one; GoalFormationStrategy must learn to read RegulationResult
+**Depends on:** D1 (unified scope), D4 (pipeline placement), D7 (structured fields include strategy type for routing)
+**Sources:** Gross 1998 process model; GoalFormationStrategy SPI; DriveOrchestrator ModulationLayer pattern
 **Exploration:** quick
 **Status:** captured
