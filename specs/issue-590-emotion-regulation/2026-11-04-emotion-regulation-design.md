@@ -82,32 +82,60 @@ public void configureRegulation(AppraisalTickParticipant appraisalParticipant,
 
 **Internal strategies (3-5):** Consumed by `CognitionObservationBuilder.renderInternalState()`. The integration point is a new regulation post-processing step inside `renderInternalState()`, executed AFTER `resolveRelationalTargets()` produces `TargetedDrive` objects and BEFORE the final `targetedDescriptionFor` lambda formats them. `resolveAdaptedDrives()` and `appraisalFilterDrives()` are NOT the integration points — the former constructs `DriveSnapshot` from MindMap intensity nodes (no suppression concept), the latter includes/excludes drives by CAPS situation-context overlap (not text modification).
 
+**Access path from builder to regulation result:** `CognitionObservationBuilder` holds a `CognitionCore` reference (field `cognitionCore`, line 53). `CognitionCore` needs a new public accessor `regulationParticipant()` returning `@Nullable EmotionRegulationTickParticipant` — following the existing pattern of `mood()`, `drives()`, `goals()`, etc. The builder reads the regulation result via `cognitionCore.regulationParticipant().currentResult(agentId, tenantId)`.
+
+```java
+// CognitionCore — new accessor (alongside existing mood(), drives(), goals() etc.)
+public @Nullable EmotionRegulationTickParticipant regulationParticipant() {
+    return regulationParticipant;
+}
+```
+
 The regulation integration in `renderInternalState()`:
 1. After `resolveRelationalTargets()` produces the `TargetedDrive` list
-2. Read `EmotionRegulationResult` from `regulationParticipant.currentResult()` (in-memory, same tick)
+2. Read `EmotionRegulationResult` from `cognitionCore.regulationParticipant().currentResult(agentId, tenantId)` (in-memory, same tick) — null-safe: if regulation is unconfigured or didn't fire this tick, skip
 3. For drives listed in `EmotionRegulationResult.targetDrives()`, modify the description lambda to include regulation narrative
 4. The regulation narrative text OVERLAYS the consolidated `DriveDescriptionGenerated` text from `readGeneratedDriveDescriptions()` — it appends regulation-colored text, not replaces the base description
 5. Add a "Regulation" `ObservationSection` as an additional part in the `parts` list
 
-**Environmental strategies (1-2):** Consumed by the goal pipeline via `GoalProposalOrchestrator`. The `DriveGoalFormationStrategy` interface (`cognition-api`) already provides the extension point — a regulation-aware implementation that wraps the existing strategy:
+**Environmental strategies (1-2):** Consumed by the goal pipeline, but NOT through the `DriveGoalFormationStrategy` decorator pattern. `GoalProposalOrchestrator.evaluateMappers()` only invokes `DriveGoalFormationStrategy` for drive axes whose `intensity >= config.proposalThreshold()`. Environmental regulation directives (e.g., "avoid this person") are emotion-triggered, not drive-triggered — if no drive exceeds the proposal threshold, a decorator would never fire and the directive would be silently dropped.
+
+Instead, a new `EmotionRegulationGoalParticipant` runs in the **TERMINAL** phase, registered before `DriveGoalBridgeParticipant`:
 
 ```java
-class RegulationAwareDriveGoalFormationStrategy implements DriveGoalFormationStrategy {
-    private final DriveGoalFormationStrategy delegate;
+class EmotionRegulationGoalParticipant implements CognitionTickParticipant {
     private final EmotionRegulationTickParticipant regulationParticipant;
+    private final GoalProposalOrchestrator goals;
 
     @Override
-    public @Nullable DriveGoalProposal propose(DriveGoalFormationContext context) {
-        var regulation = regulationParticipant.currentResult(context.agentId(), context.tenantId());
-        if (regulation.isPresent() && regulation.get().isEnvironmentalStrategy()) {
-            return proposeRegulationGoal(context, regulation.get());
-        }
-        return delegate.propose(context);
+    public void tick(CognitionTickContext context) {
+        var regulation = regulationParticipant.currentResult(
+                context.agentId(), context.tenantId());
+        if (regulation.isEmpty() || !regulation.get().isEnvironmentalStrategy()) return;
+
+        var existing = goals.registeredGoals(context.agentId(), context.tenantId());
+        var combined = new ArrayList<>(existing);
+        combined.add(toGoalProposal(regulation.get()));
+        goals.registerGoals(context.agentId(), context.tenantId(), combined);
     }
 }
 ```
 
-This avoids modifying `DriveGoalFormationContext` — the regulation state is read from the participant's in-memory accessor, not threaded through the context record.
+This participant:
+1. Reads the regulation result from the DERIVED-phase participant's in-memory accessor
+2. If the result is an environmental strategy (SITUATION_SELECTION or SITUATION_MODIFICATION), constructs a `DriveGoalProposal` and registers it via `GoalProposalOrchestrator.registerGoals()`
+3. `DriveGoalBridgeParticipant` (which runs after in TERMINAL phase) picks up registered goals via `orchestrator.registeredGoals()` and bridges them to MindMap
+4. This completely bypasses the drive-threshold mechanism — environmental regulation goals fire based on emotion state, not drive intensity
+
+Registration order in `CognitionCore`:
+```java
+public void configureRegulationGoals(EmotionRegulationTickParticipant regulationParticipant) {
+    if (goals == null) return;
+    addParticipant(CognitionPhase.TERMINAL,
+                   new EmotionRegulationGoalParticipant(regulationParticipant, goals));
+    // Must be called BEFORE configureDriveGoalBridge() to ensure insertion order
+}
+```
 
 ### Regulation Target: Emotions Trigger, Drives Are Modulated
 
@@ -156,7 +184,7 @@ REGULATION HISTORY (last 3-5 ticks):
 Note: repeated suppression increases physiological strain (Gross empirical finding).
 Adaptation: strategies used repeatedly become less effective (Bosse 2010 ζ parameter).
 
-Respond with JSON: {strategy, targetEmotion, targetDrives[], originalIntensity, 
+Respond with JSON: {strategy, targetEmotions[], targetDrives[], peakOriginalIntensity, 
 regulatedIntensity, effectiveness, narrative}
 ```
 
@@ -233,7 +261,35 @@ Two distinct access patterns, following existing conventions:
 
 **Same-tick (in-memory accessor):** `EmotionRegulationTickParticipant` holds the current tick's result in a `ConcurrentHashMap<String, EmotionRegulationResult>`, exposed via `currentResult(String agentId, String tenantId)`. This is the same pattern as `AppraisalTickParticipant.currentResult()`. Consumers in the same tick (e.g., `renderInternalState()`, `RegulationAwareDriveGoalFormationStrategy`) read from this accessor — no MindMap round-trip.
 
-**Cross-tick (MindMap history):** After computing the regulation result, the participant writes it to MindMap as a node in `SubgraphTypes.COGNITIVE` with `cognitiveKind = "emotion-regulation-result"` and `agent-id` property. The node's `updatedAt` timestamp (set to `Instant.now()` at write time) provides the ordering contract. History is queried via `MindMapQuery.of(tenantId, limit).withType("emotion-regulation-result").withUpdatedAfter(cutoff)` to retrieve recent results in recency order.
+**Cross-tick (MindMap history):** After computing the regulation result, the participant writes it to MindMap as a node in `SubgraphTypes.COGNITIVE` with the properties defined below. History is retrieved following the existing `AppraisalTickParticipant.loadDriveIntensityNodes()` pattern — `MindMapQuery.withType()` filters by **subgraph type** (not by node property), then node properties are filtered in-memory:
+
+```java
+mindMapStore.search(MindMapQuery.of(tenantId, limit).withType(SubgraphTypes.COGNITIVE))
+            .stream()
+            .filter(n -> "emotion-regulation-result".equals(n.properties().get("cognitiveKind")))
+            .filter(n -> agentId.equals(n.properties().get("agent-id")))
+            .sorted(Comparator.comparing(n -> Instant.parse(n.properties().get("timestamp")),
+                                          Comparator.reverseOrder()))
+            .limit(historyWindow)
+            .toList();
+```
+
+**MindMap node property schema** for `emotion-regulation-result` nodes:
+
+| Property key | Type | Description |
+|-------------|------|-------------|
+| `cognitiveKind` | String | Always `"emotion-regulation-result"` — discriminator for filtering |
+| `agent-id` | String | Agent this regulation belongs to |
+| `timestamp` | String (ISO-8601 Instant) | `Instant.now()` at write time — ordering contract for history retrieval |
+| `strategy` | String | `EmotionRegulationStrategy` enum name (e.g. `"COGNITIVE_CHANGE"`) |
+| `targetEmotions` | String | Comma-separated emotion labels (e.g. `"anger,frustration"`) |
+| `targetDrives` | String | Comma-separated drive types (e.g. `"gloating,scheming"`) |
+| `peakOriginalIntensity` | String | Double as string (e.g. `"0.85"`) |
+| `regulatedIntensity` | String | Double as string (e.g. `"0.45"`) |
+| `effectiveness` | String | Double as string (e.g. `"0.6"`) |
+| `narrative` | String | Regulation narrative text for prompt rendering |
+
+This mirrors the `EmotionRegulationResult` record fields. All values are strings — consistent with MindMap's `Map<String, String> properties()` contract. Timestamp-based ordering is done in-memory after the query since `MindMapQuery.withUpdatedAfter()` provides filtering but not sorting guarantees.
 
 ### Temporal Context (Cross-Tick Awareness)
 
@@ -316,14 +372,13 @@ All five strategies designed and implemented together — no batching. The unifi
 - `EmotionRegulationGenerationPhase` — LLM call for strategy selection + narrative (appraiseMood pattern)
 - Regulation `ObservationSection` in `CognitionObservationBuilder`
 - Regulation post-processing step in `renderInternalState()` (after `resolveRelationalTargets()`, before description formatting)
-- `RegulationAwareDriveGoalFormationStrategy` implementing `DriveGoalFormationStrategy` for environmental strategies
+- `EmotionRegulationGoalParticipant` — TERMINAL phase participant for environmental strategies (situation selection/modification), registers goals via `GoalProposalOrchestrator.registerGoals()` independently of drive threshold
 - `regulationEnabled` field added to `CognitionConfig` record (25th boolean field — requires updating `all()`, `withAllSubsystems()`, `none()`, `withDirectives()`, and adding `case "regulation"` to the `with()` switch)
 - Configuration properties for enable/disable toggle and threshold
 
 ### Modified Components (neocortex)
-- `CognitionCore` — add `configureRegulation()` method following `configureAppraisal()` pattern; store `regulationParticipant` as a private volatile field; register in DERIVED phase after appraisal
-- `CognitionObservationBuilder.renderInternalState()` — read `EmotionRegulationResult` from participant's in-memory accessor, render regulation section as an `ObservationSection`, modify drive text by appending regulation narrative to `targetedDescriptionFor` output
-- `GoalProposalOrchestrator` — accept `RegulationAwareDriveGoalFormationStrategy` as the formation strategy (wraps existing strategy)
+- `CognitionCore` — add `configureRegulation()` method following `configureAppraisal()` pattern; store `regulationParticipant` as a private volatile field; add `regulationParticipant()` public accessor; register in DERIVED phase after appraisal; add `configureRegulationGoals()` for TERMINAL phase environmental strategy participant
+- `CognitionObservationBuilder.renderInternalState()` — read `EmotionRegulationResult` via `cognitionCore.regulationParticipant().currentResult()`, render regulation section as an `ObservationSection`, modify drive text by appending regulation narrative to `targetedDescriptionFor` output
 
 ### Test Components (examples/wacky-manor)
 - A/B eval harness (configuration toggle)
