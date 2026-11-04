@@ -73,3 +73,29 @@
 **Sources:** Issue #590 "regulation-colored drive text"; CognitionObservationBuilder.renderInternalState() architecture
 **Exploration:** quick
 **Status:** captured
+
+## D7: Data model
+
+**Choice:** Structured fields — strategy (enum of 5 Gross strategies), targetEmotion, originalIntensity, regulatedIntensity, effectiveness (0-1), narrative (free text). Parseable for drive modification and eval scoring, while narrative preserves LLM richness.
+**Alternatives:**
+- Narrative-only — maximum LLM flexibility but hard to consume programmatically for drive modification and eval
+- Full Bosse state vector (norm level, persistence factor, adaptation rate) — over-commits to a model we chose not to mechanize (D2)
+**Rationale:** Structured fields give eval measurability (intensity deltas, strategy distribution across runs) and drive rendering can read the intensity change mechanically. Narrative field preserves the qualitative regulation experience for the prompt.
+**Trade-offs:** LLM must produce structured output (JSON parsing); fields may need revision as empirical testing reveals what matters
+**Depends on:** D2 (computation approach), D3 (generation phase produces the output)
+**Sources:** Drive expression eval framework (classify_emotions.py); DriveSnapshot data model pattern
+**Exploration:** quick
+**Status:** captured
+
+## D8: Temporal scope (cross-tick regulation)
+
+**Choice:** Per-tick with memory context. Each tick's regulation is independent but the generation phase prompt includes recent regulation history from MindMap (last 3-5 ticks). The LLM adapts naturally — a character suppressing anger for 5 ticks will show strain because the prompt says so.
+**Alternatives:**
+- Stateful regulation cycle (explicit identify→select→implement→monitor state machine) — faithful to Gross 2015 but adds persistent state management and mechanical complexity contradicting D2
+- Per-tick only (stateless) — simplest but misses adaptation. Suppression increasing physiological arousal over time (Gross empirical finding) would be invisible
+**Rationale:** Memory-based context preserves temporal awareness without adding state machines. The LLM sees "you have been suppressing anger for 4 ticks" and can reason about cumulative strain. Same approach as existing memory-informed cognition. Adaptation emerges from context, not mechanics.
+**Trade-offs:** Depends on MindMap retention of regulation history; prompt length grows with regulation history window
+**Depends on:** D7 (structured fields stored on MindMap enable history retrieval)
+**Sources:** Gross 2015 monitoring cycle; Bosse et al. 2010 adaptation dynamics; MindMap memory architecture
+**Exploration:** quick
+**Status:** captured
