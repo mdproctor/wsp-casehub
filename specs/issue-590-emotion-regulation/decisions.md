@@ -114,3 +114,29 @@
 **Sources:** Gross 1998 process model; GoalFormationStrategy SPI; DriveOrchestrator ModulationLayer pattern
 **Exploration:** quick
 **Status:** captured
+
+## D10: Evaluation strategy
+
+**Choice:** A/B with regression gate. Run the same scenario with regulation disabled (baseline) and enabled. A new regulation eval dimension scores regulation quality (strategy appropriateness, narrative coherence, personality consistency). The existing drive expression eval (classify_emotions.py) must not regress beyond a defined threshold. Selective rendering is tuned by comparing the two runs — if regulation-on degrades drive expression scores, the prompt is over-weighted toward regulation.
+**Alternatives:**
+- Single-run with regulation scoring — no controlled comparison, harder to attribute score changes to regulation vs run-to-run noise
+- Progressive enablement (start at 1-in-5 ticks, increase) — more gradual but slower iteration and doesn't give clean A/B signal
+**Rationale:** Empirical testing requires controlled comparison. The baseline run is the control; regulation-enabled is the treatment. Regression gating ensures we never ship regulation that degrades existing quality. Prompt tuning becomes an optimization loop: run A/B, measure delta, adjust prompt, repeat.
+**Trade-offs:** Doubles eval run time (two runs per comparison); requires a toggle to disable regulation cleanly
+**Depends on:** D7 (structured fields enable scoring), D6 (rendering changes are what gets measured)
+**Sources:** Existing eval framework (classify_emotions.py, RelationalModelEvalTest); empirical-over-upfront-design principle
+**Exploration:** quick
+**Status:** captured
+
+## D11: Activation gate
+
+**Choice:** Discrepancy threshold — regulation fires only when the appraisal produces an emotion whose intensity exceeds a character-specific threshold derived from personality. Below threshold, no regulation needed (the emotion is within acceptable range). The threshold itself is discovered empirically by tuning against the A/B eval.
+**Alternatives:**
+- Always-on, LLM decides — generation phase runs every tick but can output "no regulation needed". More flexible but burns tokens on ticks where regulation is irrelevant
+- Event-triggered only — fires only on new appraisal events, misses cumulative emotional buildup
+**Rationale:** Prevents regulation from dominating quiet ticks. Personality-derived thresholds mean a high-neuroticism character regulates more often (lower threshold) while emotionally stable characters regulate rarely. The threshold is a mechanical gate — cheap to compute — that controls when the LLM generation call fires. Threshold values tuned empirically, not guessed.
+**Trade-offs:** Requires a sensible initial threshold before empirical tuning; too high = regulation never fires, too low = fires every tick (same as always-on)
+**Depends on:** D5 (personality connection), D10 (A/B eval provides the tuning signal)
+**Sources:** Bosse et al. 2010 homeostatic baseline/norm deviation concept; Petter et al. 2025 intensity thresholds
+**Exploration:** quick
+**Status:** captured
