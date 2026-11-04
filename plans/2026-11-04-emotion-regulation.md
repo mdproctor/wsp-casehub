@@ -21,7 +21,7 @@
 - All new types use `EmotionRegulation` prefix to avoid collision with existing `RegulationTracker` (interpersonal)
 - `CognitionConfig` record is positional — adding `regulationEnabled` as 25th field requires updating ALL static factory methods and `with()` switch
 - Per-tick LLM calls must have fallback logic for failure/timeout (cf. `MOOD_FALLBACK_DECAY`)
-- Neocortex slot: `/Users/mdproctor/claude/casehub/slots/211/neocortex`; examples slot: `/Users/mdproctor/claude/casehub/slots/196/examples`
+- Neocortex and examples repos are sibling directories within the current slot
 
 ---
 

@@ -8,7 +8,7 @@ Key design choices: LLM-driven regulation with literature-structured prompting (
 
 ## Immediate Next Step
 
-**Execute the implementation plan.** Run `work continue` → `executing-plans` with plan at `wsp-casehub/plans/2026-11-04-emotion-regulation.md`. Start with Batch 1 (data model + CognitionConfig). All work is in neocortex repo at slot 211.
+**Execute the implementation plan.** Run `work continue` → `executing-plans` with plan at `wsp-casehub/plans/2026-11-04-emotion-regulation.md`. Start with Batch 1 (data model + CognitionConfig). All work is in the neocortex repo.
 
 Deferred items from spec review:
 - R3-02: Environmental strategy goal formation fields need more detail (address in Task 8)
