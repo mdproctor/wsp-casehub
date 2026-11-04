@@ -2,19 +2,21 @@
 
 ## Last Session
 
-Found and fixed a config wiring bug where `CognitionConfig.all()` defaults `appraisalEnabled=false` — both `AppraisalTickParticipant` and `EmotionRegulationTickParticipant` were registered but silently short-circuited on every tick. Fixed with 3-line change in `ManorCognitivePipelineBuilder` to propagate appraisal+salience flags from `ManorConfig`.
+Investigated the appraisal-within-CognitionCore.tick() failure. Root cause narrowed: the tick pipeline wiring is mechanically correct (proven by 4 new tests), but the LLM call via `SessionPipeline.openSession()` fails silently — double exception suppression (`LlmAppraisalStrategy.appraise()` catches Exception → returns empty, then `CognitionCore.safeRun()` catches anything that leaks). The result: appraisal stores `AppraisalResult.empty()` with no emotions, regulation sees empty emotions and short-circuits.
 
-Replaced the binary activation threshold (0.4 discrepancy, no literature basis) with the Bosse et al. 2010 proportional regulation model: `effort = α × d / d_max`. Regulation effort now scales continuously with emotional displacement. The binary gate is replaced by a noise floor (0.01) as a cost optimization.
+Key distinction: `EmotionRegulationActivationEvalTest` uses `AgentProvider.invoke()` (fire-and-forget CLI process per call) — works. The tick test uses `SessionPipeline.openSession()` (stateful multi-turn `ClaudeAgentSession`) — fails. Both use the same `ClaudeAgentClient` backend.
 
-Added `RegulationConfigWiringTest` (5 tests) verifying config translation ManorConfig → CognitionConfig. Added `EmotionRegulationActivationEvalTest` (4 LLM eval tests) confirming appraisal produces high-relevance dimensions (0.97-1.0) and regulation LLM selects valid Gross 1998 strategies. Direct generation phase verified: COGNITIVE_CHANGE selected for moderate anger, effectiveness 0.45.
+Added `CognitionCore.appraisalParticipant()` getter and `configureRegulation(EmotionRegulationGenerationPhase)` overload for test-injectable regulation. Added `RegulationPipelineThroughTickTest` (4 tests) proving full tick wiring: betrayal→anger, mortal danger→fear, public humiliation→reproach, low-intensity no-activation. Enhanced `EmotionRegulationTickEvalTest` with diagnostic wrapper around `LlmAppraisalStrategy` to capture appraisal result details (emotion count, types, intensities, computed effort).
 
 ## Immediate Next Step
 
-**Investigate appraisal-within-CognitionCore.tick() failure in test harness.** The `LlmAppraisalStrategy` call via `CognitionCoreTestBuilder` + `EvalTestSupport.sessionPipeline()` doesn't produce results — likely a `SessionPipeline.openSession("llm-appraisal")` routing/pool issue. The same `sessionPipeline` works for `AgentProvider.invoke()` and direct `EmotionRegulationGenerationPhase.generate()` calls. This blocks the `EmotionRegulationTickEvalTest` end-to-end tick test.
+**Run the enhanced `EmotionRegulationTickEvalTest`** to capture the actual diagnostic output. The wrapper will show whether `appraise()` is called, what the LLM returns, and whether the issue is no-response-from-session, empty-JSON-parsing, or low-intensity-emotions.
 
-After that: design targeted micro-test scenarios for regulation (betrayal → shame pathway, mortal danger → fear, public humiliation → reproach) using the full pipeline, not just LLM-level tests.
+If the LLM call itself fails (session issue), consider switching `LlmAppraisalStrategy` from `SessionPipeline.openSession()` to `AgentProvider.invoke()` (fire-and-forget), since the appraisal call is stateless and doesn't need multi-turn context.
 
-Deferred from previous session:
+After that: add LLM-backed micro-test scenarios for each regulation pathway (betrayal, mortal danger, public humiliation) as tagged `llm-eval` tests.
+
+Deferred from previous sessions:
 - R3-03: Cognitive load has no measurement signal — excluded from system prompt until a proxy exists
 - File social regulation as separate issue referenced from #590
 
@@ -22,6 +24,6 @@ Deferred from previous session:
 
 - `wsp-casehub/specs/issue-590-emotion-regulation/2026-11-04-emotion-regulation-design.md` — design spec
 - `wsp-casehub/plans/2026-11-04-emotion-regulation.md` — implementation plan (9/10 tasks complete)
-- Neocortex branch: `issue-590-emotion-regulation` (14 commits — includes Bosse formula)
+- Neocortex branch: `issue-590-emotion-regulation` (15 commits — includes pipeline test + diagnostics)
 - Examples branch: `issue-590-emotion-regulation` (4 commits — config fix + wiring test)
 - Key finding: EmotionMapper ANGER uses 3-factor product (compresses intensity); SHAME/REPROACH use 2-factor (better activation path for betrayal/humiliation scenarios)
