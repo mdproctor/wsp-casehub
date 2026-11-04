@@ -23,32 +23,42 @@ Regulation is the "I wanted to but held back" moment — the gap between feeling
 
 ### Pipeline Placement
 
-A new `RegulationTickParticipant` runs in the **DERIVED** phase of `CognitionCore.tick()`, after `AppraisalTickParticipant`. It reads `AppraisalResult` (emotions, action tendencies) and writes `RegulationResult` to MindMap for downstream consumption.
+A new `EmotionRegulationTickParticipant` runs in the **DERIVED** phase of `CognitionCore.tick()`, after `AppraisalTickParticipant`. It reads `AppraisalResult` (emotions, action tendencies) via a direct in-memory reference and writes `EmotionRegulationResult` for downstream consumption.
 
 ```
-DERIVED phase execution:
-  1. drives.tick()                    ← DriveOrchestrator computes DriveAxis intensities
-  2. AppraisalTickParticipant         ← Scherer SEC → CognitiveEmotion + ActionTendency
-  3. RegulationTickParticipant [NEW]  ← reads appraisal, writes RegulationResult to MindMap
-  4. GutFeelingParticipant            ← existing
-  5. CapsSettler                      ← CAPS attractor settling
+CognitionCore.tick() — DERIVED phase:
+  drives.tick()                              ← direct call (NOT a participant), computes DriveAxis intensities
+  runCustomParticipants(DERIVED):
+    1. AppraisalTickParticipant               ← Scherer SEC → CognitiveEmotion + ActionTendency
+    2. EmotionRegulationTickParticipant [NEW]  ← reads appraisal result, writes EmotionRegulationResult
+    3. GutFeelingParticipant                  ← existing
 ```
 
-**Ordering constraint:** The participant list for DERIVED is insertion-ordered. The factory method that configures regulation must register it after appraisal. This convention must be documented and tested — a unit test should verify that `RegulationTickParticipant` appears after `AppraisalTickParticipant` in the participant list for `CognitionPhase.DERIVED`.
+Note: `drives.tick()` is a direct call in `CognitionCore.tick()`, executed _before_ `runCustomParticipants(CognitionPhase.DERIVED, context)`. It is not a registered participant. CapsSettler runs inside `CapsEngine` implementations — it is not part of the cognition tick pipeline. CAPS settling happens when `CapsEngine.settle()` is called from the code that drives CAPS network evaluation, which is separate from the per-tick DERIVED phase.
+
+**Ordering constraint:** The participant list for DERIVED is insertion-ordered. `CognitionCore.configureRegulation()` must be called after `configureAppraisal()` to ensure insertion order. A unit test should verify that `EmotionRegulationTickParticipant` appears after `AppraisalTickParticipant` in the participant list for `CognitionPhase.DERIVED`.
+
+### Relationship to Issue #590's CAPS Architecture
+
+Issue #590 states: "Regulation strategies become CAUs that modulate drive expression in CAPS." This spec takes a different approach — regulation as an LLM decision layer outside CAPS, modifying drive rendering rather than participating in CAPS attractor dynamics. This divergence is intentional: D2 (from the decision review) chose LLM-first over mechanical CAPS integration because keyword-based regulation (the kind CAPS nodes would produce) has proven brittle in prior work.
+
+The LLM decision layer is Phase 1. CAPS integration (regulation strategies as CAUs that feed into settling) is a natural Phase 2 extension — once the LLM-derived regulation patterns are stable and validated, the most effective patterns can be encoded as CAPS nodes. A follow-up issue should be filed for this CAPS integration path, and the epic remains open until that work is assessed.
 
 ### Activation Gate
 
 Regulation does not fire every tick. A mechanical discrepancy threshold gates when the LLM generation call is made:
 
-- After appraisal produces `CognitiveEmotion` instances, compute the discrepancy: `|emotion.intensity - baseline|`
-- If discrepancy exceeds a personality-derived threshold, regulation fires
+- After appraisal produces `CognitiveEmotion` instances, compute the discrepancy: `max(|emotion.intensity - baseline|)` across ALL emotions in `AppraisalResult.emotions()`
+- If the maximum discrepancy exceeds a personality-derived threshold, regulation fires
+- All above-threshold emotions are provided to the LLM as context — the LLM produces a single `EmotionRegulationResult` covering the holistic emotional state, not one result per emotion
 - Threshold is lower for high-neuroticism characters (they regulate more often) and higher for emotionally stable characters
+- If appraisal is disabled (`config.appraisalEnabled() == false`), regulation does not fire — there is no emotion input to regulate
 
-**Bootstrap values:** Initial thresholds derived from Bosse et al. (2010) parameterization. Tuned empirically via A/B evaluation. Starting point: baseline intensity = 0.3, threshold = 0.4 (regulation fires when emotion intensity > 0.7). These are starting estimates — empirical testing will reveal the right values.
+**Bootstrap values:** Starting estimates for empirical tuning. Baseline intensity = 0.3, threshold = 0.4 (regulation fires when any emotion intensity > 0.7). These are calibration parameters — the actual distribution of emotion intensities in the appraisal system will determine appropriate values. Bosse et al. (2010) provides the framework (homeostatic baseline + discrepancy detection), not the exact values — their parameterization (β, ζ) maps to the adaptation behavior in the LLM prompt (strategy fatigue, effectiveness decay), not directly to the activation threshold.
 
 ### Regulation as a Decision Layer
 
-The core insight: regulation is a **decision system**, not an execution system. The `RegulationTickParticipant` selects a strategy from all five Gross families. The **implementation** is distributed to existing pipeline components based on strategy type:
+The core insight: regulation is a **decision system**, not an execution system. The `EmotionRegulationTickParticipant` selects a strategy from all five Gross families. The **implementation** is distributed to existing pipeline components based on strategy type:
 
 | Strategy family | Target | Implementation consumer |
 |----------------|--------|------------------------|
@@ -58,20 +68,46 @@ The core insight: regulation is a **decision system**, not an execution system. 
 | Cognitive change | Appraisal meaning | `renderInternalState()` — reframed drive descriptions |
 | Response modulation | Expression | `renderInternalState()` — dampened drive rendering |
 
-**Internal strategies (3-5):** Consumed by `CognitionObservationBuilder.renderInternalState()`. The integration point is `resolveAdaptedDrives()` and `appraisalFilterDrives()`, which read drive-intensity nodes from MindMap. When a `RegulationResult` exists for the current tick, drive rendering is modified — suppressed drives get dampened text, reappraised drives get reframed text.
-
-**Environmental strategies (1-2):** Consumed by the goal pipeline. This requires extending `DriveGoalFormationContext` to accept regulation directives:
+**Access path to AppraisalResult:** `EmotionRegulationTickParticipant` obtains the `AppraisalTickParticipant` reference via `CognitionCore.configureRegulation()`, following the same pattern as `configureGutFeeling()`. It calls `appraisalParticipant.currentResult(agentId, tenantId)` to read the in-memory `AppraisalResult` from the same tick — no MindMap indirection for same-tick data.
 
 ```java
-record DriveGoalFormationContext(
-    String agentId, String tenantId,
-    DriveAxis axis, double intensity, String trigger,
-    List<AgentGoal> existingGoals, int remainingCapacity,
-    RegulationDirective regulationDirective  // NEW — nullable, carries avoidance/modification intent
-)
+public void configureRegulation(AppraisalTickParticipant appraisalParticipant,
+                                 SessionPipeline sessionPipeline,
+                                 MindMapStore mindMapStore) {
+    this.regulationParticipant = new EmotionRegulationTickParticipant(
+            appraisalParticipant, sessionPipeline, mindMapStore, config, defaultsRegistry);
+    addParticipant(CognitionPhase.DERIVED, this.regulationParticipant);
+}
 ```
 
-The preferred approach is a new `RegulationGoalFormationStrategy` that reads `RegulationResult` directly from MindMap — this avoids modifying the existing `DriveGoalFormationContext` record and breaking existing implementations. The `DriveGoalFormationContext` extension is a fallback if the separate strategy proves unwieldy.
+**Internal strategies (3-5):** Consumed by `CognitionObservationBuilder.renderInternalState()`. The integration point is a new regulation post-processing step inside `renderInternalState()`, executed AFTER `resolveRelationalTargets()` produces `TargetedDrive` objects and BEFORE the final `targetedDescriptionFor` lambda formats them. `resolveAdaptedDrives()` and `appraisalFilterDrives()` are NOT the integration points — the former constructs `DriveSnapshot` from MindMap intensity nodes (no suppression concept), the latter includes/excludes drives by CAPS situation-context overlap (not text modification).
+
+The regulation integration in `renderInternalState()`:
+1. After `resolveRelationalTargets()` produces the `TargetedDrive` list
+2. Read `EmotionRegulationResult` from `regulationParticipant.currentResult()` (in-memory, same tick)
+3. For drives listed in `EmotionRegulationResult.targetDrives()`, modify the description lambda to include regulation narrative
+4. The regulation narrative text OVERLAYS the consolidated `DriveDescriptionGenerated` text from `readGeneratedDriveDescriptions()` — it appends regulation-colored text, not replaces the base description
+5. Add a "Regulation" `ObservationSection` as an additional part in the `parts` list
+
+**Environmental strategies (1-2):** Consumed by the goal pipeline via `GoalProposalOrchestrator`. The `DriveGoalFormationStrategy` interface (`cognition-api`) already provides the extension point — a regulation-aware implementation that wraps the existing strategy:
+
+```java
+class RegulationAwareDriveGoalFormationStrategy implements DriveGoalFormationStrategy {
+    private final DriveGoalFormationStrategy delegate;
+    private final EmotionRegulationTickParticipant regulationParticipant;
+
+    @Override
+    public @Nullable DriveGoalProposal propose(DriveGoalFormationContext context) {
+        var regulation = regulationParticipant.currentResult(context.agentId(), context.tenantId());
+        if (regulation.isPresent() && regulation.get().isEnvironmentalStrategy()) {
+            return proposeRegulationGoal(context, regulation.get());
+        }
+        return delegate.propose(context);
+    }
+}
+```
+
+This avoids modifying `DriveGoalFormationContext` — the regulation state is read from the participant's in-memory accessor, not threaded through the context record.
 
 ### Regulation Target: Emotions Trigger, Drives Are Modulated
 
@@ -88,7 +124,7 @@ The regulation LLM call follows the `CognitionCore.appraiseMood()` pattern:
 
 1. Open a `SessionPipeline` session with a regulation system prompt
 2. Provide structured context: current emotions (from appraisal), personality traits, strategy selection factors (intensity, cognitive load), recent regulation history
-3. Stream and parse JSON response into `RegulationResult`
+3. Stream and parse JSON response into `EmotionRegulationResult`
 4. Fallback: if the LLM call fails or times out, decay toward no-regulation (same as mood fallback pattern `MOOD_FALLBACK_DECAY`)
 
 **System prompt structure:**
@@ -127,17 +163,22 @@ regulatedIntensity, effectiveness, narrative}
 ### Data Model
 
 ```java
-record RegulationResult(
-    RegulationStrategy strategy,      // Gross 1998 five-family enum
-    String targetEmotion,             // CognitiveEmotion that triggered regulation
-    List<String> targetDrives,        // character drives being modulated
-    double originalIntensity,         // emotion intensity before regulation
-    double regulatedIntensity,        // emotion intensity after regulation
-    double effectiveness,             // 0.0-1.0 how well the strategy worked
-    String narrative                  // character-experience text for prompt rendering
-)
+record EmotionRegulationResult(
+    EmotionRegulationStrategy strategy,  // Gross 1998 five-family enum
+    List<String> targetEmotions,         // CognitiveEmotion labels that triggered regulation
+    List<String> targetDrives,           // character drives being modulated
+    double peakOriginalIntensity,        // highest emotion intensity before regulation
+    double regulatedIntensity,           // regulated intensity target
+    double effectiveness,                // 0.0-1.0 how well the strategy worked
+    String narrative                     // character-experience text for prompt rendering
+) {
+    public boolean isEnvironmentalStrategy() {
+        return strategy == EmotionRegulationStrategy.SITUATION_SELECTION
+            || strategy == EmotionRegulationStrategy.SITUATION_MODIFICATION;
+    }
+}
 
-enum RegulationStrategy {
+enum EmotionRegulationStrategy {
     SITUATION_SELECTION,       // Gross strategy 1 — avoid triggering contexts
     SITUATION_MODIFICATION,    // Gross strategy 2 — change the situation
     ATTENTIONAL_DEPLOYMENT,    // Gross strategy 3 — redirect focus (distraction)
@@ -146,11 +187,36 @@ enum RegulationStrategy {
 }
 ```
 
+The `EmotionRegulation` prefix distinguishes intrapersonal regulation (this system — a character regulating their OWN emotions) from the existing `RegulationTracker` classes in neocortex (`io.casehub.neocortex.cognition.prompt.observation.RegulationTracker`) and wacky-manor (`io.casehub.examples.manor.agent.RegulationTracker`), which track interpersonal emotion trajectories (OTHER characters' distress levels via Theory of Mind).
+
 ### Rendering in Internal State
 
-Two channels reinforce the regulation signal in the LLM prompt:
+Two channels reinforce the regulation signal in the LLM prompt. Both execute inside `CognitionObservationBuilder.renderInternalState()`:
 
-**1. Regulation ObservationSection** — a new section in `renderInternalState()`:
+**1. Modified drive rendering** — after `resolveRelationalTargets()` produces the `TargetedDrive` list, a regulation post-processing step modifies drives that appear in `EmotionRegulationResult.targetDrives()`:
+
+```
+# Without regulation:
+"gloating" (intensity: 0.8) — "A triumphant heat rises in your chest..."
+[description from readGeneratedDriveDescriptions() MindMap node]
+
+# With regulation (response modulation/suppression):
+"gloating" (intensity: 0.8, regulated to 0.4) — "A triumphant heat rises in your chest..."
+[original consolidated description preserved]
+REGULATION: "The triumph is there but you hold it back — your jaw tightens with 
+the effort of keeping your expression neutral."
+[regulation narrative appended — not replacing the consolidated description]
+```
+
+The regulation narrative text is generated per-tick by the LLM. The consolidated drive description from `DriveDescriptionGenerationPhase` (which runs during MindMap consolidation, not per-tick) is preserved unchanged. Regulation appends to it — this is the correct temporal layering: consolidated descriptions are the character's baseline relationship with a drive; regulation is the per-tick modulation of that relationship.
+
+The regulation narrative should integrate with Barrett's 4-channel framework (somatic, attentional, temporal, action tendency):
+
+- **Suppression:** somatic channel shows physiological cost (increased tension, sympathetic activation)
+- **Reappraisal:** temporal channel shifts (reframing changes how the moment feels)
+- **Distraction:** attentional channel redirects (focus moves away from the trigger)
+
+**2. Regulation ObservationSection** — added to the `parts` list in `renderInternalState()`, alongside self-standards, primed memories, and attractor lines:
 
 ```
 ## Regulation
@@ -161,22 +227,13 @@ You are reframing this as a competitive challenge rather than a personal attack.
 Effectiveness: moderate — the reframe holds but the sting persists.
 ```
 
-**2. Modified drive rendering** — drives affected by regulation get modified text:
+### State Access: Same-Tick vs Cross-Tick
 
-```
-# Before regulation:
-"gloating" (intensity: 0.8) — "A triumphant heat rises in your chest..."
+Two distinct access patterns, following existing conventions:
 
-# After regulation (response modulation/suppression):
-"gloating" (intensity: 0.8, suppressed to 0.4) — "The triumph is there but you 
-hold it back — your jaw tightens with the effort of keeping your expression neutral."
-```
+**Same-tick (in-memory accessor):** `EmotionRegulationTickParticipant` holds the current tick's result in a `ConcurrentHashMap<String, EmotionRegulationResult>`, exposed via `currentResult(String agentId, String tenantId)`. This is the same pattern as `AppraisalTickParticipant.currentResult()`. Consumers in the same tick (e.g., `renderInternalState()`, `RegulationAwareDriveGoalFormationStrategy`) read from this accessor — no MindMap round-trip.
 
-The modified drive text should integrate with Barrett's 4-channel framework (somatic, attentional, temporal, action tendency):
-
-- **Suppression:** somatic channel shows physiological cost (increased tension, sympathetic activation)
-- **Reappraisal:** temporal channel shifts (reframing changes how the moment feels)
-- **Distraction:** attentional channel redirects (focus moves away from the trigger)
+**Cross-tick (MindMap history):** After computing the regulation result, the participant writes it to MindMap as a node in `SubgraphTypes.COGNITIVE` with `cognitiveKind = "emotion-regulation-result"` and `agent-id` property. The node's `updatedAt` timestamp (set to `Instant.now()` at write time) provides the ordering contract. History is queried via `MindMapQuery.of(tenantId, limit).withType("emotion-regulation-result").withUpdatedAfter(cutoff)` to retrieve recent results in recency order.
 
 ### Temporal Context (Cross-Tick Awareness)
 
@@ -186,15 +243,13 @@ Each tick's regulation is independent, but the generation phase prompt includes 
 - "Reappraisal worked well last tick" → strategy persistence
 - "Distraction is losing effectiveness" → strategy switching
 
-**MindMap storage:** Regulation results stored as nodes in `SubgraphTypes.COGNITIVE` with `cognitiveKind = "regulation-result"` and `agent-id` property. Queried via `MindMapQuery.of(tenantId, limit)` to retrieve recent history by count (not time — MindMap doesn't track tick numbers).
-
 **Pruning:** Regulation nodes older than the history window (configurable, default 5) can be pruned during consolidation to prevent unbounded accumulation.
 
 ### Interaction with Existing Systems
 
-**Interpersonal regulation (`RegulationTracker`):** The existing `RegulationTracker` in `CognitionObservationBuilder` tracks OTHER characters' emotion trajectories via Theory of Mind. This new system handles INTRAPERSONAL regulation (a character's own emotions). The two are complementary — a character can be regulating their own anger toward someone whose distress they're also tracking via RegulationTracker. The spec acknowledges both systems must coexist; naming convention distinguishes them (`RegulationResult` for intrapersonal, `RegulationTracker` remains for interpersonal).
+**Interpersonal regulation (`RegulationTracker`):** Two existing `RegulationTracker` classes track OTHER characters' emotion trajectories: `io.casehub.neocortex.cognition.prompt.observation.RegulationTracker` (neocortex — distress trajectory tracking via Theory of Mind posteriors) and `io.casehub.examples.manor.agent.RegulationTracker` (wacky-manor — extends with `classifyBehavior()`). This new system handles INTRAPERSONAL regulation (a character's own emotions). All new types use the `EmotionRegulation` prefix (`EmotionRegulationResult`, `EmotionRegulationTickParticipant`, `EmotionRegulationStrategy`, `EmotionRegulationGenerationPhase`) to prevent naming collision.
 
-**Social regulation strategies:** Gross 2015 and Zaki & Williams 2013 describe social regulation (seeking comfort, co-regulation, social sharing). These are out of scope for this issue — documented as a known extension point for future work. The five-strategy enum is extensible if social strategies are added later.
+**Social regulation strategies:** Gross 2015 and Zaki & Williams 2013 describe social regulation (seeking comfort, co-regulation, social sharing). Out of scope for this issue — a separate GitHub issue must be filed (referenced from #590) to track social regulation as distinct work. The `EmotionRegulationStrategy` enum is extensible if social strategies are added later.
 
 **Mood bridge:** Regulation output does not modify mood directly. Mood is derived from appraisal via PAD projection. However, sustained successful regulation may influence mood indirectly through the memory system (regulation experiences become memories that inform future mood appraisal).
 
@@ -256,18 +311,19 @@ python3 wacky-manor/docs/eval/classify_emotions.py docs/eval/<regulation-run>
 All five strategies designed and implemented together — no batching. The unified decision layer handles all strategies; distributed execution is the only variation (renderInternalState for internal, goal pipeline for environmental).
 
 ### New Components (neocortex)
-- `RegulationTickParticipant` — DERIVED phase participant, runs after appraisal
-- `RegulationResult` / `RegulationStrategy` — data model
-- `RegulationGenerationPhase` — LLM call for strategy selection + narrative (appraiseMood pattern)
-- Regulation ObservationSection in `CognitionObservationBuilder`
-- Modified drive rendering in `resolveAdaptedDrives()` / `appraisalFilterDrives()`
-- `RegulationGoalFormationStrategy` for environmental strategies (preferred over modifying `DriveGoalFormationContext`)
+- `EmotionRegulationTickParticipant` — DERIVED phase participant, runs after appraisal
+- `EmotionRegulationResult` / `EmotionRegulationStrategy` — data model (in `cognition-api`)
+- `EmotionRegulationGenerationPhase` — LLM call for strategy selection + narrative (appraiseMood pattern)
+- Regulation `ObservationSection` in `CognitionObservationBuilder`
+- Regulation post-processing step in `renderInternalState()` (after `resolveRelationalTargets()`, before description formatting)
+- `RegulationAwareDriveGoalFormationStrategy` implementing `DriveGoalFormationStrategy` for environmental strategies
+- `regulationEnabled` field added to `CognitionConfig` record (25th boolean field — requires updating `all()`, `withAllSubsystems()`, `none()`, `withDirectives()`, and adding `case "regulation"` to the `with()` switch)
 - Configuration properties for enable/disable toggle and threshold
 
 ### Modified Components (neocortex)
-- `CognitionCore` — register RegulationTickParticipant in DERIVED phase (after appraisal)
-- `CognitionObservationBuilder.renderInternalState()` — read RegulationResult, render regulation section, modify drive text
-- Goal formation — register RegulationGoalFormationStrategy alongside existing strategies
+- `CognitionCore` — add `configureRegulation()` method following `configureAppraisal()` pattern; store `regulationParticipant` as a private volatile field; register in DERIVED phase after appraisal
+- `CognitionObservationBuilder.renderInternalState()` — read `EmotionRegulationResult` from participant's in-memory accessor, render regulation section as an `ObservationSection`, modify drive text by appending regulation narrative to `targetedDescriptionFor` output
+- `GoalProposalOrchestrator` — accept `RegulationAwareDriveGoalFormationStrategy` as the formation strategy (wraps existing strategy)
 
 ### Test Components (examples/wacky-manor)
 - A/B eval harness (configuration toggle)
@@ -281,12 +337,15 @@ All five strategies designed and implemented together — no batching. The unifi
 - Bosse, T., Pontier, M. & Treur, J. (2010). A computational model based on Gross' emotion regulation theory. *Cognitive Systems Research*, 11(3), 211-230.
 - Petter, J. et al. (2025). Emotion regulation, fast or slow. *Emotion*, 25(5), 1273-1292.
 - Zaki, J. & Williams, W.C. (2013). Interpersonal emotion regulation. *Emotion*, 13(5), 803-810.
-- `CognitionCore.java` — tick phase architecture, appraiseMood() pattern
-- `AppraisalTickParticipant.java` — Scherer SEC appraisal, AppraisalResult
-- `CognitionObservationBuilder.java` — renderInternalState(), resolveAdaptedDrives(), RegulationTracker
+- `CognitionCore.java` — tick phase architecture, appraiseMood() pattern, configureAppraisal()/configureGutFeeling() wiring patterns
+- `AppraisalTickParticipant.java` — Scherer SEC appraisal, AppraisalResult, currentResult() in-memory accessor pattern
+- `CognitionObservationBuilder.java` — renderInternalState() flow: resolveAdaptedDrives() → appraisalFilterDrives() → resolveRelationalTargets() → targetedDescriptionFor lambda → parts assembly
+- `RegulationTracker.java` (neocortex + wacky-manor) — existing interpersonal distress trajectory tracking (NOT this system)
 - `DriveOrchestrator.java` / `DriveComposer.java` — ModulationLayer, DriveAxis
-- `DriveDescriptionGenerationPhase.java` — Barrett 4-channel framework
-- `DriveGoalFormationContext.java` — GoalFormationStrategy API
+- `DriveDescriptionGenerationPhase.java` — consolidation pipeline, Barrett 4-channel framework (not per-tick)
+- `DriveGoalFormationStrategy.java` / `DriveGoalFormationContext.java` — goal formation SPI in cognition-api
+- `GoalProposalOrchestrator.java` — DriveGoalFormationStrategy registration and invocation
+- `CognitionConfig.java` — 24-field record, `with()` switch pattern for toggles
 - `classify_emotions.py` — drive expression eval framework
 - Protocol PP-20261017-d5853d — literature citation requirement for model-derived constructs
 - Decision review: `/Users/mdproctor/reviews/casehub-slots/issue-590-decision-20261104-015751/`
