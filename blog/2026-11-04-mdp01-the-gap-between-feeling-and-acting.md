@@ -89,13 +89,23 @@ Compare that with a high-openness character in the same situation. Same anger. B
 
 This is what mechanical computation cannot give you. The specific somatic texture of holding back. The difference between someone who suppresses because they can't do anything else and someone who reappraises because they see a better frame. These aren't different parameters to the same equation — they're fundamentally different experiences that need different language.
 
-## The Activation Gate: When Not to Regulate
+## The Activation Gate That Wasn't in the Paper
 
 Not every emotion needs regulation. A character who regulates joy at seeing a friend is pathological, not nuanced. The system needs to fire selectively.
 
-The implementation uses a discrepancy threshold from Bosse et al. (2010): regulation activates when the distance between current emotional intensity and homeostatic baseline exceeds a threshold. Baseline is 0.3 (mild positive affect — people at rest are slightly content, not neutral). The activation threshold starts at 0.4 — meaning an emotion needs to reach 0.7 intensity before regulation even considers engaging.
+The first implementation used what I thought was a Bosse et al. threshold — a binary gate at 0.4 discrepancy from baseline. If your anger is below 0.7 intensity, regulation doesn't fire. Above it, regulation engages fully. On or off.
 
-This is a calibration estimate, not a magic number. The A/B evaluation framework will tune it. Too low, and regulation dominates every tick, producing characters who feel nothing because they modulate everything. Too high, and regulation never fires, which is what we had before. The sweet spot is where regulation adds visible depth to high-intensity moments without suppressing the everyday emotional life that makes characters feel alive.
+Then I actually read Bosse. Their model has no binary gate. Regulation effort is continuous and proportional: `v_n = α × d / d_max`. Small discrepancy from your emotional baseline? Small regulation effort — a gentle cognitive reframe, barely noticeable. Large discrepancy? Full-effort regulation — active suppression, deliberate distraction, the strategies that have visible cost.
+
+This matters practically, not just theoretically. The EmotionMapper that converts appraisal dimensions into emotion intensities uses a three-factor product for anger: `relevance × |conduciveness| × controllability`. An empirical survey across all possible dimension combinations showed that even extreme scenarios — betrayal, mortal danger — produce anger intensities of 0.13 to 0.24 when the appraisal LLM returns moderate conduciveness values (which it does, correctly, because the SEC model interprets conduciveness as "how much does this advance or block your goals" — a betrayal already happened, the discovery doesn't change the damage).
+
+The binary gate at 0.7 made regulation structurally unreachable for anger. It was dead code wearing the citation of a paper that never recommended it.
+
+![Regulation effort: binary gate vs Bosse proportional model — the binary gate misses the entire operating range of typical LLM appraisals](images/bosse-proportional-regulation.svg)
+
+The replacement is the actual Bosse formula. Regulation effort scales linearly with emotional displacement. A noise floor at 0.01 prevents LLM calls when emotions are literally at baseline — a cost optimisation, not a theoretical parameter. The `α` factor (willingness to regulate) is personality-dependent: high neuroticism means higher α, meaning the same emotional discrepancy produces more regulation effort. That's a parameter with published empirical basis, not a magic number.
+
+The lesson generalises beyond this specific system. When you adopt a model from the literature, adopt the model — not a simplified version that looks plausible. Read the equations, not just the abstract. A binary threshold is easier to implement than a proportional formula, and it's wrong in a way that's invisible until you run the empirical survey and discover your system never activates.
 
 ## Regulation History: Continuity Across Ticks
 
@@ -125,9 +135,9 @@ The science exists. The computational models exist. The engineering is straightf
 
 ## What's Next
 
-The A/B evaluation framework will produce the first empirical data: same scenario, same characters, regulation enabled vs. disabled. The existing drive expression scores must not regress — if regulation crowds out the signal that makes characters feel alive, the prompt needs tuning, not the architecture. A new regulation dimension will measure strategy appropriateness, personality consistency, and selectivity.
+The next step is targeted micro-scenarios — specific emotional situations that test each regulation pathway through the full cognitive pipeline. Betrayal routed through shame (internal standards violation). Mortal danger routed through fear. Public humiliation routed through reproach. The EmotionMapper has different intensity formulas for each emotion type — shame and reproach use two-factor products and reach high intensities more easily than anger's three-factor product. The micro-tests need to exercise each pathway separately, verifying both that regulation fires and that the strategy selection is personality-appropriate.
 
-Beyond that, social regulation is the natural extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These are the most dramatically interesting regulation strategies, and they require the intrapersonal system implemented here to exist first.
+Beyond evaluation, social regulation is the natural extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These are the most dramatically interesting regulation strategies, and they require the intrapersonal system implemented here to exist first.
 
 The design is extensible. The strategy enum accepts new families. The LLM prompt structure accommodates new guidance. The rendering pipeline handles new narrative types. When social regulation arrives, it plugs into the same decision layer.
 
