@@ -71,7 +71,7 @@ record DriveGoalFormationContext(
 )
 ```
 
-Alternatively, a new `RegulationGoalFormationStrategy` that reads `RegulationResult` directly from MindMap.
+The preferred approach is a new `RegulationGoalFormationStrategy` that reads `RegulationResult` directly from MindMap — this avoids modifying the existing `DriveGoalFormationContext` record and breaking existing implementations. The `DriveGoalFormationContext` extension is a fallback if the separate strategy proves unwieldy.
 
 ### Regulation Target: Emotions Trigger, Drives Are Modulated
 
@@ -261,13 +261,13 @@ All five strategies designed and implemented together — no batching. The unifi
 - `RegulationGenerationPhase` — LLM call for strategy selection + narrative (appraiseMood pattern)
 - Regulation ObservationSection in `CognitionObservationBuilder`
 - Modified drive rendering in `resolveAdaptedDrives()` / `appraisalFilterDrives()`
-- `DriveGoalFormationContext` extension or `RegulationGoalFormationStrategy` for environmental strategies
+- `RegulationGoalFormationStrategy` for environmental strategies (preferred over modifying `DriveGoalFormationContext`)
 - Configuration properties for enable/disable toggle and threshold
 
 ### Modified Components (neocortex)
 - `CognitionCore` — register RegulationTickParticipant in DERIVED phase (after appraisal)
 - `CognitionObservationBuilder.renderInternalState()` — read RegulationResult, render regulation section, modify drive text
-- Goal formation — accept regulation directives
+- Goal formation — register RegulationGoalFormationStrategy alongside existing strategies
 
 ### Test Components (examples/wacky-manor)
 - A/B eval harness (configuration toggle)
