@@ -1,8 +1,8 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-815-cognitive-load-proxy
-state: active
+branch: main
+state: drained
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
@@ -15,7 +15,7 @@ evidence-era: true
 ## Queue
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
-- [ ] casehubio/neocortex#815 — Cognitive
+- [x] casehubio/neocortex#815 — Cognitive
 - [ ] casehubio/neocortex#817 — Suppression
 - [ ] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
