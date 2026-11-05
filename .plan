@@ -1,8 +1,8 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-820-regulation-monitor
-state: active
+branch: main
+state: drained
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
@@ -17,7 +17,7 @@ evidence-era: true
 - [x] casehubio/neocortex#816 — EmotionMapper
 - [x] casehubio/neocortex#815 — Cognitive
 - [x] casehubio/neocortex#817 — Suppression
-- [ ] casehubio/neocortex#820 — Regulation
+- [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social
