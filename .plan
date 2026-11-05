@@ -1,12 +1,12 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: main
+branch: issue-816-emotionmapper-intensity-fix
 state: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 590
+covers: 816
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
