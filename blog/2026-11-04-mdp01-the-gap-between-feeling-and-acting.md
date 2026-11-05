@@ -171,11 +171,25 @@ The fix is in the EmotionMapper — either a weighted combination instead of a p
 
 ## What's Next
 
-The intensity mapping needs fixing before regulation becomes visible in full scenario runs. Once emotions reach the operating range consistently, the scenario itself needs engineering — scripted beats that create confrontation early enough to exercise the regulation pathways within the first hundred events, rather than letting characters explore independently for two hundred ticks before anything emotionally charged happens.
+The intensity mapping needs fixing before regulation becomes visible in full scenario runs. Once emotions reach the operating range consistently, the scenario itself needs engineering — not scripted triggers, but a format change.
 
-Beyond that, social regulation is the natural extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These are the most dramatically interesting regulation strategies, and they require the intrapersonal system implemented here to exist first.
+The current scenario is open-ended exploration. Characters wander rooms, examine objects, occasionally talk. Emotional confrontation is possible but not structural. The plan is to adopt a Traitors-style game format: day phases where characters move through spatial rooms and make discoveries, night phases where the villain acts, and roundtable discussions where every character must publicly accuse or defend. The format guarantees emotional confrontation at regular intervals — you can't avoid the roundtable, and you can't stay silent during it.
 
-The design is extensible. The strategy enum accepts new families. The LLM prompt structure accommodates new guidance. The rendering pipeline handles new narrative types. When social regulation arrives, it plugs into the same decision layer.
+The spatial model matters too. Right now a character is "in the library" — a flat location. Moving to x-positions within rooms creates walk-past triggers (you hear the beam creak as you pass under it) and examine triggers (you open the safe and find the documents). One dimension is enough — the room is a corridor, and every character who walks from one end to the other must pass through every trigger zone. No spatial luck, no near-misses.
+
+But the regulation system itself has four missing pieces that change the quality of what it produces:
+
+**Suppression fatigue.** Bosse models physiological cost accumulation from repeated regulation. A character who suppresses anger for ten ticks should experience degrading regulatory capacity — not just declining effectiveness per the LLM's judgment, but a mechanical reduction in their ability to regulate at all. The dramatic moment this produces: suppression finally fails. The held-back emotion breaks through. That's emergent from the fatigue model, not scripted.
+
+**Automatic regulation.** Most regulation decisions are predictable from personality. High neuroticism → suppression. High openness → reappraisal. These habitual responses don't need an LLM call. Handling the predictable cases mechanically reserves LLM reasoning for the complex situations — novel contexts, conflicting personality signals, the moments where the interesting choices happen. It also cuts per-tick latency significantly.
+
+**Proactive regulation.** All current regulation is reactive — it fires after appraisal detects an emotional discrepancy. But situation selection is fundamentally proactive: "I know that room will make me angry, so I avoid it." A character who was humiliated in the library last round should feel reluctance to enter the library this round — not because appraisal fires (they haven't entered yet), but because emotional memory drives avoidance. This connects regulation to the spatial model — the avoidance has somewhere to go.
+
+**The monitoring loop.** Gross 2015 adds continuous re-evaluation: is the current strategy working? If a character has been suppressing for three ticks with declining effectiveness (0.6 → 0.4 → 0.2), the system should recognise suppression is failing and switch — to cognitive change, to attentional deployment, to something that costs less. Combined with suppression fatigue, this produces the escalation dynamics that make regulation feel alive rather than mechanical.
+
+Social regulation remains the most dramatically interesting extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These interpersonal strategies require the intrapersonal system to exist first — you need to know what you're feeling before you can decide to seek comfort for it.
+
+Eventually, the stable patterns get encoded as CAPS nodes — the attractor dynamics that make characters settle into personality-consistent regulation styles without per-tick LLM calls. That's the consolidation step: observe what the LLM does, validate it empirically, then mechanise the parts that become formulaic. Quality first. Mechanise what's proven.
 
 ---
 
