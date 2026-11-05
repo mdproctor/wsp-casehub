@@ -1,0 +1,30 @@
+# Work Plan — issue-590-emotion-regulation
+
+## State
+branch: main
+status: drained
+project-sha: 
+date: 
+issue-repo: casehubio/neocortex
+covers: 820
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+
+## Queue
+- [ ] casehubio/neocortex#828 — Regulation predictor observability ← active
+- [ ] casehubio/neocortex#829 — Scenario validation
+- [ ] casehubio/neocortex#819 — Proactive
+- [ ] casehubio/neocortex#805 — Social
+- [ ] casehubio/neocortex#822 — Per-strategy
+- [ ] casehubio/neocortex#823 — Per-modality
+- [ ] casehubio/neocortex#520 — Cognitive
+- [ ] casehubio/examples#203 — Spatial
+- [ ] casehubio/neocortex#806 — CAPS
+- [ ] casehubio/casehub-mosaic#315 — Cognitive
+- [x] casehubio/neocortex#590 — Issue #590
+- [x] casehubio/neocortex#816 — EmotionMapper
+- [x] casehubio/neocortex#815 — Cognitive
+- [x] casehubio/neocortex#817 — Suppression
+- [x] casehubio/neocortex#820 — Regulation
+- [ ] casehubio/neocortex#818 — Automatic
