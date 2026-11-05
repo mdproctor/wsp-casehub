@@ -5,7 +5,7 @@ date: 2026-11-04
 entry_type: article
 subtype: diary
 projects: [casehubio/neocortex, casehubio/examples]
-tags: [emotion-regulation, cognitive-architecture, gross-model, character-depth, design, implementation]
+tags: [emotion-regulation, cognitive-architecture, gross-model, bosse-model, petter-model, character-depth, design, implementation, suppression-fatigue, cognitive-load]
 series: issue-590-emotion-regulation
 ---
 
@@ -167,29 +167,75 @@ With a typical moderate appraisal — relevance 0.7, conduciveness -0.6, control
 
 This is not a bug in regulation. It's a bug in the emotion-to-intensity mapping that predates the regulation system. But regulation makes it visible, because regulation is the first consumer that actually cares whether emotions cross a meaningful intensity threshold. Drive rendering will show "anger" regardless of intensity. Regulation needs intensity to exceed the baseline before it has anything to regulate.
 
-The fix is in the EmotionMapper — either a weighted combination instead of a product, or the OCC model's max-based formula. But the deeper lesson applies to anyone building on appraisal-based emotion models: if you multiply three normalised values, the result converges toward zero. Every factor you add compresses the range. Two factors give you useful intensity variation. Three factors give you a system that never activates.
+The fix turned out to be simpler than expected: controllability was being double-counted. The if/else structure already uses controllability to gate which emotion fires — anger when controllability > 0.5, fear when < 0.4. Multiplying it into the intensity formula on top of that gate compresses the result toward zero for every moderate appraisal. The fix removes the redundant factor. All three negative emotions now use the same two-factor base: `relevance × |conduciveness|`. With typical LLM values, anger moves from 0.18 to 0.30 — inside the operating range where regulation has something to work with.
+
+The deeper lesson applies to anyone building on appraisal-based emotion models: if you multiply three normalised values, the result converges toward zero. Every factor you add compresses the range. Two factors give you useful intensity variation. Three factors give you a system that never activates. And when the gating logic already encodes the distinction the third factor is supposed to capture, the multiplication is not just compressive — it's conceptually wrong. OCC theory says controllability determines emotion *type*. The if/else captures that. The intensity should reflect how bad the situation is, not how bad it is discounted by how controllable it is twice.
+
+## Filling In The Pieces: Load, Fatigue, and Monitoring
+
+The initial regulation implementation proved the concept: an LLM can select from Gross's five strategies given structured context about personality, emotion intensity, and regulation history. But the system was still missing the dynamics that make regulation feel alive — the pressure that builds when suppression is sustained, the exhaustion that forces a strategy change, the moment when holding back simply stops working.
+
+Three systems now compose into a single cascade. Each is independently testable and independently useful. Together they produce emergent behaviour that none of them could produce alone.
+
+![The regulation cascade — cognitive load biases strategy, fatigue degrades capacity, the monitor detects failure, and emotion breaks through](images/regulation-cascade.svg)
+
+## Cognitive Load: Why You Can't Reappraise When You're Overwhelmed
+
+Petter et al. (2025) identified cognitive load as a strategy selection dimension. High load means fewer cognitive resources — you can't reframe a situation when you're already tracking four active drives, three competing goals, and two theory-of-mind models of other characters. You can only do the simple thing: look away, or hold it in.
+
+The `CognitiveLoadEstimator` computes a per-tick load proxy from three sources the system already tracks — active drives from the drive orchestrator, active goals from the goal pipeline, and theory-of-mind tracking targets from the mental model system. The sum determines load level: under 4 is LOW, 4–7 is MODERATE, 8+ is HIGH.
+
+The load level goes into the LLM prompt alongside the regulation effort and emotion list. The system prompt tells the LLM that HIGH load constrains strategy: prefer attentional deployment or response modulation (low cognitive cost), avoid cognitive change or situation selection (require deliberation).
+
+The eval confirmed it works. With HIGH load (drives=4, goals=3, ToM=3), the LLM selected ATTENTIONAL_DEPLOYMENT in all three runs. With LOW load (drives=1, goals=0, ToM=0), it selected COGNITIVE_CHANGE in all three. The load signal is strong enough to override the default strategy preferences — which is exactly what the literature predicts.
+
+## Suppression Fatigue: The Cost Nobody Models
+
+Most computational emotion systems treat regulation as free. Suppress anger on tick 5, suppress it again on tick 6, suppress it on tick 200 — same cost, same capacity, same result. Bosse et al. (2010) knew better. Their model includes physiological cost accumulation — each regulation tick reduces available capacity, and that capacity only recovers when regulation stops.
+
+The `RegulationFatigueTracker` implements this directly. Each time regulation fires, fatigue accumulates proportional to the effort: `fatigue += effort × 0.15`. When regulation doesn't fire, fatigue recovers linearly: `fatigue -= 0.05`. The effective α — the character's willingness and ability to regulate — decays proportionally: `effective_α = baseline_α × (1 - fatigue)`.
+
+A character with a baseline α of 0.5 who suppresses at moderate effort for eight consecutive ticks will see their effective α decay from 0.50 to zero. At that point, `regulationEffort` computes to zero regardless of how intense the emotion is. The system stops trying. Not because it was told to — because the capacity is genuinely exhausted.
+
+The LLM sees this happening. The prompt includes fatigue as a percentage, with escalating language: above 70%, it warns that "suppression may fail entirely." In the eval, 90% fatigue produced response modulation at 0.09–0.12 effectiveness — the LLM's narratives described characters whose "effort finds almost nothing left to draw on" and who "clench their jaw so hard their teeth ache, trying to swallow the fury back down." Without fatigue, the same scenario produced cognitive change at 0.34–0.36 effectiveness — a qualitatively different response.
+
+This is the kind of dynamic that produces emergent character behaviour. The suppression fatigue model does not script the breakthrough moment. It creates the conditions under which the LLM — seeing the accumulating cost, the declining capacity, the approaching exhaustion — produces a narrative where regulation fails. The moment is emergent from the model. The model just has to be correct enough to create the right pressure.
+
+## The Monitoring Loop: When The Current Strategy Isn't Working
+
+Gross's 2015 extended process model adds a control loop that the original 1998 model lacked: identify the discrepancy, select a strategy, implement it, *monitor whether it's working*, loop back if not. This is not a one-shot decision. It's continuous evaluation.
+
+The `RegulationMonitor` tracks effectiveness across ticks per agent. If effectiveness declines for three consecutive ticks — 0.7, then 0.5, then 0.3 — it emits a `StrategyFailureSignal`. If effectiveness drops below 0.1, it marks the result as a breakthrough — regulation has failed entirely.
+
+The failure signal goes into the next tick's LLM prompt: "⚠ STRATEGY FAILING: RESPONSE_MODULATION effectiveness declined from 0.70 to 0.30 over 3 ticks. Consider switching strategies." The LLM reads this and changes course. In the eval, every run switched from RESPONSE_MODULATION to COGNITIVE_CHANGE when given a failure signal — a clean strategy transition driven by monitored decline, not by a scripted trigger.
+
+## The Composition: Why This Matters
+
+Each of these systems is independently useful. Cognitive load makes strategy selection context-sensitive. Fatigue makes sustained regulation realistic. The monitor makes strategy switching principled. But the interesting behaviour emerges from their composition.
+
+Consider a character in a high-stakes social confrontation. Cognitive load is HIGH — they're tracking multiple adversaries, managing their own goals, modelling what others think of them. The load estimator biases toward simple strategies: suppression. The character holds back their anger.
+
+Fatigue starts accumulating. Each tick of suppression costs something. Effective α decays. The regulation effort — which was already constrained by high load — drops further as fatigue accumulates. The LLM sees both signals: high load saying "you can only do the simple thing" and rising fatigue saying "you're running out of ability to do even that."
+
+The monitor watches effectiveness decline: 0.60, 0.45, 0.30. Three consecutive drops. It emits a failure signal. The LLM gets: "your suppression strategy is failing, and you're at 75% fatigue, and your cognitive load is HIGH." The only viable move is attentional deployment — look away, think about something else, anything to break the cycle.
+
+If that fails too — if the situation keeps demanding attention and the emotion keeps rising — fatigue hits 100%. α goes to zero. Regulation effort computes to nothing. The held-back emotion breaks through. The character erupts.
+
+None of this is scripted. No trigger file says "on tick 12, stop suppressing." The cascade emerges from four systems doing their individual jobs: load biasing strategy, fatigue degrading capacity, the monitor detecting failure, and the LLM synthesising all three signals into behaviour. The literature provided the models. The engineering provided the composition.
 
 ## What's Next
 
-The intensity mapping needs fixing before regulation becomes visible in full scenario runs. Once emotions reach the operating range consistently, the scenario itself needs engineering — not scripted triggers, but a format change.
+The intensity mapping is fixed. Three of the four regulation subsystems previewed in the original version of this entry are now implemented. What remains:
 
-The current scenario is open-ended exploration. Characters wander rooms, examine objects, occasionally talk. Emotional confrontation is possible but not structural. The plan is to adopt a Traitors-style game format: day phases where characters move through spatial rooms and make discoveries, night phases where the villain acts, and roundtable discussions where every character must publicly accuse or defend. The format guarantees emotional confrontation at regular intervals — you can't avoid the roundtable, and you can't stay silent during it.
-
-The spatial model matters too. Right now a character is "in the library" — a flat location. Moving to x-positions within rooms creates walk-past triggers (you hear the beam creak as you pass under it) and examine triggers (you open the safe and find the documents). One dimension is enough — the room is a corridor, and every character who walks from one end to the other must pass through every trigger zone. No spatial luck, no near-misses.
-
-But the regulation system itself has four missing pieces that change the quality of what it produces:
-
-**Suppression fatigue.** Bosse models physiological cost accumulation from repeated regulation. A character who suppresses anger for ten ticks should experience degrading regulatory capacity — not just declining effectiveness per the LLM's judgment, but a mechanical reduction in their ability to regulate at all. The dramatic moment this produces: suppression finally fails. The held-back emotion breaks through. That's emergent from the fatigue model, not scripted.
-
-**Automatic regulation.** Most regulation decisions are predictable from personality. High neuroticism → suppression. High openness → reappraisal. These habitual responses don't need an LLM call. Handling the predictable cases mechanically reserves LLM reasoning for the complex situations — novel contexts, conflicting personality signals, the moments where the interesting choices happen. It also cuts per-tick latency significantly.
+**Automatic regulation.** Most regulation decisions are predictable from personality. High neuroticism → suppression. High openness → reappraisal. Handling the predictable cases mechanically reserves LLM reasoning for complex situations — novel contexts, conflicting personality signals, the moments where the interesting choices happen. It also cuts per-tick latency significantly.
 
 **Proactive regulation.** All current regulation is reactive — it fires after appraisal detects an emotional discrepancy. But situation selection is fundamentally proactive: "I know that room will make me angry, so I avoid it." A character who was humiliated in the library last round should feel reluctance to enter the library this round — not because appraisal fires (they haven't entered yet), but because emotional memory drives avoidance. This connects regulation to the spatial model — the avoidance has somewhere to go.
 
-**The monitoring loop.** Gross 2015 adds continuous re-evaluation: is the current strategy working? If a character has been suppressing for three ticks with declining effectiveness (0.6 → 0.4 → 0.2), the system should recognise suppression is failing and switch — to cognitive change, to attentional deployment, to something that costs less. Combined with suppression fatigue, this produces the escalation dynamics that make regulation feel alive rather than mechanical.
+**Social regulation.** A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These interpersonal strategies require the intrapersonal system to exist first — you need to know what you're feeling before you can decide to seek comfort for it.
 
-Social regulation remains the most dramatically interesting extension. A character who confides in a friend to manage anxiety. A character who deliberately provokes someone to manage their own boredom. A character who withdraws from interaction to cool down. These interpersonal strategies require the intrapersonal system to exist first — you need to know what you're feeling before you can decide to seek comfort for it.
+The scenario format also needs engineering. The current open-ended exploration doesn't guarantee emotional confrontation. A Traitors-style game format — day phases with spatial exploration, night phases with villain action, roundtable discussions where every character must publicly accuse or defend — would guarantee the emotional pressure that makes regulation visible and interesting.
 
-Eventually, the stable patterns get encoded as CAPS nodes — the attractor dynamics that make characters settle into personality-consistent regulation styles without per-tick LLM calls. That's the consolidation step: observe what the LLM does, validate it empirically, then mechanise the parts that become formulaic. Quality first. Mechanise what's proven.
+Eventually, the stable patterns get encoded as CAPS nodes — the attractor dynamics that make characters settle into personality-consistent regulation styles without per-tick LLM calls. Observe what the LLM does, validate it empirically, mechanise the parts that become formulaic. Quality first. Mechanise what's proven.
 
 ---
 
