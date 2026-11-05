@@ -28,5 +28,5 @@ flyway-next-v:
     - [x] Task 8: EmotionRegulationGoalParticipant
   - [x] Batch 6: Integration
     - [x] Task 9: Wacky Manor configuration
-  - [ ] Batch 7: Eval
-    - [ ] Task 10: AB evaluation baseline run
+  - [x] Batch 7: Eval
+    - [x] Task 10: AB evaluation baseline run
