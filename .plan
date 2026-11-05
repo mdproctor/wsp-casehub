@@ -10,24 +10,7 @@ covers: 590
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-
 evidence-era: true
+
 ## Queue
-- [ ] casehubio/neocortex#590 — Issue #590 ← active
-  - [x] Batch 1: DataModel
-    - [x] Task 1: EmotionRegulationStrategy and EmotionRegulationResult
-    - [x] Task 2: Add regulationEnabled to CognitionConfig
-  - [x] Batch 2: Participant
-    - [x] Task 3: EmotionRegulationTickParticipant with activation gate
-    - [x] Task 4: LLM generation phase
-    - [x] Task 5: MindMap persistence and history retrieval
-  - [x] Batch 3: Wiring
-    - [x] Task 6: Wire into CognitionCore
-  - [x] Batch 4: Rendering
-    - [x] Task 7: Regulation-aware drive rendering
-  - [x] Batch 5: Goals
-    - [x] Task 8: EmotionRegulationGoalParticipant
-  - [x] Batch 6: Integration
-    - [x] Task 9: Wacky Manor configuration
-  - [x] Batch 7: Eval
-    - [x] Task 10: AB evaluation baseline run
+- [x] casehubio/neocortex#590 — Issue #590
