@@ -59,7 +59,7 @@ Based on end-to-end eval results, design `deriveRegulationDefaults()` for Cognit
 
 **User direction:** "can we look at this through first principles and ensure it's a decision made in empirical testing and literature" — do not pre-decide architecture without evidence.
 
-**Key insight for Phase 2:** Shame is memory-triggered (previous failures compound via salience-scored retrieval) and relationship-modulated (failing your child vs. a nephew produces qualitatively different shame — relational closeness and obligation structure change what the self-evaluation is about). These dimensions connect to the existing memory system and social cognition model. Phase 2 should consider whether the predictor or the LLM guidance needs memory/relationship context alongside disposition axes.
+**Key insight for Phase 2 (NOT implemented — design observations only):** Shame has three dimensions the current predictor doesn't account for: (1) memory-triggered compounding (previous failures amplify current intensity via salience-scored retrieval), (2) relationship-modulated intensity (failing your child vs. a nephew — relational closeness changes what the self-evaluation is about), (3) personality-gated depth (Cluster-B grandiosity+callousness can produce surface-level shame that doesn't persist). The building blocks exist in the platform (memory system, social cognition model, PersonalityFacets/CDE expression styles) but the regulation pipeline doesn't consume them yet. See research doc observation #5 for full detail.
 
 ### Step 3: Implement Phase 2
 
