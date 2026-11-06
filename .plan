@@ -13,10 +13,10 @@ flyway-next-v:
 
 ## Queue
 - [ ] casehubio/neocortex#830 — Issue #830 ← active
-  - [ ] Batch 1: Personality-Aware Fall-Through
-    - [ ] Task 1: Add axes to buildUserMessage
-    - [ ] Task 2: Add self-conscious guidance
-  - [ ] Batch 2: Wire Tick Participant
-    - [ ] Task 3: Pass axes through tick participant
-  - [ ] Batch 3: Eval and Document
-    - [ ] Task 4: Run judge eval and write findings
+  - [x] Batch 1: Personality-Aware Fall-Through
+    - [x] Task 1: Add axes to buildUserMessage
+    - [x] Task 2: Add self-conscious guidance
+  - [x] Batch 2: Wire Tick Participant
+    - [x] Task 3: Pass axes through tick participant
+  - [x] Batch 3: Eval and Document
+    - [x] Task 4: Run judge eval and write findings
