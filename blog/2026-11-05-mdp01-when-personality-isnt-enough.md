@@ -69,6 +69,8 @@ Shame is self-evaluative. The agent failed its own standards. Suppression does n
 
 This is not a limitation of the predictor's design. It is a property of the psychological model. Some personality-emotion combinations do not have a mechanically predictable resolution. A suppressor facing shame needs the LLM to read the specific situation — what standard was violated, how public the failure was, what the social context permits — and make a contextual judgment that no categorical personality model can replicate.
 
+Three directions remain open. Temporal regulation — suppress now, reappraise when safe — models what avoidant people actually do with shame and might score differently because it acknowledges the reprocessing need rather than treating suppression as a terminal state. A continuous derivation model, where the CognitiveDerivationEngine computes reappraisal capacity as a number rather than a boolean, might find that a cooperative-avoidant personality has enough capacity (0.3 on a 0-1 scale) for shame's mild reframing requirement even if it lacks the capacity for full situational reappraisal. And improving the LLM's system prompt with personality-aware shame guidance addresses the problem from the other end — making the fall-through path smarter rather than trying to eliminate it.
+
 ## The Architecture Correction
 
 I initially built the predictor to bypass the LLM entirely — mechanical strategy selection plus template narratives. "You hold the feeling in check, keeping your expression steady despite the inner turbulence." Three static strings for three strategies.
