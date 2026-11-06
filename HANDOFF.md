@@ -59,6 +59,8 @@ Based on end-to-end eval results, design `deriveRegulationDefaults()` for Cognit
 
 **User direction:** "can we look at this through first principles and ensure it's a decision made in empirical testing and literature" — do not pre-decide architecture without evidence.
 
+**Key insight for Phase 2:** Shame is memory-triggered (previous failures compound via salience-scored retrieval) and relationship-modulated (failing your child vs. a nephew produces qualitatively different shame — relational closeness and obligation structure change what the self-evaluation is about). These dimensions connect to the existing memory system and social cognition model. Phase 2 should consider whether the predictor or the LLM guidance needs memory/relationship context alongside disposition axes.
+
 ### Step 3: Implement Phase 2
 
 Follows the standard flow: brainstorm → writing-plans → executing-plans.

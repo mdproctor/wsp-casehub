@@ -35,52 +35,17 @@ The published literature is specific about this. Webb, Miles, and Sheeran's 2012
 
 This creates the fundamental mismatch the predictor identified. Shame demands engagement with the self-evaluation (cognitive change). Avoidant personalities cannot execute cognitive change (they lack the reflective traits). No single strategy satisfies both constraints. The predictor was right to abstain.
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 400" style="max-width: 700px; font-family: 'Segoe UI', system-ui, sans-serif;">
-  <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
-    </marker>
-  </defs>
-  <rect width="700" height="400" fill="#fafaf9" rx="8"/>
-  <text x="350" y="30" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">The Shame Mismatch</text>
+And shame compounds in ways other emotions do not. Unlike anger or fear, which are responses to present events, shame is memory-triggered. A character who was publicly humiliated last round doesn't just feel shame about this failure — they feel the accumulated weight of every similar failure their memory retrieves. The salience-scored memory system surfaces previous shame episodes during appraisal, and each retrieved memory amplifies the current intensity. An avoidant personality facing compounding shame has even less capacity for the reappraisal that shame requires, because the cognitive resources are consumed by the memory flood.
 
-  <!-- Left: What shame needs -->
-  <rect x="40" y="60" width="280" height="130" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
-  <text x="180" y="85" text-anchor="middle" font-size="12" font-weight="600" fill="#92400e">What Shame Needs</text>
-  <text x="60" y="110" font-size="11" fill="#78350f">Engage with the self-evaluation</text>
-  <text x="60" y="130" font-size="11" fill="#78350f">Reframe what the failure means</text>
-  <text x="60" y="150" font-size="11" fill="#78350f">Question whether the standard was fair</text>
-  <text x="60" y="175" font-size="11" font-weight="600" fill="#92400e">= Cognitive Change (reappraisal)</text>
+Shame is also relationship-modulated. Missing your nephew's birthday produces a different quality and intensity of shame than missing your own child's — the self-judgment scales with relational closeness, obligation depth, and the specific role you occupy in that relationship. A character who fails a casual acquaintance's expectations feels mild discomfort. A character who fails someone they are responsible for — a mentee, a dependent, a partner — feels shame that cuts to the core of their self-concept as a protector or provider. The relationship type doesn't just amplify intensity; it changes what the self-evaluation is about. "I forgot" vs. "I failed them as a parent."
 
-  <!-- Right: What suppressor can do -->
-  <rect x="380" y="60" width="280" height="130" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
-  <text x="520" y="85" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">What the Suppressor Can Do</text>
-  <text x="400" y="110" font-size="11" fill="#1e3a5f">Contain visible expression</text>
-  <text x="400" y="130" font-size="11" fill="#1e3a5f">Redirect attention away</text>
-  <text x="400" y="150" font-size="11" fill="#1e3a5f">Avoid the triggering context</text>
-  <text x="400" y="175" font-size="11" font-weight="600" fill="#1e40af">= Response Modulation / Distraction</text>
+The compounding deepens with repeated promise-violation. A character who misses their child's birthday once feels shame. A character who misses it again, after explicitly promising they would be there this time, feels shame layered on broken trust, layered on the memory of the previous failure and the previous promise. Each cycle doesn't just add intensity — it undermines the character's self-narrative as someone who keeps their word. The shame isn't just about this failure; it's about the pattern the failures reveal.
 
-  <!-- Gap in middle -->
-  <line x1="325" y1="90" x2="375" y2="90" stroke="#ef4444" stroke-width="2"/>
-  <line x1="325" y1="100" x2="375" y2="100" stroke="#ef4444" stroke-width="2"/>
-  <line x1="325" y1="110" x2="375" y2="110" stroke="#ef4444" stroke-width="2"/>
-  <line x1="325" y1="120" x2="375" y2="120" stroke="#ef4444" stroke-width="2"/>
-  <line x1="325" y1="130" x2="375" y2="130" stroke="#ef4444" stroke-width="2"/>
-  <line x1="325" y1="140" x2="375" y2="140" stroke="#ef4444" stroke-width="2"/>
-  <line x1="325" y1="150" x2="375" y2="150" stroke="#ef4444" stroke-width="2"/>
-  <text x="350" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="#dc2626">Mismatch</text>
+But personality mediates how deeply shame lands. The same promise-violation cycle that produces accumulating, identity-threatening shame in a conscientious personality produces surface-level discomfort in some Cluster-B profiles. High grandiosity can reframe failure as someone else's fault ("they should understand how important my work is"). High callousness can simply not register the other's hurt as relevant to self-evaluation. The PersonalityFacets system in the CDE already models these dimensions — grandiosity, callousness, manipulativeness — and the expression style derivations show how they interact. A character with high grandiosity and high callousness may experience shame as a brief social inconvenience rather than a self-concept threat. The regulation system needs to account for this: the same emotion type (SHAME) requires different regulation not just because of disposition axes, but because of how deeply the personality allows the shame to penetrate.
 
-  <!-- Bottom: Resolution -->
-  <rect x="120" y="220" width="460" height="150" rx="6" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
-  <text x="350" y="248" text-anchor="middle" font-size="12" font-weight="600" fill="#065f46">Temporal Containment (Nathanson 1992)</text>
-  <text x="140" y="275" font-size="11" fill="#064e3b">Phase 1: Contain expression now (personality-congruent)</text>
-  <text x="140" y="295" font-size="11" fill="#064e3b">Phase 2: Self-evaluation processed when safe (emotion-congruent)</text>
-  <text x="140" y="325" font-size="11" font-style="italic" fill="#065f46">"Not suppression-as-avoidance. Staged regulation where</text>
-  <text x="140" y="345" font-size="11" font-style="italic" fill="#065f46">containment enables later reappraisal."</text>
+This combination — memory retrieval compounding the current episode, relationship structure shaping its meaning, personality depth determining how far the self-evaluation reaches — makes shame qualitatively different from other negative emotions in the regulation pipeline. It recruits its own history as fuel, the relational context determines how hot that fuel burns, and personality determines whether the fire reaches the foundation or stays on the surface.
 
-  <line x1="180" y1="195" x2="250" y2="220" stroke="#64748b" stroke-width="1" marker-end="url(#arrowhead)"/>
-  <line x1="520" y1="195" x2="450" y2="220" stroke="#64748b" stroke-width="1" marker-end="url(#arrowhead)"/>
-</svg>
+![The shame mismatch — what shame needs vs what the suppressor can do, resolved by temporal containment](images/shame-mismatch.svg)
 
 ## Temporal Containment
 
@@ -100,49 +65,7 @@ Second: when the dominant emotion is self-conscious (shame or remorse) and no st
 
 Both changes follow the existing pattern in the user message builder: conditional sections that appear only when relevant, the same way cognitive load, fatigue, and strategy failure signals are injected. The system prompt stays generic. The personality-specific context goes in the user message alongside the emotions and history.
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 380" style="max-width: 700px; font-family: 'Segoe UI', system-ui, sans-serif;">
-  <rect width="700" height="380" fill="#fafaf9" rx="8"/>
-  <text x="350" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">Regulation Pipeline: Before and After Fall-Through Improvement</text>
-
-  <!-- Before -->
-  <text x="40" y="65" font-size="12" font-weight="600" fill="#64748b">Before</text>
-  <rect x="40" y="80" width="130" height="45" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
-  <text x="105" y="107" text-anchor="middle" font-size="10" fill="#475569">Predictor</text>
-  <line x1="170" y1="102" x2="210" y2="102" stroke="#94a3b8" marker-end="url(#arrowhead)"/>
-  <text x="190" y="95" text-anchor="middle" font-size="9" fill="#ef4444">empty</text>
-
-  <rect x="210" y="80" width="200" height="45" rx="4" fill="#fef2f2" stroke="#fca5a5"/>
-  <text x="310" y="100" text-anchor="middle" font-size="10" fill="#991b1b">LLM: emotions + intensity</text>
-  <text x="310" y="114" text-anchor="middle" font-size="9" fill="#b91c1c">no personality context</text>
-  <line x1="410" y1="102" x2="450" y2="102" stroke="#94a3b8" marker-end="url(#arrowhead)"/>
-
-  <rect x="450" y="80" width="120" height="45" rx="4" fill="#fef2f2" stroke="#fca5a5"/>
-  <text x="510" y="107" text-anchor="middle" font-size="10" fill="#991b1b">Uninformed choice</text>
-
-  <!-- After -->
-  <text x="40" y="170" font-size="12" font-weight="600" fill="#64748b">After</text>
-  <rect x="40" y="185" width="130" height="45" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
-  <text x="105" y="212" text-anchor="middle" font-size="10" fill="#475569">Predictor</text>
-  <line x1="170" y1="207" x2="210" y2="207" stroke="#94a3b8" marker-end="url(#arrowhead)"/>
-  <text x="190" y="200" text-anchor="middle" font-size="9" fill="#f59e0b">empty + axes</text>
-
-  <rect x="210" y="185" width="200" height="80" rx="4" fill="#ecfdf5" stroke="#6ee7b7"/>
-  <text x="310" y="205" text-anchor="middle" font-size="10" fill="#065f46">LLM: emotions + intensity</text>
-  <text x="310" y="220" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">+ disposition axes</text>
-  <text x="310" y="235" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">+ shame guidance</text>
-  <text x="310" y="250" text-anchor="middle" font-size="9" fill="#047857">(when self-conscious emotion)</text>
-
-  <line x1="410" y1="225" x2="450" y2="225" stroke="#94a3b8" marker-end="url(#arrowhead)"/>
-
-  <rect x="450" y="197" width="210" height="55" rx="4" fill="#ecfdf5" stroke="#6ee7b7"/>
-  <text x="555" y="218" text-anchor="middle" font-size="10" fill="#065f46">Personality-aware choice</text>
-  <text x="555" y="235" text-anchor="middle" font-size="9" fill="#047857">Temporal containment for shame</text>
-
-  <!-- Annotations -->
-  <rect x="40" y="300" width="620" height="60" rx="4" fill="#fffbeb" stroke="#fbbf24" stroke-dasharray="4,2"/>
-  <text x="350" y="320" text-anchor="middle" font-size="11" fill="#92400e">The predictor still abstains — its decision boundary is unchanged.</text>
-  <text x="350" y="340" text-anchor="middle" font-size="11" fill="#92400e">What changed is what happens after abstention: the LLM inherits the personality context.</text>
-</svg>
+![Regulation pipeline before and after fall-through improvement](images/fall-through-before-after.svg)
 
 ## What We Cannot Measure Yet
 
