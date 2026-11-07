@@ -31,10 +31,16 @@ This session executed the Phase 2 implementation plan: continuous weights from B
 
 ## Next Action
 
-1. **Run the eval:** `mvn -f neocortex/caps-llm-classifier/pom.xml test -Pllm-eval -Dtest="RegulationEndToEndEvalTest" -s neocortex/.mvn/slot-settings.xml`
+**Run `work continue`.** Remaining work on #830 before advancing:
+
+1. **Run the eval:** `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/caps-llm-classifier/pom.xml test -Pllm-eval -Dtest="RegulationEndToEndEvalTest" -s neocortex/.mvn/slot-settings.xml`
 2. **Review results:** Check `target/regulation-e2e-judge-results.json` — verify original 8 cases maintain >= 4.4 mean, 3 shame cases score >= 4, shame depth >= 3
 3. **Calibrate if needed:** Adjust weight table values or thresholds based on eval results
 4. **Clean up:** Remove old `predict(DispositionAxes, ...)` overload and `isSuppressor`/`isReappraiser` methods after confirming all callers migrated
+5. **Then `work next`** to advance the queue
+
+### Filed this session
+- casehubio/neocortex#844 — Regulation prediction feedback loop (track outcomes to validate personality-based predictions). Added to queue.
 
 ## Branches
 

@@ -40,3 +40,4 @@ flyway-next-v:
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
+- [ ] casehubio/neocortex#844 — Regulation prediction feedback loop
