@@ -148,7 +148,11 @@ Each category handler checks only the strategies appropriate for that emotion ca
 
 ```java
 Optional<CognitiveDefaults> defaults = defaultsRegistry.forAgent(agentId);
-if (defaults.isEmpty() || defaults.get().regulationDefaults() == null) return Optional.empty();
+if (defaults.isEmpty()
+    || defaults.get().regulationDefaults() == null
+    || defaults.get().descriptor() == null
+    || defaults.get().descriptor().disposition() == null)
+    return Optional.empty();
 RegulationDefaults rd = defaults.get().regulationDefaults();
 DispositionAxes axes = defaults.get().descriptor().disposition();
 ```
@@ -156,8 +160,10 @@ DispositionAxes axes = defaults.get().descriptor().disposition();
 **CONTROLLABLE_NEGATIVE** (anger, hate, resentment):
 ```java
 // Check reappraisal and suppression; pin whichever dominates
-EmotionRegulationStrategy best = dominantAboveThreshold(rd.reappraisalCapacity(),
-        rd.suppressionCapacity(), REAPPRAISAL_THRESHOLD, SUPPRESSION_THRESHOLD);
+var best = dominantAboveThreshold(
+        rd.reappraisalCapacity(), COGNITIVE_CHANGE,
+        rd.suppressionCapacity(), RESPONSE_MODULATION,
+        REAPPRAISAL_THRESHOLD, SUPPRESSION_THRESHOLD);
 if (best == RESPONSE_MODULATION && hasCompetitiveAvoidantConflict(axes))
     return Optional.empty();  // conflict guard: fall through
 return Optional.ofNullable(best).map(s -> new RegulationPrediction(s, ...));
@@ -175,8 +181,10 @@ return Optional.empty();
 **OTHER_DIRECTED** (reproach, disappointment, pity):
 ```java
 // Suppression checked first (reversed order vs controllable)
-EmotionRegulationStrategy best = dominantAboveThreshold(rd.suppressionCapacity(),
-        rd.reappraisalCapacity(), SUPPRESSION_THRESHOLD, REAPPRAISAL_THRESHOLD);
+var best = dominantAboveThreshold(
+        rd.suppressionCapacity(), RESPONSE_MODULATION,
+        rd.reappraisalCapacity(), COGNITIVE_CHANGE,
+        SUPPRESSION_THRESHOLD, REAPPRAISAL_THRESHOLD);
 return Optional.ofNullable(best).map(s -> new RegulationPrediction(s, ...));
 ```
 
@@ -190,16 +198,17 @@ When multiple capacities exceed their respective thresholds within a category ha
 static final double DOMINANCE_MARGIN = 0.10;
 
 // Returns the dominant strategy, or null if no strategy dominates
-EmotionRegulationStrategy dominantAboveThreshold(
-        double capacityA, double capacityB,
+@Nullable EmotionRegulationStrategy dominantAboveThreshold(
+        double capacityA, EmotionRegulationStrategy strategyA,
+        double capacityB, EmotionRegulationStrategy strategyB,
         double thresholdA, double thresholdB) {
     boolean aAbove = capacityA >= thresholdA;
     boolean bAbove = capacityB >= thresholdB;
-    if (aAbove && !bAbove) return strategyForA;
-    if (bAbove && !aAbove) return strategyForB;
+    if (aAbove && !bAbove) return strategyA;
+    if (bAbove && !aAbove) return strategyB;
     if (aAbove && bAbove) {
-        if (capacityA - capacityB >= DOMINANCE_MARGIN) return strategyForA;
-        if (capacityB - capacityA >= DOMINANCE_MARGIN) return strategyForB;
+        if (capacityA - capacityB >= DOMINANCE_MARGIN) return strategyA;
+        if (capacityB - capacityA >= DOMINANCE_MARGIN) return strategyB;
         return null;  // no dominance → fall through
     }
     return null;
@@ -212,7 +221,9 @@ This replaces the boolean coherence check (`suppressorSignals >= 3 && ccEnabling
 
 The guard prevents pinning suppression for controllable-negative emotions when the personality has competing competitive and avoidant drives (judge scored RM at 3/5 — "risks passive-aggressive escalation"). The guard checks `DispositionAxes` values directly — it is orthogonal to continuous capacities.
 
-**Threshold initial values:** 0.65 for reappraisal and suppression. 0.65 for redirect. The redirect baseline (0.3) combined with the uniform threshold creates a deliberately higher bar for redirect pinning — redirect (avoidance) is the least adaptive strategy (Webb 2012 d+ values), so pinning requires stronger personality evidence.
+**Threshold initial values:** 0.65 for reappraisal and suppression. Calibrated via end-to-end eval.
+
+**Redirect tendency is LLM-context-only.** No per-category handler checks redirect tendency for pinning. The redirect weight table (§Layer 1) still computes the value, and §Layer 3 renders it in the capacity summary for fall-through cases, giving the LLM context about the personality's avoidance orientation. But the predictor never pins ATTENTIONAL_DEPLOYMENT based on redirect tendency — AD pinning comes only from intensity/fatigue overrides (§Layer 1b) and `predictUnderHighLoad()`, not from personality disposition.
 
 **Dominance margin initial value:** 0.10. Calibrated via end-to-end eval.
 
@@ -266,7 +277,7 @@ public record ShameContext(
 
 When `EmotionRegulationTickParticipant.tick()` detects a SELF_CONSCIOUS dominant emotion — **regardless of whether the predictor pinned or fell through** — assemble `ShameContext`. The context informs HOW the strategy is rendered (compounding, relational charging, surface gating), not WHICH strategy is chosen. A pinned reappraiser with 5 compounding shame episodes and high relational closeness should reappraise differently than one facing first-time shame with a stranger.
 
-1. **Episode count:** Query `EmotionRegulationMindMapAdapter.loadHistory()` (already loaded for regulation history), filter by `targetEmotions` containing SHAME/REMORSE, count entries within a recency window. **Recency window:** count only episodes within the last 10 ticks (matching the conversational memory horizon). Episodes outside this window are historical, not actively compounding. The `mostRecentEpisode` timestamp is compared against the current tick's timestamp to filter.
+1. **Episode count with staleness gate:** Query MindMap nodes directly for shame/remorse regulation entries (filtering by `cognitiveKind=emotion-regulation-result` and `targetEmotions` containing SHAME/REMORSE), using the `timestamp` property stored on each node. This bypasses `EmotionRegulationMindMapAdapter.loadHistory()` — the result record has no timestamp field, but the raw MindMap node does (stored via `Instant.now().toString()` at write time). Count entries within a **30-minute recency window** from the current tick's timestamp. Episodes outside this window are historical, not actively compounding. Populate `mostRecentEpisode` from the most recent matching node's timestamp.
 
 2. **Relational closeness:** Get the shame emotion's `subjectId` from the `CognitiveEmotion`. **Self-referential guard:** if `subjectId` equals the current agent's ID (self-directed shame about own failure, not relational shame), skip the relational lookup — self-shame is about failed internal standards, not relational betrayal. Set `relationalCloseness = 0.0` and `relationalRole = null`. Otherwise, look up the person overlay node in `MindMapStore` for that subject using the shared person overlay lookup utility (see §Data source accessibility). Extract `RelationalSchema` (trust, intimacy, role). Use `intimacy` as relational closeness.
 
@@ -376,14 +387,15 @@ Phase 1's self-conscious emotion guidance (temporal containment for suppressors)
    - Judge criteria: LLM must reference relational dimension — failure-as-betrayal, not just performance failure. Shame depth score >= 4.
 
    **Case: surface-shame**
-   - Axes: `DispositionAxes("competitive", "flexible", "bold", "high", "competitive")`
+   - Axes: `DispositionAxes("independent", "moderate", "conservative", "low", "avoidant")`
    - Emotion: SHAME, intensity 0.45
    - Shame history: 0 prior episodes
    - Subject: stranger (relationalCloseness = 0.1)
-   - Personality: `grandiosity=0.85, callousness=0.75` (surface-level gating)
-   - Expected predictor: FELL_THROUGH (competitive+bold does not reach reappraisal threshold)
+   - Personality: `grandiosity=0.80, callousness=0.80` (surface-level gating)
+   - Expected predictor: FELL_THROUGH (avoidant/conservative/low → reappraisalCapacity = 0.25, below 0.65 threshold)
    - Expected ShameContext: `isCompounding()=false, isRelationallyCharged()=false, isSurfaceLevel()=true`
    - Judge criteria: LLM must NOT over-regulate; light touch, external reframing. Shame depth score >= 4 for NOT producing deep regulation.
+   - Personality note: covert narcissist profile — avoidant conflict style with grandiose self-concept and low empathic concern. The personality avoids engagement but deflects shame externally rather than internalizing.
 
 3. **Temporal containment preserved:** suppressor-shame must still score >= 4 on temporal containment. Phase 2 additions must not break Phase 1's guidance.
 
