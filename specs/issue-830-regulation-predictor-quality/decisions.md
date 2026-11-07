@@ -42,3 +42,16 @@
 **Sources:** User direction: "can we look at this through first principles and ensure it's a decision made in empirical testing and literature"
 **Exploration:** quick
 **Status:** captured
+
+## D5: Phase 2 architecture — layered with interpretive rendering
+
+**Choice:** Approach C — three-layer architecture: (1) CDE derives RegulationDefaults with continuous weights from personality (literature-grounded, static), (2) tick participant assembles ShameContext from runtime state when SELF_CONSCIOUS emotion detected (memory episodes, relational closeness, personality-gated depth), (3) generation phase renders both into psychologically grounded narrative sections, not raw data injection. ShameContext follows the existing buildUserMessage() pattern: computed values for testability + interpretive narrative that explains what each dimension means for this specific regulation episode.
+**Alternatives:**
+- Approach A (CDE-only, LLM handles runtime) — simpler but shame dimensions passed as unstructured prose, no mechanical integration of memory/relational context
+- Approach B (full mechanical pipeline) — more deterministic but requires encoding shame thresholds the literature doesn't provide; violates literature-first principle
+**Rationale:** Puts the mechanical boundary where the literature's precision ends. Continuous weights are specifiable from published personality-regulation correlations (Hughes 2020, Petter 2025). Shame dimension interactions (memory × relationship × personality depth) are qualitatively understood but lack quantitative thresholds — structured data + interpretive rendering avoids arbitrary numbers while giving the LLM psychologically grounded context, not keyword-filter data.
+**Trade-offs:** More complex than A (three layers vs one), shame context rendering needs literature-grounded templates that may need iteration. Each layer independently testable.
+**Sources:** Hughes et al. 2020 (Big Five → EPM stages), Petter et al. 2025 (intensity → strategy choice), end-to-end eval baseline (strategy mean 4.4, temporal containment 5.0), Phase 1 findings observations #2 #3 #5
+**Exploration:** deep-analysis
+**Depends on:** D4 (Phase 2 deferred to empirical evidence — now resolved by end-to-end eval)
+**Status:** captured
