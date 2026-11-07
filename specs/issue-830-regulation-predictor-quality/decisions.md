@@ -55,3 +55,16 @@
 **Exploration:** deep-analysis
 **Depends on:** D4 (Phase 2 deferred to empirical evidence — now resolved by end-to-end eval)
 **Status:** captured
+
+## D6: Weight table derivation — literature-ordered, empirically calibrated
+
+**Choice:** Derive initial weight tables from Big Five → regulation capacity mapping using Barańczuk (2019) meta-analytic correlations (132 studies, 46,345 participants). Disposition axes → Big Five approximation → regulation capacity direction and relative magnitude. Specific numerical values validated empirically via end-to-end eval.
+**Alternatives:**
+- Empirical-first (start with issue sketch values, tune) — faster but unprincipled initial values
+- Full quantitative derivation from r values — not feasible; meta-analytic r for habitual use ≠ capacity/effectiveness (Hughes 2020 distinction)
+**Rationale:** Literature constrains the ordering (analytical > cooperative > avoidant for reappraisal capacity) and relative magnitude (Openness r=0.20 vs Agreeableness r=0.18 — similar; vs Neuroticism r=-0.19 — opposite direction). But translating meta-analytic r to exact computational weights involves judgment the data doesn't fully constrain. The eval closes the gap.
+**Trade-offs:** Initial weights are informed guesses within literature-constrained bounds; may need 2-3 eval iterations to calibrate
+**Sources:** Barańczuk 2019 (meta-analysis, r values for Big Five × 8 strategies), Hughes et al. 2020 (capacity vs use distinction, EPM stages), Petter et al. 2025 (intensity → strategy choice)
+**Exploration:** deep-analysis
+**Depends on:** D5
+**Status:** captured
