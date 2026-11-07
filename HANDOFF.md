@@ -2,40 +2,46 @@
 
 ## Last Session
 
-**Issue:** #830 — regulation predictor quality — Phase 2 design complete, implementation plan ready
-**Phase 1 complete. Phase 2 designed, reviewed, planned. Ready for execution.**
+**Issue:** #830 — regulation predictor quality — Phase 2 implementation complete
+**All 6 implementation tasks done. Eval test written but not yet run (needs llm-eval profile).**
 
-This session built the end-to-end regulation eval (Step 1), completed a full literature review of Barańczuk 2019 meta-analysis (132 studies, 46,345 participants), designed the Phase 2 architecture (continuous weights + shame dimensions), and wrote the implementation plan.
+This session executed the Phase 2 implementation plan: continuous weights from Barańczuk 2019 literature, shame-specific context (memory compounding, relational closeness, personality-gated depth), and extended eval with 3 shame cases + depth judge.
 
-### Key Outputs
-- End-to-end eval: `RegulationEndToEndEvalTest` — baseline strategy mean 4.4, temporal containment 5.0
-- Literature review: `neocortex/docs/research/2026-11-07-regulation-continuous-weights-literature-review.md`
-- Design spec (review-refined): `wsp-casehub/specs/issue-830-regulation-predictor-quality/2026-11-07-regulation-phase2-continuous-weights-design.md`
-- Implementation plan: `wsp-casehub/plans/2026-11-07-regulation-phase2-continuous-weights.md`
-- Blog: `blog/2026-11-07-mdp01-the-weight-of-evidence.md` (4th in regulation series)
-- Era6 research doc updated with Phase 1 results and Phase 2 design summary
+### Commits (6 new, this session)
 
-### Decisions (D5-D6)
-- D5: Three-layer architecture (CDE static weights → tick participant ShameContext → generation phase interpretive rendering)
-- D6: Weight tables derived from literature-ordered Big Five correlations, calibrated empirically via end-to-end eval
+1. `feat(#830): add RegulationDefaults with literature-grounded weight tables to CDE`
+2. `feat(#830): replace boolean predictor classification with continuous capacity thresholds`
+3. `feat(#830): wire tick participant to pass RegulationDefaults to predictor`
+4. `feat(#830): add ShameContext with memory compounding, relational closeness, personality-gated depth`
+5. `feat(#830): add interpretive rendering for RegulationDefaults and ShameContext`
+6. `eval(#830): extend end-to-end eval with shame-specific cases and depth judge`
+
+### Architecture (Phase 2 — three-layer)
+
+1. **CDE layer:** `RegulationDefaults(reappraisalCapacity, suppressionCapacity, redirectTendency)` derived from DispositionAxes via literature-ordered weight tables
+2. **Tick participant layer:** `ShameContext(episodeCount, relationalCloseness, grandiosity, callousness)` assembled for SELF_CONSCIOUS emotions; person overlay lookup for relational data
+3. **Generation phase layer:** interpretive rendering — capacity summary on fall-through, shame compounding/relational/surface-level sections
+
+### Key Decisions
+
+- Mixed profile test axes adjusted: `competitive` conflict mode (not `cooperative`) to achieve genuine balance between reappraisal and suppression capacities
+- `deriveRegulationDefaults` made public (was package-private) for cross-module eval access
+- Old `predict(DispositionAxes, ...)` preserved as backward-compat bridge (not yet removed)
+- Person overlay lookup duplicated in regulation tick participant (not extracted to shared utility — follow-up if duplication becomes a burden)
 
 ## Next Action
 
-**Invoke `executing-plans` with the plan at `wsp-casehub/plans/2026-11-07-regulation-phase2-continuous-weights.md`.** 6 tasks across 5 batches. Batch 1 (CDE Foundation) is the starting point.
+1. **Run the eval:** `mvn -f neocortex/caps-llm-classifier/pom.xml test -Pllm-eval -Dtest="RegulationEndToEndEvalTest" -s neocortex/.mvn/slot-settings.xml`
+2. **Review results:** Check `target/regulation-e2e-judge-results.json` — verify original 8 cases maintain >= 4.4 mean, 3 shame cases score >= 4, shame depth >= 3
+3. **Calibrate if needed:** Adjust weight table values or thresholds based on eval results
+4. **Clean up:** Remove old `predict(DispositionAxes, ...)` overload and `isSuppressor`/`isReappraiser` methods after confirming all callers migrated
 
 ## Branches
 
-**Neocortex:** `issue-830-regulation-predictor-quality` — Phase 1 commits (5) + eval (1) + literature review (1) + era6 update (1)
+**Neocortex:** `issue-830-regulation-predictor-quality` — Phase 1 (5) + Phase 2 (6) commits
 **Examples:** `issue-830-regulation-predictor-quality` — no code changes
 **Workspace:** `issue-830-regulation-predictor-quality` — specs, plans, decisions, blog
 
-## Key Files to Read
-
-- `wsp-casehub/plans/2026-11-07-regulation-phase2-continuous-weights.md` — **START HERE** for implementation
-- `wsp-casehub/specs/issue-830-regulation-predictor-quality/2026-11-07-regulation-phase2-continuous-weights-design.md` — reviewed design spec
-- `neocortex/docs/research/2026-11-07-regulation-continuous-weights-literature-review.md` — full literature review with weight table derivation
-- `wsp-casehub/specs/issue-830-regulation-predictor-quality/decisions.md` — D1-D6
-
 ## Queue Status
 
-Issue #830 is active in `.queue`. 6 implementation tasks injected. 10 remaining issues after #830.
+Issue #830 is active in `.queue`. All 6 implementation tasks checked off. 10 remaining issues after #830.

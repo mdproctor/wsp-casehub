@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 520" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .layer-label { font-size: 12px; font-weight: 700; }
+      .box-title { font-size: 11px; font-weight: 600; fill: #1a1a2e; }
+      .box-detail { font-size: 9.5px; fill: #4a4a6a; }
+      .box-value { font-size: 10px; fill: #2d6a4e; font-weight: 500; }
+      .header { font-size: 14px; font-weight: 700; fill: #1a1a2e; }
+      .subheader { font-size: 10px; fill: #6a6a8a; }
+      .arrow { stroke: #6a7a9a; stroke-width: 1.8; fill: none; marker-end: url(#flow); }
+      .arrow-shame { stroke: #9a4a6a; stroke-width: 2.2; fill: none; marker-end: url(#flow-shame); stroke-dasharray: 6 3; }
+      .decision { font-size: 9px; fill: #9a4a6a; font-weight: 600; font-style: italic; }
+      .timing { font-size: 8.5px; fill: #8a8aaa; }
+    </style>
+    <marker id="flow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6a7a9a"/>
+    </marker>
+    <marker id="flow-shame" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#9a4a6a"/>
+    </marker>
+  </defs>
+
+  <rect width="780" height="520" fill="#fafafa" rx="8"/>
+
+  <text x="390" y="26" text-anchor="middle" class="header">Three-Layer Regulation Pipeline for Shame</text>
+  <text x="390" y="42" text-anchor="middle" class="subheader">Mechanical derivation (layers 1-2) feeds interpretive rendering (layer 3)</text>
+
+  <!-- Layer 1: CDE -->
+  <rect x="20" y="60" width="740" height="110" rx="8" fill="#e8eef6" stroke="#b0c4de" stroke-width="1.2" opacity="0.5"/>
+  <text x="36" y="80" class="layer-label" fill="#4a6a9a">Layer 1: CDE (startup)</text>
+  <text x="740" y="80" text-anchor="end" class="timing">computed once per character</text>
+
+  <rect x="40" y="90" width="200" height="68" rx="6" fill="#fff" stroke="#b0c4de" stroke-width="1"/>
+  <text x="140" y="108" text-anchor="middle" class="box-title">DispositionAxes</text>
+  <text x="140" y="122" text-anchor="middle" class="box-detail">conflictMode: avoidant</text>
+  <text x="140" y="134" text-anchor="middle" class="box-detail">riskAppetite: conservative</text>
+  <text x="140" y="146" text-anchor="middle" class="box-detail">autonomy: low</text>
+
+  <path d="M 240 124 L 290 124" class="arrow"/>
+
+  <rect x="300" y="90" width="210" height="68" rx="6" fill="#fff" stroke="#b0c4de" stroke-width="1"/>
+  <text x="405" y="108" text-anchor="middle" class="box-title">Weight Tables (Barańczuk 2019)</text>
+  <text x="405" y="122" text-anchor="middle" class="box-detail">5 axes × 3 capacities = 15 lookups</text>
+  <text x="405" y="136" text-anchor="middle" class="box-detail">base + sum(axis contributions)</text>
+  <text x="405" y="150" text-anchor="middle" class="box-detail">clamped to [0.0, 1.0]</text>
+
+  <path d="M 510 124 L 555 124" class="arrow"/>
+
+  <rect x="560" y="90" width="180" height="68" rx="6" fill="#f0fff4" stroke="#8ab89a" stroke-width="1"/>
+  <text x="650" y="108" text-anchor="middle" class="box-title">RegulationDefaults</text>
+  <text x="650" y="124" text-anchor="middle" class="box-value">reappraisal: 0.30</text>
+  <text x="650" y="138" text-anchor="middle" class="box-value">suppression: 0.80</text>
+  <text x="650" y="152" text-anchor="middle" class="box-value">redirect: 0.80</text>
+
+  <!-- Layer 2: Tick Participant -->
+  <rect x="20" y="185" width="740" height="135" rx="8" fill="#f6eef0" stroke="#deb0c4" stroke-width="1.2" opacity="0.5"/>
+  <text x="36" y="205" class="layer-label" fill="#9a4a6a">Layer 2: Tick Participant (runtime)</text>
+  <text x="740" y="205" text-anchor="end" class="timing">assembled per tick, per emotion</text>
+
+  <!-- Predictor -->
+  <rect x="40" y="215" width="200" height="56" rx="6" fill="#fff" stroke="#deb0c4" stroke-width="1"/>
+  <text x="140" y="233" text-anchor="middle" class="box-title">Predictor (continuous)</text>
+  <text x="140" y="247" text-anchor="middle" class="box-detail">SHAME: checks reappraisal only</text>
+  <text x="140" y="261" text-anchor="middle" class="decision">0.30 &lt; 0.65 threshold → falls through</text>
+
+  <!-- ShameContext assembly -->
+  <rect x="300" y="215" width="210" height="96" rx="6" fill="#fff" stroke="#deb0c4" stroke-width="1"/>
+  <text x="405" y="233" text-anchor="middle" class="box-title">ShameContext Assembly</text>
+  <text x="405" y="249" text-anchor="middle" class="box-detail">episodeCount: MindMap query (30 min)</text>
+  <text x="405" y="263" text-anchor="middle" class="box-detail">relationalCloseness: person overlay</text>
+  <text x="405" y="277" text-anchor="middle" class="box-detail">grandiosity / callousness: facets</text>
+  <text x="405" y="295" text-anchor="middle" class="decision">all SELF_CONSCIOUS emotions trigger this</text>
+
+  <path d="M 240 243 L 298 243" class="arrow-shame"/>
+
+  <!-- Decision diamond -->
+  <rect x="560" y="225" width="180" height="80" rx="6" fill="#fff8f0" stroke="#d4a06a" stroke-width="1"/>
+  <text x="650" y="245" text-anchor="middle" class="box-title">Surface-Level Gate</text>
+  <text x="650" y="261" text-anchor="middle" class="box-detail">grandiosity ≥ 0.7</text>
+  <text x="650" y="275" text-anchor="middle" class="box-detail">AND callousness ≥ 0.7?</text>
+  <text x="650" y="295" text-anchor="middle" class="decision">supersedes temporal containment</text>
+
+  <path d="M 510 263 L 558 263" class="arrow-shame"/>
+
+  <!-- Layer 3: Generation Phase -->
+  <rect x="20" y="335" width="740" height="170" rx="8" fill="#eef6e8" stroke="#b0dea0" stroke-width="1.2" opacity="0.5"/>
+  <text x="36" y="355" class="layer-label" fill="#4a7a2e">Layer 3: Generation Phase (LLM)</text>
+  <text x="740" y="355" text-anchor="end" class="timing">interpretive narrative rendering</text>
+
+  <!-- Capacity summary -->
+  <rect x="40" y="365" width="155" height="58" rx="6" fill="#fff" stroke="#b0dea0" stroke-width="1"/>
+  <text x="117" y="383" text-anchor="middle" class="box-title">Capacity Summary</text>
+  <text x="117" y="397" text-anchor="middle" class="box-detail">"reappraisal: low (0.30)"</text>
+  <text x="117" y="411" text-anchor="middle" class="box-detail">"suppression: strong (0.80)"</text>
+
+  <!-- Compounding -->
+  <rect x="210" y="365" width="125" height="58" rx="6" fill="#fff" stroke="#b0dea0" stroke-width="1"/>
+  <text x="272" y="383" text-anchor="middle" class="box-title">Compounding</text>
+  <text x="272" y="397" text-anchor="middle" class="box-detail">episodes ≥ 3:</text>
+  <text x="272" y="411" text-anchor="middle" class="box-detail">"accumulated weight"</text>
+
+  <!-- Relational -->
+  <rect x="350" y="365" width="125" height="58" rx="6" fill="#fff" stroke="#b0dea0" stroke-width="1"/>
+  <text x="412" y="383" text-anchor="middle" class="box-title">Relational</text>
+  <text x="412" y="397" text-anchor="middle" class="box-detail">intimacy ≥ 0.5:</text>
+  <text x="412" y="411" text-anchor="middle" class="box-detail">"relationally loaded"</text>
+
+  <!-- Surface -->
+  <rect x="490" y="365" width="125" height="58" rx="6" fill="#fff8f0" stroke="#d4a06a" stroke-width="1"/>
+  <text x="552" y="383" text-anchor="middle" class="box-title">Surface Gate</text>
+  <text x="552" y="397" text-anchor="middle" class="box-detail">"deflects, externalises"</text>
+  <text x="552" y="411" text-anchor="middle" class="box-detail">skips containment</text>
+
+  <!-- Temporal containment -->
+  <rect x="630" y="365" width="120" height="58" rx="6" fill="#fff" stroke="#b0dea0" stroke-width="1"/>
+  <text x="690" y="383" text-anchor="middle" class="box-title">Containment</text>
+  <text x="690" y="397" text-anchor="middle" class="box-detail">Webb/Nathanson:</text>
+  <text x="690" y="411" text-anchor="middle" class="box-detail">"contain now, process later"</text>
+
+  <!-- LLM output -->
+  <rect x="250" y="440" width="280" height="48" rx="8" fill="#f0fff4" stroke="#4a9a6a" stroke-width="1.5"/>
+  <text x="390" y="462" text-anchor="middle" class="box-title" fill="#2d6a4e">LLM generates regulation narrative</text>
+  <text x="390" y="478" text-anchor="middle" class="box-detail">structured context → personality-congruent depth</text>
+
+  <!-- Flow arrows from layer 2 to 3 -->
+  <path d="M 650 305 L 650 335 L 552 363" class="arrow-shame"/>
+  <path d="M 140 271 L 140 335 L 117 363" class="arrow"/>
+  <path d="M 405 311 L 405 335 L 340 363" class="arrow-shame"/>
+
+  <!-- Arrow from sections to LLM -->
+  <path d="M 390 423 L 390 438" class="arrow"/>
+</svg>
