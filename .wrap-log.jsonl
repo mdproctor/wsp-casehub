@@ -1,0 +1,2 @@
+{"ts": "2026-11-06T20:56:27.262393+00:00", "mode": "wrap", "action": "error", "step": "loose_ends", "steps_executed": ["loose_ends:ERROR:1"], "error": "exit_2"}
+{"ts": "2026-11-06T20:56:31.594459+00:00", "mode": "wrap", "action": "error", "step": "loose_ends", "steps_executed": ["loose_ends:ERROR:2"], "error": "exit_2"}
