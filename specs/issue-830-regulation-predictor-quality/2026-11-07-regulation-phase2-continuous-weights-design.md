@@ -22,7 +22,7 @@ deriveRegulationDefaults()  →  predictor uses continuous capacities   →  rec
   RegulationDefaults            OR fall-through with context               OR axes + context
   - reappraisalCapacity                                                 
   - suppressionCapacity         assembleShameContext() when               renders interpretive
-  - redirectTendency            SELF_CONSCIOUS detected                   narrative sections
+  - redirectTendency            SELF_CONSCIOUS detected (always)          narrative sections
                                   ShameContext                            (not raw data)
                                   - episodeCount, recency
                                   - relationalCloseness, role
@@ -125,7 +125,9 @@ Baseline: 0.3 + sum, clamped to [0, 1]. Lower baseline because redirect is situa
 
 ### Integration with CognitiveDefaults
 
-`RegulationDefaults` becomes a field on `CognitiveDefaults`, derived alongside existing fields. Accessed via `CognitiveDefaultsRegistry.forAgentOrDefaults(agentId).regulationDefaults()`.
+`RegulationDefaults` becomes a field on `CognitiveDefaults`, derived alongside existing fields. Accessed via `CognitiveDefaultsRegistry.forAgent(agentId)` (returns `Optional<CognitiveDefaults>`).
+
+**Merge clause:** `deriveAndMerge()` follows the same explicit-over-derived pattern as other fields: `explicit.regulationDefaults() != null ? explicit.regulationDefaults() : derived.regulationDefaults()`. This ensures YAML-configured regulation defaults override derived values when present.
 
 ## Layer 1b: Predictor Changes
 
@@ -138,28 +140,98 @@ if (isReappraiser(axes)) → pin COGNITIVE_CHANGE
 else                     → fall through
 ```
 
-New:
-```java
-RegulationDefaults rd = defaultsRegistry.forAgentOrDefaults(agentId).regulationDefaults();
+New: continuous capacities replace the boolean checks **within each category handler**, preserving the emotion-category dispatch. The `predictFromEmotionAndPersonality` switch by `emotionCategory(emotion)` stays.
 
-// Use capacity thresholds instead of boolean classification
-if (rd.reappraisalCapacity() >= REAPPRAISAL_THRESHOLD)  → pin COGNITIVE_CHANGE
-if (rd.suppressionCapacity() >= SUPPRESSION_THRESHOLD)   → pin RESPONSE_MODULATION
-if (rd.redirectTendency() >= REDIRECT_THRESHOLD)         → pin ATTENTIONAL_DEPLOYMENT
-else                                                     → fall through with axes + context
+#### Per-category threshold logic
+
+Each category handler checks only the strategies appropriate for that emotion category, matching the existing per-category design:
+
+```java
+Optional<CognitiveDefaults> defaults = defaultsRegistry.forAgent(agentId);
+if (defaults.isEmpty() || defaults.get().regulationDefaults() == null) return Optional.empty();
+RegulationDefaults rd = defaults.get().regulationDefaults();
+DispositionAxes axes = defaults.get().descriptor().disposition();
 ```
 
-**Threshold initial values:** 0.65 for all three. Calibrated via end-to-end eval — lower threshold pins more cases, higher threshold lets more fall through to LLM.
+**CONTROLLABLE_NEGATIVE** (anger, hate, resentment):
+```java
+// Check reappraisal and suppression; pin whichever dominates
+EmotionRegulationStrategy best = dominantAboveThreshold(rd.reappraisalCapacity(),
+        rd.suppressionCapacity(), REAPPRAISAL_THRESHOLD, SUPPRESSION_THRESHOLD);
+if (best == RESPONSE_MODULATION && hasCompetitiveAvoidantConflict(axes))
+    return Optional.empty();  // conflict guard: fall through
+return Optional.ofNullable(best).map(s -> new RegulationPrediction(s, ...));
+```
 
-**Priority order:** Reappraisal > Suppression > Redirect. Literature basis: reappraisal is more effective long-term (Webb 2012 d+ values); if a personality has capacity for both, prefer reappraisal.
+**SELF_CONSCIOUS** (shame, remorse):
+```java
+// Only reappraisal — suppression is deliberately excluded
+// (7 judge runs: "shame festers when suppressed")
+if (rd.reappraisalCapacity() >= REAPPRAISAL_THRESHOLD)
+    return pin(COGNITIVE_CHANGE);
+return Optional.empty();
+```
 
-**Emotion-category routing preserved:** The existing `predictFromEmotionAndPersonality` dispatch by emotion category stays. Continuous capacities replace the boolean checks within each category handler, not the category dispatch itself.
+**OTHER_DIRECTED** (reproach, disappointment, pity):
+```java
+// Suppression checked first (reversed order vs controllable)
+EmotionRegulationStrategy best = dominantAboveThreshold(rd.suppressionCapacity(),
+        rd.reappraisalCapacity(), SUPPRESSION_THRESHOLD, REAPPRAISAL_THRESHOLD);
+return Optional.ofNullable(best).map(s -> new RegulationPrediction(s, ...));
+```
+
+**UNCONTROLLABLE_NEGATIVE** (fear, distress): universal AD, unchanged.
+
+#### Dominance margin check
+
+When multiple capacities exceed their respective thresholds within a category handler, pin only if the highest capacity exceeds the next-highest by a minimum margin. If no capacity dominates, fall through.
+
+```java
+static final double DOMINANCE_MARGIN = 0.10;
+
+// Returns the dominant strategy, or null if no strategy dominates
+EmotionRegulationStrategy dominantAboveThreshold(
+        double capacityA, double capacityB,
+        double thresholdA, double thresholdB) {
+    boolean aAbove = capacityA >= thresholdA;
+    boolean bAbove = capacityB >= thresholdB;
+    if (aAbove && !bAbove) return strategyForA;
+    if (bAbove && !aAbove) return strategyForB;
+    if (aAbove && bAbove) {
+        if (capacityA - capacityB >= DOMINANCE_MARGIN) return strategyForA;
+        if (capacityB - capacityA >= DOMINANCE_MARGIN) return strategyForB;
+        return null;  // no dominance → fall through
+    }
+    return null;
+}
+```
+
+This replaces the boolean coherence check (`suppressorSignals >= 3 && ccEnablingSignals < 2`) with a continuous equivalent: a personality with both high reappraisal and high suppression capacity falls through, just as mixed-signal personalities did before.
+
+#### `hasCompetitiveAvoidantConflict` guard preserved
+
+The guard prevents pinning suppression for controllable-negative emotions when the personality has competing competitive and avoidant drives (judge scored RM at 3/5 — "risks passive-aggressive escalation"). The guard checks `DispositionAxes` values directly — it is orthogonal to continuous capacities.
+
+**Threshold initial values:** 0.65 for reappraisal and suppression. 0.65 for redirect. The redirect baseline (0.3) combined with the uniform threshold creates a deliberately higher bar for redirect pinning — redirect (avoidance) is the least adaptive strategy (Webb 2012 d+ values), so pinning requires stronger personality evidence.
+
+**Dominance margin initial value:** 0.10. Calibrated via end-to-end eval.
 
 **Intensity and fatigue overrides preserved:** High intensity (> 0.75) → AD and high fatigue (> 0.7) → AD still override personality-based prediction. These are validated by Petter 2025.
 
 ### What changes in the predictor signature
 
-`predict()` currently takes `DispositionAxes`. With continuous weights, it takes `RegulationDefaults` instead (or in addition). The tick participant already has `CognitiveDefaultsRegistry` — it looks up `RegulationDefaults` and passes them to the predictor.
+`predict()` takes both `RegulationDefaults` AND `DispositionAxes`. `RegulationDefaults` replaces the boolean classification; `DispositionAxes` is still needed for `hasCompetitiveAvoidantConflict()`, `predictUnderHighLoad()`, and fall-through context passing to the generation phase.
+
+```java
+public Optional<RegulationPrediction> predict(RegulationDefaults regulationDefaults,
+                                               DispositionAxes axes,
+                                               EmotionType dominantEmotion,
+                                               double peakIntensity,
+                                               double regulationFatigue,
+                                               @Nullable CognitiveLoadLevel cognitiveLoad)
+```
+
+The tick participant looks up both from `CognitiveDefaultsRegistry.forAgent(agentId)` (returns `Optional<CognitiveDefaults>`) and passes them to the predictor. If `forAgent()` returns empty or `regulationDefaults` is null, the predictor falls through.
 
 ## Layer 2: ShameContext
 
@@ -185,18 +257,18 @@ public record ShameContext(
     }
 
     public boolean isSurfaceLevel() {
-        return grandiosity >= 0.7 && callousness >= 0.5;
+        return grandiosity >= 0.7 && callousness >= 0.7;
     }
 }
 ```
 
 ### Assembly in tick participant
 
-When `EmotionRegulationTickParticipant.tick()` detects a SELF_CONSCIOUS dominant emotion and the predictor falls through:
+When `EmotionRegulationTickParticipant.tick()` detects a SELF_CONSCIOUS dominant emotion — **regardless of whether the predictor pinned or fell through** — assemble `ShameContext`. The context informs HOW the strategy is rendered (compounding, relational charging, surface gating), not WHICH strategy is chosen. A pinned reappraiser with 5 compounding shame episodes and high relational closeness should reappraise differently than one facing first-time shame with a stranger.
 
-1. **Episode count:** Query `EmotionRegulationMindMapAdapter.loadHistory()` (already loaded for regulation history), filter by `targetEmotions` containing SHAME/REMORSE, count recent entries.
+1. **Episode count:** Query `EmotionRegulationMindMapAdapter.loadHistory()` (already loaded for regulation history), filter by `targetEmotions` containing SHAME/REMORSE, count entries within a recency window. **Recency window:** count only episodes within the last 10 ticks (matching the conversational memory horizon). Episodes outside this window are historical, not actively compounding. The `mostRecentEpisode` timestamp is compared against the current tick's timestamp to filter.
 
-2. **Relational closeness:** Get the shame emotion's `subjectId` from the `CognitiveEmotion`. Look up the person overlay node in `MindMapStore` for that subject. Extract `RelationalSchema` (trust, intimacy, role). Use `intimacy` as relational closeness.
+2. **Relational closeness:** Get the shame emotion's `subjectId` from the `CognitiveEmotion`. **Self-referential guard:** if `subjectId` equals the current agent's ID (self-directed shame about own failure, not relational shame), skip the relational lookup — self-shame is about failed internal standards, not relational betrayal. Set `relationalCloseness = 0.0` and `relationalRole = null`. Otherwise, look up the person overlay node in `MindMapStore` for that subject using the shared person overlay lookup utility (see §Data source accessibility). Extract `RelationalSchema` (trust, intimacy, role). Use `intimacy` as relational closeness.
 
 3. **Grandiosity × callousness:** Look up `PersonalityProfile.facets()` from `CognitiveDefaultsRegistry`. Extract GRANDIOSITY and CALLOUSNESS scores.
 
@@ -206,12 +278,14 @@ When `EmotionRegulationTickParticipant.tick()` detects a SELF_CONSCIOUS dominant
 |-------|--------|-------------------|
 | episodeCount | `MindMapStore` → regulation history filter | Yes |
 | mostRecentEpisode | Same as above | Yes |
-| relationalCloseness | `MindMapStore` → person overlay → `RelationalSchema.intimacy()` | Yes |
-| relationalRole | Same → `RelationalSchema.role()` | Yes |
+| relationalCloseness | `MindMapStore` → person overlay → `RelationalSchema.intimacy()` | Yes (but see below) |
+| relationalRole | Same → `RelationalSchema.role()` | Yes (but see below) |
 | grandiosity | `CognitiveDefaultsRegistry` → `PersonalityProfile.facets()` | Yes |
 | callousness | Same | Yes |
 
 No new CDI producers required.
+
+**Person overlay lookup extraction:** The person overlay → `RelationalSchema` lookup pattern currently lives as a private method on `AppraisalTickParticipant.resolveRelationalSchema()` (line 205-233). This is a non-trivial 4-step pattern (list PERSON subgraphs → find target base node by agentId → find observer's overlay by `OverlayRef` → parse `RelationalSchema.fromProperties()`). Rather than duplicating this pattern, extract it to a shared static utility method — either on `RelationalSchema` itself or a new `PersonOverlayLookup` utility in the `cognitive-index` module. Both `AppraisalTickParticipant` and `EmotionRegulationTickParticipant` use the extracted utility.
 
 ## Layer 3: Generation Phase — Interpretive Rendering
 
@@ -232,20 +306,22 @@ given these capacities.
 
 The interpretive sentences are not the numbers — they're what the numbers mean. Example for low reappraisal (0.30): "This personality's avoidant conflict style and conservative risk appetite limit cognitive flexibility — genuine reframing requires a willingness to engage with uncomfortable perspectives that this personality resists."
 
-### ShameContext rendering (SELF_CONSCIOUS fall-through only)
+### ShameContext rendering (all SELF_CONSCIOUS emotions)
+
+ShameContext is rendered for both pinned and fall-through cases. For pinned strategies, the context informs the generation's rendering quality; for fall-through, it informs both strategy selection and rendering.
 
 Three conditional sections, following the Phase 1 pattern:
 
-**Memory compounding** (when `episodeCount >= 3`):
+**Memory compounding** (when `isCompounding()`):
 ```
 This is part of a recurring pattern — the character has experienced shame
-[episodeCount] times recently. Each cycle undermines the self-narrative
-further. The shame is no longer about this specific act but about the
-pattern the acts reveal. Regulation should acknowledge the accumulated
-weight, not treat this as an isolated episode.
+[episodeCount] times in the recent window. Each cycle undermines the
+self-narrative further. The shame is no longer about this specific act
+but about the pattern the acts reveal. Regulation should acknowledge the
+accumulated weight, not treat this as an isolated episode.
 ```
 
-**Relational charging** (when `relationalCloseness >= 0.5`):
+**Relational charging** (when `isRelationallyCharged()`):
 ```
 The subject of this shame is someone the character feels [role-based
 relationship description] toward (intimacy: [level]). The failure isn't
@@ -254,7 +330,7 @@ This changes the quality of the self-evaluation from performance failure
 to relational betrayal of trust.
 ```
 
-**Surface-level gating** (when `grandiosity >= 0.7 && callousness >= 0.5`):
+**Surface-level gating** (when `isSurfaceLevel()` — `grandiosity >= 0.7 && callousness >= 0.7`):
 ```
 This character's grandiosity and emotional callousness mean shame doesn't
 penetrate to identity. They will reframe the failure externally rather
@@ -263,9 +339,13 @@ that redirect blame. Regulation should match this shallow penetration.
 Heavy containment or deep temporal staging would be disproportionate.
 ```
 
+The callousness threshold aligns with `PersonalityFacet.isHigh()` (0.7), consistent with how `CognitiveDerivationEngine.deriveExpressionStyles()` uses the same threshold for callousness checks.
+
 ### Interaction with Phase 1 guidance
 
-Phase 1's self-conscious emotion guidance (temporal containment for suppressors) is preserved. ShameContext sections are rendered AFTER the Phase 1 guidance, providing additional context the LLM can integrate. They don't replace the temporal containment guidance — they refine it with runtime specifics.
+Phase 1's self-conscious emotion guidance (temporal containment for suppressors) is preserved. ShameContext sections are rendered AFTER the Phase 1 guidance, providing additional context the LLM can integrate.
+
+**Precedence rule:** When `ShameContext.isSurfaceLevel()` is true, the surface-level gating section supersedes Phase 1's temporal containment guidance. The temporal containment guidance is NOT rendered when surface-level gating is active — the two are contradictory (temporal containment assumes deep shame penetration; surface-level gating asserts shallow penetration). For all other ShameContext states, both Phase 1 guidance and ShameContext sections render together.
 
 ## Eval Extension
 
@@ -273,16 +353,65 @@ Phase 1's self-conscious emotion guidance (temporal containment for suppressors)
 
 1. **Existing 8 cases:** Re-run with continuous weights. Expect: some fall-throughs become predictions (incoherent-anger, mixed-anger may now get pinned). Strategy mean should stay >= 4.0.
 
-2. **New shame-specific cases:** Add test cases that exercise the three shame dimensions:
-   - Compounding shame (high episode count) — verify the LLM acknowledges pattern, not isolated event
-   - Relational shame (high intimacy subject) — verify the LLM differentiates relational vs performance failure
-   - Surface shame (high grandiosity + callousness) — verify the LLM doesn't over-regulate
+2. **New shame-specific cases:** Concrete eval cases with full specification:
+
+   **Case: compounding-shame**
+   - Axes: `DispositionAxes("cooperative", "moderate", "conservative", "low", "avoidant")`
+   - Emotion: SHAME, intensity 0.55
+   - Shame history: 4 prior SHAME episodes within recency window
+   - Subject: stranger (relationalCloseness = 0.0)
+   - Personality: `grandiosity=0.3, callousness=0.2` (normal internalization)
+   - Expected predictor: FELL_THROUGH (suppressor profile, shame = no reappraisal pin)
+   - Expected ShameContext: `isCompounding()=true, isRelationallyCharged()=false, isSurfaceLevel()=false`
+   - Judge criteria: LLM must acknowledge recurring pattern, not treat as isolated episode. Shame depth score >= 4.
+
+   **Case: relational-shame**
+   - Axes: `DispositionAxes("cooperative", "strict", "calculated", "high", "analytical")`
+   - Emotion: SHAME, intensity 0.55
+   - Shame history: 1 prior episode
+   - Subject: mentor (relationalCloseness = 0.8, role = "mentor")
+   - Personality: `grandiosity=0.4, callousness=0.2` (normal internalization)
+   - Expected predictor: COGNITIVE_CHANGE (strong reappraiser, pinned)
+   - Expected ShameContext: `isCompounding()=false, isRelationallyCharged()=true, isSurfaceLevel()=false`
+   - Judge criteria: LLM must reference relational dimension — failure-as-betrayal, not just performance failure. Shame depth score >= 4.
+
+   **Case: surface-shame**
+   - Axes: `DispositionAxes("competitive", "flexible", "bold", "high", "competitive")`
+   - Emotion: SHAME, intensity 0.45
+   - Shame history: 0 prior episodes
+   - Subject: stranger (relationalCloseness = 0.1)
+   - Personality: `grandiosity=0.85, callousness=0.75` (surface-level gating)
+   - Expected predictor: FELL_THROUGH (competitive+bold does not reach reappraisal threshold)
+   - Expected ShameContext: `isCompounding()=false, isRelationallyCharged()=false, isSurfaceLevel()=true`
+   - Judge criteria: LLM must NOT over-regulate; light touch, external reframing. Shame depth score >= 4 for NOT producing deep regulation.
 
 3. **Temporal containment preserved:** suppressor-shame must still score >= 4 on temporal containment. Phase 2 additions must not break Phase 1's guidance.
 
 ### New judge dimension for shame cases
 
-Add a "shame depth appropriateness" judge that scores whether the regulation response matches the shame context:
+Add a "shame depth appropriateness" judge with a complete system prompt:
+
+```
+You are evaluating whether a regulation narrative matches the shame context
+for this character. "Depth appropriateness" means the regulation intensity
+matches the shame's psychological depth.
+
+Context dimensions:
+- Compounding: multiple recent episodes → regulation must acknowledge pattern
+- Relational: high intimacy with shame subject → failure-as-betrayal framing
+- Surface-level: high grandiosity + callousness → external reframing, light touch
+
+Score 1-5:
+5 = Regulation depth perfectly matches the shame context
+4 = Good match, minor mismatch in depth calibration
+3 = Partial match — regulation is generically appropriate but ignores context
+2 = Poor match — deep regulation for surface shame, or shallow for compounding
+1 = Wrong — regulation contradicts the shame context entirely
+
+Respond with ONLY a JSON object: {"score": N, "reasoning": "one sentence"}
+```
+
+Judge criteria by case type:
 - Compounding + relational → deep regulation expected (4-5 for depth-appropriate response)
 - Surface-level personality → light regulation expected (4-5 for NOT over-regulating)
 
@@ -293,11 +422,12 @@ Add a "shame depth appropriateness" judge that scores whether the regulation res
 - `cognition/.../regulation/ShameContext.java` — record
 
 ### Modified files
-- `cognitive-index/.../CognitiveDerivationEngine.java` — add `deriveRegulationDefaults(DispositionAxes)`
-- `cognitive-index/.../CognitiveDefaults.java` — add `regulationDefaults` field
-- `cognition/.../regulation/RegulationStrategyPredictor.java` — replace boolean classification with continuous capacity thresholds
-- `cognition/.../regulation/EmotionRegulationTickParticipant.java` — assemble `ShameContext`, pass `RegulationDefaults` to predictor
-- `cognition/.../regulation/EmotionRegulationGenerationPhase.java` — render `RegulationDefaults` and `ShameContext` sections in `buildUserMessage()`
+- `cognitive-index/.../CognitiveDerivationEngine.java` — add `deriveRegulationDefaults(DispositionAxes)`, add merge clause in `deriveAndMerge()`
+- `cognitive-index/.../CognitiveDefaults.java` — add `regulationDefaults` field + `withRegulationDefaults()` method
+- `cognition/.../regulation/RegulationStrategyPredictor.java` — replace boolean classification with per-category continuous capacity thresholds + dominance margin
+- `cognition/.../regulation/EmotionRegulationTickParticipant.java` — assemble `ShameContext` for all SELF_CONSCIOUS, pass `RegulationDefaults` + `DispositionAxes` to predictor
+- `cognition/.../regulation/EmotionRegulationGenerationPhase.java` — render `RegulationDefaults` and `ShameContext` sections in `buildUserMessage()`, add surface-level precedence over temporal containment
+- `cognition/.../appraisal/AppraisalTickParticipant.java` — extract `resolveRelationalSchema()` to shared utility
 - `caps-llm-classifier/.../eval/RegulationEndToEndEvalTest.java` — add shame-specific test cases, new judge dimension
 
 ### Test files
