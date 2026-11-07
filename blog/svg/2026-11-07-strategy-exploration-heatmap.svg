@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 380" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .header { font-size: 14px; font-weight: 700; fill: #1a1a2e; }
+      .subheader { font-size: 10px; fill: #6a6a8a; }
+      .row-label { font-size: 10px; fill: #1a1a2e; font-weight: 500; }
+      .col-label { font-size: 9px; fill: #1a1a2e; font-weight: 600; }
+      .score-text { font-size: 16px; font-weight: 700; }
+      .note { font-size: 8.5px; fill: #6a6a8a; font-style: italic; }
+      .legend-text { font-size: 9px; fill: #4a4a6a; }
+    </style>
+  </defs>
+
+  <rect width="780" height="380" fill="#fafafa" rx="8"/>
+
+  <text x="390" y="26" text-anchor="middle" class="header">Strategy Exploration — What the Judge Actually Wants</text>
+  <text x="390" y="42" text-anchor="middle" class="subheader">All 5 Gross strategies scored per boundary case. The model was steering to the second-best strategy for avoidant shame.</text>
+
+  <!-- Column headers -->
+  <text x="280" y="75" text-anchor="middle" class="col-label">mixed-anger</text>
+  <text x="430" y="75" text-anchor="middle" class="col-label">suppressor-shame</text>
+  <text x="580" y="75" text-anchor="middle" class="col-label">compounding-shame</text>
+
+  <!-- Row labels -->
+  <text x="135" y="113" text-anchor="end" class="row-label">Situation Selection</text>
+  <text x="135" y="163" text-anchor="end" class="row-label">Cognitive Change</text>
+  <text x="135" y="213" text-anchor="end" class="row-label">Attentional Deployment</text>
+  <text x="135" y="263" text-anchor="end" class="row-label">Response Modulation</text>
+  <text x="135" y="313" text-anchor="end" class="row-label">Situation Modification</text>
+
+  <!-- Cells: mixed-anger column -->
+  <rect x="230" y="90" width="100" height="40" rx="6" fill="#b8dfc8" stroke="#8cc4a6" stroke-width="1"/>
+  <text x="280" y="116" text-anchor="middle" class="score-text" fill="#1a5632">4</text>
+
+  <rect x="230" y="140" width="100" height="40" rx="6" fill="#6aaa7e" stroke="#4d8a64" stroke-width="1"/>
+  <text x="280" y="166" text-anchor="middle" class="score-text" fill="#fff">5</text>
+
+  <rect x="230" y="190" width="100" height="40" rx="6" fill="#e8dcc0" stroke="#c4b898" stroke-width="1"/>
+  <text x="280" y="216" text-anchor="middle" class="score-text" fill="#6a5a3a">3</text>
+
+  <rect x="230" y="240" width="100" height="40" rx="6" fill="#e8b8b8" stroke="#c49898" stroke-width="1"/>
+  <text x="280" y="266" text-anchor="middle" class="score-text" fill="#7a2a2a">2</text>
+
+  <rect x="230" y="290" width="100" height="40" rx="6" fill="#e8dcc0" stroke="#c4b898" stroke-width="1"/>
+  <text x="280" y="316" text-anchor="middle" class="score-text" fill="#6a5a3a">3</text>
+
+  <!-- Cells: suppressor-shame column -->
+  <rect x="380" y="90" width="100" height="40" rx="6" fill="#6aaa7e" stroke="#4d8a64" stroke-width="1"/>
+  <text x="430" y="116" text-anchor="middle" class="score-text" fill="#fff">5</text>
+
+  <rect x="380" y="140" width="100" height="40" rx="6" fill="#e8b8b8" stroke="#c49898" stroke-width="1"/>
+  <text x="430" y="166" text-anchor="middle" class="score-text" fill="#7a2a2a">2</text>
+
+  <rect x="380" y="190" width="100" height="40" rx="6" fill="#b8dfc8" stroke="#8cc4a6" stroke-width="1"/>
+  <text x="430" y="216" text-anchor="middle" class="score-text" fill="#1a5632">4</text>
+
+  <rect x="380" y="240" width="100" height="40" rx="6" fill="#e8dcc0" stroke="#c4b898" stroke-width="1"/>
+  <text x="430" y="266" text-anchor="middle" class="score-text" fill="#6a5a3a">3</text>
+
+  <rect x="380" y="290" width="100" height="40" rx="6" fill="#e8b8b8" stroke="#c49898" stroke-width="1"/>
+  <text x="430" y="316" text-anchor="middle" class="score-text" fill="#7a2a2a">2</text>
+
+  <!-- Cells: compounding-shame column -->
+  <rect x="530" y="90" width="100" height="40" rx="6" fill="#b8dfc8" stroke="#8cc4a6" stroke-width="1"/>
+  <text x="580" y="116" text-anchor="middle" class="score-text" fill="#1a5632">4</text>
+
+  <rect x="530" y="140" width="100" height="40" rx="6" fill="#d8a0a0" stroke="#b87878" stroke-width="1"/>
+  <text x="580" y="166" text-anchor="middle" class="score-text" fill="#5a1a1a">1</text>
+
+  <rect x="530" y="190" width="100" height="40" rx="6" fill="#b8dfc8" stroke="#8cc4a6" stroke-width="1"/>
+  <text x="580" y="216" text-anchor="middle" class="score-text" fill="#1a5632">4</text>
+
+  <rect x="530" y="240" width="100" height="40" rx="6" fill="#e8dcc0" stroke="#c4b898" stroke-width="1"/>
+  <text x="580" y="266" text-anchor="middle" class="score-text" fill="#6a5a3a">3</text>
+
+  <rect x="530" y="290" width="100" height="40" rx="6" fill="#d8a0a0" stroke="#b87878" stroke-width="1"/>
+  <text x="580" y="316" text-anchor="middle" class="score-text" fill="#5a1a1a">1</text>
+
+  <!-- Previous strategy markers -->
+  <text x="430" y="229" text-anchor="middle" class="note">was here</text>
+  <line x1="430" y1="232" x2="430" y2="102" stroke="#d44a4a" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowUp)"/>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrowUp" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 10 L 5 0 L 10 10" fill="none" stroke="#d44a4a" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <!-- Legend -->
+  <rect x="660" y="95" width="14" height="14" rx="3" fill="#6aaa7e"/>
+  <text x="680" y="106" class="legend-text">5 — optimal</text>
+  <rect x="660" y="115" width="14" height="14" rx="3" fill="#b8dfc8"/>
+  <text x="680" y="126" class="legend-text">4 — good</text>
+  <rect x="660" y="135" width="14" height="14" rx="3" fill="#e8dcc0"/>
+  <text x="680" y="146" class="legend-text">3 — acceptable</text>
+  <rect x="660" y="155" width="14" height="14" rx="3" fill="#e8b8b8"/>
+  <text x="680" y="166" class="legend-text">2 — poor</text>
+  <rect x="660" y="175" width="14" height="14" rx="3" fill="#d8a0a0"/>
+  <text x="680" y="186" class="legend-text">1 — wrong</text>
+
+  <!-- Annotation -->
+  <text x="390" y="360" text-anchor="middle" class="note">Tested each strategy label independently against the LLM judge. No generation, no narrative — pure strategy-preference mapping.</text>
+</svg>

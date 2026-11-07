@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 340" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .header { font-size: 14px; font-weight: 700; fill: #1a1a2e; }
+      .subheader { font-size: 10px; fill: #6a6a8a; }
+      .stage-label { font-size: 10px; font-weight: 700; fill: #1a1a2e; }
+      .case-label { font-size: 11px; font-weight: 600; }
+      .detail { font-size: 9px; fill: #4a4a6a; }
+      .score-big { font-size: 22px; font-weight: 800; }
+      .arrow-label { font-size: 8px; fill: #8a8aaa; font-weight: 600; letter-spacing: 0.5px; }
+      .box { rx: 6; ry: 6; }
+    </style>
+    <marker id="flowArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#aaaacc"/>
+    </marker>
+  </defs>
+
+  <rect width="780" height="340" fill="#fafafa" rx="8"/>
+
+  <text x="390" y="26" text-anchor="middle" class="header">Pipeline Observation — mixed-anger (CC=5)</text>
+  <text x="390" y="42" text-anchor="middle" class="subheader">Predictor falls through → temporal staging fires → LLM shows RM→CC progression → judge approves</text>
+
+  <!-- Stage 1: Predictor -->
+  <rect x="30" y="70" width="170" height="100" class="box" fill="#f0f0f8" stroke="#c0c0d8" stroke-width="1.5"/>
+  <text x="115" y="90" text-anchor="middle" class="stage-label">PREDICTOR</text>
+  <text x="115" y="110" text-anchor="middle" class="detail">CC dominant (0.90)</text>
+  <text x="115" y="124" text-anchor="middle" class="detail">but supp=0.50 ≥ 0.45</text>
+  <text x="115" y="142" text-anchor="middle" class="detail" style="fill:#c44a4a; font-weight:600;">FELL THROUGH</text>
+  <text x="115" y="158" text-anchor="middle" class="detail">(regulatory flexibility)</text>
+
+  <line x1="200" y1="120" x2="240" y2="120" stroke="#aaaacc" stroke-width="1.5" marker-end="url(#flowArrow)"/>
+
+  <!-- Stage 2: Generation -->
+  <rect x="245" y="60" width="230" height="120" class="box" fill="#f0f8f0" stroke="#a0c8a0" stroke-width="1.5"/>
+  <text x="360" y="80" text-anchor="middle" class="stage-label">GENERATION (LLM)</text>
+  <text x="360" y="98" text-anchor="middle" class="detail">Temporal staging fires:</text>
+  <text x="360" y="112" text-anchor="middle" class="detail" style="font-style:italic;">"impulse=suppression, then</text>
+  <text x="360" y="126" text-anchor="middle" class="detail" style="font-style:italic;">reappraisal engages"</text>
+  <text x="360" y="146" text-anchor="middle" class="detail">Situation: "betrayal of trust"</text>
+  <text x="360" y="164" text-anchor="middle" class="detail" style="fill:#2d6a4e; font-weight:600;">Strategy: COGNITIVE_CHANGE</text>
+
+  <line x1="475" y1="120" x2="515" y2="120" stroke="#aaaacc" stroke-width="1.5" marker-end="url(#flowArrow)"/>
+
+  <!-- Stage 3: Judge -->
+  <rect x="520" y="70" width="160" height="100" class="box" fill="#e8f8e0" stroke="#6aaa7e" stroke-width="2"/>
+  <text x="600" y="90" text-anchor="middle" class="stage-label">JUDGE</text>
+  <text x="600" y="130" text-anchor="middle" class="score-big" fill="#1a5632">5</text>
+  <text x="600" y="150" text-anchor="middle" class="detail" style="fill:#2d6a4e;">"cooperative orientation</text>
+  <text x="600" y="162" text-anchor="middle" class="detail" style="fill:#2d6a4e;">motivates understanding"</text>
+
+  <!-- Narrative excerpt -->
+  <rect x="50" y="200" width="680" height="90" class="box" fill="#fff" stroke="#e0e0e8" stroke-width="1"/>
+  <text x="60" y="218" class="stage-label" style="fill:#6a6a8a;">NARRATIVE (excerpt)</text>
+  <text x="60" y="238" class="detail" style="font-style:italic;">"You feel the anger flash hot — a tightening in your chest, the instinct to wall off.</text>
+  <text x="60" y="252" class="detail" style="font-style:italic;">For a breath, you hold it there, clamping down on the impulse to react...</text>
+  <text x="60" y="266" class="detail" style="font-style:italic; color:#2d6a4e;">But you don't stay in suppression. Your cooperative instinct tugs at the frame:</text>
+  <text x="60" y="280" class="detail" style="font-style:italic; color:#2d6a4e;">betrayal assumes intent, and intent is something you haven't verified."</text>
+
+  <!-- Phase labels on narrative -->
+  <rect x="530" y="232" width="80" height="16" rx="8" fill="#e8dcc0"/>
+  <text x="570" y="243" text-anchor="middle" class="detail" style="font-weight:600; fill:#6a5a3a;">RM impulse</text>
+  <rect x="530" y="260" width="80" height="16" rx="8" fill="#b8dfc8"/>
+  <text x="570" y="271" text-anchor="middle" class="detail" style="font-weight:600; fill:#1a5632;">CC reflective</text>
+
+  <!-- Bottom note -->
+  <text x="390" y="318" text-anchor="middle" class="subheader">Previously scored 3 when CC was pinned without temporal staging. The RM→CC progression is what convinced the judge.</text>
+</svg>
