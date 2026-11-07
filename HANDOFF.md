@@ -2,52 +2,55 @@
 
 ## Last Session
 
-**Issue:** #830 — regulation predictor quality — Phase 2 implementation complete
-**All 6 implementation tasks done. Eval test written but not yet run (needs llm-eval profile).**
+**Issue:** #830 — regulation predictor quality
+**Phase 2 implementation complete + calibration in progress. Three boundary cases remain.**
 
-This session executed the Phase 2 implementation plan: continuous weights from Barańczuk 2019 literature, shame-specific context (memory compounding, relational closeness, personality-gated depth), and extended eval with 3 shame cases + depth judge.
+### What was built
+- RegulationDefaults (continuous weights from Barańczuk 2019)
+- ShameContext (memory compounding, relational closeness, personality-gated depth)
+- Three-layer architecture: CDE derivation → tick participant assembly → generation phase rendering
+- Viable alternative threshold (don't pin RM when reappraisal is viable for controllable emotions)
+- Temporal staging guidance (avoidant impulse first, then reappraisal progression)
+- Surface-level shame → pin RM (deflection, not genuine reappraisal)
 
-### Commits (6 new, this session)
+### Calibration results (6 eval runs)
 
-1. `feat(#830): add RegulationDefaults with literature-grounded weight tables to CDE`
-2. `feat(#830): replace boolean predictor classification with continuous capacity thresholds`
-3. `feat(#830): wire tick participant to pass RegulationDefaults to predictor`
-4. `feat(#830): add ShameContext with memory compounding, relational closeness, personality-gated depth`
-5. `feat(#830): add interpretive rendering for RegulationDefaults and ShameContext`
-6. `eval(#830): extend end-to-end eval with shame-specific cases and depth judge`
+**Solved (stable):**
+- incoherent-anger: 3/3/3 → **4/4** (temporal staging fix)
+- surface-shame: 4/3/2 → **5/5** (pin RM for surface-level)
 
-### Architecture (Phase 2 — three-layer)
+**Boundary cases (swing 3-4 across runs):**
+- mixed-anger: 4/3/3/4 — judge says "betrayal resists reappraisal" (situation-specific)
+- compounding-shame: 4/4/4/3/3 — judge says "4th episode, serial suppression failing" (connects to fatigue #817)
+- suppressor-shame: 4/4/3/4 — judge says "AD over RM for shame"
 
-1. **CDE layer:** `RegulationDefaults(reappraisalCapacity, suppressionCapacity, redirectTendency)` derived from DispositionAxes via literature-ordered weight tables
-2. **Tick participant layer:** `ShameContext(episodeCount, relationalCloseness, grandiosity, callousness)` assembled for SELF_CONSCIOUS emotions; person overlay lookup for relational data
-3. **Generation phase layer:** interpretive rendering — capacity summary on fall-through, shame compounding/relational/surface-level sections
+**Stable 5s (never vary):** suppressor-anger, reappraiser-anger, anyone-fear, reappraiser-shame
 
-### Key Decisions
+### Key insight for next session
 
-- Mixed profile test axes adjusted: `competitive` conflict mode (not `cooperative`) to achieve genuine balance between reappraisal and suppression capacities
-- `deriveRegulationDefaults` made public (was package-private) for cross-module eval access
-- Old `predict(DispositionAxes, ...)` preserved as backward-compat bridge (not yet removed)
-- Person overlay lookup duplicated in regulation tick participant (not extracted to shared utility — follow-up if duplication becomes a burden)
+The user observed: the 5s NEVER have variance. The 3-4 boundary cases always have variance. **This is not noise — it's a signal that these cases are genuinely on the boundary.** Either the application model doesn't give the LLM enough context, or the judge rubric doesn't handle these cases well. Both warrant investigation.
 
 ## Next Action
 
-**Run `work continue`.** Remaining work on #830 before advancing:
+**`work continue` — resolve the three boundary cases to stable 4+.**
 
-1. **Run the eval:** `JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/caps-llm-classifier/pom.xml test -Pllm-eval -Dtest="RegulationEndToEndEvalTest" -s neocortex/.mvn/slot-settings.xml`
-2. **Review results:** Check `target/regulation-e2e-judge-results.json` — verify original 8 cases maintain >= 4.4 mean, 3 shame cases score >= 4, shame depth >= 3
-3. **Calibrate if needed:** Adjust weight table values or thresholds based on eval results
-4. **Clean up:** Remove old `predict(DispositionAxes, ...)` overload and `isSuppressor`/`isReappraiser` methods after confirming all callers migrated
-5. **Then `work next`** to advance the queue
+Approach for next session:
+1. **Literature search** — targeted: how do avoidant personalities regulate shame across repeated episodes? Does the literature support the judge's claim that serial suppression degrades? What strategy does the literature recommend for the 4th+ episode? This grounds the fix in evidence rather than prompt engineering.
+2. **Examine the judge** — the boundary cases may reveal a rubric limitation. "What this personality WOULD NATURALLY CHOOSE" doesn't distinguish impulse (fast, automatic) from reflective (slow, deliberate). The mixed-anger judge says "betrayal resists reappraisal" — that's a situation judgment, not a personality one.
+3. **Consider multi-run eval** — add `@RepeatedTest(3)` or similar to get median scores per case, eliminating single-run variance from the floor measurement.
 
-### Filed this session
-- casehubio/neocortex#844 — Regulation prediction feedback loop (track outcomes to validate personality-based predictions). Added to queue.
+### Files to read
+- `docs/eval/regulation-e2e-phase2-calibrated.json` — latest eval results
+- `cognition/.../regulation/RegulationStrategyPredictor.java` — viable alternative + continuous thresholds
+- `cognition/.../regulation/EmotionRegulationGenerationPhase.java` — temporal staging + surface-level RM pin
+- `cognitive-index/.../CognitiveDerivationEngine.java` — weight tables (lines 138-169)
 
 ## Branches
 
-**Neocortex:** `issue-830-regulation-predictor-quality` — Phase 1 (5) + Phase 2 (6) commits
+**Neocortex:** `issue-830-regulation-predictor-quality` — 14 commits (Phase 1 + Phase 2 + calibration)
 **Examples:** `issue-830-regulation-predictor-quality` — no code changes
 **Workspace:** `issue-830-regulation-predictor-quality` — specs, plans, decisions, blog
 
 ## Queue Status
 
-Issue #830 is active in `.queue`. All 6 implementation tasks checked off. 10 remaining issues after #830.
+Issue #830 active. 11 remaining issues after #830 (including #844 feedback loop).
