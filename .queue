@@ -2,7 +2,7 @@
 
 ## State
 branch: issue-830-regulation-predictor-quality
-status: drained
+status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
@@ -13,17 +13,17 @@ flyway-next-v:
 
 ## Queue
 - [ ] casehubio/neocortex#830 — Predictor quality — shame and ceiling ← active
-  - [ ] Batch 1: CDE Foundation
-    - [ ] Task 1: RegulationDefaults + CDE derivation + CognitiveDefaults
-  - [ ] Batch 2: Predictor Refactor
-    - [ ] Task 2: Per-category continuous thresholds + dominance margin
-    - [ ] Task 3: Wire tick participant to pass RegulationDefaults
-  - [ ] Batch 3: ShameContext
-    - [ ] Task 4: ShameContext record + person overlay extraction + assembly
-  - [ ] Batch 4: Generation Phase
-    - [ ] Task 5: Interpretive rendering for RegulationDefaults + ShameContext
-  - [ ] Batch 5: Eval + Calibration
-    - [ ] Task 6: Shame-specific eval cases + depth judge + calibration
+  - [x] Batch 1: CDE Foundation
+    - [x] Task 1: RegulationDefaults + CDE derivation + CognitiveDefaults
+  - [x] Batch 2: Predictor Refactor
+    - [x] Task 2: Per-category continuous thresholds + dominance margin
+    - [x] Task 3: Wire tick participant to pass RegulationDefaults
+  - [x] Batch 3: ShameContext
+    - [x] Task 4: ShameContext record + person overlay extraction + assembly
+  - [x] Batch 4: Generation Phase
+    - [x] Task 5: Interpretive rendering for RegulationDefaults + ShameContext
+  - [x] Batch 5: Eval + Calibration
+    - [x] Task 6: Shame-specific eval cases + depth judge + calibration
 - [ ] casehubio/neocortex#829 — Scenario validation
 - [ ] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social
