@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 14px; font-weight: 600; fill: #1a1a2e; }
+      .axis-label { font-size: 11px; fill: #4a4a6a; }
+      .trait-label { font-size: 11px; font-weight: 500; fill: #1a1a2e; }
+      .value-label { font-size: 9px; fill: #6a6a8a; }
+      .grid-line { stroke: #e8e8f0; stroke-width: 0.5; }
+      .zero-line { stroke: #b0b0c8; stroke-width: 1; stroke-dasharray: 4,3; }
+    </style>
+  </defs>
+
+  <rect width="720" height="420" fill="#fafafa" rx="8"/>
+
+  <text x="360" y="28" text-anchor="middle" class="title">Big Five × Regulation Strategy Correlations (Barańczuk 2019, N=46,345)</text>
+  <text x="360" y="44" text-anchor="middle" class="value-label">Meta-analytic r values from 132 studies. Bar length = correlation magnitude.</text>
+
+  <!-- Grid -->
+  <line x1="200" y1="65" x2="200" y2="385" class="zero-line"/>
+  <!-- Positive grid -->
+  <line x1="325" y1="65" x2="325" y2="385" class="grid-line"/>
+  <line x1="450" y1="65" x2="450" y2="385" class="grid-line"/>
+  <line x1="575" y1="65" x2="575" y2="385" class="grid-line"/>
+  <!-- Negative grid -->
+  <line x1="137" y1="65" x2="137" y2="385" class="grid-line"/>
+  <line x1="75" y1="65" x2="75" y2="385" class="grid-line"/>
+
+  <!-- Scale labels -->
+  <text x="75" y="400" text-anchor="middle" class="value-label">-0.5</text>
+  <text x="137" y="400" text-anchor="middle" class="value-label">-0.25</text>
+  <text x="200" y="400" text-anchor="middle" class="value-label">0</text>
+  <text x="325" y="400" text-anchor="middle" class="value-label">+0.25</text>
+  <text x="450" y="400" text-anchor="middle" class="value-label">+0.50</text>
+  <text x="575" y="400" text-anchor="middle" class="value-label">+0.75</text>
+
+  <!-- Legend -->
+  <rect x="510" y="58" width="12" height="12" rx="2" fill="#4a90d9"/>
+  <text x="526" y="68" class="value-label" fill="#4a4a6a">Reappraisal</text>
+  <rect x="590" y="58" width="12" height="12" rx="2" fill="#d94a6a"/>
+  <text x="606" y="68" class="value-label" fill="#4a4a6a">Suppression</text>
+  <rect x="510" y="74" width="12" height="12" rx="2" fill="#6ab04c"/>
+  <text x="526" y="84" class="value-label" fill="#4a4a6a">Avoidance</text>
+
+  <!-- Neuroticism -->
+  <text x="12" y="110" class="trait-label">Neuroticism</text>
+  <!-- Reappraisal: -0.19 -->
+  <rect x="152" y="96" width="48" height="10" rx="2" fill="#4a90d9" opacity="0.85"/>
+  <text x="148" y="105" text-anchor="end" class="value-label">-0.19</text>
+  <!-- Suppression: 0.04 (ns) -->
+  <rect x="200" y="108" width="10" height="10" rx="2" fill="#d94a6a" opacity="0.3"/>
+  <text x="214" y="117" class="value-label">0.04 ns</text>
+  <!-- Avoidance: +0.31 -->
+  <rect x="200" y="120" width="155" height="10" rx="2" fill="#6ab04c" opacity="0.85"/>
+  <text x="359" y="129" class="value-label">+0.31</text>
+
+  <!-- Extraversion -->
+  <text x="12" y="172" class="trait-label">Extraversion</text>
+  <!-- Reappraisal: +0.22 -->
+  <rect x="200" y="158" width="110" height="10" rx="2" fill="#4a90d9" opacity="0.85"/>
+  <text x="314" y="167" class="value-label">+0.22</text>
+  <!-- Suppression: -0.37 -->
+  <rect x="15" y="170" width="185" height="10" rx="2" fill="#d94a6a" opacity="0.85"/>
+  <text x="11" y="179" text-anchor="end" class="value-label" fill="#d94a6a" font-weight="600">-0.37</text>
+  <!-- Avoidance: -0.10 -->
+  <rect x="150" y="182" width="50" height="10" rx="2" fill="#6ab04c" opacity="0.85"/>
+  <text x="146" y="191" text-anchor="end" class="value-label">-0.10</text>
+
+  <!-- Openness -->
+  <text x="12" y="234" class="trait-label">Openness</text>
+  <!-- Reappraisal: +0.20 -->
+  <rect x="200" y="220" width="100" height="10" rx="2" fill="#4a90d9" opacity="0.85"/>
+  <text x="304" y="229" class="value-label">+0.20</text>
+  <!-- Suppression: -0.12 -->
+  <rect x="140" y="232" width="60" height="10" rx="2" fill="#d94a6a" opacity="0.85"/>
+  <text x="136" y="241" text-anchor="end" class="value-label">-0.12</text>
+  <!-- Avoidance: -0.05 -->
+  <rect x="175" y="244" width="25" height="10" rx="2" fill="#6ab04c" opacity="0.85"/>
+  <text x="171" y="253" text-anchor="end" class="value-label">-0.05</text>
+
+  <!-- Agreeableness -->
+  <text x="12" y="296" class="trait-label">Agreeableness</text>
+  <!-- Reappraisal: +0.18 -->
+  <rect x="200" y="282" width="90" height="10" rx="2" fill="#4a90d9" opacity="0.85"/>
+  <text x="294" y="291" class="value-label">+0.18</text>
+  <!-- Suppression: -0.15 -->
+  <rect x="125" y="294" width="75" height="10" rx="2" fill="#d94a6a" opacity="0.85"/>
+  <text x="121" y="303" text-anchor="end" class="value-label">-0.15</text>
+  <!-- Avoidance: -0.12 -->
+  <rect x="140" y="306" width="60" height="10" rx="2" fill="#6ab04c" opacity="0.85"/>
+  <text x="136" y="315" text-anchor="end" class="value-label">-0.12</text>
+
+  <!-- Conscientiousness -->
+  <text x="12" y="358" class="trait-label">Conscientiousness</text>
+  <!-- Reappraisal: +0.19 -->
+  <rect x="200" y="344" width="95" height="10" rx="2" fill="#4a90d9" opacity="0.85"/>
+  <text x="299" y="353" class="value-label">+0.19</text>
+  <!-- Suppression: -0.08 -->
+  <rect x="160" y="356" width="40" height="10" rx="2" fill="#d94a6a" opacity="0.85"/>
+  <text x="156" y="365" text-anchor="end" class="value-label">-0.08</text>
+  <!-- Avoidance: -0.13 -->
+  <rect x="135" y="368" width="65" height="10" rx="2" fill="#6ab04c" opacity="0.85"/>
+  <text x="131" y="377" text-anchor="end" class="value-label">-0.13</text>
+</svg>

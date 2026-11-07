@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 380" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .box-label { font-size: 11px; font-weight: 600; fill: #1a1a2e; }
+      .box-value { font-size: 10px; fill: #4a4a6a; }
+      .confidence-high { fill: #2d8a4e; font-size: 9px; font-weight: 500; }
+      .confidence-mod { fill: #c87a20; font-size: 9px; font-weight: 500; }
+      .confidence-low { fill: #b04a4a; font-size: 9px; font-weight: 500; }
+      .header { font-size: 13px; font-weight: 600; fill: #1a1a2e; }
+      .arrow { stroke: #8888aa; stroke-width: 1.2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-strong { stroke: #4a6a9a; stroke-width: 2; fill: none; marker-end: url(#arrowhead-strong); }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#8888aa"/>
+    </marker>
+    <marker id="arrowhead-strong" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4a6a9a"/>
+    </marker>
+  </defs>
+
+  <rect width="740" height="380" fill="#fafafa" rx="8"/>
+
+  <text x="370" y="24" text-anchor="middle" class="header">Disposition Axes → Big Five Bridge</text>
+  <text x="370" y="40" text-anchor="middle" style="font-size:10px;fill:#6a6a8a">Mapping confidence determines weight contribution to regulation capacity derivation</text>
+
+  <!-- Left column: Disposition Axes -->
+  <text x="90" y="64" text-anchor="middle" class="header" fill="#4a6a9a">Disposition Axes</text>
+
+  <!-- conflictMode -->
+  <rect x="10" y="78" width="160" height="68" rx="6" fill="#e8eef6" stroke="#b0c4de" stroke-width="1"/>
+  <text x="90" y="94" text-anchor="middle" class="box-label">conflictMode</text>
+  <text x="90" y="110" text-anchor="middle" class="box-value">avoidant · analytical</text>
+  <text x="90" y="124" text-anchor="middle" class="box-value">cooperative · competitive</text>
+  <text x="90" y="138" text-anchor="middle" class="confidence-high">Confidence: HIGH</text>
+
+  <!-- socialOrient -->
+  <rect x="10" y="152" width="160" height="52" rx="6" fill="#e8eef6" stroke="#b0c4de" stroke-width="1"/>
+  <text x="90" y="168" text-anchor="middle" class="box-label">socialOrient</text>
+  <text x="90" y="184" text-anchor="middle" class="box-value">cooperative · independent · competitive</text>
+  <text x="90" y="198" text-anchor="middle" class="confidence-high">HIGH</text>
+
+  <!-- riskAppetite -->
+  <rect x="10" y="210" width="160" height="52" rx="6" fill="#e8eef6" stroke="#b0c4de" stroke-width="1"/>
+  <text x="90" y="226" text-anchor="middle" class="box-label">riskAppetite</text>
+  <text x="90" y="242" text-anchor="middle" class="box-value">conservative · calculated · bold</text>
+  <text x="90" y="256" text-anchor="middle" class="confidence-mod">calculated: LOW</text>
+
+  <!-- autonomy -->
+  <rect x="10" y="268" width="160" height="44" rx="6" fill="#e8eef6" stroke="#b0c4de" stroke-width="1"/>
+  <text x="90" y="284" text-anchor="middle" class="box-label">autonomy</text>
+  <text x="90" y="300" text-anchor="middle" class="box-value">low · moderate · high</text>
+
+  <!-- ruleFollowing -->
+  <rect x="10" y="318" width="160" height="44" rx="6" fill="#e8eef6" stroke="#b0c4de" stroke-width="1"/>
+  <text x="90" y="334" text-anchor="middle" class="box-label">ruleFollowing</text>
+  <text x="90" y="350" text-anchor="middle" class="box-value">flexible · moderate · strict</text>
+
+  <!-- Right column: Big Five -->
+  <text x="610" y="64" text-anchor="middle" class="header" fill="#9a4a6a">Big Five</text>
+
+  <rect x="530" y="78" width="190" height="36" rx="6" fill="#f6e8ee" stroke="#deb0c4" stroke-width="1"/>
+  <text x="625" y="96" text-anchor="middle" class="box-label">Neuroticism</text>
+  <text x="625" y="108" text-anchor="middle" class="box-value">r: reappraisal -0.19, avoidance +0.31</text>
+
+  <rect x="530" y="120" width="190" height="36" rx="6" fill="#f6e8ee" stroke="#deb0c4" stroke-width="1"/>
+  <text x="625" y="138" text-anchor="middle" class="box-label">Extraversion</text>
+  <text x="625" y="150" text-anchor="middle" class="box-value">r: reappraisal +0.22, suppression -0.37</text>
+
+  <rect x="530" y="162" width="190" height="36" rx="6" fill="#f6e8ee" stroke="#deb0c4" stroke-width="1"/>
+  <text x="625" y="180" text-anchor="middle" class="box-label">Openness</text>
+  <text x="625" y="192" text-anchor="middle" class="box-value">r: reappraisal +0.20</text>
+
+  <rect x="530" y="204" width="190" height="36" rx="6" fill="#f6e8ee" stroke="#deb0c4" stroke-width="1"/>
+  <text x="625" y="222" text-anchor="middle" class="box-label">Agreeableness</text>
+  <text x="625" y="234" text-anchor="middle" class="box-value">r: reappraisal +0.18, suppression -0.15</text>
+
+  <rect x="530" y="246" width="190" height="36" rx="6" fill="#f6e8ee" stroke="#deb0c4" stroke-width="1"/>
+  <text x="625" y="264" text-anchor="middle" class="box-label">Conscientiousness</text>
+  <text x="625" y="276" text-anchor="middle" class="box-value">r: reappraisal +0.19</text>
+
+  <!-- Arrows: conflictMode -->
+  <path d="M 170 90 Q 350 80 528 90" class="arrow-strong"/>
+  <path d="M 170 105 Q 350 120 528 180" class="arrow-strong"/>
+  <path d="M 170 115 Q 350 150 528 220" class="arrow"/>
+
+  <!-- Arrows: socialOrient -->
+  <path d="M 170 170 Q 350 175 528 220" class="arrow"/>
+  <path d="M 170 180 Q 350 165 528 138" class="arrow"/>
+
+  <!-- Arrows: riskAppetite -->
+  <path d="M 170 228 Q 350 200 528 92" class="arrow-strong"/>
+  <path d="M 170 240 Q 350 230 528 180" class="arrow"/>
+
+  <!-- Arrows: autonomy -->
+  <path d="M 170 282 Q 350 260 528 180" class="arrow"/>
+  <path d="M 170 290 Q 350 270 528 138" class="arrow"/>
+
+  <!-- Arrows: ruleFollowing -->
+  <path d="M 170 336 Q 350 310 528 260" class="arrow-strong"/>
+
+  <!-- Annotation -->
+  <rect x="290" y="310" width="200" height="55" rx="6" fill="#f0f0f8" stroke="#c8c8d8" stroke-width="1"/>
+  <text x="390" y="328" text-anchor="middle" style="font-size:10px;font-weight:600;fill:#4a4a6a">Thick arrows = high confidence</text>
+  <text x="390" y="342" text-anchor="middle" style="font-size:10px;fill:#6a6a8a">Thin arrows = moderate confidence</text>
+  <text x="390" y="356" text-anchor="middle" style="font-size:10px;fill:#6a6a8a">Low-confidence mappings → near-zero weight</text>
+</svg>
