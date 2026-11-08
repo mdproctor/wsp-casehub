@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" font-family="system-ui, -apple-system, sans-serif">
+  <style>
+    text { font-size: 13px; fill: #333; }
+    .title { font-size: 16px; font-weight: 600; fill: #1a1a1a; }
+    .subtitle { font-size: 11px; fill: #666; }
+    .label { font-size: 12px; font-weight: 500; fill: #fff; }
+    .strategy { font-size: 11px; fill: #333; }
+    .arrow { fill: none; stroke: #999; stroke-width: 1.5; marker-end: url(#arrowhead); }
+    .dim { fill: #f0f0f0; stroke: #ccc; stroke-width: 1; rx: 8; }
+    .intrinsic { fill: #3b82f6; rx: 6; }
+    .extrinsic { fill: #ef4444; rx: 6; }
+    .connector { stroke: #bbb; stroke-width: 1; stroke-dasharray: 4,3; fill: none; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#999"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="380" y="30" text-anchor="middle" class="title">Interpersonal Emotion Regulation (Zaki &amp; Williams 2013)</text>
+
+  <!-- Central node -->
+  <rect x="300" y="55" width="160" height="36" rx="18" fill="#6366f1"/>
+  <text x="380" y="78" text-anchor="middle" class="label" font-size="13">Social Regulation</text>
+
+  <!-- Arrows from center -->
+  <line x1="340" y1="91" x2="200" y2="140" class="arrow"/>
+  <line x1="420" y1="91" x2="560" y2="140" class="arrow"/>
+
+  <!-- Intrinsic box -->
+  <rect x="60" y="140" width="280" height="250" class="dim"/>
+  <text x="200" y="165" text-anchor="middle" font-size="14" font-weight="600" fill="#3b82f6">Intrinsic</text>
+  <text x="200" y="182" text-anchor="middle" class="subtitle">regulate YOUR emotions via social means</text>
+
+  <!-- Intrinsic strategies -->
+  <rect x="85" y="200" width="230" height="44" class="intrinsic"/>
+  <text x="200" y="218" text-anchor="middle" class="label">SOCIAL_SUPPORT_SEEKING</text>
+  <text x="200" y="236" text-anchor="middle" class="label" font-size="10" font-weight="normal" opacity="0.85">seek comfort from a specific agent</text>
+
+  <rect x="85" y="254" width="230" height="44" class="intrinsic"/>
+  <text x="200" y="272" text-anchor="middle" class="label">SOCIAL_SHARING</text>
+  <text x="200" y="290" text-anchor="middle" class="label" font-size="10" font-weight="normal" opacity="0.85">share emotional experience for relief</text>
+
+  <rect x="85" y="308" width="230" height="44" class="intrinsic"/>
+  <text x="200" y="326" text-anchor="middle" class="label">SOCIAL_WITHDRAWAL</text>
+  <text x="200" y="344" text-anchor="middle" class="label" font-size="10" font-weight="normal" opacity="0.85">withdraw from interaction to self-regulate</text>
+
+  <!-- Extrinsic box -->
+  <rect x="420" y="140" width="280" height="250" class="dim"/>
+  <text x="560" y="165" text-anchor="middle" font-size="14" font-weight="600" fill="#ef4444">Extrinsic</text>
+  <text x="560" y="182" text-anchor="middle" class="subtitle">regulate ANOTHER'S emotions</text>
+
+  <!-- Extrinsic strategies -->
+  <rect x="445" y="200" width="230" height="44" class="extrinsic"/>
+  <text x="560" y="218" text-anchor="middle" class="label">CO_REGULATION</text>
+  <text x="560" y="236" text-anchor="middle" class="label" font-size="10" font-weight="normal" opacity="0.85">soothe or comfort a distressed agent</text>
+
+  <rect x="445" y="254" width="230" height="44" class="extrinsic"/>
+  <text x="560" y="272" text-anchor="middle" class="label">DELIBERATE_PROVOCATION</text>
+  <text x="560" y="290" text-anchor="middle" class="label" font-size="10" font-weight="normal" opacity="0.85">intentionally provoke emotional response</text>
+
+  <!-- Footer -->
+  <text x="380" y="410" text-anchor="middle" class="subtitle">All five strategies extend EmotionRegulationStrategy alongside the existing Gross (1998) intrapersonal strategies</text>
+</svg>
