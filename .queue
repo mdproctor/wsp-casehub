@@ -15,17 +15,12 @@ flyway-next-v:
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
 - [x] casehubio/neocortex#829 — Scenario validation
 - [x] casehubio/neocortex#819 — Proactive
-- [ ] casehubio/neocortex#805 — Social ← active
-  - [x] Batch 1: API-Types
-    - [x] Task 1: EmotionRegulationStrategy-social-values
-    - [x] Task 2: EmotionRegulationResult-targetAgentId
-    - [x] Task 3: RegulationDefaults-socialTendency
-  - [x] Batch 2: LLM-Generation
-    - [x] Task 4: prompt-social-strategies
-    - [x] Task 5: parseResponse-targetAgentId
-  - [x] Batch 3: Goal-Routing
-    - [x] Task 6: GoalParticipant-social-routing
-- [ ] casehubio/neocortex#822 — Per-strategy
+- [x] casehubio/neocortex#805 — Social
+- [ ] casehubio/neocortex#822 — Per-strategy ← active
+  - [ ] Batch 1: Batch 4 Deferred
+    - [ ] Task 1: distress-trajectory-enrichment
+    - [ ] Task 2: feature-toggle-social-enabled
+    - [ ] Task 3: integration-test-social-tick
 - [ ] casehubio/neocortex#823 — Per-modality
 - [ ] casehubio/neocortex#520 — Cognitive
 - [ ] casehubio/examples#203 — Spatial
@@ -38,3 +33,8 @@ flyway-next-v:
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
+
+## Deferred
+- [ ] Distress trajectory prompt enrichment for extrinsic strategies (S / Med) [casehubio/neocortex] — Spec §99: RegulationTracker distress trajectories for CO_REGULATION/DELIBERATE_PROVOCATION — not blocking for initial social regulation, enhances extrinsic strategy quality
+- [ ] Feature toggle manor.regulation.social.enabled (XS / Low) [casehubio/neocortex] — Spec config property — social strategies always active when agents present, toggle adds opt-out
+- [ ] Integration test: full tick with social context to social goal (S / Low) [casehubio/neocortex] — Spec testing strategy — unit tests cover each component, integration test verifies end-to-end flow
