@@ -94,3 +94,79 @@
 **Exploration:** quick
 **Depends on:** D6 (predictor wiring determines which strategies can be asserted precisely)
 **Status:** captured
+
+## D9: Separate test class for per-modality eval tests
+
+**Choice:** New `PerModalityRegulationEvalTest` class in caps-llm-classifier eval package
+**Alternatives:**
+- Extend `PerStrategyRegulationEvalTest` — different test structure (multi-tick vs 2-tick), different assertions (behavioral change over time vs single-tick strategy), mixes concerns
+- Add to `RegulationFullPipelineEvalTest` — different CognitionCore lifecycle (persistent vs fresh per run)
+**Rationale:** Per-modality tests require keeping a single CognitionCore across multiple ticks (fatigue, monitor, failure signals persist within the instance). Per-strategy tests create a fresh core per run. The scenario runner captures per-tick results rather than a single final result. Fundamentally different test structure requires separate class.
+**Trade-offs:** Three eval test classes in the same package. Acceptable — each tests a distinct dimension of the regulation pipeline.
+**Sources:** PerStrategyRegulationEvalTest.java (2-tick pattern), EmotionRegulationTickParticipant.java:80-81 (fatigueTracker/regulationMonitor persist in instance), CognitionCoreTestBuilder.java:100-108 (4-arg builder)
+**Exploration:** quick
+**Depends on:** D7 (established separate-class pattern for different CognitionCore configurations)
+**Status:** captured
+
+## D10: CognitionCore.tick() overload for RegulationContext
+
+**Choice:** Add 7-arg tick() overload accepting RegulationContext, flowing it to the 8-arg CognitionTickContext constructor
+**Alternatives:**
+- Test ProactiveRegulationParticipant directly with mocks (unit-level, not eval-level) — loses pipeline integration, doesn't prove the write path persists location to MindMap
+- Parse location from observation text in ProactiveRegulationParticipant — fragile, already rejected in D2
+**Rationale:** Two-directional production gap, not just a test gap. (1) EmotionRegulationTickParticipant.write() at line 182 passes context.regulationContext() to MindMapAdapter — always null, so location is never persisted. (2) ProactiveRegulationParticipant.tick() at line 46-47 short-circuits on null regulationContext — proactive avoidance never fires. CognitionTickContext already has the 8-arg canonical constructor with RegulationContext (line 8-17 of CognitionTickContext.java). CognitionCore.tick() at line 253 uses the 7-arg constructor that passes null. Fix: one new overload, one changed constructor call.
+**Trade-offs:** Adds one more tick() overload to CognitionCore (already has 3). Callers without RegulationContext continue using existing overloads unchanged.
+**Sources:** CognitionCore.java:253 (7-arg constructor call), CognitionTickContext.java:39-46 (7-arg → 8-arg with null), ProactiveRegulationParticipant.java:46-47 (null guard), EmotionRegulationTickParticipant.java:182-188 (write with null context)
+**Exploration:** quick
+**Depends on:** D2 (RegulationContext record already exists in CognitionTickContext)
+**Status:** captured
+
+## D11: Fatigue test — ~20 ticks for deterministic predictor override
+
+**Choice:** Run ~20 ticks to accumulate fatigue > 0.7, verify predictor forces ATTENTIONAL_DEPLOYMENT
+**Alternatives:**
+- 5-tick test per issue spec — fatigue ≈ 0.30 after 5 ticks (convergent series: effort = alpha × discrepancy / D_MAX where alpha = 0.5 × (1 - fatigue)), nowhere near any threshold
+- Combined fatigue + monitor test (5-7 ticks) — shorter but depends entirely on LLM generating declining effectiveness, not deterministic
+**Rationale:** At fatigue > 0.7, RegulationStrategyPredictor.predict() line 36-39 unconditionally returns ATTENTIONAL_DEPLOYMENT with confidence 0.85. This is deterministic — no LLM dependency for the strategy override. Set up a character with high reappraisalCapacity that normally selects COGNITIVE_CHANGE. After ~20 ticks of sustained regulation, verify strategy switches to ATTENTIONAL_DEPLOYMENT. The LLM still generates narrative/effectiveness but the strategy is predictor-pinned.
+**Trade-offs:** 20 ticks × N=3 = 60 LLM calls per test. Comparable to existing eval suite total (~30 calls across 5 tests). Test runtime ~10-15 min. Acceptable for llm-eval profile.
+**Sources:** RegulationFatigueTracker.java:8-9 (FATIGUE_RATE=0.15, formula), EmotionRegulationTickParticipant.java:100-104 (effort = alpha × discrepancy / D_MAX, negative feedback loop), RegulationStrategyPredictor.java:36-39 (fatigue > 0.7 override)
+**Exploration:** deep-analysis (first-principles arithmetic verification of convergent series)
+**Status:** captured
+
+## D12: Automatic regulation — strategy concordance, no timing
+
+**Choice:** Test strategy concordance between predictor and LLM free choice; drop timing assertion
+**Alternatives:**
+- Include timing assertion — LLM is called in both paths (generationPhase.generate() at EmotionRegulationGenerationPhase.java:148 invokes LLM for narrative/effectiveness regardless of pinnedStrategy), no meaningful latency difference
+- Test only predictor path — already covered by #822 (PerStrategyRegulationEvalTest), adds nothing new
+**Rationale:** The predictor's value is selecting the SAME strategy the LLM would choose, deterministically and without the strategy-selection component of the prompt. Run same scenario twice: (1) with defaultsRegistry → predictor pins strategy, (2) without defaultsRegistry → LLM freely chooses. Assert strategies match ≥2/3 runs. This validates the predictor's personality → strategy mapping against the LLM's independent judgment.
+**Trade-offs:** Concordance is probabilistic (LLM may legitimately choose differently). ≥2/3 threshold is lenient. If concordance is consistently low, the finding is that the predictor's mapping diverges from LLM judgment — a real signal, not a test failure.
+**Sources:** EmotionRegulationGenerationPhase.java:148-149 (LLM called in both paths), EmotionRegulationGenerationPhase.java:357-359 (pinnedStrategy prompt), EmotionRegulationTickParticipant.java:121-138 (predictor flow)
+**Exploration:** deep-analysis (first-principles verification of LLM invocation path)
+**Status:** captured
+
+## D13: Monitoring — 5-tick signal consumption cycle
+
+**Choice:** 5 ticks with pinned strategy, assert strategy change on tick 5
+**Alternatives:**
+- 4 ticks — signal fires on tick 4 but is consumed on tick 5 (failureSignals stored on tick N, consumed on tick N+1 via failureSignals.remove() at line 112)
+- Direct monitor unit test — already exists (RegulationMonitorTest), doesn't prove pipeline signal flow
+**Rationale:** Pin RESPONSE_MODULATION via predictor (high suppressionCapacity). Use escalating emotional observations across ticks to encourage declining effectiveness from the LLM. The LLM also receives increasing fatigue (regulationFatigue > 0.01 → prompt includes "Regulation fatigue: X%"). Monitor's consecutiveDeclines counter requires same strategy + declining effectiveness for 3 consecutive ticks (RegulationMonitor.java:31-33). Signal generated on tick 4, consumed on tick 5 — at which point pendingSignal != null bypasses the predictor (line 123) and the LLM receives "⚠ STRATEGY FAILING" prompt (line 389). Assert: strategy on tick 5 differs from ticks 1-4.
+**Trade-offs:** Effectiveness decline is LLM-generated and non-deterministic. Escalating observations and fatigue prompt provide pressure but no guarantee. N=3, ≥1/3 threshold acknowledges this. If the test consistently fails, the observation escalation needs redesign, not the pipeline.
+**Sources:** EmotionRegulationTickParticipant.java:112 (signal consumption), EmotionRegulationTickParticipant.java:178-180 (signal generation), RegulationMonitor.java:26-48 (decline tracking), EmotionRegulationGenerationPhase.java:382-396 (failure signal prompt)
+**Exploration:** deep-analysis (first-principles trace of signal flow through tick lifecycle)
+**Depends on:** D6 (predictor wiring for strategy pinning across ticks)
+**Status:** captured
+
+## D14: Proactive — 3-tick eval with RegulationContext and seeded memory
+
+**Choice:** 3-tick full-pipeline test with RegulationContext flowing through CognitionCore
+**Alternatives:**
+- Direct ProactiveRegulationParticipant test with mocked MindMap — already exists (ProactiveRegulationParticipantTest.java), doesn't prove pipeline integration (write path → MindMap → read path)
+- Seed MindMap directly without running tick 1 — bypasses the write path, doesn't prove EmotionRegulationMindMapAdapter persists location data
+**Rationale:** Requires D10 (tick overload). Tick 1: high-shame observation at RegulationContext(location="library") → regulation fires → EmotionRegulationMindMapAdapter.write() persists result with regulationLocation="library". Tick 2: different observation (recovery tick — emotion below baseline). Tick 3: agent re-enters "library" (same RegulationContext) → ProactiveRegulationParticipant reads MindMap in FOUNDATION phase, finds matching episode, produces DriveGoalProposal for avoidance. Character has high redirectTendency (0.8) so threshold = 1.0 - 0.8 = 0.2 (easy to exceed with low-effectiveness regulation in tick 1). Assert: GoalProposalOrchestrator receives avoidance goal with goalName containing "proactive-avoidance" and "library".
+**Trade-offs:** Depends on tick 1 producing a regulation result with effectiveness < 0.8 (so avoidanceScore > 0.2 × decayWeight). The low threshold (0.2) makes this robust — only very effective regulation in tick 1 would block the avoidance signal. Temporal decay: ticks 1-3 happen within seconds, well within the 50-tick decay horizon.
+**Sources:** ProactiveRegulationParticipant.java:55-89 (avoidance score calculation), EmotionRegulationMindMapAdapter.java:32-73 (write with regulationContext), ProactiveRegulationParticipantTest.java:58-78 (existing component test pattern), GoalProposalOrchestrator.appendGoals() (D3)
+**Exploration:** deep-analysis (first-principles trace of write path → MindMap → read path)
+**Depends on:** D10 (CognitionCore.tick() overload for RegulationContext), D4 (redirectTendency as threshold)
+**Status:** captured
