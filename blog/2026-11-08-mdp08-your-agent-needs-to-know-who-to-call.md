@@ -72,6 +72,8 @@ The design connects observation to action through the existing appraisal pathway
 
 This means a character with low agreeableness who observes another's distress may not experience a strong empathic appraisal — and therefore may not attempt co-regulation. A character with high agreeableness will appraise the distress strongly and be drawn toward helping. The personality modulation happens at the appraisal level, not at the regulation level, which is the right place: the character has to care before it can help.
 
+*Note: the distress trajectory prompt enrichment — feeding `RegulationTracker` data into the LLM prompt for extrinsic strategy selection — is designed but not yet implemented. The current implementation supports CO_REGULATION and DELIBERATE_PROVOCATION selection based on the available agents list and social regulation tendency, without trajectory-informed context. Trajectory enrichment is planned follow-up work.*
+
 ## Goal Routing: appendGoals, Not registerGoals
 
 One detail that matters more than it looks. The existing environmental regulation goal bridge uses `registerGoals()` — replace semantics. When SITUATION_SELECTION fires, it overwrites whatever goals were previously registered. This is correct for environmental strategies: they are the primary goal output of the regulation system.
