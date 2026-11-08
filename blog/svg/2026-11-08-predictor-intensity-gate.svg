@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" font-family="system-ui, -apple-system, sans-serif">
+  <style>
+    .gate { fill: #1a1a2e; stroke: #e94560; stroke-width: 2; rx: 8; }
+    .personality { fill: #1a1a2e; stroke: #0f3460; stroke-width: 2; rx: 8; }
+    .outcome { fill: #1a1a2e; stroke: #16213e; stroke-width: 2; rx: 8; }
+    .fallthrough { fill: #1a1a2e; stroke: #533483; stroke-width: 2; rx: 8; }
+    .label { fill: #e0e0e0; font-size: 13px; text-anchor: middle; }
+    .label-sm { fill: #a0a0a0; font-size: 11px; text-anchor: middle; }
+    .title { fill: #ffffff; font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .arrow { stroke: #888; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .arrow-yes { stroke: #e94560; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-red); }
+    .arrow-no { stroke: #0f3460; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-blue); }
+    .zone-label { fill: #666; font-size: 11px; font-style: italic; text-anchor: start; }
+    .bg { fill: #0d1117; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#888"/>
+    </marker>
+    <marker id="arrowhead-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#e94560"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#0f3460"/>
+    </marker>
+  </defs>
+
+  <rect width="720" height="520" class="bg"/>
+
+  <!-- Zone labels -->
+  <text x="20" y="30" class="zone-label">INTENSITY ZONE — personality irrelevant</text>
+  <text x="20" y="230" class="zone-label">EMOTION CATEGORY ZONE — personality shapes strategy</text>
+  <text x="20" y="430" class="zone-label">PERSONALITY ZONE — capacities and disposition decide</text>
+
+  <!-- Zone dividers -->
+  <line x1="15" y1="215" x2="705" y2="215" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="15" y1="415" x2="705" y2="415" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Gate 1: Fatigue -->
+  <rect x="250" y="45" width="220" height="40" class="gate"/>
+  <text x="360" y="70" class="title">Fatigue > 0.7?</text>
+
+  <!-- Gate 2: Intensity -->
+  <rect x="250" y="130" width="220" height="40" class="gate"/>
+  <text x="360" y="155" class="title">Peak intensity > 0.75?</text>
+
+  <!-- ATTENTIONAL_DEPLOYMENT outcome (right side) -->
+  <rect x="545" y="80" width="160" height="36" class="outcome"/>
+  <text x="625" y="96" class="label">ATTENTIONAL</text>
+  <text x="625" y="110" class="label">DEPLOYMENT</text>
+
+  <!-- Arrows from gates to ATT_DEPLOY -->
+  <line x1="470" y1="65" x2="543" y2="92" class="arrow-yes"/>
+  <text x="498" y="68" class="label-sm" fill="#e94560">yes</text>
+  <line x1="470" y1="150" x2="543" y2="103" class="arrow-yes"/>
+  <text x="498" y="138" class="label-sm" fill="#e94560">yes</text>
+
+  <!-- Arrow from fatigue to intensity (no) -->
+  <line x1="360" y1="85" x2="360" y2="128" class="arrow-no"/>
+  <text x="345" y="110" class="label-sm" fill="#0f3460">no</text>
+
+  <!-- Gate 3: Emotion category -->
+  <rect x="200" y="240" width="320" height="40" class="gate"/>
+  <text x="360" y="265" class="title">Emotion category?</text>
+
+  <!-- Arrow from intensity to emotion (no) -->
+  <line x1="360" y1="170" x2="360" y2="238" class="arrow-no"/>
+  <text x="345" y="200" class="label-sm" fill="#0f3460">no</text>
+
+  <!-- UNCONTROLLABLE branch -->
+  <rect x="545" y="245" width="160" height="36" class="outcome"/>
+  <text x="625" y="261" class="label">ATTENTIONAL</text>
+  <text x="625" y="275" class="label">DEPLOYMENT</text>
+
+  <line x1="520" y1="255" x2="543" y2="260" class="arrow-yes"/>
+  <text x="535" y="247" class="label-sm" fill="#a0a0a0">FEAR</text>
+
+  <!-- Personality branches -->
+  <!-- SELF_CONSCIOUS -->
+  <rect x="40" y="320" width="180" height="36" class="personality"/>
+  <text x="130" y="342" class="label">SELF_CONSCIOUS</text>
+
+  <!-- CONTROLLABLE -->
+  <rect x="270" y="320" width="180" height="36" class="personality"/>
+  <text x="360" y="342" class="label">CONTROLLABLE_NEG</text>
+
+  <!-- OTHER_DIRECTED -->
+  <rect x="500" y="320" width="180" height="36" class="personality"/>
+  <text x="590" y="342" class="label">OTHER_DIRECTED</text>
+
+  <line x1="280" y1="280" x2="130" y2="318" class="arrow"/>
+  <text x="185" y="297" class="label-sm">SHAME</text>
+  <line x1="360" y1="280" x2="360" y2="318" class="arrow"/>
+  <text x="380" y="303" class="label-sm">ANGER</text>
+  <line x1="440" y1="280" x2="590" y2="318" class="arrow"/>
+  <text x="530" y="297" class="label-sm">REPROACH</text>
+
+  <!-- Personality outcomes -->
+  <rect x="15" y="440" width="150" height="56" class="personality"/>
+  <text x="90" y="461" class="label">avoidant →</text>
+  <text x="90" y="478" class="label" fill="#e94560">SIT_SELECTION</text>
+  <text x="90" y="492" class="label-sm">reappraisal ≥ 0.65 →</text>
+
+  <rect x="195" y="440" width="150" height="56" class="personality"/>
+  <text x="270" y="461" class="label">reappraisal dom →</text>
+  <text x="270" y="478" class="label" fill="#0f3460">COG_CHANGE</text>
+  <text x="270" y="492" class="label-sm">suppression dom →</text>
+
+  <rect x="375" y="440" width="150" height="56" class="personality"/>
+  <text x="450" y="461" class="label">suppression dom →</text>
+  <text x="450" y="478" class="label" fill="#0f3460">RESP_MOD</text>
+  <text x="450" y="492" class="label-sm">reappraisal dom →</text>
+
+  <rect x="555" y="440" width="150" height="56" class="fallthrough"/>
+  <text x="630" y="461" class="label">neither dominates →</text>
+  <text x="630" y="478" class="label" fill="#533483">LLM FREE</text>
+  <text x="630" y="492" class="label-sm">CHOICE</text>
+
+  <line x1="130" y1="356" x2="90" y2="438" class="arrow"/>
+  <line x1="360" y1="356" x2="270" y2="438" class="arrow"/>
+  <line x1="360" y1="356" x2="450" y2="438" class="arrow"/>
+  <line x1="590" y1="356" x2="450" y2="438" class="arrow"/>
+  <line x1="590" y1="356" x2="630" y2="438" class="arrow"/>
+</svg>

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 340" font-family="system-ui, -apple-system, sans-serif">
+  <style>
+    .bg { fill: #0d1117; }
+    .header { fill: #e0e0e0; font-size: 12px; font-weight: 600; text-anchor: start; }
+    .row-label { fill: #c0c0c0; font-size: 12px; text-anchor: start; }
+    .emotion-tag { fill: #a0a0a0; font-size: 10px; text-anchor: start; }
+    .bar-pass { fill: #2ea043; rx: 3; }
+    .bar-fail { fill: #da3633; rx: 3; }
+    .bar-flake { fill: #d29922; rx: 3; }
+    .count { fill: #e0e0e0; font-size: 11px; text-anchor: middle; }
+    .insight { fill: #888; font-size: 10px; text-anchor: start; font-style: italic; }
+    .divider { stroke: #30363d; stroke-width: 1; }
+    .predictor-pin { fill: #0f3460; font-size: 10px; text-anchor: end; }
+    .predictor-free { fill: #533483; font-size: 10px; text-anchor: end; }
+  </style>
+
+  <rect width="680" height="340" class="bg"/>
+
+  <!-- Headers -->
+  <text x="20" y="30" class="header">Strategy</text>
+  <text x="240" y="30" class="header">Dominant Emotion</text>
+  <text x="400" y="30" class="header">Match Rate</text>
+  <text x="560" y="30" class="header">Predictor</text>
+  <line x1="15" y1="38" x2="665" y2="38" class="divider"/>
+
+  <!-- Row 1: SITUATION_SELECTION -->
+  <text x="20" y="68" class="row-label">SITUATION_SELECTION</text>
+  <text x="240" y="68" class="emotion-tag">SHAME 0.42</text>
+  <rect x="400" y="53" width="120" height="20" class="bar-pass"/>
+  <text x="460" y="67" class="count">3 / 3</text>
+  <text x="545" y="68" class="predictor-pin">pinned</text>
+  <text x="20" y="82" class="insight">birthday gift — mild embarrassment, no threat</text>
+
+  <!-- Row 2: SITUATION_MODIFICATION -->
+  <line x1="15" y1="96" x2="665" y2="96" class="divider"/>
+  <text x="20" y="118" class="row-label">SITUATION_MODIFICATION</text>
+  <text x="240" y="118" class="emotion-tag">REPROACH 0.49</text>
+  <rect x="400" y="103" width="120" height="20" class="bar-pass"/>
+  <text x="460" y="117" class="count">3 / 3</text>
+  <text x="545" y="118" class="predictor-free">LLM free</text>
+  <text x="20" y="132" class="insight">chore rota — actionable annoyance, clear agency</text>
+
+  <!-- Row 3: ATTENTIONAL_DEPLOYMENT -->
+  <line x1="15" y1="146" x2="665" y2="146" class="divider"/>
+  <text x="20" y="168" class="row-label">ATTENTIONAL_DEPLOYMENT</text>
+  <text x="240" y="168" class="emotion-tag">DISTRESS 0.93</text>
+  <rect x="400" y="153" width="120" height="20" class="bar-pass"/>
+  <text x="460" y="167" class="count">3 / 3</text>
+  <text x="545" y="168" class="predictor-pin">pinned</text>
+  <text x="20" y="182" class="insight">falling beam — high intensity overrides personality</text>
+
+  <!-- Row 4: COGNITIVE_CHANGE -->
+  <line x1="15" y1="196" x2="665" y2="196" class="divider"/>
+  <text x="20" y="218" class="row-label">COGNITIVE_CHANGE</text>
+  <text x="240" y="218" class="emotion-tag">REPROACH 0.39</text>
+  <rect x="400" y="203" width="120" height="20" class="bar-pass"/>
+  <text x="460" y="217" class="count">3 / 3</text>
+  <text x="545" y="218" class="predictor-pin">pinned</text>
+  <text x="20" y="232" class="insight">tea — petty unfairness, high reappraisal capacity</text>
+
+  <!-- Row 5: RESPONSE_MODULATION -->
+  <line x1="15" y1="246" x2="665" y2="246" class="divider"/>
+  <text x="20" y="268" class="row-label">RESPONSE_MODULATION</text>
+  <text x="240" y="268" class="emotion-tag">SHAME 0.64</text>
+  <rect x="400" y="253" width="80" height="20" class="bar-flake"/>
+  <rect x="482" y="253" width="38" height="20" class="bar-pass"/>
+  <text x="440" y="267" class="count" fill="#0d1117">flake</text>
+  <text x="501" y="267" class="count" fill="#0d1117">✓</text>
+  <text x="545" y="268" class="predictor-pin">pinned</text>
+  <text x="20" y="282" class="insight">leadership suggestion — DISTRESS sometimes dominates</text>
+
+  <!-- Footer -->
+  <line x1="15" y1="300" x2="665" y2="300" class="divider"/>
+  <rect x="20" y="312" width="12" height="12" class="bar-pass"/>
+  <text x="40" y="323" class="emotion-tag">stable pass</text>
+  <rect x="120" y="312" width="12" height="12" class="bar-flake"/>
+  <text x="140" y="323" class="emotion-tag">flake (passes on retry)</text>
+  <rect x="270" y="312" width="12" height="12" fill="#0f3460" rx="2"/>
+  <text x="290" y="323" class="emotion-tag">predictor-pinned</text>
+  <rect x="390" y="312" width="12" height="12" fill="#533483" rx="2"/>
+  <text x="410" y="323" class="emotion-tag">LLM free choice</text>
+</svg>
