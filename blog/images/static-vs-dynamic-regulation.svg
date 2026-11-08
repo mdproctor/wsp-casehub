@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 460" font-family="system-ui, -apple-system, sans-serif">
+  <style>
+    .title { font-size: 13px; font-weight: 600; fill: #1e293b; }
+    .label { font-size: 11px; fill: #334155; }
+    .sublabel { font-size: 10px; fill: #64748b; }
+    .box { rx: 6; ry: 6; stroke-width: 1.5; }
+    .arrow { stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .divider { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 6 4; }
+    .section-label { font-size: 12px; font-weight: 600; fill: #94a3b8; letter-spacing: 0.5px; }
+    .missing { stroke-dasharray: 6 3; opacity: 0.5; }
+    .feedback { stroke: #059669; stroke-width: 2; fill: none; marker-end: url(#arrowgreen); }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#475569"/>
+    </marker>
+    <marker id="arrowgreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#059669"/>
+    </marker>
+    <marker id="arrowmissing" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#475569" opacity="0.4"/>
+    </marker>
+  </defs>
+
+  <!-- Section A: Static (Current) -->
+  <text x="360" y="28" text-anchor="middle" class="section-label">CURRENT — STATIC CAPACITY</text>
+
+  <rect x="40" y="50" width="140" height="44" class="box" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="110" y="68" text-anchor="middle" class="label">DispositionAxes</text>
+  <text x="110" y="82" text-anchor="middle" class="sublabel">personality traits</text>
+
+  <path d="M180,72 L230,72" class="arrow" stroke="#475569"/>
+
+  <rect x="230" y="50" width="160" height="44" class="box" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="310" y="68" text-anchor="middle" class="label">RegulationDefaults</text>
+  <text x="310" y="82" text-anchor="middle" class="sublabel">derived once, never changes</text>
+
+  <path d="M390,72 L440,72" class="arrow" stroke="#475569"/>
+
+  <rect x="440" y="50" width="120" height="44" class="box" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="500" y="68" text-anchor="middle" class="label">Predictor</text>
+  <text x="500" y="82" text-anchor="middle" class="sublabel">strategy selection</text>
+
+  <path d="M560,72 L610,72" class="arrow" stroke="#475569"/>
+
+  <rect x="610" y="50" width="80" height="44" class="box" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="650" y="68" text-anchor="middle" class="label">LLM</text>
+  <text x="650" y="82" text-anchor="middle" class="sublabel">narrative</text>
+
+  <!-- Missing feedback arrow (dashed) -->
+  <path d="M650,94 C650,130 500,140 310,130 C200,125 110,130 110,94" class="arrow missing" stroke="#475569" marker-end="url(#arrowmissing)"/>
+  <text x="380" y="145" text-anchor="middle" class="sublabel" opacity="0.5">outcomes not consumed ✗</text>
+
+  <!-- Divider -->
+  <line x1="20" y1="175" x2="700" y2="175" class="divider"/>
+
+  <!-- Section B: Dynamic (New) -->
+  <text x="360" y="205" text-anchor="middle" class="section-label">NEW — EXPERIENCE-MODULATED CAPACITY</text>
+
+  <rect x="40" y="225" width="140" height="44" class="box" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="110" y="243" text-anchor="middle" class="label">DispositionAxes</text>
+  <text x="110" y="257" text-anchor="middle" class="sublabel">personality traits</text>
+
+  <path d="M180,247 L230,247" class="arrow" stroke="#475569"/>
+
+  <rect x="230" y="225" width="160" height="44" class="box" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="310" y="243" text-anchor="middle" class="label">Baseline Defaults</text>
+  <text x="310" y="257" text-anchor="middle" class="sublabel">derived once from traits</text>
+
+  <!-- Modulation box -->
+  <rect x="230" y="295" width="160" height="50" class="box" fill="#d1fae5" stroke="#059669"/>
+  <text x="310" y="314" text-anchor="middle" class="label" style="fill:#065f46">Modulation</text>
+  <text x="310" y="328" text-anchor="middle" class="sublabel" style="fill:#065f46">baseline × outcome factor</text>
+
+  <!-- MindMap outcomes -->
+  <rect x="40" y="300" width="140" height="40" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="110" y="316" text-anchor="middle" class="label" style="fill:#92400e">Prior Outcomes</text>
+  <text x="110" y="328" text-anchor="middle" class="sublabel" style="fill:#92400e">by emotion type</text>
+
+  <path d="M180,320 L230,320" class="arrow" stroke="#d97706"/>
+  <path d="M310,269 L310,295" class="arrow" stroke="#475569"/>
+
+  <!-- Effective defaults -->
+  <rect x="440" y="295" width="140" height="50" class="box" fill="#d1fae5" stroke="#059669"/>
+  <text x="510" y="314" text-anchor="middle" class="label" style="fill:#065f46">Effective Defaults</text>
+  <text x="510" y="328" text-anchor="middle" class="sublabel" style="fill:#065f46">capacity after learning</text>
+
+  <path d="M390,320 L440,320" class="arrow" stroke="#475569"/>
+
+  <!-- Predictor -->
+  <rect x="440" y="225" width="120" height="44" class="box" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="500" y="243" text-anchor="middle" class="label">Predictor</text>
+  <text x="500" y="257" text-anchor="middle" class="sublabel">strategy selection</text>
+
+  <path d="M510,345 L510,375 C510,385 500,385 500,375 L500,269" class="arrow" stroke="#475569"/>
+
+  <!-- LLM -->
+  <rect x="610" y="225" width="80" height="44" class="box" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="650" y="243" text-anchor="middle" class="label">LLM</text>
+  <text x="650" y="257" text-anchor="middle" class="sublabel">narrative</text>
+
+  <path d="M560,247 L610,247" class="arrow" stroke="#475569"/>
+
+  <!-- Feedback loop (green) -->
+  <path d="M650,269 C650,390 400,420 110,390 C60,385 40,370 40,340" class="feedback"/>
+  <text x="370" y="410" text-anchor="middle" class="sublabel" style="fill:#059669; font-weight:600">outcomes stored with emotion type ✓</text>
+
+  <!-- CAPS label -->
+  <text x="360" y="450" text-anchor="middle" class="sublabel" style="fill:#059669">CAPS loop closed: dispositions → behaviour → outcomes → modulated dispositions</text>
+</svg>
