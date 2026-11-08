@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Ask the Judge First"
+title: "When Avoidance Stops Working"
 date: 2026-11-08
 entry_type: article
 subtype: diary
@@ -9,7 +9,7 @@ tags: [emotion-regulation, regulatory-learning, CAPS, cognitive-architecture, pe
 series: issue-851-dynamic-regulatory-capacity
 ---
 
-# Ask the Judge First
+# When Avoidance Stops Working
 
 *Continues from [When Personality Isn't Enough](2026-11-05-mdp01-when-personality-isnt-enough.md).*
 
