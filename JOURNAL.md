@@ -1,1 +1,1 @@
-# Design Journal — issue-830-regulation-predictor-quality
+# Design Journal — issue-851-dynamic-regulatory-capacity

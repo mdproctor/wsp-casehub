@@ -1,0 +1,15 @@
+# Work Plan — issue-851-dynamic-regulatory-capacity
+
+## State
+branch: issue-851-dynamic-regulatory-capacity
+state: scaffolded
+project-sha: 
+date: 
+issue-repo: casehubio/neocortex
+covers: 851
+design-repo: 
+design-section-hashes: 
+flyway-next-v: none
+
+## Queue
+- [ ] casehubio/neocortex#851 — Issue #851 ← active
