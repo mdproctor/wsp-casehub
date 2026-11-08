@@ -72,11 +72,11 @@ All three are nullable — omitted when RegulationContext is null or a dimension
    - `LOCATION_ONLY` — compare `regulationLocation` to current `location`
    - `LOCATION_AND_AGENTS` — also compare `regulationAgents` intersection
    - `FULL` — also compare `regulationTopic`
-4. **Filter by recency:** Compute decay weight: `1.0 - (ticksSinceEpisode / decayHorizon)`. Skip episodes with decay weight ≤ 0 (fully decayed).
+4. **Filter by recency:** Compute elapsed ticks from the episode's ISO timestamp: `elapsed = Duration.between(episodeTimestamp, now).toSeconds() / tickIntervalSeconds`. Compute decay weight: `1.0 - (elapsed / decayHorizon)`. Skip episodes with decay weight ≤ 0 (fully decayed). The tick interval is sourced from config (`manor.tick.intervalSeconds`, default 10).
 5. **Filter by threshold:** Compute avoidance score: `(1.0 - effectiveness) * decayWeight`. The `(1.0 - effectiveness)` term means failed regulation (low effectiveness) produces stronger avoidance. Compare against `redirectTendency` from `RegulationDefaults` — agents with high redirectTendency (avoidant, conservative) avoid at lower scores.
 6. **Generate goals:** For each surviving episode, create a `DriveGoalProposal` with:
    - `axis`: the episode's `regulationAxis` (or `AUTONOMY` as fallback)
-   - `goalName`: `"proactive-avoidance-<location>"`
+   - `goalName`: `"proactive-avoidance-<location>-<emotionType>"` (includes emotion to distinguish multiple episodes in the same location)
    - `goalDescription`: `"Avoid <location> — previous emotional distress (<emotionType>)"`
    - `formationReason`: `"Proactive regulation: memory-based anticipatory avoidance"`
    - `driveIntensity`: the avoidance score (0.0-1.0)
@@ -132,8 +132,8 @@ Registered goals bypass the priority/capacity system (they're concatenated in `c
 
 If the proactive participant generates an avoidance goal for the library, and the agent enters the library anyway (bold personality overrides avoidance), reactive regulation may fire and select SITUATION_SELECTION again. Both signals reach the goal system:
 
-- Proactive: via `appendGoals()` from FOUNDATION — persists across ticks
-- Reactive: via `registerGoals()` from TERMINAL — replaced each tick
+- Proactive: via `appendGoals()` from FOUNDATION — re-evaluated and re-registered every tick (GoalProposalOrchestrator clears registered goals at the start of each tick cycle)
+- Reactive: via `registerGoals()` from TERMINAL — also per-tick
 
 No deduplication needed — the goal pipeline renders both, and the agent's action selection naturally combines them. The reactive signal reinforces the proactive one.
 
