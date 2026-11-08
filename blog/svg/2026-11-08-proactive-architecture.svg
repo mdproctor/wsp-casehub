@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 440" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 14px; font-weight: 600; fill: #1a1a2e; }
+      .phase-label { font-size: 12px; font-weight: 600; fill: #1a1a2e; }
+      .component { font-size: 10px; fill: #1a1a2e; }
+      .component-new { font-size: 10px; fill: #4f7dd9; font-weight: 600; }
+      .annotation { font-size: 9px; fill: #6a6a8a; font-style: italic; }
+      .data-label { font-size: 9px; fill: #4a4a6a; }
+      .box { fill: #f8f8fc; stroke: #b0b0c8; stroke-width: 1.5; rx: 6; }
+      .box-new { fill: #e8f0fd; stroke: #4f7dd9; stroke-width: 2; rx: 6; }
+      .box-existing { fill: #f0f0f6; stroke: #b0b0c8; stroke-width: 1; rx: 6; }
+      .phase-bg { rx: 8; }
+      .arrow { fill: none; stroke: #4a4a6a; stroke-width: 1.5; marker-end: url(#arrowhead); }
+      .arrow-new { fill: none; stroke: #4f7dd9; stroke-width: 2; marker-end: url(#arrowhead-blue); stroke-dasharray: none; }
+      .arrow-data { fill: none; stroke: #8a8aaa; stroke-width: 1; stroke-dasharray: 4,3; marker-end: url(#arrowhead-gray); }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4a4a6a"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4f7dd9"/>
+    </marker>
+    <marker id="arrowhead-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#8a8aaa"/>
+    </marker>
+  </defs>
+
+  <text x="370" y="28" text-anchor="middle" class="title">Proactive Regulation in the Cognition Pipeline</text>
+
+  <!-- FOUNDATION phase -->
+  <rect x="30" y="50" width="680" height="100" fill="#e8f0fd" opacity="0.15" class="phase-bg"/>
+  <text x="50" y="70" class="phase-label">FOUNDATION</text>
+
+  <rect x="60" y="80" width="160" height="50" class="box-existing"/>
+  <text x="140" y="100" text-anchor="middle" class="component">SubThought</text>
+  <text x="140" y="114" text-anchor="middle" class="component">Extractor</text>
+
+  <rect x="260" y="80" width="180" height="50" class="box-new"/>
+  <text x="350" y="100" text-anchor="middle" class="component-new">Proactive Regulation</text>
+  <text x="350" y="114" text-anchor="middle" class="component-new">Participant ← NEW</text>
+
+  <path d="M220,105 L260,105" class="arrow"/>
+
+  <!-- MindMap query -->
+  <rect x="530" y="80" width="160" height="50" class="box-existing"/>
+  <text x="610" y="100" text-anchor="middle" class="component">MindMap</text>
+  <text x="610" y="114" text-anchor="middle" class="component">Regulation History</text>
+
+  <path d="M440,100 L530,100" class="arrow-data"/>
+  <text x="485" y="92" text-anchor="middle" class="data-label">query past</text>
+  <text x="485" y="103" text-anchor="middle" class="data-label">episodes</text>
+
+  <!-- Goal output arrow -->
+  <path d="M350,130 L350,170" class="arrow-new"/>
+  <text x="358" y="155" class="data-label" fill="#4f7dd9">appendGoals()</text>
+
+  <!-- DERIVED phase -->
+  <rect x="30" y="175" width="680" height="100" fill="#fde8e8" opacity="0.1" class="phase-bg"/>
+  <text x="50" y="195" class="phase-label">DERIVED</text>
+
+  <rect x="60" y="205" width="140" height="50" class="box-existing"/>
+  <text x="130" y="225" text-anchor="middle" class="component">Appraisal</text>
+  <text x="130" y="239" text-anchor="middle" class="component">Participant</text>
+
+  <rect x="240" y="205" width="180" height="50" class="box-existing"/>
+  <text x="330" y="225" text-anchor="middle" class="component">Emotion Regulation</text>
+  <text x="330" y="239" text-anchor="middle" class="component">Participant (reactive)</text>
+
+  <path d="M200,230 L240,230" class="arrow"/>
+
+  <!-- Write to MindMap -->
+  <path d="M420,225 C480,225 500,160 530,115" class="arrow-data"/>
+  <text x="495" y="170" class="data-label">write with</text>
+  <text x="495" y="181" class="data-label">context</text>
+
+  <!-- TERMINAL phase -->
+  <rect x="30" y="300" width="680" height="100" fill="#e8fde8" opacity="0.15" class="phase-bg"/>
+  <text x="50" y="320" class="phase-label">TERMINAL</text>
+
+  <rect x="60" y="330" width="160" height="50" class="box-existing"/>
+  <text x="140" y="350" text-anchor="middle" class="component">Goal Proposal</text>
+  <text x="140" y="364" text-anchor="middle" class="component">Orchestrator</text>
+
+  <rect x="260" y="330" width="160" height="50" class="box-existing"/>
+  <text x="340" y="350" text-anchor="middle" class="component">Drive Goal Bridge</text>
+  <text x="340" y="364" text-anchor="middle" class="component">(renders goals)</text>
+
+  <path d="M220,355 L260,355" class="arrow"/>
+
+  <!-- Proactive goals flow to orchestrator -->
+  <path d="M350,170 L140,330" class="arrow-new"/>
+  <text x="200" y="270" class="data-label" fill="#4f7dd9">avoidance goals</text>
+  <text x="200" y="282" class="data-label" fill="#4f7dd9">accumulate</text>
+
+  <!-- Personality input -->
+  <rect x="530" y="330" width="160" height="50" class="box-existing"/>
+  <text x="610" y="350" text-anchor="middle" class="component">Cognitive Defaults</text>
+  <text x="610" y="364" text-anchor="middle" class="component">redirectTendency</text>
+
+  <path d="M530,350 C490,350 480,140 440,105" class="arrow-data"/>
+  <text x="520" y="275" class="data-label">personality</text>
+  <text x="520" y="286" class="data-label">threshold</text>
+</svg>

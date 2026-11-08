@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 14px; font-weight: 600; fill: #1a1a2e; }
+      .label { font-size: 11px; fill: #4a4a6a; }
+      .bold-label { font-size: 11px; font-weight: 600; fill: #1a1a2e; }
+      .tick-label { font-size: 10px; fill: #6a6a8a; }
+      .annotation { font-size: 9px; fill: #6a6a8a; font-style: italic; }
+      .phase-reactive { fill: #fde8e8; stroke: #d94f4f; stroke-width: 1.5; }
+      .phase-proactive { fill: #e8f0fd; stroke: #4f7dd9; stroke-width: 1.5; }
+      .phase-neutral { fill: #f0f0f6; stroke: #b0b0c8; stroke-width: 1; }
+      .arrow { fill: none; stroke: #4a4a6a; stroke-width: 1.5; marker-end: url(#arrowhead); }
+      .timeline { stroke: #1a1a2e; stroke-width: 2; }
+      .tick-mark { stroke: #1a1a2e; stroke-width: 1.5; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4a4a6a"/>
+    </marker>
+  </defs>
+
+  <text x="380" y="28" text-anchor="middle" class="title">Reactive vs Proactive Regulation — When Intervention Happens</text>
+
+  <!-- Reactive timeline -->
+  <text x="40" y="75" class="bold-label">Reactive</text>
+  <line x1="100" y1="90" x2="720" y2="90" class="timeline"/>
+  <!-- Tick marks -->
+  <line x1="140" y1="85" x2="140" y2="95" class="tick-mark"/>
+  <text x="140" y="108" text-anchor="middle" class="tick-label">Enter room</text>
+  <line x1="280" y1="85" x2="280" y2="95" class="tick-mark"/>
+  <text x="280" y="108" text-anchor="middle" class="tick-label">Encounter</text>
+  <line x1="400" y1="85" x2="400" y2="95" class="tick-mark"/>
+  <text x="400" y="108" text-anchor="middle" class="tick-label">Appraisal</text>
+  <line x1="520" y1="85" x2="520" y2="95" class="tick-mark"/>
+  <text x="520" y="108" text-anchor="middle" class="tick-label">Regulation</text>
+  <line x1="640" y1="85" x2="640" y2="95" class="tick-mark"/>
+  <text x="640" y="108" text-anchor="middle" class="tick-label">Action</text>
+  <!-- Emotion zone -->
+  <rect x="280" y="62" width="260" height="24" rx="4" class="phase-reactive" opacity="0.6"/>
+  <text x="410" y="77" text-anchor="middle" class="tick-label" fill="#d94f4f">emotion active — damage done</text>
+  <!-- Regulation bracket -->
+  <rect x="520" y="62" width="120" height="24" rx="4" class="phase-reactive"/>
+  <text x="580" y="77" text-anchor="middle" class="tick-label" fill="#d94f4f">regulate</text>
+
+  <!-- Proactive timeline -->
+  <text x="40" y="185" class="bold-label">Proactive</text>
+  <line x1="100" y1="200" x2="720" y2="200" class="timeline"/>
+  <!-- Tick marks -->
+  <line x1="140" y1="195" x2="140" y2="205" class="tick-mark"/>
+  <text x="140" y="218" text-anchor="middle" class="tick-label">Memory query</text>
+  <line x1="280" y1="195" x2="280" y2="205" class="tick-mark"/>
+  <text x="280" y="218" text-anchor="middle" class="tick-label">Avoidance goal</text>
+  <line x1="420" y1="195" x2="420" y2="205" class="tick-mark"/>
+  <text x="420" y="218" text-anchor="middle" class="tick-label">Choose elsewhere</text>
+  <line x1="560" y1="195" x2="560" y2="205" class="tick-mark"/>
+  <text x="560" y="218" text-anchor="middle" class="tick-label">No encounter</text>
+  <line x1="680" y1="195" x2="680" y2="205" class="tick-mark"/>
+  <text x="680" y="218" text-anchor="middle" class="tick-label">No distress</text>
+  <!-- Proactive zone -->
+  <rect x="140" y="172" width="280" height="24" rx="4" class="phase-proactive" opacity="0.6"/>
+  <text x="280" y="187" text-anchor="middle" class="tick-label" fill="#4f7dd9">anticipation — situation avoided</text>
+  <!-- Calm zone -->
+  <rect x="420" y="172" width="260" height="24" rx="4" class="phase-neutral" opacity="0.6"/>
+  <text x="550" y="187" text-anchor="middle" class="tick-label" fill="#7a7a9a">no emotion to regulate</text>
+
+  <!-- Annotations -->
+  <text x="380" y="268" text-anchor="middle" class="annotation">Reactive: emotion has already fired before regulation intervenes.</text>
+  <text x="380" y="284" text-anchor="middle" class="annotation">Proactive: memory-based avoidance prevents the emotion from firing at all.</text>
+  <text x="380" y="304" text-anchor="middle" class="annotation">Gross 1998: situation selection is the only antecedent-focused strategy that operates before appraisal.</text>
+</svg>

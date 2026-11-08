@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 380" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 14px; font-weight: 600; fill: #1a1a2e; }
+      .axis-label { font-size: 11px; fill: #4a4a6a; }
+      .tick-label { font-size: 10px; fill: #6a6a8a; }
+      .annotation { font-size: 9px; fill: #6a6a8a; font-style: italic; }
+      .bold-annotation { font-size: 10px; fill: #1a1a2e; font-weight: 500; }
+      .grid-line { stroke: #e8e8f0; stroke-width: 0.5; }
+      .threshold-line { stroke: #d94f4f; stroke-width: 1.5; stroke-dasharray: 6,4; }
+      .threshold-line-low { stroke: #4f7dd9; stroke-width: 1.5; stroke-dasharray: 6,4; }
+      .decay-line { stroke: #d94f4f; stroke-width: 2.5; fill: none; }
+      .decay-fill { fill: #fde8e8; opacity: 0.3; }
+      .safe-zone { fill: #e8fde8; opacity: 0.2; }
+    </style>
+  </defs>
+
+  <text x="350" y="28" text-anchor="middle" class="title">Avoidance Decay — How Agents Learn Situations Are Safe Again</text>
+
+  <!-- Chart area -->
+  <g transform="translate(80, 50)">
+    <!-- Grid lines -->
+    <line x1="0" y1="0" x2="560" y2="0" class="grid-line"/>
+    <line x1="0" y1="56" x2="560" y2="56" class="grid-line"/>
+    <line x1="0" y1="112" x2="560" y2="112" class="grid-line"/>
+    <line x1="0" y1="168" x2="560" y2="168" class="grid-line"/>
+    <line x1="0" y1="224" x2="560" y2="224" class="grid-line"/>
+    <line x1="0" y1="280" x2="560" y2="280" class="grid-line"/>
+
+    <!-- Axes -->
+    <line x1="0" y1="0" x2="0" y2="280" stroke="#1a1a2e" stroke-width="1.5"/>
+    <line x1="0" y1="280" x2="560" y2="280" stroke="#1a1a2e" stroke-width="1.5"/>
+
+    <!-- Y-axis labels -->
+    <text x="-8" y="4" text-anchor="end" class="tick-label">1.0</text>
+    <text x="-8" y="60" text-anchor="end" class="tick-label">0.8</text>
+    <text x="-8" y="116" text-anchor="end" class="tick-label">0.6</text>
+    <text x="-8" y="172" text-anchor="end" class="tick-label">0.4</text>
+    <text x="-8" y="228" text-anchor="end" class="tick-label">0.2</text>
+    <text x="-8" y="284" text-anchor="end" class="tick-label">0.0</text>
+    <text x="-50" y="140" text-anchor="middle" transform="rotate(-90, -50, 140)" class="axis-label">Avoidance weight</text>
+
+    <!-- X-axis labels -->
+    <text x="0" y="298" text-anchor="middle" class="tick-label">0</text>
+    <text x="112" y="298" text-anchor="middle" class="tick-label">10</text>
+    <text x="224" y="298" text-anchor="middle" class="tick-label">20</text>
+    <text x="336" y="298" text-anchor="middle" class="tick-label">30</text>
+    <text x="448" y="298" text-anchor="middle" class="tick-label">40</text>
+    <text x="560" y="298" text-anchor="middle" class="tick-label">50</text>
+    <text x="280" y="318" text-anchor="middle" class="axis-label">Ticks since regulation episode</text>
+
+    <!-- Safe zone below thresholds -->
+    <rect x="0" y="224" width="560" height="56" class="safe-zone"/>
+
+    <!-- Decay fill area -->
+    <polygon points="0,0 560,280 0,280" class="decay-fill"/>
+
+    <!-- Decay line (linear) -->
+    <line x1="0" y1="0" x2="560" y2="280" class="decay-line"/>
+
+    <!-- Avoidant threshold (low) — triggers easily -->
+    <line x1="0" y1="224" x2="560" y2="224" class="threshold-line-low"/>
+    <text x="565" y="228" class="tick-label" fill="#4f7dd9">avoidant threshold</text>
+    <text x="565" y="240" class="annotation" fill="#4f7dd9">(1 − redirect 0.8 = 0.2)</text>
+
+    <!-- Bold threshold (high) — rarely triggers -->
+    <line x1="0" y1="56" x2="560" y2="56" class="threshold-line"/>
+    <text x="565" y="60" class="tick-label" fill="#d94f4f">bold threshold</text>
+    <text x="565" y="72" class="annotation" fill="#d94f4f">(1 − redirect 0.2 = 0.8)</text>
+
+    <!-- Intersection markers -->
+    <!-- Avoidant crosses at tick 40 -->
+    <circle cx="448" cy="224" r="5" fill="#4f7dd9" opacity="0.7"/>
+    <text x="448" y="260" text-anchor="middle" class="bold-annotation" fill="#4f7dd9">avoidant: avoids for 40 ticks</text>
+
+    <!-- Bold crosses at tick 10 -->
+    <circle cx="112" cy="56" r="5" fill="#d94f4f" opacity="0.7"/>
+    <text x="175" y="45" text-anchor="middle" class="bold-annotation" fill="#d94f4f">bold: avoids for only 10 ticks</text>
+
+    <!-- Episode marker -->
+    <circle cx="0" cy="0" r="6" fill="#d94f4f"/>
+    <text x="12" y="-8" class="bold-annotation">regulation failure</text>
+  </g>
+</svg>
