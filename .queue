@@ -15,15 +15,15 @@ flyway-next-v:
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
 - [x] casehubio/neocortex#829 — Scenario validation
 - [ ] casehubio/neocortex#819 — Proactive ← active
-  - [ ] Batch 1: API-Types
-    - [ ] Task 1: RegulationContext+ProactiveAvoidanceMode
-    - [ ] Task 2: CognitionTickContext-RegulationContext
-  - [ ] Batch 2: Infrastructure
-    - [ ] Task 3: MindMap-context-properties
-    - [ ] Task 4: appendGoals
-  - [ ] Batch 3: Participant
-    - [ ] Task 5: ProactiveRegulationParticipant
-    - [ ] Task 6: CognitionCore-wiring
+  - [x] Batch 1: API-Types
+    - [x] Task 1: RegulationContext+ProactiveAvoidanceMode
+    - [x] Task 2: CognitionTickContext-RegulationContext
+  - [x] Batch 2: Infrastructure
+    - [x] Task 3: MindMap-context-properties
+    - [x] Task 4: appendGoals
+  - [x] Batch 3: Participant
+    - [x] Task 5: ProactiveRegulationParticipant
+    - [x] Task 6: CognitionCore-wiring
 - [ ] casehubio/neocortex#805 — Social
 - [ ] casehubio/neocortex#822 — Per-strategy
 - [ ] casehubio/neocortex#823 — Per-modality
