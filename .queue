@@ -1,7 +1,7 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-830-regulation-predictor-quality
+branch: 
 status: active
 project-sha: 
 date: 
@@ -12,19 +12,8 @@ design-section-hashes:
 flyway-next-v: 
 
 ## Queue
-- [ ] casehubio/neocortex#830 — Predictor quality — shame and ceiling ← active
-  - [x] Batch 1: CDE Foundation
-    - [x] Task 1: RegulationDefaults + CDE derivation + CognitiveDefaults
-  - [x] Batch 2: Predictor Refactor
-    - [x] Task 2: Per-category continuous thresholds + dominance margin
-    - [x] Task 3: Wire tick participant to pass RegulationDefaults
-  - [x] Batch 3: ShameContext
-    - [x] Task 4: ShameContext record + person overlay extraction + assembly
-  - [x] Batch 4: Generation Phase
-    - [x] Task 5: Interpretive rendering for RegulationDefaults + ShameContext
-  - [x] Batch 5: Eval + Calibration
-    - [x] Task 6: Shame-specific eval cases + depth judge + calibration
-- [ ] casehubio/neocortex#829 — Scenario validation
+- [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
+- [ ] casehubio/neocortex#829 — Scenario validation ← active
 - [ ] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social
 - [ ] casehubio/neocortex#822 — Per-strategy
@@ -41,3 +30,8 @@ flyway-next-v:
 - [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/neocortex#844 — Regulation prediction feedback loop
+- [ ] casehubio/neocortex#850 — Split regulation eval congruence vs effectiveness
+- [ ] casehubio/neocortex#852 — Persist regulation outcomes with emotion type indexing
+- [ ] casehubio/neocortex#853 — Capacity modulation function
+- [ ] casehubio/neocortex#854 — Timescale-aware modulation weighting
+- [ ] casehubio/neocortex#855 — E2E validation dynamic regulatory capacity
