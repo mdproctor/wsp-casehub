@@ -1,7 +1,7 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-851-dynamic-regulatory-capacity
+branch: 
 status: active
 project-sha: 
 date: 
@@ -13,8 +13,8 @@ flyway-next-v:
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
-- [ ] casehubio/neocortex#829 — Scenario validation ← active
-- [ ] casehubio/neocortex#819 — Proactive
+- [x] casehubio/neocortex#829 — Scenario validation
+- [ ] casehubio/neocortex#819 — Proactive ← active
 - [ ] casehubio/neocortex#805 — Social
 - [ ] casehubio/neocortex#822 — Per-strategy
 - [ ] casehubio/neocortex#823 — Per-modality
