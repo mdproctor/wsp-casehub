@@ -60,3 +60,37 @@
 **Sources:** R1-15 (decision review finding), Bonanno & Burton 2013 (regulatory flexibility), Gross 2015 (extended process model with identification→selection→implement→monitor)
 **Exploration:** quick (surfaced by decision review)
 **Status:** captured
+
+## D6: Wire up RegulationStrategyPredictor in eval tests
+
+**Choice:** Provide CognitiveDefaultsRegistry so the predictor pins strategies deterministically
+**Alternatives:**
+- LLM-only (no predictor) — all 5 strategies depend on LLM judgment; more naturalistic but less deterministic for all strategies
+**Rationale:** The predictor is signal-based (numerical capacities, categorical disposition axes, emotion types) — not keyword-based. It applies Petter 2025 personality × emotion-type correlations to structured LLM appraisal output. Pins 4/5 strategies deterministically. SITUATION_MODIFICATION falls through to LLM by design (predictor can't pin it). Tests the production prediction pipeline.
+**Trade-offs:** Tests the predictor-pinned path, not the LLM's free-choice path. Acceptable — the predictor IS the production strategy selection mechanism.
+**Sources:** RegulationStrategyPredictor.java, EmotionRegulationTickParticipant.java:123 (predictor null-check), CognitionCore.java:755 (defaultsRegistry wiring)
+**Exploration:** quick
+**Status:** captured
+
+## D7: Separate test class for per-strategy tests
+
+**Choice:** New `PerStrategyRegulationEvalTest` class
+**Alternatives:**
+- Extend existing `RegulationFullPipelineEvalTest` — mixes two different CognitionCore configurations (with/without defaults registry), complicates an already-passing test
+**Rationale:** The existing test uses `CognitionCoreTestBuilder` without a `CognitiveDefaultsRegistry`. Per-strategy tests need a different builder setup with the registry wired. Separate class keeps both tests independently runnable and avoids regression risk.
+**Trade-offs:** Some duplication of test infrastructure (scenario runner method). Acceptable — the setup difference is fundamental, not cosmetic.
+**Sources:** RegulationFullPipelineEvalTest.java, CognitionCoreTestBuilder.java
+**Exploration:** quick
+**Status:** captured
+
+## D8: Strategy-specific assertions
+
+**Choice:** Assert specific strategy per scenario, with environmental field checks
+**Alternatives:**
+- Assert only "regulation activated" (any strategy) — doesn't verify per-strategy coverage, which is the whole point of #822
+**Rationale:** Each scenario asserts the expected strategy. For SITUATION_MODIFICATION (LLM free choice), accept SITUATION_MODIFICATION or SITUATION_SELECTION (both environmental). For environmental strategies (1-2), also assert regulationAxis != null and environmentalDirective != null — required for DriveGoalProposal production. Keep N=3 with ≥2/3 threshold from existing test pattern.
+**Trade-offs:** SITUATION_MODIFICATION assertion is looser (accepts either environmental strategy). This reflects genuine predictor design — it can't pin modification, so we verify environmental strategy selection, not the specific sub-type.
+**Sources:** EmotionRegulationResult.java (isEnvironmentalStrategy), EmotionRegulationGoalParticipant.java (null checks for axis/directive), issue #822 acceptance criteria
+**Exploration:** quick
+**Depends on:** D6 (predictor wiring determines which strategies can be asserted precisely)
+**Status:** captured
