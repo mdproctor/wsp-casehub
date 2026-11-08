@@ -75,7 +75,7 @@ After four episodes of shame, the avoidant personality has exhausted withdrawal.
 
 This is a real clinical pattern. The personality psychology literature calls it learned helplessness after repeated regulation failure. The person's regulatory resources are depleted, their habitual strategies have diminished returns, and they lack the personality traits to adopt new ones. In clinical practice, this is where therapeutic intervention enters — because the person cannot self-regulate their way out.
 
-For a cognitive architecture, this raises a genuine question. Should the model select the best available strategy (SS at 4, knowing it's imperfect)? Should it model regulatory breakdown (the strategy fails, the emotion breaks through)? Or should it signal that the personality has reached the limit of autonomous regulation — a finding that might itself be useful to the system?
+For a cognitive architecture, this raises a genuine question. m
 
 I don't have the answer yet. But the strategy exploration made the question precise, and that's worth more than a premature fix.
 
