@@ -16,6 +16,15 @@ flyway-next-v:
 - [x] casehubio/neocortex#829 — Scenario validation
 - [x] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social ← active
+  - [ ] Batch 1: API-Types
+    - [ ] Task 1: EmotionRegulationStrategy-social-values
+    - [ ] Task 2: EmotionRegulationResult-targetAgentId
+    - [ ] Task 3: RegulationDefaults-socialTendency
+  - [ ] Batch 2: LLM-Generation
+    - [ ] Task 4: prompt-social-strategies
+    - [ ] Task 5: parseResponse-targetAgentId
+  - [ ] Batch 3: Goal-Routing
+    - [ ] Task 6: GoalParticipant-social-routing
 - [ ] casehubio/neocortex#822 — Per-strategy
 - [ ] casehubio/neocortex#823 — Per-modality
 - [ ] casehubio/neocortex#520 — Cognitive
