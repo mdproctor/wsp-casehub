@@ -17,10 +17,10 @@ flyway-next-v:
 - [x] casehubio/neocortex#819 — Proactive
 - [x] casehubio/neocortex#805 — Social
 - [ ] casehubio/neocortex#822 — Per-strategy ← active
-  - [ ] Batch 1: Eval infrastructure
-    - [ ] Task 1: Builder extension + scaffold with SITUATION_SELECTION and ATTENTIONAL_DEPLOYMENT
-  - [ ] Batch 2: Strategy coverage
-    - [ ] Task 2: SITUATION_MODIFICATION + COGNITIVE_CHANGE + RESPONSE_MODULATION tests
+  - [x] Batch 1: Eval infrastructure
+    - [x] Task 1: Builder extension + scaffold with SITUATION_SELECTION and ATTENTIONAL_DEPLOYMENT
+  - [x] Batch 2: Strategy coverage
+    - [x] Task 2: SITUATION_MODIFICATION + COGNITIVE_CHANGE + RESPONSE_MODULATION tests
 - [ ] casehubio/neocortex#823 — Per-modality
 - [ ] casehubio/neocortex#520 — Cognitive
 - [ ] casehubio/examples#203 — Spatial
