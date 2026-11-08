@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 460" font-family="system-ui, -apple-system, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="460" viewBox="0 0 720 460" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
   <style>
     .title { font-size: 13px; font-weight: 600; fill: #1e293b; }
     .label { font-size: 11px; fill: #334155; }
