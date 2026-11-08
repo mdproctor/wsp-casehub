@@ -1,4 +1,4 @@
-# Work Plan — issue-590-emotion-regulation
+# Work Plan — 
 
 ## State
 branch: 
@@ -10,10 +10,11 @@ covers: 820
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
+state: active
 
 ## Queue
-- [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
-- [ ] casehubio/neocortex#829 — Scenario validation ← active
+- [ ] casehubio/neocortex#851 — Dynamic regulatory capacity (epic) ← active
+- [ ] casehubio/neocortex#829 — Scenario validation
 - [ ] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social
 - [ ] casehubio/neocortex#822 — Per-strategy
@@ -23,15 +24,5 @@ flyway-next-v:
 - [ ] casehubio/neocortex#806 — CAPS
 - [ ] casehubio/casehub-mosaic#315 — Cognitive
 - [ ] casehubio/neocortex#828 — Regulation predictor observability
-- [x] casehubio/neocortex#590 — Issue #590
-- [x] casehubio/neocortex#816 — EmotionMapper
-- [x] casehubio/neocortex#815 — Cognitive
-- [x] casehubio/neocortex#817 — Suppression
-- [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/neocortex#844 — Regulation prediction feedback loop
-- [ ] casehubio/neocortex#850 — Split regulation eval congruence vs effectiveness
-- [ ] casehubio/neocortex#852 — Persist regulation outcomes with emotion type indexing
-- [ ] casehubio/neocortex#853 — Capacity modulation function
-- [ ] casehubio/neocortex#854 — Timescale-aware modulation weighting
-- [ ] casehubio/neocortex#855 — E2E validation dynamic regulatory capacity
