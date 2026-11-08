@@ -1,7 +1,7 @@
 # Work Plan — issue-851-dynamic-regulatory-capacity
 
 ## State
-branch: issue-851-dynamic-regulatory-capacity
+branch: 
 state: scaffolded
 project-sha: 
 date: 
@@ -12,9 +12,9 @@ design-section-hashes:
 flyway-next-v: none
 
 ## Queue
-- [ ] casehubio/neocortex#851 — Issue #851 ← active
+- [ ] casehubio/neocortex#852 — Persist regulation episode outcomes ← active
 - [ ] casehubio/neocortex#850 — Split regulation eval into congruence and effectiveness
-- [ ] casehubio/neocortex#852 — Persist regulation episode outcomes
 - [ ] casehubio/neocortex#853 — Capacity modulation function
 - [ ] casehubio/neocortex#854 — Timescale-aware modulation weighting
 - [ ] casehubio/neocortex#855 — End-to-end validation with compounding-shame
+- [x] casehubio/neocortex#851 — Issue #851
