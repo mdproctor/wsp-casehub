@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420">
+  <defs>
+    <style>
+      .bg { fill: #1a1a2e; }
+      .title { font: bold 16px 'Segoe UI', system-ui, sans-serif; fill: #e8e8e8; }
+      .subtitle { font: 13px 'Segoe UI', system-ui, sans-serif; fill: #999; }
+      .label { font: 12px 'Segoe UI', system-ui, sans-serif; fill: #ccc; }
+      .value { font: bold 14px 'Segoe UI', system-ui, sans-serif; fill: #e8e8e8; }
+      .scenario-label { font: 11px 'Segoe UI', system-ui, sans-serif; fill: #aaa; }
+      .header-label { font: bold 11px 'Segoe UI', system-ui, sans-serif; fill: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+      .cell { rx: 4; ry: 4; }
+      .match { fill: #2d6a4f; }
+      .mismatch { fill: #6b2c3b; }
+      .neutral { fill: #333; }
+      .cell-text { font: bold 12px 'Segoe UI Mono', monospace; fill: #e8e8e8; text-anchor: middle; }
+      .finding { font: 12px 'Segoe UI', system-ui, sans-serif; fill: #ccc; }
+      .finding-num { font: bold 12px 'Segoe UI', system-ui, sans-serif; fill: #f4a261; }
+      .divider { stroke: #333; stroke-width: 1; }
+    </style>
+  </defs>
+  <rect class="bg" width="720" height="420"/>
+
+  <!-- Title -->
+  <text class="title" x="30" y="32">First Run: What CAPS Settled To</text>
+  <text class="subtitle" x="30" y="52">5 scenarios, 3 layers — concordance matrix</text>
+
+  <!-- Column headers -->
+  <text class="header-label" x="340" y="82">CAPS Top</text>
+  <text class="header-label" x="430" y="82">Predictor</text>
+  <text class="header-label" x="530" y="82">Cascade</text>
+  <text class="header-label" x="630" y="82">LLM Free</text>
+
+  <!-- Row 1: Situation Selection -->
+  <text class="scenario-label" x="30" y="112">Avoidant shame</text>
+  <rect class="cell neutral" x="310" y="95" width="80" height="24"/>
+  <text class="cell-text" x="350" y="112">AD .661</text>
+  <rect class="cell mismatch" x="400" y="95" width="80" height="24"/>
+  <text class="cell-text" x="440" y="112">SS .75</text>
+  <rect class="cell mismatch" x="500" y="95" width="80" height="24"/>
+  <text class="cell-text" x="540" y="112">SS</text>
+  <rect class="cell mismatch" x="600" y="95" width="80" height="24"/>
+  <text class="cell-text" x="640" y="112">SS</text>
+
+  <!-- Row 2: Situation Modification -->
+  <text class="scenario-label" x="30" y="146">Bold competition</text>
+  <rect class="cell neutral" x="310" y="129" width="80" height="24"/>
+  <text class="cell-text" x="350" y="146">AD .644</text>
+  <rect class="cell neutral" x="400" y="129" width="80" height="24"/>
+  <text class="cell-text" x="440" y="146">NONE</text>
+  <rect class="cell mismatch" x="500" y="129" width="80" height="24"/>
+  <text class="cell-text" x="540" y="146">CC</text>
+  <rect class="cell match" x="600" y="129" width="80" height="24"/>
+  <text class="cell-text" x="640" y="146">AD</text>
+
+  <!-- Row 3: Attentional Deployment -->
+  <text class="scenario-label" x="30" y="180">Fear/urgency</text>
+  <rect class="cell neutral" x="310" y="163" width="80" height="24"/>
+  <text class="cell-text" x="350" y="180">AD .644</text>
+  <rect class="cell match" x="400" y="163" width="80" height="24"/>
+  <text class="cell-text" x="440" y="180">AD .80</text>
+  <rect class="cell match" x="500" y="163" width="80" height="24"/>
+  <text class="cell-text" x="540" y="180">AD</text>
+  <rect class="cell match" x="600" y="163" width="80" height="24"/>
+  <text class="cell-text" x="640" y="180">AD</text>
+
+  <!-- Row 4: Cognitive Change -->
+  <text class="scenario-label" x="30" y="214">Reappraisal (tea)</text>
+  <rect class="cell neutral" x="310" y="197" width="80" height="24"/>
+  <text class="cell-text" x="350" y="214">AD .661</text>
+  <rect class="cell match" x="400" y="197" width="80" height="24"/>
+  <text class="cell-text" x="440" y="214">AD .80</text>
+  <rect class="cell match" x="500" y="197" width="80" height="24"/>
+  <text class="cell-text" x="540" y="214">AD</text>
+  <rect class="cell mismatch" x="600" y="197" width="80" height="24"/>
+  <text class="cell-text" x="640" y="214">CC</text>
+
+  <!-- Row 5: Response Modulation -->
+  <text class="scenario-label" x="30" y="248">Suppression</text>
+  <rect class="cell neutral" x="310" y="231" width="80" height="24"/>
+  <text class="cell-text" x="350" y="248">AD .661</text>
+  <rect class="cell match" x="400" y="231" width="80" height="24"/>
+  <text class="cell-text" x="440" y="248">AD .80</text>
+  <rect class="cell match" x="500" y="231" width="80" height="24"/>
+  <text class="cell-text" x="540" y="248">AD</text>
+  <rect class="cell match" x="600" y="231" width="80" height="24"/>
+  <text class="cell-text" x="640" y="248">AD</text>
+
+  <line class="divider" x1="30" y1="270" x2="690" y2="270"/>
+
+  <!-- Agreement summary -->
+  <text class="header-label" x="30" y="295">Agreement</text>
+  <text class="label" x="130" y="295">CAPS-Predictor: 60%</text>
+  <text class="label" x="310" y="295">CAPS-LLM: 60%</text>
+  <text class="label" x="470" y="295">Predictor-LLM: 60%</text>
+
+  <line class="divider" x1="30" y1="310" x2="690" y2="310"/>
+
+  <!-- Findings -->
+  <text class="finding-num" x="30" y="338">1</text>
+  <text class="finding" x="50" y="338">AD dominates all 5 scenarios — total incoming weight +1.10 vs +0.50 for cognitive change</text>
+  <text class="finding-num" x="30" y="362">2</text>
+  <text class="finding" x="50" y="362">Margin 0.052 never reaches 0.15 dominanceMargin — CAPS never pins, always defers</text>
+  <text class="finding-num" x="30" y="386">3</text>
+  <text class="finding" x="50" y="386">Predictor maps mild DISTRESS (0.18) to AD — fixed with intensity gating at 0.40</text>
+  <text class="finding-num" x="30" y="410">4</text>
+  <text class="finding" x="50" y="410">The cascade worked as designed: untrusted layer deferred, validated layer decided</text>
+</svg>

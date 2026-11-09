@@ -107,18 +107,40 @@ I replaced the linear decay with exponential: `weight = exp(−elapsedTicks / τ
 
 The practical consequence: an agent with a strong shame episode in the library will show declining but persistent avoidance over dozens of ticks. With linear decay, the avoidance was at full strength for half the horizon and then abruptly gone. With exponential decay, the transition is continuous — the agent gradually becomes more willing to return to the library as the episode recedes, rather than flipping from avoidance to indifference.
 
-## 7. Why This Matters for Cognitive Agents
+## 7. When the Network First Ran
+
+The cascade is wired. The topology settles. The question is: what does it settle to?
+
+I ran the paired comparison evaluation across five scenarios — each designed to elicit a different regulation strategy, each with a personality profile tuned to favour that strategy. For each scenario, I recorded what CAPS settled to, what the predictor recommended, what the cascade selected, and what the LLM chose freely without any pinning.
+
+![Eval concordance matrix showing CAPS settling results across 5 scenarios](svg/2026-11-09-eval-concordance.svg)
+
+The result was humbling and instructive. CAPS settled to attentional deployment as the top attractor in all five scenarios. Every personality. Every emotion. Every situation. AD at 0.661, situation selection at 0.609, margin 0.052. The avoidant agent that should have favoured situation selection produced the same settling pattern as the competitive agent that should have favoured response modulation.
+
+The cascade worked exactly as designed. The margin of 0.052 is below the dominance margin threshold of 0.15. CAPS was not confident — it was ambivalent. So it deferred. The predictor took over and selected personality-appropriate strategies in the cases where it had a clear signal. Where it fell through, the LLM chose freely. The final cascade outputs were reasonable. The safety net held.
+
+But the CAPS settling itself is wrong. Not because of a bug — the settling algorithm converges correctly, the topology loads correctly, the connections carry the weights they were designed to carry. It is wrong because the literature-derived weights have a structural bias.
+
+Attentional deployment receives three incoming connections totalling +1.10: arousal level (+0.45), threat sensitivity (+0.35), and BIS activation (+0.30). Cognitive change receives three incoming connections netting +0.50: self-efficacy (+0.45), self-worth (+0.30), and BIS activation (−0.25). The total incoming weight for AD is roughly double that of its nearest competitor. The resting activations from disposition — situation selection at +0.20 for an avoidant agent — cannot overcome a structural advantage that large.
+
+The meta-analysis data (Baranczuk 2019) reports that neuroticism correlates with attentional deployment at r ≈ .30–.40 and with reappraisal at r ≈ −.25. These are real effect sizes from real studies. But converting correlation magnitudes to connection weights creates a false equivalence: a +0.45 connection from arousal to AD and a +0.45 connection from self-efficacy to cognitive change carry the same weight, but arousal activates more broadly across personality profiles than self-efficacy does. The structural advantage is not in the individual weights — it is in the activation landscape that feeds them.
+
+The eval also exposed a flaw in the predictor. DISTRESS is mapped to `UNCONTROLLABLE_NEGATIVE` regardless of intensity. This is correct when someone is overwhelmed (intensity 0.95 — a cracking ceiling beam). It is wrong when someone is mildly annoyed (intensity 0.18 — someone took the last tea). The LLM correctly chose cognitive change for the tea scenario. The predictor forced attentional deployment because DISTRESS is categorically uncontrollable. I added intensity gating: below 0.40 intensity, DISTRESS is treated as controllable, allowing the predictor to recommend reappraisal when the agent has the capacity for it.
+
+This is what empirical evaluation is for. The design was literature-grounded. The weights have citations. The topology connections are justified. And the network still settles wrong because the conversion from published effect sizes to connection weights is a mapping that introduces distortions the literature did not measure. Without running the eval, I would have believed the weights were right. The data says otherwise.
+
+## 8. Why This Matters for Cognitive Agents
 
 Most AI agents handle emotion regulation — if they handle it at all — as a prompt instruction. "You are neurotic, so suppress your feelings." The strategy is picked by the system prompt and never changes. Under this model, a neurotic agent that fails at suppression for ten episodes will try suppression for the eleventh, because nothing in the architecture learns from outcomes.
 
 The step from prompt-level personality to deterministic prediction was an improvement. The predictor mapped published meta-analysis correlations (Baranczuk 2019) to strategy selections — empirically grounded, personality-coherent, and fast enough that LLM calls became a fallback rather than a default.
 
-The step from prediction to network settling is a different kind of improvement. It is not about accuracy — the predictor may be more accurate than the network for months while calibration continues. It is about the architecture admitting the right kind of complexity.
+The step from prediction to network settling is a different kind of improvement. It is not about accuracy — the predictor is more accurate than the network today, and the eval proves it. It is about the architecture admitting the right kind of complexity.
 
 Personality is not a lookup table. It is not five disposition axes mapped to five regulation strategies. It is a network of interacting cognitive-affective units where the same internal states drive multiple outputs simultaneously, where settling dynamics produce patterns that no single if/else branch can express, and where outcomes change the network for next time.
 
 The 10% of variance that personality explains in strategy choice (Baranczuk 2019) is a starting condition. The other 90% — context, situation, mood, relationships, and accumulated experience — enters through input activations, mediating node dynamics, and weight updates. A connectionist architecture gives that 90% somewhere to live. A lookup table does not.
 
-The topology exists. It settles. The disposition modulation is wired. The social-context formulas are computing. Goal namespaces isolate regulatory participants from clobbering each other. Avoidance memories decay exponentially instead of cliff-dropping. What remains is the cascade integration — wiring CAPS settling into the regulation tick loop — and the paired comparison evaluation that determines whether the network earns its place at the top of the cascade.
+The three-layer cascade is the pragmatic bridge. CAPS gets first look but must earn its place — concordance above 80% with ground truth before the predictor retires. The predictor provides validated strategy selection while the network calibrates. The LLM handles the long tail of novel situations that neither CAPS nor the predictor has seen before. Each layer has a clear role. Each can be evaluated independently. The cascade never trusts the newest layer without evidence.
 
-I'll write about the calibration results when they exist.
+The topology settles. The weights are wrong. The architecture is right. The eval told me so.
