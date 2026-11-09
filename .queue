@@ -19,9 +19,9 @@ flyway-next-v:
 - [x] casehubio/neocortex#822 — Per-strategy
 - [x] casehubio/neocortex#823 — Per-modality
 - [ ] casehubio/neocortex#520 — Cognitive ← active
-  - [ ] Batch 1: Foundation
-    - [ ] Task 1: PipelineTrace + SPI + extend CognitionSnapshot
-    - [ ] Task 2: PipelineSnapshotStore + InMemory + contract test
+  - [x] Batch 1: Foundation
+    - [x] Task 1: PipelineTrace + SPI + extend CognitionSnapshot
+    - [x] Task 2: PipelineSnapshotStore + InMemory + contract test
   - [ ] Batch 2: Storage
     - [ ] Task 3: SqlitePipelineSnapshotStore
   - [ ] Batch 3: Capture
