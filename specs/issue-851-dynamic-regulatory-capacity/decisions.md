@@ -5,7 +5,7 @@
 - Observation text only — generalises beyond location but loses structured queryability
 - Structured location only — simpler but limited to spatial avoidance
 **Rationale:** Store all dimensions (location, interacting agents, topic) on every regulation node. Mode controls which dimensions the proactive participant queries. Start with location-only mode. Historical data retroactively gains value when new dimensions are promoted.
-**Trade-offs:** Storage cost per regulation node increases (3 extra string properties). All properties are optional — null when unparseable. CBR subsystem (R1-09) is a better long-term retrieval mechanism — MindMap in-memory filtering scales to ~200 nodes; CBR provides indexed vector search. Deferred to Phase 2 when scale demands it.
+**Trade-offs:** Storage cost per regulation node increases (3 extra string properties). All properties are optional — null when unparseable. CBR subsystem (R1-09) is a better long-term retrieval mechanism — MindMap in-memory filtering scales to ~200 nodes; CBR provides indexed vector search. Deferred to Phase 2 when scale demands it. Until then, the 200-node query must use `withUpdatedAfter()` or equivalent to ensure most-recent-first ordering — without explicit ordering, implementations may return oldest-first, silently dropping recent regulation episodes that should trigger avoidance (R1-11).
 **Sources:** EmotionRegulationMindMapAdapter.java:29-48 (existing property storage), issue #203 (spatial model), issue #805 (social regulation)
 **Exploration:** quick
 **Status:** captured
@@ -24,15 +24,16 @@
 
 ## D3: Output mechanism — how avoidance signals reach the goal system
 
-**Choice:** appendGoals() from FOUNDATION phase (new method)
+**Choice:** Participant-scoped goal namespaces with replace semantics per namespace
 **Alternatives:**
-- registerGoals() — has replace semantics (R1-02), would clobber proactive goals when reactive regulation calls it from TERMINAL
+- appendGoals() with additive semantics — accumulates duplicates across ticks (R1-01), no deduplication
+- registerGoals() with global replace — clobbers proactive goals when reactive regulation fires for environmental strategies (R1-02)
 - Modify observation text — fragile text injection
 - New ProactiveAvoidanceSignal mechanism — unnecessary new API surface
-**Rationale:** Add `appendGoals()` method to GoalProposalOrchestrator with additive semantics. Proactive avoidance calls appendGoals() from FOUNDATION. Reactive regulation (EmotionRegulationGoalParticipant) keeps calling registerGoals() from TERMINAL. No clobbering. Registered goals bypass the priority system entirely (R1-03) — they accumulate without capacity limiting. This is acceptable for avoidance goals: they should always render regardless of drive priority.
-**Trade-offs:** Registered goals (both proactive and reactive) bypass capacity limiting. Unbounded growth possible in theory — mitigated by temporal decay (D5) which naturally limits the active set.
-**Sources:** GoalProposalOrchestrator.java:116 (registerGoals replace semantics), R1-02/R1-03 (decision review findings)
-**Exploration:** quick → revised after decision review
+**Rationale:** GoalProposalOrchestrator gains `registerParticipantGoals(participantId, agentId, tenantId, goals)` with replace semantics scoped to the participant's namespace. Each participant (ProactiveRegulationParticipant, EmotionRegulationGoalParticipant) owns its own namespace. ProactiveRegulationParticipant replaces its namespace on every FOUNDATION tick (fixes R1-01: no accumulation across ticks). EmotionRegulationGoalParticipant (TERMINAL) replaces its own namespace without affecting proactive goals (fixes R1-02: no clobbering). `currentProposals()` merges all namespaces. Registered goals bypass the priority system entirely — acceptable for avoidance and regulation goals.
+**Trade-offs:** One new method + internal namespace map. Slightly more complex than global register/append, but eliminates two confirmed bugs. Temporal decay (D5) still limits the active set of proactive goals per tick, but namespacing prevents accumulation across ticks at the same location.
+**Sources:** GoalProposalOrchestrator.java:116, ProactiveRegulationParticipant.java:107, EmotionRegulationGoalParticipant.java:37 (environmental registerGoals clobber)
+**Exploration:** quick → revised after decision review → revised after R1-01/R1-02
 **Depends on:** D1 (context dimensions determine what avoidance goals reference)
 **Status:** revised
 
@@ -50,16 +51,17 @@
 
 ## D5: Temporal decay — learning path to safety
 
-**Choice:** Time-based decay of avoidance weight
+**Choice:** Exponential time-based decay of avoidance weight
 **Alternatives:**
+- Linear decay — creates a hard cliff at exactly `decayHorizonTicks` where avoidance drops to zero instantly; psychologically unrealistic (R1-06)
 - No decay (permanent avoidance) — creates one-way ratchet, violates regulatory flexibility (Bonanno & Burton 2013)
 - Probabilistic avoidance — avoid with probability proportional to severity, allowing some exposure
 - Explicit "approach despite avoidance" via personality override — personality already modulates threshold (D4)
-**Rationale:** Avoidance weight for a past regulation episode decays linearly with ticks since the episode. After N ticks (configurable, default ~50) without re-exposure, the avoidance lapses. If the agent encounters the situation again and regulates successfully, a positive outcome resets the avoidance (or reduces it). This prevents permanent avoidance bias (R1-15) while still providing short-term protection.
-**Trade-offs:** Decay rate is a tuning parameter. Too fast = no protection, too slow = permanent avoidance. Start with 50 ticks (empirical tuning expected).
-**Sources:** R1-15 (decision review finding), Bonanno & Burton 2013 (regulatory flexibility), Gross 2015 (extended process model with identification→selection→implement→monitor)
-**Exploration:** quick (surfaced by decision review)
-**Status:** captured
+**Rationale:** Avoidance weight for a past regulation episode decays exponentially: `decayWeight = Math.exp(-elapsedTicks / decayTimeConstant)`. This produces a smooth asymptotic curve: early decay is fast, later decay is slow, matching how emotional memories actually fade (Ebbinghaus 1885, Wixted & Ebbesen 1991 power-law/exponential forgetting curves). No hard cliff — avoidance never abruptly drops to zero but asymptotically approaches it. The `decayTimeConstant` (configurable, default ~30 ticks) controls how rapidly the initial decay occurs. If the agent encounters the situation again and regulates successfully, a positive outcome resets the avoidance (or reduces it). This prevents permanent avoidance bias while still providing short-term protection.
+**Trade-offs:** `decayTimeConstant` is a tuning parameter. Higher values = slower initial decay = longer protection. Start with 30 ticks (empirical tuning expected). At 30 ticks: weight ≈ 0.37 (1/e), at 60 ticks: weight ≈ 0.14, at 90 ticks: weight ≈ 0.05.
+**Sources:** R1-15 (decision review finding), Bonanno & Burton 2013 (regulatory flexibility), Gross 2015 (extended process model), Ebbinghaus 1885 (forgetting curve), Wixted & Ebbesen 1991 (exponential/power-law decay)
+**Exploration:** quick → revised after R1-06
+**Status:** revised
 
 ## D6: Wire up RegulationStrategyPredictor in eval tests
 
@@ -204,7 +206,7 @@
 - Live inspection only — query current state via current*() methods, no storage, historical replay as follow-up
 - Live + on-demand capture — live by default, manual capture mutation for point-in-time snapshots, lower storage cost
 **Rationale:** The issue explicitly mentions both live inspection and historical replay. Per-tick storage enables eval postmortem analysis (what happened at each pipeline stage for each agent across a 300-tick scenario run). The eval framework already captures transcripts — pipeline snapshots add the "why" to the "what."
-**Trade-offs:** Storage volume: 17 agents × 300 ticks = 5100 snapshots per scenario run. Each snapshot is ~2-5 KB serialized. ~10-25 MB per run. Acceptable for SQLite. Retention policy needed for production use.
+**Trade-offs:** Storage volume: 17 agents × 300 ticks = 5100 snapshots per scenario run. Each snapshot is ~15-60 KB serialized (dominated by `promptSections` which contains rendered LLM prompt text at 10-50 KB per snapshot; numeric fields are ~2-5 KB). ~75-300 MB per run. Acceptable for SQLite but requires retention policy. `promptSections` should be stored separately and lazy-loaded on demand — most diagnostic queries need numeric trace data, not rendered prompts.
 **Sources:** Issue #520 ("live inspection and historical replay"), CognitionSnapshot.java (partial capture already exists), SnapshotStore.java (existing keyframe/mutation pattern)
 **Exploration:** quick
 **Status:** captured
@@ -254,7 +256,7 @@
 - CAPS replaces predictor — cleaner long-term but CAPS regulation nodes are new and unvalidated; the predictor has battle-tested eval data (Petter 2025)
 - CAPS as signal, predictor decides — CAPS produces advisory attractors, predictor remains authoritative; limits CAPS to influencing rather than selecting
 **Rationale:** The predictor serves as a validated safety net while CAPS regulation nodes mature. It handles fatigue >0.7 and intensity >0.75 overrides as explicit rules that are safer than emergent network behavior. CAPS can be promoted to primary once eval validates its accuracy against the predictor. End state is CAPS replacing predictor, but Phase 2 uses the cascade.
-**Trade-offs:** Three selection mechanisms adds complexity. The predictor's logic partially duplicates what CAPS should learn. Acceptable as transitional architecture — the predictor can be retired once CAPS attractors are validated.
+**Trade-offs:** Three selection mechanisms adds complexity. The predictor's logic partially duplicates what CAPS should learn. Acceptable as transitional architecture with explicit retirement criteria: CAPS is promoted to primary when (1) concordance with predictor ≥ 80% on eval scenarios, AND (2) LLM free-choice concordance ≥ 70% (using D12 paired data). Degradation monitoring: if concordance drops > 10% below these thresholds on subsequent eval runs, automatic fallback to predictor. Decision authority: promotion is automated based on eval metrics, not a human judgment call — the thresholds are the gate.
 **Sources:** RegulationStrategyPredictor.java (existing cascade), Petter et al. 2025 (personality × strategy mappings)
 **Exploration:** deep-analysis (user challenged initial recommendation; revised after first-principles discussion)
 **Status:** captured
@@ -282,13 +284,13 @@
 - perceived_responsiveness — Reis et al. 2004 (PPR), Ruan et al. 2019 (PPR → expression), Main et al. 2025 (EMA, closeness → strategy choice). Discriminates SOCIAL_SUPPORT_SEEKING vs. SOCIAL_WITHDRAWAL.
 - target_distress — Reeck et al. 2016 (social regulatory cycle). Discriminates CO_REGULATION.
 - social_isolation — Rimé 2009 (shame → non-sharing), Williams 2007 (ostracism → withdrawal). Discriminates SOCIAL_WITHDRAWAL.
-- power_asymmetry — Schilke et al. 2021 (fundamental predictor of interdependence). Modulates strategy viability.
-DELIBERATE_PROVOCATION driven by existing dominance input + BAS_activation — provocation intent emerges from network settling, not external context.
+- power_asymmetry — Schilke et al. 2021 (fundamental predictor of interdependence); also captures perceived_impunity (Tedeschi & Felson 1994 social interactionist theory). General modulator for strategy viability, AND dedicated discriminator for DELIBERATE_PROVOCATION: power advantage reduces retaliation risk, enabling provocation.
+DELIBERATE_PROVOCATION discriminated by power_asymmetry (primary, high positive weight to DELIBERATE_PROVOCATION output) + existing dominance input + BAS_activation. Power asymmetry captures the social-context signal the reviewer correctly identified as missing from the original "emergence" claim (Tedeschi & Felson 1994: provocation requires perceived impunity, which power advantage provides).
 **Trade-offs:** Novel computational application — no published model encodes social context as CAPS input nodes for regulation (CASPER 2025 provides theoretical decomposition but no network). We're extending CAPS theory into new territory.
-**Sources:** Reis et al. 2004, Ruan et al. 2019, Main et al. 2025, Reeck et al. 2016, Niven et al. 2009, Rimé 2009, Williams 2007, Schilke et al. 2021, Zaki & Williams 2013, CASPER (Camacho et al. 2025)
-**Exploration:** deep-analysis (user required literature review; two parallel literature searches conducted)
+**Sources:** Reis et al. 2004, Ruan et al. 2019, Main et al. 2025, Reeck et al. 2016, Niven et al. 2009, Rimé 2009, Williams 2007, Schilke et al. 2021, Zaki & Williams 2013, CASPER (Camacho et al. 2025), Tedeschi & Felson 1994 (perceived impunity → provocation), Anderson & Bushman 2002 (instrumental aggression)
+**Exploration:** deep-analysis → revised after R1-05 (DELIBERATE_PROVOCATION discrimination path clarified)
 **Depends on:** D20 (all 10 strategies as output nodes requires social-context discrimination)
-**Status:** captured
+**Status:** revised
 
 ## D24: Empirical threshold calibration
 
@@ -310,10 +312,10 @@ DELIBERATE_PROVOCATION driven by existing dominance input + BAS_activation — p
 - Derive from predictor logic only — translates if/else cascade to weights; has eval data but loses theoretical grounding
 - Literature-derived only — more principled but may not match predictor's validated behavior
 **Rationale:** Literature provides theoretically grounded initial weights with effect sizes. Cross-validation against the predictor catches mapping errors — if the CAPS network with literature weights produces strategies that diverge from the predictor on known-good scenarios, the divergence surfaces which weights need adjustment. The predictor's logic was itself derived from Petter 2025 and Baranczuk 2019, so convergence is expected for most cases.
-**Trade-offs:** Doubles the research/calibration effort. Worth it — weights that are both literature-grounded AND predictor-validated are trustworthy enough to ship.
-**Sources:** Baranczuk 2019 (Big Five → regulation strategy meta-analysis), Gross & John 2003 (reappraisal/suppression × personality), Petter et al. 2025 (personality × emotion-type prediction), RegulationStrategyPredictor.java (existing validated mappings)
-**Exploration:** quick
-**Status:** captured
+**Trade-offs:** Doubles the research/calibration effort. Worth it — weights that are both literature-grounded AND predictor-validated are trustworthy enough to ship. Resolution protocol for divergence: when CAPS and predictor disagree, consult D12's LLM free-choice concordance data as tiebreaker. If LLM agrees with CAPS, the predictor mapping is the outlier (potentially over-simplified). If LLM agrees with predictor, the CAPS weights need adjustment. If LLM disagrees with both, flag for manual review — shared-source bias may affect both rule-based systems.
+**Sources:** Baranczuk 2019 (Big Five → regulation strategy meta-analysis), Gross & John 2003 (reappraisal/suppression × personality), Petter et al. 2025 (personality × emotion-type prediction), RegulationStrategyPredictor.java (existing validated mappings), D12 (LLM concordance as independent tiebreaker)
+**Exploration:** quick → revised after R1-10
+**Status:** revised
 
 ## D26: Unified topology — single settling pass
 
@@ -321,8 +323,20 @@ DELIBERATE_PROVOCATION driven by existing dominance input + BAS_activation — p
 **Alternatives:**
 - Conditional dual-settle — behavioral settling first, then regulation-only settling on frozen mediating activations; zero regression risk but loses bidirectional competition and departs from CAPS theory
 **Rationale:** Mischel & Shoda (1995) explicitly include self-regulatory processes as CAUs in the same network. Regulatory and behavioral tendencies interact — the same BIS activation that produces "withdraw" also produces "ATTENTIONAL_DEPLOYMENT." Settling dynamics determine relative strength. The computational cost concern (regulation settling on every tick) is mitigated by higher activation thresholds on regulation nodes — they only produce attractors when emotional input is significant.
-**Trade-offs:** Larger network (~82 nodes, ~130+ connections). Regulation attractors computed on every tick even when not needed (but threshold gating keeps them dormant at low emotion). Any changes to mediating node weights affect both behavioral and regulation outputs — broader blast radius for weight updates.
-**Sources:** Mischel & Shoda 1995 (CAPS theory), CASPER (Camacho et al. 2025, regulatory processes in same system), caps-topology.yaml (existing ~68 nodes, ~70 connections)
+**Trade-offs:** Larger network (~91 nodes, ~148 connections; baseline is 77 nodes, 76 connections — corrected from earlier estimates per R1-07). Regulation outputs are pure consumers in the settling graph (no output→mediating connections) — they don't affect convergence properties or iteration count, only add per-iteration computation (~18% more nodes). Regulation attractors computed on every tick even when not needed (but weak input activation produces weak output activation below the attractor strength filter). Any changes to mediating node weights affect both behavioral and regulation outputs — broader blast radius for weight updates.
+**Sources:** Mischel & Shoda 1995 (CAPS theory), CASPER (Camacho et al. 2025, regulatory processes in same system), caps-topology.yaml (77 nodes, 76 connections — verified count)
 **Exploration:** quick
 **Depends on:** D20 (regulation nodes as output category), D22 (existing mediating nodes as drivers)
+**Status:** captured
+
+## D27: FOUNDATION participant ordering — implicit decision surfaced by review
+
+**Choice:** Ordering within CognitionCore's FOUNDATION phase is undefined — participants may run in any order
+**Alternatives:**
+- Explicit ordering via priority annotations — deterministic but adds framework complexity for no current behavioral difference
+- Registration-order based — deterministic but fragile (depends on construction order)
+**Rationale:** FOUNDATION participants (ProactiveRegulationParticipant, mood, memory hygiene, temporal focus) all call `registerParticipantGoals()` with their own namespace (D3 revised). Since namespaces are independent and goals are sorted by `driveIntensity` in `currentProposals()`, participant ordering within the phase doesn't affect the final output. If a future FOUNDATION participant needs to read another participant's output, ordering becomes relevant — at that point, introduce explicit priority ordering.
+**Trade-offs:** No explicit ordering means future FOUNDATION participants must be namespace-independent. This is a design constraint, not a bug — it prevents implicit coupling between participants.
+**Sources:** CognitionCore.java (tick lifecycle), R1-12 (surfaced by reviewer)
+**Exploration:** surfaced by review (R1-12)
 **Status:** captured
