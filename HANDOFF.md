@@ -2,95 +2,87 @@
 
 ## Last Session
 
-Implemented #823 (per-modality regulation eval tests) — 4 eval tests across 4 regulation modalities, plus a prerequisite CognitionCore API fix.
+Advanced queue from #823 to #520. Designed and planned the cognitive state dump endpoint (casehubio/neocortex#520). Blog SVG paths fixed.
 
-### What was built
+### What was done
 
-**1. CognitionCore.tick() overload for RegulationContext (D10)**
+**1. Queue advanced: #823 → #520**
 
-Added 7-arg `tick(agentId, tenantId, descriptor, resolver, observation, targetAgentId, regulationContext)` to `CognitionCore.java`. Existing 4/5/6-arg overloads delegate to it with null. This fixes a TWO-DIRECTIONAL production gap:
-- Write path: `EmotionRegulationTickParticipant` at line 182 passes `context.regulationContext()` to `EmotionRegulationMindMapAdapter.write()` — was always null, so regulation location data was never persisted to MindMap
-- Read path: `ProactiveRegulationParticipant` at line 46-47 short-circuits when `regulationContext` is null — proactive avoidance never fired
+Closed #823 on GitHub (per-modality regulation eval — 4/4 tests passing). Advanced queue to casehubio/neocortex#520 (cognitive state dump endpoint).
 
-Test: `CognitionCoreRegulationContextTest` (2 tests) verifies context flows to FOUNDATION participants and that existing overloads pass null.
+**2. Blog image fix**
 
-**2. PerModalityRegulationEvalTest — 4 modality tests**
+Fixed 3 broken SVG paths in `docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` — referenced `svg/` prefix but files are in blog root.
 
-New test class in `caps-llm-classifier/src/test/java/io/casehub/neocortex/caps/llm/eval/`.
+**3. Full design for #520**
 
-| Test | Ticks | Assertion | Result |
-|------|-------|-----------|--------|
-| `fatigue_sustainedRegulation_overridesToAttentionalDeployment` | 20 | Strategy transitions from COGNITIVE_CHANGE → ATTENTIONAL_DEPLOYMENT | 3/3 required |
-| `automatic_predictorMatchesLlmFreeChoice` | 2×2 paired | Predictor strategy == LLM free-choice strategy | ≥2/3 |
-| `monitoring_decliningEffectiveness_triggersStrategySwitch` | 5 | Strategy on tick 5 differs from ticks 1-4 after failure signal | ≥1/3 |
-| `proactive_memoryBasedAvoidance_producesAvoidanceGoal` | 3 | DriveGoalProposal with "proactive-avoidance-library" produced | ≥2/3 |
+Brainstormed, captured 5 decisions (D15-D19), ran light decision review (16 findings, 3 relevant to #520), revised 3 decisions:
 
-First eval run: 2/4 passed (fatigue ✅, monitoring ✅). Two fixes applied:
-- **Automatic**: observation was too intense (peak > 0.75), triggering predictor's high-intensity override to ATTENTIONAL_DEPLOYMENT. Calmed observation → 3/3.
-- **Proactive**: `configureRegulation()` called before any `tick()`, so `lastTenantId` was null and the COGNITIVE subgraph lookup used "default" instead of "eval-tenant" — regulation results never written to MindMap. Fix: setup tick before `configureRegulation()` → 3/3.
+- **D15 (revised):** PipelineTrace sub-record (not flat field explosion) — groups appraisal, CAPS, regulation, prompt sections
+- **D16 (revised):** CognitionStateProvider SPI in cognitive-observability-api (not direct CognitionCore injection — fixes layer violation R1-04)
+- **D17:** Live inspection + per-tick snapshot storage
+- **D18:** New PipelineSnapshotStore with SQLite impl (not extend SnapshotStore)
+- **D19 (revised):** CognitionCore captures CAPS data at call site, CapsEngine stays pure (R1-09)
 
-Second eval run: 4/4 passed.
+Spec: `specs/issue-851-dynamic-regulatory-capacity/2026-11-09-cognitive-state-dump-design.md`
 
-### Key design findings
+**4. Implementation plan written**
 
-**Fatigue is a convergent series, not linear.** The spec assumed fatigue = 0.15/tick (linear). Actual: `effort × 0.15` where effort = `alpha × discrepancy / D_MAX` and alpha = `0.5 × (1 - fatigue)`. This is a negative feedback loop. After 5 ticks: fatigue ≈ 0.30 (not 0.75). Override threshold (0.7) reached around tick 18-20. Decisions D11, D13 document this.
+6 tasks across 3 batches. Plan: `plans/2026-11-09-cognitive-state-dump.md`
 
-**Monitor + fatigue emergent interaction.** The LLM receives fatigue as prompt context ("Regulation fatigue: 30%") and responds by generating lower effectiveness values. After 3 consecutive declines, the monitor fires a failure signal and the strategy switches — much earlier than the fatigue override threshold alone. This was not designed; it emerged from the LLM interpreting fatigue context.
+### Key discovery: CAPS settle() is consolidation-time
 
-**Observation intensity must stay ≤ 0.75.** The predictor has a hard high-intensity override at `RegulationStrategyPredictor.HIGH_INTENSITY_THRESHOLD = 0.75` (line 17). Observations above this always get ATTENTIONAL_DEPLOYMENT regardless of personality. Dramatic observations ("your journal read aloud") exceed this. Moderate ones ("seat taken at breakfast") stay below. This affects ALL eval tests, not just the automatic concordance test.
+`CapsEngine.settle()` is called ONLY from `BehavioralSynthesisPhase` (consolidation), NOT from `CognitionCore.tick()`. CAPS data (input activations, settling result, attractors) updates on consolidation, not per-tick. The plan accounts for this:
+- BehavioralSynthesisPhase caches last SettlingResult per agent
+- CognitionCore queries it via the SPI implementation
 
-### Decisions captured
+### Module dependency finding
 
-D9-D14 in `specs/issue-851-dynamic-regulatory-capacity/decisions.md`:
-- D9: Separate test class (multi-tick vs 2-tick pattern)
-- D10: CognitionCore.tick() RegulationContext overload (production gap)
-- D11: ~20 ticks for fatigue (convergent series arithmetic)
-- D12: Strategy concordance only, no timing (LLM called both paths)
-- D13: 5-tick monitoring signal consumption cycle
-- D14: 3-tick proactive with seeded MindMap via RegulationContext
+`cognitive-observability-api` and `cognition` don't depend on each other. For the SPI to work:
+1. Add `cognition-api` and `caps-api` as dependencies of `cognitive-observability-api` (PipelineTrace needs AppraisalResult, SettlingResult, etc.)
+2. Add `cognitive-observability-api` as a dependency of `cognition` (CognitionCore implements CognitionStateProvider)
 
-### Blog written
-
-`examples/docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` — covers convergent series, API gap, emergent interaction, and why multi-tick eval matters for cognitive agents. 3 non-inline SVGs.
-
-### Repos synced
-
-All 4 slot repos rebased onto canonical main (2 rebase conflicts in neocortex research doc resolved — merged completion markers from slot 211 with Epic #841 structure). Canonical main FF-merged for examples and neocortex.
-
-## What to Watch
-
-1. **Fatigue test at 3/3 threshold.** Raised from ≥2/3 to exactly N in this session. The first full run showed 2/3 transitioning (run 1 had ATTENTIONAL_DEPLOYMENT from tick 1 — the appraisal likely produced intensity > 0.75 on the first observation). If this flakes, investigate whether the first observation ("James took the last cup of tea") sometimes appraises above 0.75. Fix: make observation 1 even milder, or soften to ≥2/3.
-
-2. **Pre-existing test failure.** `EmotionRegulationGenerationPhaseTest.userMessageIncludesSelfConsciousGuidanceForShame` still fails (shame guidance prompt content mismatch). Not caused by #822 or #823. Tracked but unfixed — may need shame prompt content update.
-
-3. **Monitoring test leniency.** Threshold is ≥1/3 because effectiveness decline across ticks is LLM-generated and non-deterministic. If this consistently passes, consider raising to ≥2/3. If it consistently fails, the observation escalation pattern needs revision.
-
-4. **Automatic concordance interpretation.** Currently both predictor and LLM agree on ATTENTIONAL_DEPLOYMENT — the observation may still be triggering high-intensity override. If future runs show predictor=ATTENTIONAL_DEPLOYMENT but LLM picks a different strategy, the test is actually validating what it should: does the predictor's personality mapping agree with LLM judgment? The current 3/3 agreement on ATTENTIONAL_DEPLOYMENT might be the high-intensity override making both paths agree trivially. Consider adding a second concordance scenario with a truly moderate-intensity emotion that tests the personality path (e.g., OTHER_DIRECTED with high suppression → RESPONSE_MODULATION).
-
-5. **configureRegulation() tenant timing.** The proactive test's fix (setup tick before configureRegulation) is correct but fragile. If anyone reorders setup in the test, the COGNITIVE subgraph lookup breaks silently. The root cause is in `CognitionCore.configureRegulation()` line 746: `lastTenantId != null ? lastTenantId : "default"`. A more robust fix would accept tenant as a parameter. Not urgent — the test pattern documents the dependency.
+These are all lightweight API modules — no implementation pulled in. Standard SPI pattern.
 
 ## Immediate Next Step
 
-**Queue status:** `ALL_DONE=True` for the current queue batch. `work next` will advance to the next issue. The queue shows:
-- `#520 — Cognitive` (next unchecked)
-- `#203 — Spatial`
-- `#806 — CAPS`
-- `#315 — Cognitive (casehub-mosaic)`
-- `#828 — Regulation predictor observability`
-- `#818 — Automatic`
+**Execute the implementation plan.** Start with `work continue`, read the plan at `plans/2026-11-09-cognitive-state-dump.md`, invoke `executing-plans`.
 
-**Recommended:** Run `work next` to advance the queue and close #823 on GitHub. Before advancing, consider whether the automatic concordance test (point 4 above) needs a second scenario with a genuinely moderate-intensity observation — this would be a quick addition before closing #823.
+Tasks injected into `.queue`:
+- [ ] Foundation: PipelineTrace + SPI + extend CognitionSnapshot
+- [ ] Foundation: PipelineSnapshotStore + InMemory + contract test
+- [ ] Storage: SqlitePipelineSnapshotStore
+- [ ] Capture: CAPS caching + StateProvider impl + tick capture
+- [ ] API: pipelineDump endpoint + CDI wiring
+- [ ] Integration: CognitionStateProvider integration test
+
+## What to Watch
+
+1. **Module dependency wiring.** The first task must add pom.xml dependencies before writing code. Verify cognitive-observability-api can resolve cognition-api types (AppraisalResult, etc.) and that cognition can resolve cognitive-observability-api types (PipelineTrace, CognitionStateProvider).
+
+2. **CognitionSnapshot construction sites.** Adding a `@Nullable PipelineTrace trace` field to the record breaks all existing construction sites. Use `ide_find_references` on the CognitionSnapshot constructor to find and fix every call site (add `, null` as last arg).
+
+3. **BehavioralSynthesisPhase access from CognitionCore.** CognitionCore needs to query BehavioralSynthesisPhase for CAPS data. Check if CognitionCore already has a reference or needs one added via constructor/builder.
+
+4. **Regulation result accessor.** The plan notes `EmotionRegulationTickParticipant` has a current result method — verify the exact method name with `ide_find_symbol` before writing the CognitionStateProvider implementation.
+
+5. **Prompt section rendering.** CognitionCore.promptSections() returns renderers, not rendered text. The CognitionStateProvider implementation needs to call render() on each with a CognitionRenderContext. Check how existing code constructs this context.
+
+## Queue Status
+
+- [x] #823 — Per-modality (closed)
+- [ ] #520 — Cognitive (active, implementation plan ready)
+- [ ] #203 — Spatial
+- [ ] #806 — CAPS
+- [ ] #315 — Cognitive (casehub-mosaic)
+- [ ] #828 — Regulation predictor observability
+- [ ] #818 — Automatic
 
 ## References
 
-- `specs/issue-851-dynamic-regulatory-capacity/2026-11-08-per-modality-regulation-eval-design.md` — #823 design spec (promoted to examples)
-- `specs/issue-851-dynamic-regulatory-capacity/decisions.md` — D9-D14 (#823 decisions)
-- `plans/2026-11-08-per-modality-regulation-eval.md` — #823 implementation plan (promoted)
-- Neocortex branch: `issue-851-dynamic-regulatory-capacity`
-- Neocortex commits: `45d523a7` (tick overload), `1189aab1` (eval tests), `a4c76a69` (fixes), `d832ed90` (fatigue threshold)
-- `PerModalityRegulationEvalTest.java` — test class
-- `CognitionCoreRegulationContextTest.java` — tick overload test
-- `CognitionCore.java` — tick() overloads (lines 213-301)
-- `docs/research/2026-11-05-post-era6-regulation-and-identity.md` — updated with findings
-- `examples/docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` — blog post
-- Pre-existing failure: `EmotionRegulationGenerationPhaseTest.userMessageIncludesSelfConsciousGuidanceForShame`
+- Spec: `specs/issue-851-dynamic-regulatory-capacity/2026-11-09-cognitive-state-dump-design.md`
+- Plan: `plans/2026-11-09-cognitive-state-dump.md`
+- Decisions: `specs/issue-851-dynamic-regulatory-capacity/decisions.md` (D15-D19)
+- Decision review: `/Users/mdproctor/reviews/casehub-slots/issue-851-decision-20261109-021336/`
+- Pipeline state: `specs/issue-851-dynamic-regulatory-capacity/pipeline.state` (PLANNING)
+- Blog fix: `examples/docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` (SVG paths corrected)
