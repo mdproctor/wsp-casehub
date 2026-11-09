@@ -10,6 +10,17 @@ Encode emotion regulation strategies as CAPS output nodes so that the same conne
 
 This is Phase 2 of the regulation architecture. Phase 1 (#590) built LLM-driven regulation outside CAPS. Phase 2 mechanises the validated patterns as CAPS nodes while preserving the LLM as a fallback.
 
+### CASPER Alignment
+
+Camacho et al. (2025) CASPER (Cognitive-Affective Social Processing and Emotion Regulation) decomposes social-emotional processing into interacting subsystems: cognitive control, affective reactivity, social processing, and regulatory processes. Our design maps to CASPER's architecture:
+
+- **Cognitive control** → existing mediating nodes (self_efficacy, self_worth) that gate cognitive_change
+- **Affective reactivity** → existing affect_systems nodes (BIS/BAS/FFFS, arousal_level) that drive attentional_deployment and response_modulation
+- **Social processing** → new social-context input nodes routed through mediating nodes, providing personality-sensitive social signal processing
+- **Regulatory processes** → new regulation output nodes that settle alongside behavioral outputs
+
+CASPER models these subsystems as interacting rather than sequential — consistent with our single-pass settling design (D26). Where we diverge: CASPER is a neurobiological decomposition (prefrontal, amygdala, insula); our CAPS implementation is a functional decomposition (personality-weighted cognitive-affective units). The functional level is appropriate for behavioral simulation — we model the *what* of regulation strategy selection, not the *how* of neural implementation. CASPER validates the theoretical architecture of integrating social processing with emotion regulation in one system.
+
 ## Architecture
 
 ### Topology Extension
@@ -44,7 +55,19 @@ All regulation output nodes use `UNIPOLAR` range `[0, 1]`.
 
 ### Connection Architecture
 
-Regulation output nodes connect to existing mediating nodes (D22). The same internal state (BIS/BAS, self_worth, threat_sensitivity, arousal_level, etc.) that drives behavioral outputs also drives regulation strategy selection. Regulation is another behavioral response dimension, not a separate system (Mischel & Shoda 1995).
+Social-context input nodes connect to existing mediating nodes, following the same INPUT → MEDIATING → OUTPUT layering as all other CAPS inputs (D22). The mediating layer is where personality-weighted processing happens — routing social-context signals through it makes social regulation personality-sensitive through the same mechanism as behavioral outputs.
+
+**Social-context → mediating node connections** (new):
+
+| Social-context input | Target mediating node | Weight | Rationale |
+|---------------------|----------------------|--------|-----------|
+| `perceived_responsiveness` | `other_safety` | +0.35 | Responsive interaction partner → feel safe (per-tick modulation, not permanent IWM change) |
+| `perceived_responsiveness` | `other_reliability` | +0.25 | Responsive interaction partner → current reliability assessment elevated |
+| `target_distress` | `arousal_level` | +0.30 | Observing distress → vicarious arousal (Preston & de Waal 2002) |
+| `social_isolation` | `BIS_activation` | +0.30 | Ostracism activates behavioral inhibition (Williams 2007) |
+| `social_isolation` | `arousal_level` | +0.25 | Social isolation elevates arousal |
+| `power_asymmetry` | `social_comparison` | +0.35 | Power differential activates social comparison processing (Festinger 1954) |
+| `power_asymmetry` | `BAS_activation` | +0.25 | Power advantage increases approach motivation |
 
 **Intrapersonal strategy connections** (via existing mediating nodes):
 
@@ -56,15 +79,15 @@ Regulation output nodes connect to existing mediating nodes (D22). The same inte
 | `situation_selection` | threat_sensitivity (+), BIS_activation (+), self_worth (-) | Avoidance when threat is anticipated and self-model is negative |
 | `situation_modification` | self_efficacy (+), BAS_activation (+) | Changing the situation requires agency and approach motivation |
 
-**Social strategy connections** (via social-context input nodes + existing mediating nodes):
+**Social strategy connections** (via mediating nodes, with justified direct connections noted):
 
 | Regulation output | Primary drivers | Rationale |
 |-------------------|-----------------|-----------|
-| `social_support_seeking` | perceived_responsiveness (+), other_reliability (+), BIS_activation (+) | Seek comfort from responsive, reliable other when inhibited |
-| `social_sharing` | perceived_responsiveness (+), other_safety (+), BAS_activation (+) | Share emotions with safe, responsive other; approach-motivated |
-| `social_withdrawal` | social_isolation (+), other_safety (-), BIS_activation (+) | Withdraw when isolated or others feel unsafe |
-| `co_regulation` | target_distress (+), other_reliability (+), self_efficacy (+) | Soothe distressed other when capable and other is valued |
-| `deliberate_provocation` | power_asymmetry (+), BAS_activation (+), dominance (input, +) | Provoke when power advantage provides perceived impunity |
+| `social_support_seeking` | other_safety (+), other_reliability (+), BIS_activation (+) | Seek comfort from safe, reliable other when inhibited. `perceived_responsiveness` reaches via `other_safety` and `other_reliability` mediating layer. |
+| `social_sharing` | other_safety (+), BAS_activation (+) | Share emotions with safe other; approach-motivated. `perceived_responsiveness` reaches via `other_safety`. |
+| `social_withdrawal` | other_safety (-), BIS_activation (+) | Withdraw when others feel unsafe or inhibition is high. `social_isolation` reaches via `BIS_activation`. |
+| `co_regulation` | target_distress (+, direct), other_reliability (+), self_efficacy (+) | Soothe distressed other when capable and other is valued. `target_distress` retains a direct connection — the caregiving behavioral system (Bowlby/George & Solomon 1999) is a basic social mechanism with no adequate mediating proxy for extrinsic regulation discrimination. |
+| `deliberate_provocation` | power_asymmetry (+, direct), BAS_activation (+), dominance (input, +) | Provoke when power advantage provides perceived impunity. `power_asymmetry` retains a direct connection — perceived impunity (Tedeschi & Felson 1994) is a specific discriminator for provocation with no mediating equivalent. `power_asymmetry` ALSO routes through `social_comparison` and `BAS_activation` for personality modulation. |
 
 ### Connection Weight Initialization (D25)
 
@@ -77,7 +100,22 @@ Initial weights derived from two sources, cross-validated:
    - CAPS ≠ predictor, LLM agrees with predictor → CAPS weights need adjustment
    - LLM disagrees with both → flag for manual review (shared-source bias)
 
-Weight provenance: `CONSENSUS` for literature-derived weights. Rescorla-Wagner learning applies post-initialization with regulation effectiveness as the outcome signal.
+3. **Ground truth validation**: Curate a set of ground truth scenarios with expert-rated strategy selections (independent of both predictor and LLM). Use these as the PRIMARY validation reference for weight calibration. The three-way protocol (above) serves as the SECONDARY resolution mechanism for scenarios where ground truth is ambiguous or absent.
+
+Weight provenance: `CONSENSUS` for literature-derived weights.
+
+**Rescorla-Wagner learning for regulation connections**: Post-initialization, regulation connection weights update via the existing `CapsEngine.updateWeights()` mechanism. The regulation effectiveness signal maps as follows:
+
+| Parameter | Regulation mapping | Source |
+|-----------|-------------------|--------|
+| `outcomeIntensity` | `abs(peakOriginalIntensity - regulatedIntensity)` — magnitude of intensity change achieved by regulation | `EmotionRegulationResult.peakOriginalIntensity()`, `.regulatedIntensity()` |
+| `outcomeValence` | `effectiveness > 0.5 ? +1.0 : -1.0` — binary: regulation succeeded or failed | `EmotionRegulationResult.effectiveness()` |
+| `salienceMultiplier` | `peakOriginalIntensity` — more intense emotions produce stronger learning signals | `EmotionRegulationResult.peakOriginalIntensity()` |
+| `reinforcementSchedule` | `"variable_ratio"` — regulation success is probabilistic | Constant |
+
+Learning applies to ALL connections (behavioral + regulation). The outcome signal from regulation episodes updates the same weight matrix that behavioral outcomes update. This is theoretically correct — a regulation episode IS a behavioral outcome that updates the agent's associative structure.
+
+The `EmotionRegulationMindMapAdapter.write()` already persists `effectiveness`, `peakOriginalIntensity`, and `regulatedIntensity` per regulation episode. A new `RegulationWeightUpdateParticipant` (TERMINAL phase) reads the latest regulation result and calls `CapsEngine.updateWeights()` with the mapped parameters.
 
 ### Disposition Modulation
 
@@ -101,33 +139,48 @@ These are initial estimates — subject to literature calibration alongside conn
 Three-layer cascade with empirical promotion criteria:
 
 ```
-CAPS settling → regulation attractor?
-  ├─ YES (strength ≥ threshold) → pin strategy, send to LLM for narrative
-  └─ NO
+CAPS settling → regulation attractors?
+  ├─ Single dominant attractor (strength ≥ regulationConfidenceThreshold
+  │   AND dominance margin ≥ regulationDominanceMargin over runner-up)
+  │   → pin strategy, send to LLM for narrative
+  ├─ Multiple attractors above threshold but no clear dominant
+  │   → CAPS is ambivalent, fall through
+  └─ No attractor above threshold → fall through
       └─ RegulationStrategyPredictor → prediction?
           ├─ YES → pin strategy, send to LLM for narrative
           └─ NO → LLM free choice
 ```
 
-**Threshold**: configurable via `CapsSettlingConfig`, default 0.1 (existing noise floor). Production threshold derived empirically from eval data comparing CAPS attractor strength vs. predictor accuracy vs. LLM agreement (D24).
+**Multi-attractor resolution**: When multiple regulation attractors exceed `regulationConfidenceThreshold`, the highest-strength attractor wins ONLY if it exceeds the runner-up by `regulationDominanceMargin`. If the margin is not met, CAPS is ambivalent — the cascade falls through to the predictor/LLM. This preserves the "CAPS confident vs. not confident" semantics: close competition between regulation strategies indicates genuine ambivalence, not false confidence.
+
+**Threshold configuration** (new `RegulationCascadeConfig` record):
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| `regulationConfidenceThreshold` | 0.3 | Minimum attractor strength for cascade pin decision. Architecturally separate from `CapsSettlingConfig.attractorStrengthMinFilter()` (default 0.1), which is a noise filter for `SettlingResult.attractors()`. A regulation attractor at 0.12 passes the noise filter but does NOT override the predictor/LLM. Production value derived empirically from eval data (D24). |
+| `regulationDominanceMargin` | 0.15 | Minimum strength gap between top two regulation attractors. Below this margin, CAPS is ambivalent and falls through. |
+
+The existing `CapsSettlingConfig.attractorStrengthMinFilter()` (default 0.1) remains unchanged — it governs what appears in `SettlingResult.attractors()` for ALL output categories. `RegulationCascadeConfig` governs the cascade PIN decision for regulation attractors only.
 
 **Predictor retirement criteria** (D21):
-- CAPS-predictor concordance ≥ 80% on eval scenarios
-- CAPS-LLM free-choice concordance ≥ 70%
+- PRIMARY: CAPS concordance with ground truth eval scenarios ≥ 80%
+- SECONDARY: CAPS-LLM free-choice concordance ≥ 70%
 - Degradation monitoring: automatic fallback if concordance drops > 10% below thresholds
 
 The predictor handles safety overrides during calibration: fatigue > 0.7 → force ATTENTIONAL_DEPLOYMENT, intensity > 0.75 → force ATTENTIONAL_DEPLOYMENT.
 
 ## Social-Context Input Injection
 
-The 4 social-context input nodes are injected per-tick from `RegulationContext` + MindMap relationship data:
+The 4 social-context input nodes are injected per-tick from `RegulationContext` + MindMap relationship data. Computed as continuous [0,1] activations:
 
-| Node | Injection source |
-|------|-----------------|
-| `perceived_responsiveness` | MindMap trust edges + affect trajectory for interacting agents. High trust + positive affect trajectory → high activation. |
-| `target_distress` | MindMap PAD dimensions for interacting agents. Low pleasure + high arousal → high activation. |
-| `social_isolation` | `RegulationContext.interactingAgents()` empty or null → high activation. |
-| `power_asymmetry` | MindMap relationship edges (dominance/submission) + social comparison data from `CognitiveProfile`. |
+| Node | Formula | Inputs |
+|------|---------|--------|
+| `perceived_responsiveness` | `clamp01(trustWeight × trust + trajectoryWeight × trajectorySignal)` where `trust` = mean trust edge value for interacting agents from MindMap (normalized to [0,1]), `trajectorySignal` = 1.0 if affect trajectory is IMPROVING, 0.5 if STABLE, 0.0 if WORSENING. Default weights: `trustWeight = 0.6`, `trajectoryWeight = 0.4`. Multiple interacting agents: use max trust (most responsive agent dominates). | MindMap trust edges, `RegulationTracker` affect trajectories |
+| `target_distress` | `clamp01((-pleasure + arousal) / 2.0)` where `pleasure` and `arousal` are PAD dimensions from MindMap overlay for interacting agents, normalized to [-1,1] and [0,1] respectively. Multiple agents: use max distress. Zero if no interacting agents. | MindMap PAD overlays (from `RelationalSchema`) |
+| `social_isolation` | `1.0 - clamp01(agentCount / saturatingCount)` where `agentCount` = `RegulationContext.interactingAgents().size()`, `saturatingCount` = 3 (configurable). Gradient: 0 agents → 1.0, 1 agent → 0.67, 2 agents → 0.33, 3+ agents → 0.0. | `RegulationContext.interactingAgents()` |
+| `power_asymmetry` | `clamp01((dominanceScore - submissionScore + socialComparisonBias) / 2.0)` where `dominanceScore` and `submissionScore` are from MindMap relationship edges for the most dominant interacting agent, `socialComparisonBias` is from `CognitiveProfile.socialComparisonBias()` (default 0.0). | MindMap relationship edges, `CognitiveProfile` |
+
+`clamp01(x) = max(0, min(1, x))`
 
 Injection happens in `EmotionRegulationTickParticipant` before calling `CapsEngine.settle()`. Social-context activations are merged with situation classification activations into the `inputActivations` map.
 
@@ -142,8 +195,8 @@ The regulation CAPS integration touches `EmotionRegulationTickParticipant`, whic
       - Assembles social-context input activations from RegulationContext + MindMap
       - Merges with existing situation classification activations
       - Calls `CapsEngine.settle()` with merged input activations
-      - Extracts regulation attractors from `SettlingResult`
-      - If regulation attractor above threshold → use as pinned strategy
+      - Extracts regulation attractors from `SettlingResult` (category = `regulation`)
+      - Applies multi-attractor resolution: dominant attractor with sufficient margin → pin strategy
       - Else → fall through to `RegulationStrategyPredictor`
       - Else → LLM free choice
    c. Calls `EmotionRegulationGenerationPhase.generate()` with pinned or free strategy
@@ -151,17 +204,47 @@ The regulation CAPS integration touches `EmotionRegulationTickParticipant`, whic
 
 ### Goal Namespace Isolation (D3, D27)
 
-`GoalProposalOrchestrator` uses participant-scoped namespaces with replace semantics per namespace. Each participant (ProactiveRegulationParticipant, EmotionRegulationGoalParticipant) replaces only its own namespace — no cross-participant clobbering. `currentProposals()` merges all namespaces. FOUNDATION phase ordering is undefined; participants are namespace-independent.
+**Code change required:** `GoalProposalOrchestrator` currently has no namespace isolation — `registerGoals()` performs a full replace of ALL registered goals (verified: `state.registeredGoals = List.copyOf(goals)` at line 120). If `EmotionRegulationGoalParticipant` calls `registerGoals()` after `ProactiveRegulationParticipant` calls `appendGoals()`, proactive avoidance goals are silently wiped.
+
+This spec proposes adding a new method to `GoalProposalOrchestrator`:
+
+```java
+public void registerParticipantGoals(String participantId, String agentId,
+                                      String tenantId, List<DriveGoalProposal> goals)
+```
+
+Internal implementation: `GoalProposalState` gains a `Map<String, List<DriveGoalProposal>> namespacedGoals` field. `registerParticipantGoals()` replaces only the specified participant's namespace. `currentProposals()` merges all namespaces with `cachedProposals`. Both `EmotionRegulationGoalParticipant` and `ProactiveRegulationParticipant` migrate from `registerGoals()`/`appendGoals()` to `registerParticipantGoals()` with participant-specific IDs.
+
+FOUNDATION phase ordering is undefined; participants are namespace-independent.
 
 ## Settling Dynamics
 
 Regulation and behavioral outputs settle together in one pass (D26). This is faithful to CAPS theory — Mischel & Shoda (1995) explicitly include self-regulatory processes as interacting CAUs.
 
+**Type rename:** `BehavioralAttractor` → `CapsAttractor`. Regulation strategies are CAPS outputs but not "behavioral" in the narrow sense — the type name should reflect that both behavioral and regulatory attractors are CAPS output categories distinguished by the `category` field. This is a breaking rename; the migration is mechanical (record rename, all callers updated). `SettlingResult.attractors()` returns `List<CapsAttractor>`.
+
 **No interference between output categories**: verified from `CapsSettler.java` — output nodes are terminal in the graph (incoming edges only, no outgoing). Each output's activation is computed independently from its incoming weights and source activations. No normalization, no softmax, no cross-output competition. Adding regulation output nodes cannot change behavioral attractor strengths or convergence behavior.
 
-**Projected topology size**: ~91 nodes (77 baseline + 10 regulation outputs + 4 social inputs), ~140+ connections. Per-iteration cost increases proportionally (~18% more nodes) but iteration count is unchanged — output nodes don't affect convergence dynamics.
+**Distortions and regulation nodes**: Existing distortion definitions target `self_model`, `other_model`, `world_model`, `response_outcome`, `threat_processing`, and `affect_systems` categories. Regulation output nodes (category `regulation`) are NOT targeted by distortions. This is architecturally correct: distortions operate on the mediating layer, which feeds regulation outputs. Regulation outputs already consume distortion-affected mediating activations — applying distortions to regulation outputs would double-count. For example, `catastrophizing` amplifies `threat_processing` activations, which increases `attentional_deployment` through the `threat_sensitivity → attentional_deployment` connection. The distortion effect is already present in the regulation output without targeting it directly.
+
+**Projected topology size**: 91 nodes (77 baseline + 10 regulation outputs + 4 social inputs), 110 connections (76 baseline + 7 social-context→mediating + 14 intrapersonal regulation + 13 social regulation). All connections enumerated in §Connection Architecture tables above. Per-iteration cost increases proportionally (~18% more nodes) but iteration count is unchanged — output nodes don't affect convergence dynamics.
 
 ## Avoidance Temporal Decay (D5, revised)
+
+**Breaking change to `ProactiveRegulationParticipant`**: The constructor parameter `decayHorizonTicks` (linear semantics: weight reaches zero at this tick count) is replaced by `decayTimeConstant` (exponential semantics: weight reaches 37% at this tick count). All callers constructing `ProactiveRegulationParticipant` must update.
+
+New constructor signature:
+```java
+public ProactiveRegulationParticipant(MindMapStore mindMapStore,
+                                      GoalProposalOrchestrator goalOrchestrator,
+                                      CognitiveDefaultsRegistry defaultsRegistry,
+                                      String cognitiveSubgraphId,
+                                      ProactiveAvoidanceMode mode,
+                                      int decayTimeConstant,      // was: decayHorizonTicks
+                                      double tickIntervalSeconds)
+```
+
+Default `decayTimeConstant`: 30 ticks.
 
 Proactive avoidance weight uses exponential decay (Ebbinghaus 1885, Wixted & Ebbesen 1991):
 
@@ -169,7 +252,7 @@ Proactive avoidance weight uses exponential decay (Ebbinghaus 1885, Wixted & Ebb
 avoidanceWeight = initialWeight * Math.exp(-elapsedTicks / decayTimeConstant)
 ```
 
-`decayTimeConstant` default ~30 ticks. Decay profile: 37% at 30 ticks, 14% at 60 ticks, 5% at 90 ticks. Smooth asymptotic approach — no cliff, unlike the prior linear decay model.
+Decay profile: 37% at 30 ticks, 14% at 60 ticks, 5% at 90 ticks. Smooth asymptotic approach — no cliff, unlike the prior linear decay model where weight drops abruptly to zero at `decayHorizonTicks`.
 
 ## Eval Strategy
 
@@ -177,7 +260,7 @@ Run the existing eval suite with CAPS regulation settling alongside the predicto
 
 1. **Paired comparison**: for each eval scenario, record CAPS regulation attractor (strategy + strength), predictor strategy (+ confidence), and LLM free-choice strategy
 2. **Threshold calibration**: derive minimum CAPS strength at which CAPS matches predictor/LLM at acceptable rates
-3. **Weight calibration**: adjust connection weights where CAPS diverges from predictor, using the D25 three-way resolution protocol
+3. **Weight calibration**: adjust connection weights where CAPS diverges from ground truth, using the D25 protocol (three-way resolution as secondary mechanism for ambiguous cases)
 4. **Regression monitoring**: verify behavioral attractors are unchanged by the topology extension
 
 ## References
@@ -199,6 +282,8 @@ Run the existing eval suite with CAPS regulation settling alongside the predicto
 - Tedeschi, J. T. & Felson, R. B. (1994). *Violence, Aggression, and Coercive Actions*. American Psychological Association.
 - Anderson, C. A. & Bushman, B. J. (2002). Human aggression. *Annual Review of Psychology*, 53, 27-51.
 - Camacho, T., Deshpande, G. & Perino, M. T. (2025). CASPER: Cognitive-Affective Social Processing and Emotion Regulation. *Neuropsychopharmacology*, 51, 136-152.
+- Preston, S. D. & de Waal, F. B. M. (2002). Empathy: Its ultimate and proximate bases. *Behavioral and Brain Sciences*, 25(1), 1-20.
+- George, C. & Solomon, J. (1999). Attachment and caregiving: The caregiving behavioral system. In *Handbook of Attachment* (pp. 649-670).
 - Bosse, T., Pontier, M. & Treur, J. (2010). A computational model based on Gross' emotion regulation theory. *Cognitive Systems Research*, 11, 211-230.
 - Ebbinghaus, H. (1885). *Memory: A Contribution to Experimental Psychology*.
 - Wixted, J. T. & Ebbesen, E. B. (1991). On the form of forgetting. *Psychological Science*, 2(6), 409-415.
