@@ -1,7 +1,7 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-851-dynamic-regulatory-capacity
+branch: 
 status: active
 project-sha: 
 date: 
@@ -19,24 +19,8 @@ flyway-next-v:
 - [x] casehubio/neocortex#822 — Per-strategy
 - [x] casehubio/neocortex#823 — Per-modality
 - [x] casehubio/neocortex#520 — Cognitive
-- [ ] casehubio/neocortex#806 — CAPS ← active
-  - [x] Batch 1: Foundation
-    - [x] Task 1: Rename BehavioralAttractor to CapsAttractor
-    - [x] Task 2: Add RegulationCascadeConfig
-  - [x] Batch 2: Topology
-    - [x] Task 3: Extend caps-topology.yaml with regulation nodes
-    - [x] Task 4: Extend DispositionWeightMapper regulation activations
-  - [x] Batch 3: Namespace
-    - [x] Task 5: Goal namespace isolation in GoalProposalOrchestrator
-  - [x] Batch 4: Social
-    - [x] Task 6: Create SocialContextInputComputer
-  - [x] Batch 5: Decay
-    - [x] Task 7: Exponential decay in ProactiveRegulationParticipant
-  - [x] Batch 6: Cascade
-    - [x] Task 8: Integrate CAPS settling into regulation cascade
-  - [x] Batch 7: Eval
-    - [x] Task 9: Paired comparison eval test
-- [x] casehubio/neocortex#828 — Regulation predictor observability
+- [x] casehubio/neocortex#806 — CAPS
+- [x] casehubio/neocortex#828 — Regulation predictor observability ← active
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
 - [x] casehubio/neocortex#815 — Cognitive
