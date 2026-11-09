@@ -234,3 +234,95 @@
 **Exploration:** quick → revised after decision review (R1-09)
 **Depends on:** D16 (SPI pattern enables CognitionCore as state provider)
 **Status:** revised
+
+## D20: Regulation strategies as CAPS output nodes
+
+**Choice:** All 10 regulation strategies (5 Gross intrapersonal + 5 Zaki & Williams social) become output nodes in the CAPS topology, alongside existing behavioral output categories
+**Alternatives:**
+- Predictor-handled 5 only (Gross strategies) — validated personality→strategy mappings but excludes social strategies that depend on inter-agent judgment
+- Core 3 only (ATTENTIONAL_DEPLOYMENT, COGNITIVE_CHANGE, RESPONSE_MODULATION) — internal strategies only, situation strategies as goal-level outputs
+**Rationale:** Full coverage brings all regulation strategy selection under CAPS settling dynamics. Social strategies require new social-context input nodes (D23) to provide discriminating input signal.
+**Trade-offs:** Social strategies depend on inter-agent state that CAPS input nodes don't currently represent — addressed by D23.
+**Sources:** Issue #806, Gross 1998 (process model), Zaki & Williams 2013 (interpersonal taxonomy)
+**Exploration:** quick
+**Status:** captured
+
+## D21: Strategy selection cascade — CAPS > predictor > LLM
+
+**Choice:** Three-layer cascade: CAPS settling first, RegulationStrategyPredictor fallback, LLM free choice last
+**Alternatives:**
+- CAPS replaces predictor — cleaner long-term but CAPS regulation nodes are new and unvalidated; the predictor has battle-tested eval data (Petter 2025)
+- CAPS as signal, predictor decides — CAPS produces advisory attractors, predictor remains authoritative; limits CAPS to influencing rather than selecting
+**Rationale:** The predictor serves as a validated safety net while CAPS regulation nodes mature. It handles fatigue >0.7 and intensity >0.75 overrides as explicit rules that are safer than emergent network behavior. CAPS can be promoted to primary once eval validates its accuracy against the predictor. End state is CAPS replacing predictor, but Phase 2 uses the cascade.
+**Trade-offs:** Three selection mechanisms adds complexity. The predictor's logic partially duplicates what CAPS should learn. Acceptable as transitional architecture — the predictor can be retired once CAPS attractors are validated.
+**Sources:** RegulationStrategyPredictor.java (existing cascade), Petter et al. 2025 (personality × strategy mappings)
+**Exploration:** deep-analysis (user challenged initial recommendation; revised after first-principles discussion)
+**Status:** captured
+
+## D22: Regulation outputs driven by existing mediating nodes
+
+**Choice:** Connect regulation output nodes to existing CAPS mediating nodes (BIS/BAS, self_worth, self_efficacy, threat_sensitivity, arousal_level, etc.) — same internal state drives both behavioral and regulatory outputs
+**Alternatives:**
+- New regulation-specific mediating nodes (reappraisal_readiness, suppression_readiness) — dedicated intermediate layer, more expressive but adds network complexity
+- Direct appraisal injection — SEC dimensions (relevance, controllability) as CAPS inputs; tight coupling to appraisal pipeline
+**Rationale:** Regulation is another behavioral response dimension — the same internal models that drive "withdraw" also drive "ATTENTIONAL_DEPLOYMENT." Using existing mediating nodes means personality differentiation (via disposition modulation on connection weights) automatically applies to regulation output nodes.
+**Trade-offs:** Regulation outputs compete with behavioral outputs for activation from the same mediating nodes. This is a feature, not a bug — CAPS theory explicitly includes regulatory processes as interacting CAUs.
+**Sources:** Mischel & Shoda 1995 (CAPS theory — regulatory CAUs), caps-topology.yaml (existing mediating node structure)
+**Exploration:** quick
+**Status:** captured
+
+## D23: Social-context input nodes — literature-grounded
+
+**Choice:** 4 new input nodes: perceived_responsiveness, target_distress, social_isolation, power_asymmetry
+**Alternatives:**
+- Binary gate (social strategies on/off) — can't differentiate between social strategies; inadequate from first principles (all 5 social nodes receive same gating signal)
+- 3 nodes (drop power_asymmetry) — power is Tier 2 evidence and modulates viability rather than selecting a specific strategy
+- 5+ nodes (broader) — more granular but more connections to calibrate
+**Rationale:** First-principles analysis: CAPS needs input signal differentiation to produce output differentiation. A gate can't discriminate between 5 social strategies. The 4 nodes map to empirically validated dimensions:
+- perceived_responsiveness — Reis et al. 2004 (PPR), Ruan et al. 2019 (PPR → expression), Main et al. 2025 (EMA, closeness → strategy choice). Discriminates SOCIAL_SUPPORT_SEEKING vs. SOCIAL_WITHDRAWAL.
+- target_distress — Reeck et al. 2016 (social regulatory cycle). Discriminates CO_REGULATION.
+- social_isolation — Rimé 2009 (shame → non-sharing), Williams 2007 (ostracism → withdrawal). Discriminates SOCIAL_WITHDRAWAL.
+- power_asymmetry — Schilke et al. 2021 (fundamental predictor of interdependence). Modulates strategy viability.
+DELIBERATE_PROVOCATION driven by existing dominance input + BAS_activation — provocation intent emerges from network settling, not external context.
+**Trade-offs:** Novel computational application — no published model encodes social context as CAPS input nodes for regulation (CASPER 2025 provides theoretical decomposition but no network). We're extending CAPS theory into new territory.
+**Sources:** Reis et al. 2004, Ruan et al. 2019, Main et al. 2025, Reeck et al. 2016, Niven et al. 2009, Rimé 2009, Williams 2007, Schilke et al. 2021, Zaki & Williams 2013, CASPER (Camacho et al. 2025)
+**Exploration:** deep-analysis (user required literature review; two parallel literature searches conducted)
+**Depends on:** D20 (all 10 strategies as output nodes requires social-context discrimination)
+**Status:** captured
+
+## D24: Empirical threshold calibration
+
+**Choice:** Ship with configurable regulation attractor confidence threshold, default to existing 0.1 noise floor. Derive production threshold from eval data comparing CAPS attractor strength vs. predictor accuracy vs. LLM agreement.
+**Alternatives:**
+- Higher fixed threshold (0.3-0.4) — arbitrary without empirical data
+- Comparison-based (CAPS strength vs. predictor confidence per scenario) — no threshold to tune but requires both systems to run every tick
+**Rationale:** The threshold is an empirical calibration parameter, not a design-time decision. Collect paired data from eval: for each scenario, record CAPS regulation attractor + strength, predictor strategy + confidence, LLM free-choice strategy. Derive the threshold as the minimum CAPS strength at which CAPS matches predictor/LLM at acceptable accuracy. The cascade (D21) provides safety during calibration.
+**Trade-offs:** Requires running eval before production threshold is known. Acceptable — the cascade provides safety at any threshold.
+**Sources:** CapsSettlingConfig.java (attractorStrengthMinFilter default 0.1), existing eval suite (PerStrategyRegulationEvalTest, RegulationFullPipelineEvalTest)
+**Exploration:** deep-analysis (user challenged arbitrary threshold; revised to empirical calibration)
+**Depends on:** D21 (cascade provides safety during calibration)
+**Status:** captured
+
+## D25: Connection weight initialization — literature + predictor cross-validation
+
+**Choice:** Derive initial connection weights from published literature (Big Five → strategy correlations from Baranczuk 2019, Gross & John 2003), then cross-validate against the predictor's known-good outputs
+**Alternatives:**
+- Derive from predictor logic only — translates if/else cascade to weights; has eval data but loses theoretical grounding
+- Literature-derived only — more principled but may not match predictor's validated behavior
+**Rationale:** Literature provides theoretically grounded initial weights with effect sizes. Cross-validation against the predictor catches mapping errors — if the CAPS network with literature weights produces strategies that diverge from the predictor on known-good scenarios, the divergence surfaces which weights need adjustment. The predictor's logic was itself derived from Petter 2025 and Baranczuk 2019, so convergence is expected for most cases.
+**Trade-offs:** Doubles the research/calibration effort. Worth it — weights that are both literature-grounded AND predictor-validated are trustworthy enough to ship.
+**Sources:** Baranczuk 2019 (Big Five → regulation strategy meta-analysis), Gross & John 2003 (reappraisal/suppression × personality), Petter et al. 2025 (personality × emotion-type prediction), RegulationStrategyPredictor.java (existing validated mappings)
+**Exploration:** quick
+**Status:** captured
+
+## D26: Unified topology — single settling pass
+
+**Choice:** Add all regulation output nodes and social-context input nodes to the existing caps-topology.yaml. Behavioral and regulation outputs settle together in one pass.
+**Alternatives:**
+- Conditional dual-settle — behavioral settling first, then regulation-only settling on frozen mediating activations; zero regression risk but loses bidirectional competition and departs from CAPS theory
+**Rationale:** Mischel & Shoda (1995) explicitly include self-regulatory processes as CAUs in the same network. Regulatory and behavioral tendencies interact — the same BIS activation that produces "withdraw" also produces "ATTENTIONAL_DEPLOYMENT." Settling dynamics determine relative strength. The computational cost concern (regulation settling on every tick) is mitigated by higher activation thresholds on regulation nodes — they only produce attractors when emotional input is significant.
+**Trade-offs:** Larger network (~82 nodes, ~130+ connections). Regulation attractors computed on every tick even when not needed (but threshold gating keeps them dormant at low emotion). Any changes to mediating node weights affect both behavioral and regulation outputs — broader blast radius for weight updates.
+**Sources:** Mischel & Shoda 1995 (CAPS theory), CASPER (Camacho et al. 2025, regulatory processes in same system), caps-topology.yaml (existing ~68 nodes, ~70 connections)
+**Exploration:** quick
+**Depends on:** D20 (regulation nodes as output category), D22 (existing mediating nodes as drivers)
+**Status:** captured
