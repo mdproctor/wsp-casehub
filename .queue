@@ -19,9 +19,7 @@ flyway-next-v:
 - [x] casehubio/neocortex#822 — Per-strategy
 - [x] casehubio/neocortex#823 — Per-modality
 - [x] casehubio/neocortex#520 — Cognitive
-- [ ] casehubio/examples#203 — Spatial ← active
-- [ ] casehubio/neocortex#806 — CAPS
-- [ ] casehubio/casehub-mosaic#315 — Cognitive
+- [ ] casehubio/neocortex#806 — CAPS ← active
 - [x] casehubio/neocortex#828 — Regulation predictor observability
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
@@ -37,8 +35,6 @@ flyway-next-v:
 - [ ] casehubio/neocortex#853 — Capacity-modulation-function
 - [ ] casehubio/neocortex#854 — Timescale-aware-modulation-weighting
 - [ ] casehubio/neocortex#855 — End-to-end-validation-compounding-shame
-
-## Deferred
-- [ ] casehubio/neocortex#902 — Distress trajectory prompt enrichment for extrinsic strategies (S / Med)
-- [ ] casehubio/neocortex#903 — Feature toggle manor.regulation.social.enabled (XS / Low)
-- [ ] casehubio/neocortex#904 — Integration test: full tick with social context to social goal (S / Low)
+- [ ] casehubio/neocortex#902 — Distress trajectory prompt enrichment
+- [ ] casehubio/neocortex#903 — Feature toggle manor.regulation.social.enabled
+- [ ] casehubio/neocortex#904 — Integration test full tick with social context
