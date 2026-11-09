@@ -2,7 +2,7 @@
 
 ## Last Session (2026-11-09)
 
-Executed 8 of 9 tasks for #806 CAPS regulation integration. Task 8 (cascade integration) now complete — three-layer cascade (safety gate → CAPS settling → predictor → LLM) implemented in EmotionRegulationTickParticipant with Rescorla-Wagner weight update. Remaining: Task 9 (paired comparison eval test).
+All 9 tasks for #806 CAPS regulation integration complete. Task 9 (paired comparison eval test) added — compiles but not yet run (requires API key).
 
 ### Task 8 commit
 
@@ -19,9 +19,26 @@ Executed 8 of 9 tasks for #806 CAPS regulation integration. Task 8 (cascade inte
 - **CognitionCore wiring**: new `configureRegulation(CapsEngine, RegulationCascadeConfig)` overload added
 - **Tests**: 4 cascade tests (pin, ambivalent fallthrough, safety gate, weight update) — 72 regulation tests total, all pass
 
+### Task 9 commit
+
+| SHA | Message |
+|-----|---------|
+| `4d390d0f` | feat(#806): add CAPS regulation comparison eval test |
+
+### Task 9 details
+
+- `CapsRegulationComparisonEvalTest` — tagged `@Tag("llm-eval")`, runs 5 per-strategy scenarios
+- Each scenario: cascade tick (CAPS → predictor → LLM) + LLM-only tick + standalone CAPS settling + standalone predictor
+- Agreement summary: CAPS-predictor, CAPS-LLM, predictor-LLM concordance rates
+- Threshold sweep: concordance at thresholds 0.1–0.5 for empirical calibration
+- Not yet run — requires API key (`mvn test -Pllm-eval -Dtest=CapsRegulationComparisonEvalTest`)
+
 ### Next session
 
-`work continue` → Task 9: Paired comparison eval test (requires API key, non-deterministic). Creates `CapsRegulationComparisonEvalTest` that runs existing scenarios with CAPS settling enabled and records CAPS vs predictor vs LLM concordance for threshold calibration.
+#806 is code-complete (9/9 tasks). Next steps:
+1. Run the eval test (`CapsRegulationComparisonEvalTest`) with API key to get concordance data
+2. Push the branch (9 commits on `issue-806-caps-regulation-integration`)
+3. Move to next issue in queue (#894 Pipeline coherence eval, or #831 Personality coherence check)
 
 ### What was implemented
 
