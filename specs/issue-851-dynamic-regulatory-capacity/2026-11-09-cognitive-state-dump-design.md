@@ -94,7 +94,7 @@ CognitionCore implements this by querying its existing `current*()` methods on e
 ### PipelineTrace Record
 
 ```java
-// In cognitive-observability-api (or cognitive-observability-core)
+// In cognitive-observability-api
 public record PipelineTrace(
     @Nullable AppraisalResult appraisalResult,
     Map<String, Double> concernSalience,
@@ -178,7 +178,21 @@ CognitivePipelineDump pipelineDump(
 );
 ```
 
-Return type wraps either a single snapshot or a list, plus metadata (agent ID, tenant, query type, snapshot count).
+Return type:
+
+```java
+// In cognitive-observability-core
+public record CognitivePipelineDump(
+    String tenantId,
+    String agentId,
+    QueryMode queryMode,           // LIVE, HISTORICAL_SINGLE, HISTORICAL_RANGE
+    @Nullable CognitionSnapshot snapshot,       // for LIVE and HISTORICAL_SINGLE
+    List<CognitionSnapshot> snapshots,          // for HISTORICAL_RANGE
+    int snapshotCount
+) {
+    public enum QueryMode { LIVE, HISTORICAL_SINGLE, HISTORICAL_RANGE }
+}
+```
 
 ### Capture Mechanism
 
