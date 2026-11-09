@@ -31,13 +31,16 @@ All 9 tasks for #806 CAPS regulation integration complete. Task 9 (paired compar
 - Each scenario: cascade tick (CAPS → predictor → LLM) + LLM-only tick + standalone CAPS settling + standalone predictor
 - Agreement summary: CAPS-predictor, CAPS-LLM, predictor-LLM concordance rates
 - Threshold sweep: concordance at thresholds 0.1–0.5 for empirical calibration
-- Not yet run — requires API key (`mvn test -Pllm-eval -Dtest=CapsRegulationComparisonEvalTest`)
+- **Ran successfully** — results saved to `docs/eval/caps-regulation-comparison-baseline.json`
+- Agreement: 60% across all three pairs (CAPS-predictor, CAPS-LLM, predictor-LLM)
+- CAPS never pins (margin 0.052 < 0.15 dominanceMargin) — falls through to predictor in all 5 scenarios
+- Two calibration issues: AD structural weight advantage in topology, DISTRESS→UNCONTROLLABLE_NEGATIVE mapping too coarse
 
 ### Next session
 
-#806 is code-complete (9/9 tasks). Next steps:
-1. Run the eval test (`CapsRegulationComparisonEvalTest`) with API key to get concordance data
-2. Push the branch (9 commits on `issue-806-caps-regulation-integration`)
+#806 is code-complete (9/9 tasks) and eval-run. Next steps:
+1. Push the branch (11 commits on `issue-806-caps-regulation-integration`)
+2. Topology weight calibration to address AD dominance (file as separate issue)
 3. Move to next issue in queue (#894 Pipeline coherence eval, or #831 Personality coherence check)
 
 ### What was implemented
