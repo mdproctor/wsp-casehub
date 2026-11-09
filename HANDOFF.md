@@ -2,87 +2,86 @@
 
 ## Last Session
 
-Advanced queue from #823 to #520. Designed and planned the cognitive state dump endpoint (casehubio/neocortex#520). Blog SVG paths fixed.
+Implemented Batch 1 (Foundation) of #520 cognitive state dump. Blog "Where the Why Lives" written. Dependency cycle issues resolved.
 
-### What was done
+### What was built
 
-**1. Queue advanced: #823 → #520**
+**1. Blog: "Where the Why Lives"**
 
-Closed #823 on GitHub (per-modality regulation eval — 4/4 tests passing). Advanced queue to casehubio/neocortex#520 (cognitive state dump endpoint).
+Article/essay arguing cognitive pipeline observability is a requirement for temporal agents, not a luxury. 2 SVGs. At `docs/blog/2026-11-09-mdp02-where-the-why-lives.md`.
 
-**2. Blog image fix**
+**2. Batch 1 — Foundation types, SPI, store contract (all passing)**
 
-Fixed 3 broken SVG paths in `docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` — referenced `svg/` prefix but files are in blog root.
+| Artifact | Module | Package |
+|---|---|---|
+| `PipelineTrace` record | cognition-api | `io.casehub.neocortex.cognition.trace` |
+| `CognitionStateProvider` SPI | cognition-api | `io.casehub.neocortex.cognition.trace` |
+| `CapsSettlingSnapshot` (nested in PipelineTrace) | cognition-api | `io.casehub.neocortex.cognition.trace` |
+| `CognitionSnapshot` + `@Nullable PipelineTrace trace` | cognition | `io.casehub.neocortex.cognition.core` |
+| `PipelineSnapshotStore` interface | cognitive-observability-core | `io.casehub.neocortex.cognitive.observability` |
+| `PipelineSnapshot` (nested in PipelineSnapshotStore) | cognitive-observability-core | `io.casehub.neocortex.cognitive.observability` |
+| `InMemoryPipelineSnapshotStore` | cognitive-observability-testing | `io.casehub.neocortex.cognitive.observability.testing` |
+| `PipelineSnapshotStoreContractTest` (9 tests) | cognitive-observability-testing | `io.casehub.neocortex.cognitive.observability.testing` |
+| `InMemoryPipelineSnapshotStoreTest` (runner) | cognitive-observability-testing | `io.casehub.neocortex.cognitive.observability.testing` |
 
-**3. Full design for #520**
+**3. Dependency cycle resolution**
 
-Brainstormed, captured 5 decisions (D15-D19), ran light decision review (16 findings, 3 relevant to #520), revised 3 decisions:
+The original design placed PipelineTrace and CognitionStateProvider in `cognitive-observability-api`. This creates cycles:
+- `cognitive-observability-api → caps-api → cognitive-index → cognitive-observability-api`
+- `cognitive-observability-api → cognition-api → cognitive-index → cognitive-observability-api`
 
-- **D15 (revised):** PipelineTrace sub-record (not flat field explosion) — groups appraisal, CAPS, regulation, prompt sections
-- **D16 (revised):** CognitionStateProvider SPI in cognitive-observability-api (not direct CognitionCore injection — fixes layer violation R1-04)
-- **D17:** Live inspection + per-tick snapshot storage
-- **D18:** New PipelineSnapshotStore with SQLite impl (not extend SnapshotStore)
-- **D19 (revised):** CognitionCore captures CAPS data at call site, CapsEngine stays pure (R1-09)
+Root cause: `cognitive-index` depends on `cognitive-observability-api`, so nothing `cognitive-index` depends on can be added to `-api`.
 
-Spec: `specs/issue-851-dynamic-regulatory-capacity/2026-11-09-cognitive-state-dump-design.md`
+**Resolution:** Moved PipelineTrace and CognitionStateProvider to `cognition-api` (package `io.casehub.neocortex.cognition.trace`). Added `cognition-api` as a dependency of `cognitive-observability-core` (no cycle — -core is a leaf). Replaced `SettlingResult` reference in PipelineTrace with inline `CapsSettlingSnapshot` record (avoids caps-api dependency entirely).
 
-**4. Implementation plan written**
+**4. Pre-existing build fix**
 
-6 tasks across 3 batches. Plan: `plans/2026-11-09-cognitive-state-dump.md`
+Added `casehub-platform-api` dependency to `cognitive-observability-core/pom.xml` — fixes pre-existing compile error where `McpExclude`/`McpOnly` annotations weren't resolved. Required installing `platform-api` from the slot's platform directory first.
 
-### Key discovery: CAPS settle() is consolidation-time
+### POM changes summary
 
-`CapsEngine.settle()` is called ONLY from `BehavioralSynthesisPhase` (consolidation), NOT from `CognitionCore.tick()`. CAPS data (input activations, settling result, attractors) updates on consolidation, not per-tick. The plan accounts for this:
-- BehavioralSynthesisPhase caches last SettlingResult per agent
-- CognitionCore queries it via the SPI implementation
-
-### Module dependency finding
-
-`cognitive-observability-api` and `cognition` don't depend on each other. For the SPI to work:
-1. Add `cognition-api` and `caps-api` as dependencies of `cognitive-observability-api` (PipelineTrace needs AppraisalResult, SettlingResult, etc.)
-2. Add `cognitive-observability-api` as a dependency of `cognition` (CognitionCore implements CognitionStateProvider)
-
-These are all lightweight API modules — no implementation pulled in. Standard SPI pattern.
+| File | Change |
+|---|---|
+| `cognitive-observability-api/pom.xml` | Removed cognition-api, caps-api (cycle) |
+| `cognitive-observability-core/pom.xml` | Added cognition-api, platform-api |
+| `cognition/pom.xml` | Removed cognitive-observability-api (no longer needed) |
 
 ## Immediate Next Step
 
-**Execute the implementation plan.** Start with `work continue`, read the plan at `plans/2026-11-09-cognitive-state-dump.md`, invoke `executing-plans`.
+**Batch 2: Storage + Capture** — 2 tasks remaining in this batch:
 
-Tasks injected into `.queue`:
-- [ ] Foundation: PipelineTrace + SPI + extend CognitionSnapshot
-- [ ] Foundation: PipelineSnapshotStore + InMemory + contract test
+1. **Task 3: SqlitePipelineSnapshotStore** — follow SqliteSnapshotStore pattern, run contract tests
+2. **Task 4: CAPS caching + StateProvider impl + tick capture** — cache SettlingResult in BehavioralSynthesisPhase, implement CognitionStateProvider on CognitionCore
+
+Then Batch 3: API endpoint + integration test (Tasks 5-6).
+
+Run `work continue` → read plan at `plans/2026-11-09-cognitive-state-dump.md` → invoke `executing-plans`.
+
+## What to Watch
+
+1. **SqliteSnapshotStore pattern.** Read the existing `SqliteSnapshotStore.java` for constructor pattern (DataSource vs path), JSON serialization, and query patterns. The contract test already works with InMemory — SQLite should pass the same 9 tests.
+
+2. **PipelineTrace serialization.** The SQLite store needs to serialize PipelineTrace to JSON. Check how `SqliteSnapshotStore` serializes `GraphSnapshot` — follow the same approach (likely Jackson ObjectMapper).
+
+3. **BehavioralSynthesisPhase access from CognitionCore.** CognitionCore needs to query `lastSettlingResult(agentId)` from BehavioralSynthesisPhase. Check if CognitionCore already has a reference or needs one wired via `CognitivePipelineBuilder`.
+
+4. **CognitionCore's current*() method names.** The plan uses placeholder names. Use `ide_file_structure` to find actual field and method names on CognitionCore, DriveOrchestrator, AppraisalTickParticipant, etc.
+
+5. **Pre-existing compile errors.** `cognition/pom.xml` has a pre-existing error in `SearchBudgetTickParticipant.java:245` (missing `SearchMotivation` symbol). Unrelated to #520 changes. May need the full reactor installed first: `mvn install -Dmaven.test.skip=true` from the neocortex root.
+
+## Queue Status
+
+- [x] Foundation: PipelineTrace + SPI + extend CognitionSnapshot
+- [x] Foundation: PipelineSnapshotStore + InMemory + contract test
 - [ ] Storage: SqlitePipelineSnapshotStore
 - [ ] Capture: CAPS caching + StateProvider impl + tick capture
 - [ ] API: pipelineDump endpoint + CDI wiring
 - [ ] Integration: CognitionStateProvider integration test
 
-## What to Watch
-
-1. **Module dependency wiring.** The first task must add pom.xml dependencies before writing code. Verify cognitive-observability-api can resolve cognition-api types (AppraisalResult, etc.) and that cognition can resolve cognitive-observability-api types (PipelineTrace, CognitionStateProvider).
-
-2. **CognitionSnapshot construction sites.** Adding a `@Nullable PipelineTrace trace` field to the record breaks all existing construction sites. Use `ide_find_references` on the CognitionSnapshot constructor to find and fix every call site (add `, null` as last arg).
-
-3. **BehavioralSynthesisPhase access from CognitionCore.** CognitionCore needs to query BehavioralSynthesisPhase for CAPS data. Check if CognitionCore already has a reference or needs one added via constructor/builder.
-
-4. **Regulation result accessor.** The plan notes `EmotionRegulationTickParticipant` has a current result method — verify the exact method name with `ide_find_symbol` before writing the CognitionStateProvider implementation.
-
-5. **Prompt section rendering.** CognitionCore.promptSections() returns renderers, not rendered text. The CognitionStateProvider implementation needs to call render() on each with a CognitionRenderContext. Check how existing code constructs this context.
-
-## Queue Status
-
-- [x] #823 — Per-modality (closed)
-- [ ] #520 — Cognitive (active, implementation plan ready)
-- [ ] #203 — Spatial
-- [ ] #806 — CAPS
-- [ ] #315 — Cognitive (casehub-mosaic)
-- [ ] #828 — Regulation predictor observability
-- [ ] #818 — Automatic
-
 ## References
 
 - Spec: `specs/issue-851-dynamic-regulatory-capacity/2026-11-09-cognitive-state-dump-design.md`
 - Plan: `plans/2026-11-09-cognitive-state-dump.md`
-- Decisions: `specs/issue-851-dynamic-regulatory-capacity/decisions.md` (D15-D19)
-- Decision review: `/Users/mdproctor/reviews/casehub-slots/issue-851-decision-20261109-021336/`
-- Pipeline state: `specs/issue-851-dynamic-regulatory-capacity/pipeline.state` (PLANNING)
-- Blog fix: `examples/docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` (SVG paths corrected)
+- Blog: `examples/docs/blog/2026-11-09-mdp02-where-the-why-lives.md`
+- Contract tests: `InMemoryPipelineSnapshotStoreTest` (9/9 pass)
+- Neocortex commits: `f15c846c` (Task 1: types+SPI), `c1e2efa1` (Task 2: store+contracts)
