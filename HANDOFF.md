@@ -2,15 +2,15 @@
 
 ## Last Session
 
-Implemented Batch 1 (Foundation) of #520 cognitive state dump. Blog "Where the Why Lives" written. Dependency cycle issues resolved.
+Implemented Batch 1 (Foundation) of #520 cognitive state dump. Blog "Where the Why Lives" written. Neocortex research doc updated with Stream 9. Dependency cycle issues resolved.
 
 ### What was built
 
 **1. Blog: "Where the Why Lives"**
 
-Article/essay arguing cognitive pipeline observability is a requirement for temporal agents, not a luxury. 2 SVGs. At `docs/blog/2026-11-09-mdp02-where-the-why-lives.md`.
+Article/essay arguing cognitive pipeline observability is a requirement for temporal agents. 2 non-inline SVGs. At `examples/docs/blog/2026-11-09-mdp02-where-the-why-lives.md`. Also fixed SVG paths in "The Test That Broke the Math" blog.
 
-**2. Batch 1 — Foundation types, SPI, store contract (all passing)**
+**2. Batch 1 — Foundation types, SPI, store contract (9/9 tests pass)**
 
 | Artifact | Module | Package |
 |---|---|---|
@@ -18,56 +18,67 @@ Article/essay arguing cognitive pipeline observability is a requirement for temp
 | `CognitionStateProvider` SPI | cognition-api | `io.casehub.neocortex.cognition.trace` |
 | `CapsSettlingSnapshot` (nested in PipelineTrace) | cognition-api | `io.casehub.neocortex.cognition.trace` |
 | `CognitionSnapshot` + `@Nullable PipelineTrace trace` | cognition | `io.casehub.neocortex.cognition.core` |
-| `PipelineSnapshotStore` interface | cognitive-observability-core | `io.casehub.neocortex.cognitive.observability` |
-| `PipelineSnapshot` (nested in PipelineSnapshotStore) | cognitive-observability-core | `io.casehub.neocortex.cognitive.observability` |
+| `PipelineSnapshotStore` interface + `PipelineSnapshot` record | cognitive-observability-core | `io.casehub.neocortex.cognitive.observability` |
 | `InMemoryPipelineSnapshotStore` | cognitive-observability-testing | `io.casehub.neocortex.cognitive.observability.testing` |
-| `PipelineSnapshotStoreContractTest` (9 tests) | cognitive-observability-testing | `io.casehub.neocortex.cognitive.observability.testing` |
-| `InMemoryPipelineSnapshotStoreTest` (runner) | cognitive-observability-testing | `io.casehub.neocortex.cognitive.observability.testing` |
+| `PipelineSnapshotStoreContractTest` (9 tests) | cognitive-observability-testing | same |
 
-**3. Dependency cycle resolution**
+**3. Neocortex research doc updated**
 
-The original design placed PipelineTrace and CognitionStateProvider in `cognitive-observability-api`. This creates cycles:
-- `cognitive-observability-api → caps-api → cognitive-index → cognitive-observability-api`
-- `cognitive-observability-api → cognition-api → cognitive-index → cognitive-observability-api`
+Added Stream 9 (cognitive pipeline observability) to `docs/research/2026-11-05-post-era6-regulation-and-identity.md`. Covers SPI architecture, dependency cycle finding, CAPS consolidation-time discovery, Batch 1 status. Blog coverage table updated with both new entries.
 
-Root cause: `cognitive-index` depends on `cognitive-observability-api`, so nothing `cognitive-index` depends on can be added to `-api`.
+**4. Dependency cycle resolution**
 
-**Resolution:** Moved PipelineTrace and CognitionStateProvider to `cognition-api` (package `io.casehub.neocortex.cognition.trace`). Added `cognition-api` as a dependency of `cognitive-observability-core` (no cycle — -core is a leaf). Replaced `SettlingResult` reference in PipelineTrace with inline `CapsSettlingSnapshot` record (avoids caps-api dependency entirely).
+Original design placed PipelineTrace/CognitionStateProvider in `cognitive-observability-api`. Cycles through `cognitive-index`:
+- `observability-api → caps-api → cognitive-index → observability-api`
+- `observability-api → cognition-api → cognitive-index → observability-api`
 
-**4. Pre-existing build fix**
+**Fix:** Moved both types to `cognition-api` (package `io.casehub.neocortex.cognition.trace`). `SettlingResult` replaced with inline `CapsSettlingSnapshot` record. Added `cognition-api` + `platform-api` to `cognitive-observability-core/pom.xml`.
 
-Added `casehub-platform-api` dependency to `cognitive-observability-core/pom.xml` — fixes pre-existing compile error where `McpExclude`/`McpOnly` annotations weren't resolved. Required installing `platform-api` from the slot's platform directory first.
+**5. Pre-existing build fix**
+
+Added `casehub-platform-api` to `cognitive-observability-core/pom.xml` — fixes `McpExclude`/`McpOnly` resolution. Required installing `platform-api` from the slot's platform directory:
+```
+mvn -f platform/pom.xml install -pl platform-api -am -Dmaven.test.skip=true -s slot-settings.xml
+```
 
 ### POM changes summary
 
 | File | Change |
 |---|---|
-| `cognitive-observability-api/pom.xml` | Removed cognition-api, caps-api (cycle) |
-| `cognitive-observability-core/pom.xml` | Added cognition-api, platform-api |
-| `cognition/pom.xml` | Removed cognitive-observability-api (no longer needed) |
+| `cognitive-observability-api/pom.xml` | No new deps (cycle prevention) |
+| `cognitive-observability-core/pom.xml` | Added `cognition-api`, `platform-api` |
+| `cognition/pom.xml` | No changes (cognition-api already a dep) |
 
 ## Immediate Next Step
 
-**Batch 2: Storage + Capture** — 2 tasks remaining in this batch:
-
-1. **Task 3: SqlitePipelineSnapshotStore** — follow SqliteSnapshotStore pattern, run contract tests
-2. **Task 4: CAPS caching + StateProvider impl + tick capture** — cache SettlingResult in BehavioralSynthesisPhase, implement CognitionStateProvider on CognitionCore
-
-Then Batch 3: API endpoint + integration test (Tasks 5-6).
+**Execute Batch 2 of the implementation plan.**
 
 Run `work continue` → read plan at `plans/2026-11-09-cognitive-state-dump.md` → invoke `executing-plans`.
 
+Remaining tasks:
+
+| Batch | Task | What |
+|-------|------|------|
+| 2 | Task 3 | `SqlitePipelineSnapshotStore` — follow `SqliteSnapshotStore` pattern, run 9 contract tests |
+| 2 | Task 4 | CAPS caching in `BehavioralSynthesisPhase` + `CognitionStateProvider` impl on `CognitionCore` + tick capture |
+| 3 | Task 5 | `CognitivePipelineDump` + `pipelineDump()` `@PlatformQuery` + `CognitionBeans` wiring |
+| 3 | Task 6 | `CognitionStateProviderIntegrationTest` |
+
+**Note:** The plan's code examples for Task 4 (CognitionCore field names, accessor methods) are approximate. Use `ide_file_structure` on `CognitionCore.java` to find actual names before writing code.
+
 ## What to Watch
 
-1. **SqliteSnapshotStore pattern.** Read the existing `SqliteSnapshotStore.java` for constructor pattern (DataSource vs path), JSON serialization, and query patterns. The contract test already works with InMemory — SQLite should pass the same 9 tests.
+1. **`PipelineSnapshotStore` stores `PipelineTrace`, not `CognitionSnapshot`.** Design was adjusted during implementation — the store persists the transient pipeline data only. Durable state (mood, drives, models) already lives in MindMap/SnapshotStore. The `PipelineSnapshot` record wraps tenant/agent/tick/timestamp + `PipelineTrace`.
 
-2. **PipelineTrace serialization.** The SQLite store needs to serialize PipelineTrace to JSON. Check how `SqliteSnapshotStore` serializes `GraphSnapshot` — follow the same approach (likely Jackson ObjectMapper).
+2. **`SqliteSnapshotStore` pattern.** Read it for: constructor (DataSource), JSON serialization approach, query patterns. The `PipelineTrace` needs Jackson serialization. Check if `AppraisalResult`, `ChannelWeightProfile` etc. are already Jackson-annotated.
 
-3. **BehavioralSynthesisPhase access from CognitionCore.** CognitionCore needs to query `lastSettlingResult(agentId)` from BehavioralSynthesisPhase. Check if CognitionCore already has a reference or needs one wired via `CognitivePipelineBuilder`.
+3. **`BehavioralSynthesisPhase` at line 168** is the sole `CapsEngine.settle()` call site. Cache `SettlingResult` + `combinedActivations` per agent in `ConcurrentHashMap`s. Add `lastSettlingResult(agentId)` and `lastInputActivations(agentId)` accessors.
 
-4. **CognitionCore's current*() method names.** The plan uses placeholder names. Use `ide_file_structure` to find actual field and method names on CognitionCore, DriveOrchestrator, AppraisalTickParticipant, etc.
+4. **CognitionCore → BehavioralSynthesisPhase wiring.** Check if CognitionCore already holds a reference. If not, add it via constructor/builder (`CognitivePipelineBuilder`).
 
-5. **Pre-existing compile errors.** `cognition/pom.xml` has a pre-existing error in `SearchBudgetTickParticipant.java:245` (missing `SearchMotivation` symbol). Unrelated to #520 changes. May need the full reactor installed first: `mvn install -Dmaven.test.skip=true` from the neocortex root.
+5. **Pre-existing compile error.** `SearchBudgetTickParticipant.java:245` — missing `SearchMotivation` symbol. Unrelated to #520. May need full reactor install from neocortex root.
+
+6. **Platform-api must be installed first.** If the local Maven repo is stale, run: `mvn -f platform/pom.xml install -pl platform-api -am -Dmaven.test.skip=true -s slot-settings.xml`
 
 ## Queue Status
 
@@ -80,8 +91,12 @@ Run `work continue` → read plan at `plans/2026-11-09-cognitive-state-dump.md` 
 
 ## References
 
-- Spec: `specs/issue-851-dynamic-regulatory-capacity/2026-11-09-cognitive-state-dump-design.md`
-- Plan: `plans/2026-11-09-cognitive-state-dump.md`
-- Blog: `examples/docs/blog/2026-11-09-mdp02-where-the-why-lives.md`
+- Spec: `wsp specs/issue-851-dynamic-regulatory-capacity/2026-11-09-cognitive-state-dump-design.md`
+- Plan: `wsp plans/2026-11-09-cognitive-state-dump.md`
+- Decisions: `wsp specs/issue-851-dynamic-regulatory-capacity/decisions.md` (D15-D19)
+- Research: `neocortex docs/research/2026-11-05-post-era6-regulation-and-identity.md` (Stream 9)
+- Blog: `examples docs/blog/2026-11-09-mdp02-where-the-why-lives.md`
+- Blog fix: `examples docs/blog/2026-11-09-mdp01-the-test-that-broke-the-math.md` (SVG paths)
 - Contract tests: `InMemoryPipelineSnapshotStoreTest` (9/9 pass)
-- Neocortex commits: `f15c846c` (Task 1: types+SPI), `c1e2efa1` (Task 2: store+contracts)
+- Neocortex commits: `f15c846c` (Task 1), `c1e2efa1` (Task 2), `26ea157c` (research update)
+- Decision review: `/Users/mdproctor/reviews/casehub-slots/issue-851-decision-20261109-021336/`
