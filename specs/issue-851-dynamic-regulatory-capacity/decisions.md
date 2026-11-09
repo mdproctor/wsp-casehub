@@ -171,29 +171,31 @@
 **Depends on:** D10 (CognitionCore.tick() overload for RegulationContext), D4 (redirectTendency as threshold)
 **Status:** captured
 
-## D15: State model — extend CognitionSnapshot, not new record
+## D15: State model — extend CognitionSnapshot with PipelineTrace sub-record
 
-**Choice:** Extend the existing CognitionSnapshot record with missing pipeline fields (appraisal, CAPS settling, regulation, concern salience, prompt sections)
+**Choice:** Add a `@Nullable PipelineTrace trace` field to CognitionSnapshot. PipelineTrace groups the new pipeline fields: appraisal result, concern salience, CAPS input activations, CAPS settling result, regulation result, channel weights, habituation, rendered prompt sections.
 **Alternatives:**
-- New CognitiveStateDump record — purpose-built trace chain structure but duplicates fields already in CognitionSnapshot
-- Layered snapshot + trace overlay — compose CognitionSnapshot with a lightweight CognitiveTrace record, adds composition complexity without clear benefit
-**Rationale:** CognitionSnapshot already captures ~5 of the 9 trace chain stages (mood, drives, mental models, strategy, narrative, goals, attention). CognitionMetrics wraps it and adds prompt section content. Extending the canonical record keeps one representation, avoids duplication, and lets CognitionDelta.diffFrom() automatically cover new fields.
-**Trade-offs:** Larger record size. All callers of CognitionSnapshot get the new fields whether they need them or not. Acceptable — the record is already a point-in-time aggregate.
-**Sources:** CognitionSnapshot.java (existing record), CognitionMetrics.java (wraps snapshot + prompt sections), CognitionDelta.java (diffFrom)
-**Exploration:** quick
-**Status:** captured
+- Flat extension (add 6+ fields directly) — pushes record to 15-17 components, unreadable constructors (R1-08)
+- New CognitiveStateDump record — duplicates fields already in CognitionSnapshot
+- Layered snapshot + trace overlay as separate records — composition complexity without clear benefit
+**Rationale:** CognitionSnapshot already captures ~5 of the 9 trace chain stages. Grouping pipeline-specific fields into PipelineTrace adds one component (not six), keeps the record manageable, and lets CognitionDelta.diffFrom() delegate to PipelineTrace.diffFrom() for trace fields. Callers that don't need trace data never see the extra fields.
+**Trade-offs:** PipelineTrace is nullable — callers must handle the null case for snapshots captured before trace support. Acceptable — null semantics are well-understood in the existing nullable fields.
+**Sources:** CognitionSnapshot.java (existing record), CognitionMetrics.java (wraps snapshot + prompt sections), CognitionDelta.java (diffFrom), R1-08 (record growth concern)
+**Exploration:** quick → revised after decision review (R1-08)
+**Status:** revised
 
-## D16: Access model — inject CognitionCore into CognitionService
+## D16: Access model — CognitionStateProvider SPI in observability-api
 
-**Choice:** Add CognitionCore as a dependency to CognitionService, add new @PlatformQuery method to CognitionApi
+**Choice:** Define a `CognitionStateProvider` SPI interface in cognitive-observability-api (L23). CognitionCore (L25) implements it. CognitionService depends on the SPI, not on CognitionCore directly.
 **Alternatives:**
-- New CognitivePipelineApi @McpDomain — separate API surface for pipeline tracing, splits diagnostic surface across two domains
-- CognitionCore fires CDI event with snapshot after each tick — decoupled but adds event infrastructure for simple query
-**Rationale:** CognitionService already aggregates multiple dependencies (MindMapStore, SnapshotStore, CognitiveProfile, CaseMemoryStore, etc.). Adding CognitionCore follows the same pattern. Keeps all cognitive observability under one @McpDomain("neocortex/cognition").
-**Trade-offs:** Creates a dependency from the observability module to the cognition module. This is a new dependency direction — currently observability is downstream (receives events) not upstream (queries state). Acceptable because the query is read-only and CognitionCore already exposes public current*() methods.
-**Sources:** CognitionApi.java (@McpDomain interface), CognitionService.java (implementation with multiple dependencies), CognitionBeans.java (CDI wiring)
-**Exploration:** quick
-**Status:** captured
+- Direct injection of CognitionCore into CognitionService — creates upward layer dependency (L23 → L25), pulls entire cognition runtime into observability consumers (R1-04)
+- New CognitivePipelineApi @McpDomain — splits diagnostic surface across two domains
+- CDI event on each tick — established pattern for graph mutations, preserves correct direction, but adds event infrastructure
+**Rationale:** The SPI preserves the correct dependency direction: cognitive-observability-api (L23) defines the contract, cognition (L25) implements it. CognitionService (L23) depends only on the SPI interface, not the implementation. This is the standard CDI/SPI pattern used throughout the platform. CognitionCore already has public current*() methods — the SPI wraps them into a coherent state query contract.
+**Trade-offs:** One new SPI interface + one implementation. CognitionCore must be wired as the SPI provider at CDI/Spring startup. Minimal overhead — follows established patterns (CapsEngine, CbrRecordStore SPIs).
+**Sources:** CognitionApi.java (@McpDomain interface), CognitionService.java, R1-04 (layer dependency violation), CapsEngine.java (existing SPI pattern)
+**Exploration:** quick → revised after decision review (R1-04)
+**Status:** revised
 
 ## D17: Scope — live inspection + per-tick snapshot storage
 
@@ -219,14 +221,16 @@
 **Exploration:** quick
 **Status:** captured
 
-## D19: CAPS capture — CapsEngine stores last settling result
+## D19: CAPS capture — CognitionCore captures CAPS data via SPI impl
 
-**Choice:** Add lastResult(agentId, tenantId) to CapsEngine, storing per-agent SettlingResult + input activations in a ConcurrentHashMap
+**Choice:** CognitionCore (as the CognitionStateProvider implementation) captures CAPS settling data at the call site where settle() is invoked. CapsEngine remains a pure computation interface — no state added.
 **Alternatives:**
-- Caller stores and exposes — keeps CapsEngine stateless but couples capture to call site, harder to find
-- CDI event on settle — decoupled but adds event infrastructure for a simple stateful query
-**Rationale:** Follows the same pattern used throughout the cognitive pipeline: DriveOrchestrator.currentDrives(), AppraisalTickParticipant.currentResult(), MoodOrchestrator.currentMood(). Per-agent state in ConcurrentHashMap, cleared on agent removal. CognitionCore already knows the agent/tenant context when querying. Input activations stored alongside result for complete trace chain coverage (stages 3-4).
-**Trade-offs:** CapsEngine becomes stateful (previously pure function). The state is per-agent and read-only from the observability perspective. Acceptable — all other pipeline components are already stateful per-agent.
-**Sources:** CapsEngine.java (settle() method), CapsSettler.java (implementation), DriveOrchestrator.java (currentDrives pattern), AppraisalTickParticipant.java (currentResult pattern)
-**Exploration:** quick
-**Status:** captured
+- Add lastResult() to CapsEngine interface — makes pure computation interface stateful, pollutes domain contract with observability concerns (R1-09)
+- ObservableCapsEngine decorator — preserves purity but adds decorator infrastructure for one method
+- CDI event on settle — adds event infrastructure for simple capture
+**Rationale:** With D16 revised to use the SPI pattern, CognitionCore already implements CognitionStateProvider and is responsible for assembling the pipeline state. CAPS data naturally flows through CognitionCore — it can store the settling result alongside mood, drives, etc. in its per-agent state. CapsEngine stays pure: input → output, no side effects. This follows R1-09's principle: observability via decoration/composition, not interface pollution.
+**Trade-offs:** CAPS capture is coupled to CognitionCore's call site rather than to the engine itself. If settle() is called from a different path, that path's results won't be captured. Acceptable — CognitionCore is the single pipeline orchestrator.
+**Sources:** CapsEngine.java (pure computation), CapsSettler.java (implementation), R1-09 (interface pollution concern), D16 revised (SPI pattern)
+**Exploration:** quick → revised after decision review (R1-09)
+**Depends on:** D16 (SPI pattern enables CognitionCore as state provider)
+**Status:** revised
