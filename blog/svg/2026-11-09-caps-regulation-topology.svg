@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arr-blue" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+    </marker>
+    <marker id="arr-green" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" fill="#fafafa" rx="8"/>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-size="15" font-weight="600" fill="#1e293b">CAPS Unified Topology — Behavioural + Regulation Outputs</text>
+
+  <!-- Layer labels -->
+  <text x="20" y="105" font-size="11" font-weight="600" fill="#94a3b8" transform="rotate(-90, 20, 105)">INPUT</text>
+  <text x="20" y="275" font-size="11" font-weight="600" fill="#94a3b8" transform="rotate(-90, 20, 275)">MEDIATING</text>
+  <text x="20" y="430" font-size="11" font-weight="600" fill="#94a3b8" transform="rotate(-90, 20, 430)">OUTPUT</text>
+
+  <!-- INPUT LAYER -->
+  <!-- Existing situation inputs -->
+  <rect x="50" y="50" width="110" height="30" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="105" y="69" text-anchor="middle" font-size="10" fill="#475569">rejection</text>
+  <rect x="170" y="50" width="110" height="30" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="225" y="69" text-anchor="middle" font-size="10" fill="#475569">physical_threat</text>
+  <rect x="290" y="50" width="110" height="30" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="345" y="69" text-anchor="middle" font-size="10" fill="#475569">mastery</text>
+  <rect x="410" y="50" width="110" height="30" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="465" y="69" text-anchor="middle" font-size="10" fill="#475569">dominance</text>
+  <rect x="530" y="50" width="110" height="30" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="585" y="69" text-anchor="middle" font-size="10" fill="#475569">reward</text>
+
+  <!-- NEW social-context inputs -->
+  <rect x="50" y="100" width="130" height="30" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="115" y="119" text-anchor="middle" font-size="9" font-weight="500" fill="#1d4ed8">perceived_responsiveness</text>
+  <rect x="190" y="100" width="110" height="30" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="245" y="119" text-anchor="middle" font-size="9" font-weight="500" fill="#1d4ed8">target_distress</text>
+  <rect x="310" y="100" width="110" height="30" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="365" y="119" text-anchor="middle" font-size="9" font-weight="500" fill="#1d4ed8">social_isolation</text>
+  <rect x="430" y="100" width="110" height="30" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="485" y="119" text-anchor="middle" font-size="9" font-weight="500" fill="#1d4ed8">power_asymmetry</text>
+
+  <text x="620" y="119" font-size="10" font-style="italic" fill="#3b82f6">new: literature-grounded</text>
+
+  <!-- Separator -->
+  <line x1="40" y1="150" x2="860" y2="150" stroke="#e2e8f0" stroke-dasharray="4,3"/>
+
+  <!-- MEDIATING LAYER -->
+  <rect x="80" y="190" width="100" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="130" y="209" text-anchor="middle" font-size="10" fill="#92400e">self_worth</text>
+  <rect x="200" y="190" width="100" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="250" y="209" text-anchor="middle" font-size="10" fill="#92400e">self_efficacy</text>
+  <rect x="320" y="190" width="110" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="375" y="209" text-anchor="middle" font-size="10" fill="#92400e">BIS_activation</text>
+  <rect x="450" y="190" width="110" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="505" y="209" text-anchor="middle" font-size="10" fill="#92400e">BAS_activation</text>
+  <rect x="580" y="190" width="120" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="640" y="209" text-anchor="middle" font-size="10" fill="#92400e">threat_sensitivity</text>
+  <rect x="720" y="190" width="100" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="770" y="209" text-anchor="middle" font-size="10" fill="#92400e">arousal_level</text>
+
+  <rect x="80" y="240" width="110" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="135" y="259" text-anchor="middle" font-size="10" fill="#92400e">other_reliability</text>
+  <rect x="210" y="240" width="100" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="260" y="259" text-anchor="middle" font-size="10" fill="#92400e">other_safety</text>
+  <rect x="330" y="240" width="120" height="30" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="390" y="259" text-anchor="middle" font-size="10" fill="#92400e">social_comparison</text>
+
+  <!-- Separator -->
+  <line x1="40" y1="290" x2="860" y2="290" stroke="#e2e8f0" stroke-dasharray="4,3"/>
+
+  <!-- OUTPUT LAYER -->
+  <!-- Existing behavioural outputs -->
+  <rect x="50" y="310" width="80" height="28" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="90" y="328" text-anchor="middle" font-size="9" fill="#475569">approach</text>
+  <rect x="140" y="310" width="80" height="28" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="180" y="328" text-anchor="middle" font-size="9" fill="#475569">withdraw</text>
+  <rect x="230" y="310" width="70" height="28" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="265" y="328" text-anchor="middle" font-size="9" fill="#475569">fight</text>
+  <rect x="310" y="310" width="70" height="28" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="345" y="328" text-anchor="middle" font-size="9" fill="#475569">flight</text>
+  <rect x="390" y="310" width="70" height="28" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="425" y="328" text-anchor="middle" font-size="9" fill="#475569">freeze</text>
+  <rect x="470" y="310" width="70" height="28" rx="4" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="505" y="328" text-anchor="middle" font-size="9" fill="#475569">persist</text>
+
+  <text x="600" y="328" font-size="10" fill="#94a3b8">... 18 more</text>
+
+  <!-- NEW regulation outputs -->
+  <rect x="50" y="370" width="120" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="110" y="388" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">cognitive_change</text>
+  <rect x="180" y="370" width="140" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="250" y="388" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">attentional_deployment</text>
+  <rect x="330" y="370" width="140" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="400" y="388" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">response_modulation</text>
+  <rect x="480" y="370" width="130" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="545" y="388" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">situation_selection</text>
+  <rect x="620" y="370" width="140" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="690" y="388" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">situation_modification</text>
+
+  <rect x="50" y="410" width="140" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="120" y="428" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">social_support_seeking</text>
+  <rect x="200" y="410" width="110" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="255" y="428" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">social_sharing</text>
+  <rect x="320" y="410" width="120" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="380" y="428" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">social_withdrawal</text>
+  <rect x="450" y="410" width="110" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="505" y="428" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">co_regulation</text>
+  <rect x="570" y="410" width="140" height="28" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="640" y="428" text-anchor="middle" font-size="8.5" font-weight="500" fill="#065f46">deliberate_provocation</text>
+
+  <text x="770" y="395" font-size="10" font-style="italic" fill="#10b981">new: 10 strategies</text>
+
+  <!-- Sample connections (illustrative) -->
+  <!-- social-context → mediating -->
+  <line x1="115" y1="130" x2="260" y2="240" stroke="#3b82f6" stroke-width="1" marker-end="url(#arr-blue)" opacity="0.5"/>
+  <line x1="365" y1="130" x2="375" y2="190" stroke="#3b82f6" stroke-width="1" marker-end="url(#arr-blue)" opacity="0.5"/>
+
+  <!-- mediating → regulation outputs -->
+  <line x1="250" y1="220" x2="110" y2="370" stroke="#10b981" stroke-width="1" marker-end="url(#arr-green)" opacity="0.5"/>
+  <line x1="640" y1="220" x2="250" y2="370" stroke="#10b981" stroke-width="1" marker-end="url(#arr-green)" opacity="0.5"/>
+  <line x1="375" y1="220" x2="400" y2="370" stroke="#10b981" stroke-width="1" marker-end="url(#arr-green)" opacity="0.5"/>
+
+  <!-- Legend -->
+  <rect x="50" y="465" width="12" height="12" rx="2" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="68" y="476" font-size="10" fill="#475569">Existing nodes (77)</text>
+  <rect x="220" y="465" width="12" height="12" rx="2" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="238" y="476" font-size="10" fill="#1d4ed8">Social-context inputs (4)</text>
+  <rect x="420" y="465" width="12" height="12" rx="2" fill="#dcfce7" stroke="#10b981"/>
+  <text x="438" y="476" font-size="10" fill="#065f46">Regulation outputs (10)</text>
+  <text x="640" y="476" font-size="10" fill="#64748b">Total: 91 nodes, 110 connections</text>
+
+  <!-- Annotation -->
+  <text x="450" y="500" text-anchor="middle" font-size="10" fill="#94a3b8">Same mediating layer drives both behavioural and regulatory outputs — one settling pass</text>
+</svg>

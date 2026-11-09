@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 400" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect width="750" height="400" fill="#fafafa" rx="8"/>
+  <text x="375" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#1e293b">Three-Layer Regulation Strategy Cascade</text>
+
+  <!-- Safety gate -->
+  <rect x="250" y="50" width="250" height="40" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="375" y="74" text-anchor="middle" font-size="11" font-weight="600" fill="#991b1b">Safety Gate</text>
+  <text x="375" y="100" text-anchor="middle" font-size="9" fill="#94a3b8">fatigue > 0.7 OR intensity > 0.75</text>
+  <line x1="375" y1="105" x2="375" y2="130" stroke="#64748b" marker-end="url(#arr)"/>
+  <text x="395" y="120" font-size="8" fill="#ef4444">force AD</text>
+
+  <!-- CAPS box -->
+  <rect x="200" y="130" width="350" height="60" rx="6" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+  <text x="375" y="152" text-anchor="middle" font-size="12" font-weight="600" fill="#065f46">Layer 1: CAPS Settling</text>
+  <text x="375" y="168" text-anchor="middle" font-size="9" fill="#475569">91-node connectionist network settles to regulation attractor</text>
+  <text x="375" y="180" text-anchor="middle" font-size="9" fill="#475569">strength ≥ 0.3 AND dominance margin ≥ 0.15</text>
+
+  <!-- Decision diamond for CAPS -->
+  <polygon points="375,200 415,225 375,250 335,225" fill="#f0fdf4" stroke="#10b981"/>
+  <text x="375" y="229" text-anchor="middle" font-size="9" font-weight="500" fill="#065f46">confident?</text>
+
+  <!-- Yes path from CAPS -->
+  <line x1="415" y1="225" x2="520" y2="225" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="460" y="218" font-size="9" font-weight="600" fill="#10b981">YES</text>
+  <rect x="520" y="210" width="140" height="30" rx="4" fill="#dcfce7" stroke="#10b981"/>
+  <text x="590" y="229" text-anchor="middle" font-size="10" fill="#065f46">Pin strategy → LLM</text>
+
+  <!-- No path from CAPS -->
+  <line x1="375" y1="250" x2="375" y2="275" stroke="#64748b" marker-end="url(#arr)"/>
+  <text x="390" y="265" font-size="9" fill="#94a3b8">NO</text>
+
+  <!-- Predictor box -->
+  <rect x="225" y="275" width="300" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="375" y="292" text-anchor="middle" font-size="12" font-weight="600" fill="#1d4ed8">Layer 2: Predictor</text>
+  <text x="375" y="306" text-anchor="middle" font-size="9" fill="#475569">deterministic personality × emotion → strategy (Petter 2025)</text>
+
+  <!-- Decision diamond for predictor -->
+  <polygon points="375,325 410,342 375,360 340,342" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="375" y="346" text-anchor="middle" font-size="9" font-weight="500" fill="#1d4ed8">pinned?</text>
+
+  <!-- Yes path from predictor -->
+  <line x1="410" y1="342" x2="520" y2="342" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="460" y="335" font-size="9" font-weight="600" fill="#3b82f6">YES</text>
+  <rect x="520" y="327" width="140" height="30" rx="4" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="590" y="346" text-anchor="middle" font-size="10" fill="#1d4ed8">Pin strategy → LLM</text>
+
+  <!-- No path from predictor -->
+  <line x1="375" y1="360" x2="375" y2="380" stroke="#64748b" marker-end="url(#arr)"/>
+  <text x="390" y="373" font-size="9" fill="#94a3b8">NO</text>
+
+  <!-- LLM box -->
+  <rect x="275" y="375" width="200" height="25" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="375" y="392" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Layer 3: LLM Free Choice</text>
+
+  <!-- Annotations -->
+  <text x="60" y="160" font-size="9" fill="#10b981" font-weight="500">CAPS learns from</text>
+  <text x="60" y="172" font-size="9" fill="#10b981" font-weight="500">outcomes via</text>
+  <text x="60" y="184" font-size="9" fill="#10b981" font-weight="500">Rescorla-Wagner</text>
+  <line x1="135" y1="170" x2="200" y2="160" stroke="#10b981" stroke-dasharray="3,3"/>
+
+  <text x="60" y="295" font-size="9" fill="#3b82f6" font-weight="500">validated safety net —</text>
+  <text x="60" y="307" font-size="9" fill="#3b82f6" font-weight="500">retire when CAPS ≥ 80%</text>
+  <text x="60" y="319" font-size="9" fill="#3b82f6" font-weight="500">concordance on eval</text>
+  <line x1="170" y1="305" x2="225" y2="295" stroke="#3b82f6" stroke-dasharray="3,3"/>
+</svg>
