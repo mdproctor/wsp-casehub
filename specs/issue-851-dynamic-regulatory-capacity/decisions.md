@@ -170,3 +170,63 @@
 **Exploration:** deep-analysis (first-principles trace of write path → MindMap → read path)
 **Depends on:** D10 (CognitionCore.tick() overload for RegulationContext), D4 (redirectTendency as threshold)
 **Status:** captured
+
+## D15: State model — extend CognitionSnapshot, not new record
+
+**Choice:** Extend the existing CognitionSnapshot record with missing pipeline fields (appraisal, CAPS settling, regulation, concern salience, prompt sections)
+**Alternatives:**
+- New CognitiveStateDump record — purpose-built trace chain structure but duplicates fields already in CognitionSnapshot
+- Layered snapshot + trace overlay — compose CognitionSnapshot with a lightweight CognitiveTrace record, adds composition complexity without clear benefit
+**Rationale:** CognitionSnapshot already captures ~5 of the 9 trace chain stages (mood, drives, mental models, strategy, narrative, goals, attention). CognitionMetrics wraps it and adds prompt section content. Extending the canonical record keeps one representation, avoids duplication, and lets CognitionDelta.diffFrom() automatically cover new fields.
+**Trade-offs:** Larger record size. All callers of CognitionSnapshot get the new fields whether they need them or not. Acceptable — the record is already a point-in-time aggregate.
+**Sources:** CognitionSnapshot.java (existing record), CognitionMetrics.java (wraps snapshot + prompt sections), CognitionDelta.java (diffFrom)
+**Exploration:** quick
+**Status:** captured
+
+## D16: Access model — inject CognitionCore into CognitionService
+
+**Choice:** Add CognitionCore as a dependency to CognitionService, add new @PlatformQuery method to CognitionApi
+**Alternatives:**
+- New CognitivePipelineApi @McpDomain — separate API surface for pipeline tracing, splits diagnostic surface across two domains
+- CognitionCore fires CDI event with snapshot after each tick — decoupled but adds event infrastructure for simple query
+**Rationale:** CognitionService already aggregates multiple dependencies (MindMapStore, SnapshotStore, CognitiveProfile, CaseMemoryStore, etc.). Adding CognitionCore follows the same pattern. Keeps all cognitive observability under one @McpDomain("neocortex/cognition").
+**Trade-offs:** Creates a dependency from the observability module to the cognition module. This is a new dependency direction — currently observability is downstream (receives events) not upstream (queries state). Acceptable because the query is read-only and CognitionCore already exposes public current*() methods.
+**Sources:** CognitionApi.java (@McpDomain interface), CognitionService.java (implementation with multiple dependencies), CognitionBeans.java (CDI wiring)
+**Exploration:** quick
+**Status:** captured
+
+## D17: Scope — live inspection + per-tick snapshot storage
+
+**Choice:** Both live inspection of current tick state AND per-tick snapshot persistence for historical replay and before/after comparison
+**Alternatives:**
+- Live inspection only — query current state via current*() methods, no storage, historical replay as follow-up
+- Live + on-demand capture — live by default, manual capture mutation for point-in-time snapshots, lower storage cost
+**Rationale:** The issue explicitly mentions both live inspection and historical replay. Per-tick storage enables eval postmortem analysis (what happened at each pipeline stage for each agent across a 300-tick scenario run). The eval framework already captures transcripts — pipeline snapshots add the "why" to the "what."
+**Trade-offs:** Storage volume: 17 agents × 300 ticks = 5100 snapshots per scenario run. Each snapshot is ~2-5 KB serialized. ~10-25 MB per run. Acceptable for SQLite. Retention policy needed for production use.
+**Sources:** Issue #520 ("live inspection and historical replay"), CognitionSnapshot.java (partial capture already exists), SnapshotStore.java (existing keyframe/mutation pattern)
+**Exploration:** quick
+**Status:** captured
+
+## D18: Storage — new PipelineSnapshotStore with SQLite impl
+
+**Choice:** New PipelineSnapshotStore interface in cognitive-observability-core with SqlitePipelineSnapshotStore implementation
+**Alternatives:**
+- Extend SnapshotStore with pipeline methods — mixes graph topology snapshots (nodes/edges) with pipeline state (mood values, CAPS activations), confuses the data model
+- JSON append log — simplest but no query capability, not suitable for time-range queries or agent-scoped retrieval
+**Rationale:** SnapshotStore is designed for graph-level data (GraphSnapshot, NodeSnapshot, EdgeSnapshot, GraphMutation). Pipeline snapshots are fundamentally different — transient computational state (scalar values, enum results, maps) not graph topology. Separate interface follows the same module pattern: interface in -core, SQLite impl in -sqlite, in-memory impl in -testing.
+**Trade-offs:** New interface + two implementations. Schema optimized for time-series query (agent, tenant, tick range). More code but clean separation of concerns.
+**Sources:** SnapshotStore.java (existing interface pattern), SqliteSnapshotStore.java (existing SQLite impl pattern), InMemorySnapshotStore.java (existing test impl pattern)
+**Exploration:** quick
+**Status:** captured
+
+## D19: CAPS capture — CapsEngine stores last settling result
+
+**Choice:** Add lastResult(agentId, tenantId) to CapsEngine, storing per-agent SettlingResult + input activations in a ConcurrentHashMap
+**Alternatives:**
+- Caller stores and exposes — keeps CapsEngine stateless but couples capture to call site, harder to find
+- CDI event on settle — decoupled but adds event infrastructure for a simple stateful query
+**Rationale:** Follows the same pattern used throughout the cognitive pipeline: DriveOrchestrator.currentDrives(), AppraisalTickParticipant.currentResult(), MoodOrchestrator.currentMood(). Per-agent state in ConcurrentHashMap, cleared on agent removal. CognitionCore already knows the agent/tenant context when querying. Input activations stored alongside result for complete trace chain coverage (stages 3-4).
+**Trade-offs:** CapsEngine becomes stateful (previously pure function). The state is per-agent and read-only from the observability perspective. Acceptable — all other pipeline components are already stateful per-agent.
+**Sources:** CapsEngine.java (settle() method), CapsSettler.java (implementation), DriveOrchestrator.java (currentDrives pattern), AppraisalTickParticipant.java (currentResult pattern)
+**Exploration:** quick
+**Status:** captured
