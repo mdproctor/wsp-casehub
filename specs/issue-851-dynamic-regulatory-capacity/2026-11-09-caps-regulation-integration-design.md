@@ -71,23 +71,42 @@ Social-context input nodes connect to existing mediating nodes, following the sa
 
 **Intrapersonal strategy connections** (via existing mediating nodes):
 
-| Regulation output | Primary mediating drivers | Rationale |
-|-------------------|--------------------------|-----------|
-| `attentional_deployment` | arousal_level (+), threat_sensitivity (+), BIS_activation (+) | High arousal/threat overwhelms cognitive resources → redirect focus |
-| `cognitive_change` | self_efficacy (+), self_worth (+), BIS_activation (-) | Reappraisal requires cognitive resources and self-belief |
-| `response_modulation` | BIS_activation (+), self_worth (-), self_efficacy (-) | Suppression when cognitive resources insufficient for reappraisal |
-| `situation_selection` | threat_sensitivity (+), BIS_activation (+), self_worth (-) | Avoidance when threat is anticipated and self-model is negative |
-| `situation_modification` | self_efficacy (+), BAS_activation (+) | Changing the situation requires agency and approach motivation |
+| Regulation output | Source node | Weight | Rationale |
+|-------------------|------------|--------|-----------|
+| `attentional_deployment` | `arousal_level` | +0.45 | High arousal overwhelms cognitive resources → redirect focus. Primary driver (Baranczuk 2019: N→AD r≈.30-.40) |
+| `attentional_deployment` | `threat_sensitivity` | +0.35 | Threat sensitivity drives attention redirection |
+| `attentional_deployment` | `BIS_activation` | +0.30 | Behavioral inhibition promotes disengagement |
+| `cognitive_change` | `self_efficacy` | +0.45 | Reappraisal requires cognitive resources (Gross & John 2003: O→reappraisal r=.36) |
+| `cognitive_change` | `self_worth` | +0.30 | Positive self-model supports cognitive flexibility |
+| `cognitive_change` | `BIS_activation` | -0.25 | Anxiety impairs reappraisal (Baranczuk 2019: N→reappraisal r=-.25) |
+| `response_modulation` | `BIS_activation` | +0.40 | Suppression is the BIS-driven strategy (Gross & John 2003: N→suppression r=.30) |
+| `response_modulation` | `self_worth` | -0.25 | Low self-worth drives suppression ("I shouldn't feel this way") |
+| `response_modulation` | `self_efficacy` | -0.25 | Low efficacy → can't reappraise → suppress |
+| `situation_selection` | `threat_sensitivity` | +0.40 | High threat anticipation drives avoidance |
+| `situation_selection` | `BIS_activation` | +0.35 | Behavioral inhibition → avoidance |
+| `situation_selection` | `self_worth` | -0.25 | Low self-worth → avoidance |
+| `situation_modification` | `self_efficacy` | +0.40 | Changing the situation requires agency (Bandura 1977) |
+| `situation_modification` | `BAS_activation` | +0.35 | Approach motivation → active coping |
 
 **Social strategy connections** (via mediating nodes, with justified direct connections noted):
 
-| Regulation output | Primary drivers | Rationale |
-|-------------------|-----------------|-----------|
-| `social_support_seeking` | other_safety (+), other_reliability (+), BIS_activation (+) | Seek comfort from safe, reliable other when inhibited. `perceived_responsiveness` reaches via `other_safety` and `other_reliability` mediating layer. |
-| `social_sharing` | other_safety (+), BAS_activation (+) | Share emotions with safe other; approach-motivated. `perceived_responsiveness` reaches via `other_safety`. |
-| `social_withdrawal` | other_safety (-), BIS_activation (+) | Withdraw when others feel unsafe or inhibition is high. `social_isolation` reaches via `BIS_activation`. |
-| `co_regulation` | target_distress (+, direct), other_reliability (+), self_efficacy (+) | Soothe distressed other when capable and other is valued. `target_distress` retains a direct connection — the caregiving behavioral system (Bowlby/George & Solomon 1999) is a basic social mechanism with no adequate mediating proxy for extrinsic regulation discrimination. |
-| `deliberate_provocation` | power_asymmetry (+, direct), BAS_activation (+), dominance (input, +) | Provoke when power advantage provides perceived impunity. `power_asymmetry` retains a direct connection — perceived impunity (Tedeschi & Felson 1994) is a specific discriminator for provocation with no mediating equivalent. `power_asymmetry` ALSO routes through `social_comparison` and `BAS_activation` for personality modulation. |
+| Regulation output | Source node | Weight | Rationale |
+|-------------------|------------|--------|-----------|
+| `social_support_seeking` | `other_safety` | +0.35 | Safety with other enables support seeking. `perceived_responsiveness` reaches via mediating layer. |
+| `social_support_seeking` | `other_reliability` | +0.30 | Trust in other enables seeking |
+| `social_support_seeking` | `BIS_activation` | +0.30 | Anxiety drives comfort-seeking |
+| `social_sharing` | `other_safety` | +0.35 | Safety enables disclosure. `perceived_responsiveness` reaches via `other_safety`. |
+| `social_sharing` | `BAS_activation` | +0.30 | Approach motivation for sharing |
+| `social_withdrawal` | `other_safety` | -0.30 | Unsafe others → withdraw. `social_isolation` reaches via `BIS_activation`. |
+| `social_withdrawal` | `BIS_activation` | +0.35 | Inhibition drives withdrawal |
+| `co_regulation` | `target_distress` | +0.40 | Observing distress directly drives caregiving (direct — George & Solomon 1999) |
+| `co_regulation` | `other_reliability` | +0.30 | Value of the other enables co-regulation |
+| `co_regulation` | `self_efficacy` | +0.30 | Capability to help |
+| `deliberate_provocation` | `power_asymmetry` | +0.40 | Power advantage enables provocation (direct — Tedeschi & Felson 1994). Also routes through `social_comparison`/`BAS_activation` for personality modulation. |
+| `deliberate_provocation` | `BAS_activation` | +0.35 | Approach motivation for provocation |
+| `deliberate_provocation` | `dominance` (input) | +0.35 | Dominance drives provocation |
+
+All weights are initial estimates derived from Baranczuk 2019 meta-analysis effect sizes, Gross & John 2003 personality correlations, and consistency with existing topology weight range (±0.25 to ±0.55). Subject to empirical calibration (D25).
 
 ### Connection Weight Initialization (D25)
 
@@ -115,7 +134,15 @@ Weight provenance: `CONSENSUS` for literature-derived weights.
 
 Learning applies to ALL connections (behavioral + regulation). The outcome signal from regulation episodes updates the same weight matrix that behavioral outcomes update. This is theoretically correct — a regulation episode IS a behavioral outcome that updates the agent's associative structure.
 
-The `EmotionRegulationMindMapAdapter.write()` already persists `effectiveness`, `peakOriginalIntensity`, and `regulatedIntensity` per regulation episode. A new `RegulationWeightUpdateParticipant` (TERMINAL phase) reads the latest regulation result and calls `CapsEngine.updateWeights()` with the mapped parameters.
+The `EmotionRegulationMindMapAdapter.write()` already persists `effectiveness`, `peakOriginalIntensity`, and `regulatedIntensity` per regulation episode. The weight update is performed within `EmotionRegulationTickParticipant.tick()` itself, at the end of the DERIVED phase — immediately after the regulation result is recorded and persisted to MindMap. The `inputActivations` map (assembled earlier in the same tick for `CapsEngine.settle()`) is still in scope as a local variable, so no cross-phase handoff is needed. This eliminates the need for a separate `RegulationWeightUpdateParticipant` and avoids the problem of reconstituting or storing inputActivations across phases.
+
+Sequence within `EmotionRegulationTickParticipant.tick()`:
+1. Assemble `inputActivations` (social-context + situation classification)
+2. `CapsEngine.settle(state, inputActivations)` → `SettlingResult`
+3. Cascade resolution → pinned or free strategy
+4. `EmotionRegulationGenerationPhase.generate()` → `EmotionRegulationResult`
+5. Persist result to MindMap
+6. `CapsEngine.updateWeights(state, inputActivations, ...)` with regulation effectiveness mapped per the table above
 
 ### Disposition Modulation
 
@@ -126,7 +153,7 @@ Regulation output nodes receive disposition-based resting activations via `Dispo
 | `conflictMode: avoidant` | situation_selection +0.2, social_withdrawal +0.15 |
 | `conflictMode: analytical` | cognitive_change +0.2 |
 | `conflictMode: cooperative` | co_regulation +0.15, social_sharing +0.1 |
-| `conflictMode: competitive` | response_modulation +0.15, deliberate_provocation +0.1 |
+| `conflictMode: competitive` | response_modulation +0.15, deliberate_provocation +0.1 | **Note:** existing `DispositionWeightMapper.setRestingActivations()` uses `"confrontational"` for this axis value (line 161), inconsistent with the topology YAML and `RegulationStrategyPredictor` which both use `"competitive"`. This spec corrects the existing code to `"competitive"` as part of the mapper extension. |
 | `riskAppetite: conservative` | situation_selection +0.15, attentional_deployment +0.1 |
 | `riskAppetite: bold` | situation_modification +0.2, cognitive_change +0.1 |
 | `socialOrient: cooperative` | social_support_seeking +0.15, co_regulation +0.1 |
@@ -134,22 +161,35 @@ Regulation output nodes receive disposition-based resting activations via `Dispo
 
 These are initial estimates — subject to literature calibration alongside connection weights.
 
+### Existing Agent Migration
+
+Existing agents have persisted `AgentCapsState` in SQLite without regulation node states. For **connection weights**, migration is unnecessary: `CapsSettler` falls back to `conn.defaultWeight()` for missing weights (line 78). For **resting activations**, migration IS necessary: `CapsSettler` falls back to `NodeState.DEFAULT` (restingActivation = 0.0) for missing nodes — existing agents with `conflictMode: avoidant` would NOT get `situation_selection +0.2` without patching.
+
+**On-demand patching**: Add `CapsEngine.ensureTopologyCoverage(AgentCapsState state, DispositionAxes disposition)` that checks for missing regulation node states and applies regulation resting activations from `DispositionWeightMapper`. Called by `EmotionRegulationTickParticipant` after `loadState()`, before settling. Idempotent — if regulation nodes already have state, the call is a no-op.
+
+This handles agents created before and after the topology extension uniformly. No batch migration script needed.
+
 ## Strategy Selection Cascade (D21)
 
-Three-layer cascade with empirical promotion criteria:
+Three-layer cascade with safety hard gate and empirical promotion criteria:
 
 ```
-CAPS settling → regulation attractors?
-  ├─ Single dominant attractor (strength ≥ regulationConfidenceThreshold
-  │   AND dominance margin ≥ regulationDominanceMargin over runner-up)
-  │   → pin strategy, send to LLM for narrative
-  ├─ Multiple attractors above threshold but no clear dominant
-  │   → CAPS is ambivalent, fall through
-  └─ No attractor above threshold → fall through
-      └─ RegulationStrategyPredictor → prediction?
-          ├─ YES → pin strategy, send to LLM for narrative
-          └─ NO → LLM free choice
+Safety hard gate (fatigue > 0.7 OR peakIntensity > 0.75)?
+  ├─ YES → force ATTENTIONAL_DEPLOYMENT, skip entire cascade
+  └─ NO
+      └─ CAPS settling → regulation attractors?
+          ├─ Single dominant attractor (strength ≥ regulationConfidenceThreshold
+          │   AND dominance margin ≥ regulationDominanceMargin over runner-up)
+          │   → pin strategy, send to LLM for narrative
+          ├─ Multiple attractors above threshold but no clear dominant
+          │   → CAPS is ambivalent, fall through
+          └─ No attractor above threshold → fall through
+              └─ RegulationStrategyPredictor → prediction?
+                  ├─ YES → pin strategy, send to LLM for narrative
+                  └─ NO → LLM free choice
 ```
+
+**Safety hard gate**: The predictor's fatigue and intensity overrides (RegulationStrategyPredictor lines 35-42) are resource-based hard limits, not personality predictions. They must fire unconditionally — before CAPS, before the predictor, before the LLM. These are extracted from the predictor and applied as the first step of the cascade. An agent with fatigue 0.9 gets ATTENTIONAL_DEPLOYMENT regardless of what CAPS settling produces — cognitive resources for reappraisal are exhausted (Petter et al. 2025). The predictor retains the safety overrides as well (defense in depth) for the case where it runs as layer 2.
 
 **Multi-attractor resolution**: When multiple regulation attractors exceed `regulationConfidenceThreshold`, the highest-strength attractor wins ONLY if it exceeds the runner-up by `regulationDominanceMargin`. If the margin is not met, CAPS is ambivalent — the cascade falls through to the predictor/LLM. This preserves the "CAPS confident vs. not confident" semantics: close competition between regulation strategies indicates genuine ambivalence, not false confidence.
 
@@ -167,7 +207,7 @@ The existing `CapsSettlingConfig.attractorStrengthMinFilter()` (default 0.1) rem
 - SECONDARY: CAPS-LLM free-choice concordance ≥ 70%
 - Degradation monitoring: automatic fallback if concordance drops > 10% below thresholds
 
-The predictor handles safety overrides during calibration: fatigue > 0.7 → force ATTENTIONAL_DEPLOYMENT, intensity > 0.75 → force ATTENTIONAL_DEPLOYMENT.
+The predictor retains safety overrides internally (fatigue > 0.7 → force AD, intensity > 0.75 → force AD) as defense in depth, but the safety hard gate at cascade entry makes them redundant during normal operation.
 
 ## Social-Context Input Injection
 
@@ -192,6 +232,7 @@ The regulation CAPS integration touches `EmotionRegulationTickParticipant`, whic
 2. **EmotionRegulationTickParticipant** (DERIVED phase):
    a. Computes regulation effort (Bosse et al. 2010)
    b. If effort above noise floor:
+      - **Safety hard gate**: if fatigue > 0.7 OR peakIntensity > 0.75 → force ATTENTIONAL_DEPLOYMENT, skip CAPS and predictor
       - Assembles social-context input activations from RegulationContext + MindMap
       - Merges with existing situation classification activations
       - Calls `CapsEngine.settle()` with merged input activations
@@ -201,6 +242,7 @@ The regulation CAPS integration touches `EmotionRegulationTickParticipant`, whic
       - Else → LLM free choice
    c. Calls `EmotionRegulationGenerationPhase.generate()` with pinned or free strategy
    d. Records fatigue, monitors for failure, persists to MindMap
+   e. Calls `CapsEngine.updateWeights()` with the same `inputActivations` and regulation effectiveness
 
 ### Goal Namespace Isolation (D3, D27)
 
