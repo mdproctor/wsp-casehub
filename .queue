@@ -10,8 +10,6 @@ covers: 820
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-deferred: - [ ] casehubio/neocortex#902 — Distress trajectory prompt enrichment for extrinsic strategies (S / Med)
-- [ ] casehubio/neocortex#904 — Integration test: full tick with social context to social goal (S / Low)
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -24,16 +22,23 @@ deferred: - [ ] casehubio/neocortex#902 — Distress trajectory prompt enrichmen
 - [ ] casehubio/examples#203 — Spatial ← active
 - [ ] casehubio/neocortex#806 — CAPS
 - [ ] casehubio/casehub-mosaic#315 — Cognitive
-- [ ] casehubio/neocortex#828 — Regulation predictor observability
+- [x] casehubio/neocortex#828 — Regulation predictor observability
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
 - [x] casehubio/neocortex#815 — Cognitive
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
-- [ ] casehubio/neocortex#818 — Automatic
+- [x] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/neocortex#894 — Pipeline coherence eval
+- [ ] casehubio/neocortex#831 — Personality-coherence-check
+- [ ] casehubio/neocortex#832 — Capacity-gaps-across-pipeline
+- [ ] casehubio/neocortex#844 — Regulation-prediction-feedback-loop
+- [ ] casehubio/neocortex#850 — Split-eval-congruence-vs-effectiveness
+- [ ] casehubio/neocortex#853 — Capacity-modulation-function
+- [ ] casehubio/neocortex#854 — Timescale-aware-modulation-weighting
+- [ ] casehubio/neocortex#855 — End-to-end-validation-compounding-shame
 
 ## Deferred
-- [ ] Distress trajectory prompt enrichment for extrinsic strategies (S / Med) [casehubio/neocortex] — Spec §99: RegulationTracker distress trajectories for CO_REGULATION/DELIBERATE_PROVOCATION — not blocking for initial social regulation, enhances extrinsic strategy quality
-- [ ] Feature toggle manor.regulation.social.enabled (XS / Low) [casehubio/neocortex] — Spec config property — social strategies always active when agents present, toggle adds opt-out
-- [ ] Integration test: full tick with social context to social goal (S / Low) [casehubio/neocortex] — Spec testing strategy — unit tests cover each component, integration test verifies end-to-end flow
+- [ ] casehubio/neocortex#902 — Distress trajectory prompt enrichment for extrinsic strategies (S / Med)
+- [ ] casehubio/neocortex#903 — Feature toggle manor.regulation.social.enabled (XS / Low)
+- [ ] casehubio/neocortex#904 — Integration test: full tick with social context to social goal (S / Low)
