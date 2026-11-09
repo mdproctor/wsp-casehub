@@ -19,6 +19,17 @@ flyway-next-v:
 - [x] casehubio/neocortex#822 — Per-strategy
 - [x] casehubio/neocortex#823 — Per-modality
 - [ ] casehubio/neocortex#520 — Cognitive ← active
+  - [ ] Batch 1: Foundation
+    - [ ] Task 1: PipelineTrace + SPI + extend CognitionSnapshot
+    - [ ] Task 2: PipelineSnapshotStore + InMemory + contract test
+  - [ ] Batch 2: Storage
+    - [ ] Task 3: SqlitePipelineSnapshotStore
+  - [ ] Batch 3: Capture
+    - [ ] Task 4: CAPS caching + StateProvider impl + tick capture
+  - [ ] Batch 4: API
+    - [ ] Task 5: pipelineDump endpoint + CDI wiring
+  - [ ] Batch 5: Integration
+    - [ ] Task 6: CognitionStateProvider integration test
 - [ ] casehubio/examples#203 — Spatial
 - [ ] casehubio/neocortex#806 — CAPS
 - [ ] casehubio/casehub-mosaic#315 — Cognitive
