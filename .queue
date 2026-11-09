@@ -54,3 +54,5 @@ flyway-next-v:
 - [ ] casehubio/neocortex#902 — Distress trajectory prompt enrichment
 - [ ] casehubio/neocortex#903 — Feature toggle manor.regulation.social.enabled
 - [ ] casehubio/neocortex#904 — Integration test full tick with social context
+- [ ] casehubio/neocortex#906 — CAPS-topology-AD-weight-rebalancing
+- [ ] casehubio/neocortex#907 — Predictor-DISTRESS-intensity-gating
