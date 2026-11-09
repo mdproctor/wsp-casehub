@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 380">
+  <style>
+    text { font-family: 'Inter', 'Helvetica Neue', sans-serif; }
+    .title { font-size: 14px; font-weight: 600; fill: #1a1a2e; }
+    .axis-text { font-size: 10px; fill: #666; }
+    .axis-title { font-size: 11px; font-weight: 500; fill: #333; }
+    .label { font-size: 10px; font-weight: 500; }
+    .annotation { font-size: 9px; fill: #888; }
+    .grid { stroke: #eee; stroke-width: 0.5; }
+  </style>
+
+  <text x="340" y="25" text-anchor="middle" class="title">Avoidance Memory Decay: Linear Cliff vs Exponential Fade</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="310" x2="620" y2="310" stroke="#333" stroke-width="1.5"/>
+  <line x1="80" y1="310" x2="80" y2="50" stroke="#333" stroke-width="1.5"/>
+
+  <!-- Grid lines -->
+  <line x1="80" y1="245" x2="620" y2="245" class="grid"/>
+  <line x1="80" y1="180" x2="620" y2="180" class="grid"/>
+  <line x1="80" y1="115" x2="620" y2="115" class="grid"/>
+
+  <!-- Y axis labels -->
+  <text x="72" y="314" text-anchor="end" class="axis-text">0.0</text>
+  <text x="72" y="249" text-anchor="end" class="axis-text">0.25</text>
+  <text x="72" y="184" text-anchor="end" class="axis-text">0.50</text>
+  <text x="72" y="119" text-anchor="end" class="axis-text">0.75</text>
+  <text x="72" y="54" text-anchor="end" class="axis-text">1.00</text>
+  <text x="25" y="180" text-anchor="middle" transform="rotate(-90,25,180)" class="axis-title">Avoidance weight</text>
+
+  <!-- X axis labels -->
+  <text x="80" y="330" text-anchor="middle" class="axis-text">0</text>
+  <text x="188" y="330" text-anchor="middle" class="axis-text">10</text>
+  <text x="296" y="330" text-anchor="middle" class="axis-text">20</text>
+  <text x="404" y="330" text-anchor="middle" class="axis-text">30</text>
+  <text x="512" y="330" text-anchor="middle" class="axis-text">40</text>
+  <text x="620" y="330" text-anchor="middle" class="axis-text">50</text>
+  <text x="350" y="355" text-anchor="middle" class="axis-title">Ticks since regulation episode</text>
+
+  <!-- Linear decay (τ=30) — straight line from (0,1) to (30,0) then flat at 0 -->
+  <polyline points="80,50 404,310 620,310" fill="none" stroke="#e94560" stroke-width="2.5" stroke-dasharray="8,4"/>
+
+  <!-- Exponential decay (τ=30) — smooth curve -->
+  <path d="M80,50 C120,85 160,115 188,138 C216,161 244,180 269,195 C296,210 323,222 350,232 C377,241 404,248 431,254 C458,259 485,263 512,266 C539,269 566,271 593,273 L620,274" fill="none" stroke="#0f3460" stroke-width="2.5"/>
+
+  <!-- 37% marker at τ=30 -->
+  <line x1="404" y1="214" x2="404" y2="310" stroke="#0f3460" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <circle cx="404" cy="214" r="4" fill="#0f3460"/>
+  <text x="412" y="208" class="label" fill="#0f3460">37% at τ</text>
+
+  <!-- Cliff annotation for linear -->
+  <circle cx="404" cy="310" r="4" fill="#e94560"/>
+  <text x="412" y="300" class="label" fill="#e94560">0% — hard cliff</text>
+
+  <!-- 14% marker at 2τ=60 -->
+  <line x1="512" y1="274" x2="512" y2="310" stroke="#0f3460" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="520" y="270" class="annotation">14% at 2τ</text>
+
+  <!-- Legend -->
+  <line x1="420" y1="62" x2="460" y2="62" stroke="#e94560" stroke-width="2.5" stroke-dasharray="8,4"/>
+  <text x="468" y="66" class="label" fill="#e94560">Linear (hard cliff at horizon)</text>
+
+  <line x1="420" y1="82" x2="460" y2="82" stroke="#0f3460" stroke-width="2.5"/>
+  <text x="468" y="86" class="label" fill="#0f3460">Exponential (smooth asymptote)</text>
+
+  <text x="340" y="375" text-anchor="middle" font-size="9" fill="#999">τ = 30 ticks. Exponential: old memories fade but never fully vanish. Linear: forgotten at the cliff.</text>
+</svg>
