@@ -2,7 +2,26 @@
 
 ## Last Session (2026-11-09)
 
-Executed 7 of 9 tasks for #806 CAPS regulation integration. All foundation, topology, namespace, social-context, and decay work complete. Remaining: cascade integration (Task 8) and eval (Task 9).
+Executed 8 of 9 tasks for #806 CAPS regulation integration. Task 8 (cascade integration) now complete — three-layer cascade (safety gate → CAPS settling → predictor → LLM) implemented in EmotionRegulationTickParticipant with Rescorla-Wagner weight update. Remaining: Task 9 (paired comparison eval test).
+
+### Task 8 commit
+
+| SHA | Message |
+|-----|---------|
+| `0c880cf9` | feat(#806): integrate CAPS settling into regulation cascade |
+
+### Task 8 details
+
+- **Safety hard gate**: fatigue > 0.7 OR intensity > 0.75 → force ATTENTIONAL_DEPLOYMENT before CAPS/predictor
+- **CAPS settling**: loads agent state, assembles social-context inputs (trust from MindMap, isolation from agent count), settles, extracts regulation attractors with dominance margin check
+- **Predictor fallback**: existing predictor runs only when CAPS doesn't pin
+- **Weight update**: Rescorla-Wagner after regulation — outcomeIntensity = |peak - regulated|, outcomeValence = effectiveness > 0.5 → +1.0 else -1.0, salienceMultiplier = peak, schedule = variable_ratio
+- **CognitionCore wiring**: new `configureRegulation(CapsEngine, RegulationCascadeConfig)` overload added
+- **Tests**: 4 cascade tests (pin, ambivalent fallthrough, safety gate, weight update) — 72 regulation tests total, all pass
+
+### Next session
+
+`work continue` → Task 9: Paired comparison eval test (requires API key, non-deterministic). Creates `CapsRegulationComparisonEvalTest` that runs existing scenarios with CAPS settling enabled and records CAPS vs predictor vs LLM concordance for threshold calibration.
 
 ### What was implemented
 
