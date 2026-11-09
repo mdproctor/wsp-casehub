@@ -2,6 +2,45 @@
 
 ## Last Session (2026-11-09)
 
+Designed CAPS regulation integration (#806). Queue reorganised to focus on regulation work only — #203 (spatial) and #315 (dashboard) removed.
+
+### What was designed
+
+**#806 — CAPS regulation integration: strategies as CAUs**
+
+Full design spec and implementation plan for encoding all 10 regulation strategies as CAPS output nodes with 4 literature-grounded social-context input nodes. Three-layer cascade (CAPS > predictor > LLM). Design went through brainstorming (8 decisions D20-D27), decision review (2 rounds, 12 issues, all resolved), spec writing, and spec review (3 rounds, 17 issues, all resolved).
+
+Key decisions:
+- All 10 strategies (Gross 1998 + Zaki & Williams 2013) as output nodes
+- 4 social-context inputs: perceived_responsiveness, target_distress, social_isolation, power_asymmetry
+- CAPS > predictor > LLM cascade with empirical threshold calibration
+- Literature-derived weights cross-validated against predictor
+- Unified topology (91 nodes, 110 connections) — single settling pass
+
+### Artifacts produced
+
+| Artifact | Path |
+|----------|------|
+| Design spec | `wsp-casehub/specs/issue-851-dynamic-regulatory-capacity/2026-11-09-caps-regulation-integration-design.md` |
+| Decisions D20-D27 | `wsp-casehub/specs/issue-851-dynamic-regulatory-capacity/decisions.md` |
+| Implementation plan | `wsp-casehub/plans/2026-11-09-caps-regulation-integration.md` |
+| Blog entry | `wsp-casehub/blog/2026-11-09-mdp07-when-regulation-joins-the-network.md` |
+
+### Queue changes
+
+- Removed #203 (Spatial room model — not regulation-focused)
+- Removed #315 (Cognitive dashboard — not regulation-focused)
+- Restored #902, #903, #904 from Deferred to main queue
+- #806 now active with 9 tasks across 6 batches injected
+
+### Next session
+
+Start execution: `work continue` → executing-plans on the plan. Implementation order: rename BehavioralAttractor→CapsAttractor, add RegulationCascadeConfig, extend topology YAML, disposition modulation, goal namespaces, social-context injection, cascade integration, eval.
+
+---
+
+## Previous Session (2026-11-09)
+
 Landed all regulation and pipeline observability work from the feature branch onto canonical main. Resolved slot 196/211 divergence.
 
 ### What was landed
