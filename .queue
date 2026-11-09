@@ -17,16 +17,8 @@ flyway-next-v:
 - [x] casehubio/neocortex#819 — Proactive
 - [x] casehubio/neocortex#805 — Social
 - [x] casehubio/neocortex#822 — Per-strategy
-- [ ] casehubio/neocortex#823 — Per-modality ← active
-  - [x] Batch 1: CognitionCore overload
-    - [x] Task 1: Add tick() with RegulationContext
-  - [x] Batch 2: Eval tests
-    - [x] Task 2: Fatigue predictor override test
-    - [x] Task 3: Automatic concordance + monitoring tests
-    - [x] Task 4: Proactive avoidance test
-  - [x] Batch 3: Verify
-    - [x] Task 5: Run full eval suite
-- [ ] casehubio/neocortex#520 — Cognitive
+- [x] casehubio/neocortex#823 — Per-modality
+- [ ] casehubio/neocortex#520 — Cognitive ← active
 - [ ] casehubio/examples#203 — Spatial
 - [ ] casehubio/neocortex#806 — CAPS
 - [ ] casehubio/casehub-mosaic#315 — Cognitive
