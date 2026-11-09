@@ -40,6 +40,7 @@ flyway-next-v:
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
+- [ ] casehubio/neocortex#894 — Pipeline coherence eval
 
 ## Deferred
 - [ ] Distress trajectory prompt enrichment for extrinsic strategies (S / Med) [casehubio/neocortex] — Spec §99: RegulationTracker distress trajectories for CO_REGULATION/DELIBERATE_PROVOCATION — not blocking for initial social regulation, enhances extrinsic strategy quality
