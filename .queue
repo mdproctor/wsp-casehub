@@ -20,6 +20,22 @@ flyway-next-v:
 - [x] casehubio/neocortex#823 — Per-modality
 - [x] casehubio/neocortex#520 — Cognitive
 - [ ] casehubio/neocortex#806 — CAPS ← active
+  - [ ] Batch 1: Foundation
+    - [ ] Task 1: Rename BehavioralAttractor to CapsAttractor
+    - [ ] Task 2: Add RegulationCascadeConfig
+  - [ ] Batch 2: Topology
+    - [ ] Task 3: Extend caps-topology.yaml with regulation nodes
+    - [ ] Task 4: Extend DispositionWeightMapper regulation activations
+  - [ ] Batch 3: Namespace
+    - [ ] Task 5: Goal namespace isolation in GoalProposalOrchestrator
+  - [ ] Batch 4: Social
+    - [ ] Task 6: Create SocialContextInputComputer
+  - [ ] Batch 5: Decay
+    - [ ] Task 7: Exponential decay in ProactiveRegulationParticipant
+  - [ ] Batch 6: Cascade
+    - [ ] Task 8: Integrate CAPS settling into regulation cascade
+  - [ ] Batch 7: Eval
+    - [ ] Task 9: Paired comparison eval test
 - [x] casehubio/neocortex#828 — Regulation predictor observability
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
