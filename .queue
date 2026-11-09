@@ -24,8 +24,8 @@ flyway-next-v:
     - [x] Task 2: Fatigue predictor override test
     - [x] Task 3: Automatic concordance + monitoring tests
     - [x] Task 4: Proactive avoidance test
-  - [ ] Batch 3: Verify
-    - [ ] Task 5: Run full eval suite
+  - [x] Batch 3: Verify
+    - [x] Task 5: Run full eval suite
 - [ ] casehubio/neocortex#520 — Cognitive
 - [ ] casehubio/examples#203 — Spatial
 - [ ] casehubio/neocortex#806 — CAPS
