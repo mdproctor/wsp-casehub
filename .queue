@@ -29,3 +29,4 @@ flyway-next-v:
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
+- [ ] casehubio/examples#204 — wacky-manor-api-breaks
