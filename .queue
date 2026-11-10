@@ -40,3 +40,5 @@ flyway-next-v:
 - [ ] casehubio/neocortex#904 — Integration test full tick with social context
 - [ ] casehubio/neocortex#906 — CAPS-topology-AD-weight-rebalancing
 - [ ] casehubio/neocortex#907 — Predictor-DISTRESS-intensity-gating
+- [ ] casehubio/neocortex#912 — Accommodating-conflictMode-CC-boost
+- [ ] casehubio/neocortex#913 — Protective-conflictMode-regulation-mapping
