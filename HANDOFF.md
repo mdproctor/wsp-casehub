@@ -2,7 +2,7 @@
 
 ## Last Session (2026-11-10)
 
-Fixed #906 (CAPS topology AD weight rebalancing) and #907 (DISTRESS intensity gating). Ran eval twice — baseline showed 0/5 differentiation, rebalanced showed 3/5 correct CAPS predictions.
+Fixed #906 (topology weight rebalancing), #907 (DISTRESS intensity gating), #912 (accommodating → CC boost). Ran eval twice — baseline showed 0/5, rebalanced showed 3/5. Four-agent adversarial review validated dropping self_worth → AD connection (indirect path captures 75% of empirical effect). Fixed pre-existing RegulationPipelineThroughTickTest failures (3 tests — stub overrode wrong generate overload). Wrote blog: "Every Weight Has a Citation". Updated post-era6 research document.
 
 ### #906 — Weight rebalancing
 
