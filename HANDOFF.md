@@ -60,10 +60,19 @@ Plus 50% increase in disposition resting activation differentials.
 
 ### Next session
 
-#806 is code-complete (9/9 tasks) and eval-run. Next steps:
-1. Push the branch (11 commits on `issue-806-caps-regulation-integration`)
-2. Topology weight calibration to address AD dominance (file as separate issue)
-3. Move to next issue in queue (#894 Pipeline coherence eval, or #831 Personality coherence check)
+Branch `issue-806-caps-regulation-integration` pushed (16 commits). All calibration issues resolved (#906, #907, #912). `work continue` to advance.
+
+**Immediate:** Rerun `CapsRegulationComparisonEvalTest` to verify #912 (accommodating → CC) improves eval from 3/5 to 4/5 or 5/5. Then advance to next queue item.
+
+**Queue (next unchecked):**
+- #913 — Protective conflictMode regulation mapping (S/Med — investigate whether SM is correct for protective agents)
+- #894 — Pipeline coherence eval (requires #520 cognitive state dump — different domain)
+- #831 — Personality coherence check (S/Low)
+- #832 — Capacity gaps across pipeline (S/Low)
+
+**Also filed:** #912 is fixed but the eval hasn't been rerun with it. The accommodating → CC boost should fix the cognitive change scenario (CAPS was settling to SSS because "accommodating" had no CC resting activation).
+
+**Pre-existing fix included:** RegulationPipelineThroughTickTest (3 failures — stub overrode 7-param generate but tick calls 11-param). Fixed in same commit as #912.
 
 ### What was implemented
 
