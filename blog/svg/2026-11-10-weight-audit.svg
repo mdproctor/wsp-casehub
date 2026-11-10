@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380">
+  <defs>
+    <style>
+      .bg { fill: #1a1a2e; }
+      .title { font: bold 15px 'Segoe UI', system-ui, sans-serif; fill: #e8e8e8; }
+      .subtitle { font: 12px 'Segoe UI', system-ui, sans-serif; fill: #999; }
+      .label { font: 12px 'Segoe UI', system-ui, sans-serif; fill: #ccc; }
+      .mono { font: 12px 'Segoe UI Mono', monospace; fill: #e8e8e8; }
+      .header { font: bold 11px 'Segoe UI', system-ui, sans-serif; fill: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+      .bar-before { fill: #6b2c3b; }
+      .bar-after { fill: #2d6a4f; }
+      .bar-label { font: bold 11px 'Segoe UI Mono', monospace; fill: #e8e8e8; }
+      .divider { stroke: #333; stroke-width: 1; }
+      .legend-dot { r: 5; }
+    </style>
+  </defs>
+  <rect class="bg" width="720" height="380"/>
+
+  <text class="title" x="30" y="28">NET Incoming Weight Per Regulation Output</text>
+  <text class="subtitle" x="30" y="46">Before and after first-principles rebalancing</text>
+
+  <!-- Legend -->
+  <circle class="legend-dot bar-before" cx="500" cy="22" r="5"/>
+  <text class="label" x="510" y="26">Before</text>
+  <circle class="legend-dot bar-after" cx="570" cy="22" r="5"/>
+  <text class="label" x="580" y="26">After</text>
+
+  <!-- Headers -->
+  <text class="header" x="30" y="72">Strategy</text>
+  <text class="header" x="260" y="72">NET Weight</text>
+
+  <!-- AD -->
+  <text class="label" x="30" y="100">attentional_deployment</text>
+  <rect class="bar-before" x="260" y="88" width="220" height="12" rx="2"/>
+  <text class="bar-label" x="485" y="99">+1.10</text>
+  <rect class="bar-after" x="260" y="102" width="150" height="12" rx="2"/>
+  <text class="bar-label" x="415" y="113">+0.75</text>
+
+  <!-- co_regulation -->
+  <text class="label" x="30" y="138">co_regulation</text>
+  <rect class="bar-before" x="260" y="126" width="200" height="12" rx="2"/>
+  <text class="bar-label" x="465" y="137">+1.00</text>
+  <rect class="bar-after" x="260" y="140" width="200" height="12" rx="2"/>
+  <text class="bar-label" x="465" y="151">+1.00</text>
+
+  <!-- social_support_seeking -->
+  <text class="label" x="30" y="176">social_support_seeking</text>
+  <rect class="bar-before" x="260" y="164" width="190" height="12" rx="2"/>
+  <text class="bar-label" x="455" y="175">+0.95</text>
+  <rect class="bar-after" x="260" y="178" width="190" height="12" rx="2"/>
+  <text class="bar-label" x="455" y="189">+0.95</text>
+
+  <!-- situation_modification -->
+  <text class="label" x="30" y="214">situation_modification</text>
+  <rect class="bar-before" x="260" y="202" width="150" height="12" rx="2"/>
+  <text class="bar-label" x="415" y="213">+0.75</text>
+  <rect class="bar-after" x="260" y="216" width="150" height="12" rx="2"/>
+  <text class="bar-label" x="415" y="227">+0.75</text>
+
+  <!-- cognitive_change -->
+  <text class="label" x="30" y="252">cognitive_change</text>
+  <rect class="bar-before" x="260" y="240" width="100" height="12" rx="2"/>
+  <text class="bar-label" x="365" y="251">+0.50</text>
+  <rect class="bar-after" x="260" y="254" width="100" height="12" rx="2"/>
+  <text class="bar-label" x="365" y="265">+0.50</text>
+
+  <!-- situation_selection -->
+  <text class="label" x="30" y="290">situation_selection</text>
+  <rect class="bar-before" x="260" y="278" width="100" height="12" rx="2"/>
+  <text class="bar-label" x="365" y="289">+0.50</text>
+  <rect class="bar-after" x="260" y="292" width="100" height="12" rx="2"/>
+  <text class="bar-label" x="365" y="303">+0.50</text>
+
+  <!-- response_modulation -->
+  <text class="label" x="30" y="328">response_modulation</text>
+  <rect class="bar-before" x="240" y="316" width="20" height="12" rx="2"/>
+  <text class="bar-label" x="205" y="327">-0.10</text>
+  <rect class="bar-after" x="260" y="330" width="20" height="12" rx="2"/>
+  <text class="bar-label" x="285" y="341">+0.10</text>
+
+  <line class="divider" x1="260" y1="80" x2="260" y2="350" stroke-dasharray="2,4"/>
+  <text class="mono" x="255" y="368" text-anchor="middle" style="font-size:10px; fill:#666">0</text>
+</svg>

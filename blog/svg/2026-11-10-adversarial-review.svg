@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340">
+  <defs>
+    <style>
+      .bg { fill: #1a1a2e; }
+      .title { font: bold 15px 'Segoe UI', system-ui, sans-serif; fill: #e8e8e8; }
+      .subtitle { font: 12px 'Segoe UI', system-ui, sans-serif; fill: #999; }
+      .label { font: 12px 'Segoe UI', system-ui, sans-serif; fill: #ccc; }
+      .mono { font: 12px 'Segoe UI Mono', monospace; fill: #e8e8e8; }
+      .box { rx: 6; ry: 6; stroke-width: 1.5; }
+      .advocate-for { fill: #1a3a2e; stroke: #2d6a4f; }
+      .advocate-against { fill: #3a1a2e; stroke: #6b2c3b; }
+      .judge { fill: #1a2a3e; stroke: #3b5998; }
+      .verdict { fill: #2a2a1a; stroke: #b8860b; }
+      .box-title { font: bold 12px 'Segoe UI', system-ui, sans-serif; text-anchor: middle; }
+      .box-detail { font: 11px 'Segoe UI', system-ui, sans-serif; fill: #aaa; text-anchor: middle; }
+      .arrow { fill: none; stroke: #555; stroke-width: 1.5; marker-end: url(#arrowhead); }
+      .phase-label { font: bold 10px 'Segoe UI', system-ui, sans-serif; fill: #666; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#555"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="720" height="340"/>
+
+  <text class="title" x="30" y="28">Adversarial Weight Review — Four-Agent Protocol</text>
+  <text class="subtitle" x="30" y="46">Same paper, opposite interpretations → judges resolve with effect sizes</text>
+
+  <!-- Phase 1: Advocates -->
+  <text class="phase-label" x="30" y="80">Phase 1: Adversarial</text>
+
+  <rect class="box advocate-for" x="40" y="90" width="200" height="70"/>
+  <text class="box-title" x="140" y="112" fill="#4ade80">Agent A: FOR</text>
+  <text class="box-detail" x="140" y="130">Shafir et al. 2017</text>
+  <text class="box-detail" x="140" y="145">"direct evidence for connection"</text>
+
+  <rect class="box advocate-against" x="280" y="90" width="200" height="70"/>
+  <text class="box-title" x="380" y="112" fill="#f87171">Agent B: AGAINST</text>
+  <text class="box-detail" x="380" y="130">Shafir et al. 2017</text>
+  <text class="box-detail" x="380" y="145">"sign is wrong, moderation only"</text>
+
+  <!-- Phase 2: Judges -->
+  <text class="phase-label" x="530" y="80">Phase 2: Judgment</text>
+
+  <path class="arrow" d="M 240,130 L 530,130"/>
+  <path class="arrow" d="M 480,130 L 530,130"/>
+
+  <rect class="box judge" x="530" y="90" width="160" height="70"/>
+  <text class="box-title" x="610" y="108" fill="#60a5fa">Judge FOR</text>
+  <text class="box-detail" x="610" y="124">"sign correct, moderation</text>
+  <text class="box-detail" x="610" y="138">is CAPS by design"</text>
+  <text class="box-detail" x="610" y="152">Best objection: magnitude</text>
+
+  <rect class="box judge" x="530" y="175" width="160" height="70"/>
+  <text class="box-title" x="610" y="193" fill="#60a5fa">Judge AGAINST</text>
+  <text class="box-detail" x="610" y="209">Matthews et al. 2021:</text>
+  <text class="box-detail" x="610" y="223">r ≈ 0.12 across 5 studies</text>
+  <text class="box-detail" x="610" y="237">Indirect path = 75%</text>
+
+  <!-- Verdict -->
+  <path class="arrow" d="M 610,245 L 610,270"/>
+  <path class="arrow" d="M 610,160 L 610,170 L 650,170 L 650,270"/>
+
+  <rect class="box verdict" x="480" y="275" width="220" height="50"/>
+  <text class="box-title" x="590" y="296" fill="#fbbf24">Verdict: Don't Add</text>
+  <text class="box-detail" x="590" y="314">-0.09 indirect ≈ 75% of r=0.12</text>
+
+  <!-- The key insight -->
+  <rect x="40" y="185" width="440" height="60" rx="6" fill="#1a1a2e" stroke="#444" stroke-width="1"/>
+  <text class="label" x="55" y="205">Both agents cited the same paper — Shafir et al. 2017</text>
+  <text class="label" x="55" y="222">Agent B got the sign wrong (low self-worth → more AD = inhibitory, not excitatory)</text>
+  <text class="label" x="55" y="239">Agent A was right on mechanism but wrong on magnitude (2.4x overshoot)</text>
+
+  <!-- Connection to key finding -->
+  <rect x="40" y="270" width="410" height="50" rx="6" fill="#2a1a2a" stroke="#6b4c8b" stroke-width="1"/>
+  <text class="mono" x="55" y="291" style="fill: #c084fc">Meta-finding: neither advocate was fully right.</text>
+  <text class="mono" x="55" y="308" style="fill: #c084fc">The judges' effect-size data resolved what debate could not.</text>
+</svg>
