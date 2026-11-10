@@ -1,8 +1,30 @@
 # HANDOFF — casehub (slot 196)
 
-## Last Session (2026-11-09)
+## Last Session (2026-11-10)
 
-All 9 tasks for #806 CAPS regulation integration complete. Task 9 (paired comparison eval test) added — compiles but not yet run (requires API key).
+Fixed #906 (CAPS topology AD weight rebalancing) and #907 (DISTRESS intensity gating). Ran eval twice — baseline showed 0/5 differentiation, rebalanced showed 3/5 correct CAPS predictions.
+
+### #906 — Weight rebalancing
+
+4 literature-justified topology changes:
+1. Added `self_efficacy → AD` at −0.25 (Sheppes & Gross 2011)
+2. Reduced `arousal → AD` from +0.45 to +0.35 (midpoint of meta-analysis range)
+3. Reduced `self_worth → RM` from −0.25 to −0.15
+4. Reduced `self_efficacy → RM` from −0.25 to −0.15
+Plus 50% increase in disposition resting activation differentials.
+
+| SHA | Message |
+|-----|---------|
+| `4cd9ee62` | fix(#906): rebalance CAPS regulation topology weights |
+| `90289815` | docs(#906): save rebalanced CAPS regulation eval results |
+
+### #907 — DISTRESS intensity gating
+
+| SHA | Message |
+|-----|---------|
+| `36a21ca5` | fix(#907): intensity-gate DISTRESS in predictor |
+
+## Previous Session (2026-11-09)
 
 ### Task 8 commit
 
