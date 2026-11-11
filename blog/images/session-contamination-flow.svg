@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f9fa"/>
+      <stop offset="100%" style="stop-color:#e9ecef"/>
+    </linearGradient>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#495057"/>
+    </marker>
+    <marker id="arRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e03131"/>
+    </marker>
+    <marker id="arGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2b8a3e"/>
+    </marker>
+  </defs>
+  <rect width="720" height="380" rx="8" fill="url(#bg3)"/>
+
+  <!-- BEFORE section -->
+  <text x="180" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#c92a2a">Before: Static Session IDs</text>
+  <rect x="20" y="40" width="320" height="310" rx="8" fill="none" stroke="#ffc9c9" stroke-width="2"/>
+
+  <!-- Agent A -->
+  <rect x="40" y="60" width="120" height="36" rx="6" fill="#d0ebff" stroke="#339af0" stroke-width="1.5"/>
+  <text x="100" y="83" text-anchor="middle" font-size="11" font-weight="500" fill="#1864ab">Agent A (Vincent)</text>
+
+  <!-- Agent B -->
+  <rect x="200" y="60" width="120" height="36" rx="6" fill="#d3f9d8" stroke="#51cf66" stroke-width="1.5"/>
+  <text x="260" y="83" text-anchor="middle" font-size="11" font-weight="500" fill="#2b8a3e">Agent B (Clara)</text>
+
+  <!-- Shared session box -->
+  <rect x="60" y="130" width="220" height="90" rx="6" fill="#fff5f5" stroke="#e03131" stroke-width="2"/>
+  <text x="170" y="152" text-anchor="middle" font-size="12" font-weight="600" fill="#c92a2a">"emotion-regulation"</text>
+  <text x="170" y="170" text-anchor="middle" font-size="10" fill="#495057">ONE session for ALL agents</text>
+  <text x="170" y="190" text-anchor="middle" font-size="9" fill="#868e96">Context: A's shame appraisal</text>
+  <text x="170" y="204" text-anchor="middle" font-size="9" fill="#868e96">+ A's coping strategy + B's query...</text>
+
+  <!-- Arrows to shared session -->
+  <line x1="100" y1="96" x2="140" y2="130" stroke="#e03131" stroke-width="1.5" marker-end="url(#arRed)"/>
+  <line x1="260" y1="96" x2="200" y2="130" stroke="#e03131" stroke-width="1.5" marker-end="url(#arRed)"/>
+
+  <!-- Contamination label -->
+  <rect x="60" y="240" width="220" height="40" rx="4" fill="#ffe3e3" stroke="#e03131" stroke-width="1"/>
+  <text x="170" y="258" text-anchor="middle" font-size="10" font-weight="500" fill="#c92a2a">B sees A's cognitive responses</text>
+  <text x="170" y="272" text-anchor="middle" font-size="9" fill="#c92a2a">Cross-agent contamination</text>
+
+  <!-- X mark -->
+  <text x="170" y="318" text-anchor="middle" font-size="28" fill="#e03131">✗</text>
+
+  <!-- AFTER section -->
+  <text x="540" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2b8a3e">After: Per-Agent Session IDs</text>
+  <rect x="380" y="40" width="320" height="310" rx="8" fill="none" stroke="#b2f2bb" stroke-width="2"/>
+
+  <!-- Agent A -->
+  <rect x="400" y="60" width="120" height="36" rx="6" fill="#d0ebff" stroke="#339af0" stroke-width="1.5"/>
+  <text x="460" y="83" text-anchor="middle" font-size="11" font-weight="500" fill="#1864ab">Agent A (Vincent)</text>
+
+  <!-- Agent B -->
+  <rect x="560" y="60" width="120" height="36" rx="6" fill="#d3f9d8" stroke="#51cf66" stroke-width="1.5"/>
+  <text x="620" y="83" text-anchor="middle" font-size="11" font-weight="500" fill="#2b8a3e">Agent B (Clara)</text>
+
+  <!-- Session A -->
+  <rect x="400" y="130" width="120" height="70" rx="6" fill="#e7f5ff" stroke="#339af0" stroke-width="1.5"/>
+  <text x="460" y="152" text-anchor="middle" font-size="10" font-weight="500" fill="#1864ab">"regulation-vincent"</text>
+  <text x="460" y="170" text-anchor="middle" font-size="9" fill="#495057">Vincent's context only</text>
+  <text x="460" y="184" text-anchor="middle" font-size="9" fill="#868e96">Scheming + shame</text>
+
+  <!-- Session B -->
+  <rect x="560" y="130" width="120" height="70" rx="6" fill="#ebfbee" stroke="#51cf66" stroke-width="1.5"/>
+  <text x="620" y="152" text-anchor="middle" font-size="10" font-weight="500" fill="#2b8a3e">"regulation-clara"</text>
+  <text x="620" y="170" text-anchor="middle" font-size="9" fill="#495057">Clara's context only</text>
+  <text x="620" y="184" text-anchor="middle" font-size="9" fill="#868e96">Harmony + mediation</text>
+
+  <!-- Arrows to separate sessions -->
+  <line x1="460" y1="96" x2="460" y2="130" stroke="#339af0" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="620" y1="96" x2="620" y2="130" stroke="#51cf66" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- Isolation label -->
+  <rect x="420" y="240" width="220" height="40" rx="4" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="1"/>
+  <text x="530" y="258" text-anchor="middle" font-size="10" font-weight="500" fill="#2b8a3e">Each agent's cognition is isolated</text>
+  <text x="530" y="272" text-anchor="middle" font-size="9" fill="#2b8a3e">No cross-contamination</text>
+
+  <!-- Check mark -->
+  <text x="530" y="318" text-anchor="middle" font-size="28" fill="#2b8a3e">✓</text>
+</svg>

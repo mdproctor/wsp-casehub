@@ -55,14 +55,28 @@ var session = pipeline.openSession(sessionId, init);
 
 Three agents, twenty-five ticks, two classification calls per agent per tick. That's a hundred and fifty cold session opens, each paying the full system prompt cost for the CAPS topology. The test ran forty-four minutes. Most of that time was spent repeating the same system prompt to the same model for the same agent. A sticky session per agent — `"classifier-" + agentId` — would amortize the system prompt and likely cut the runtime by more than half.
 
-This isn't just a classifier problem. The cognitive pipeline has multiple LLM interaction points: appraisal, regulation, reflection synthesis, mental model updates, user model updates. Each may or may not reuse sessions. The smoke test made the cost visible for the first time because it runs enough ticks to feel the accumulation.
+This isn't just a classifier problem. A full audit of every LLM interaction point revealed something worse.
 
-## Why This Matters Beyond Testing
+## The Cross-Agent Contamination Bug
 
-The smoke scenario is not just a test. It's a validation instrument for the cognitive architecture itself. When we add a new cognitive component — a new drive source, a new appraisal dimension, a new regulation strategy — the unit test proves the component works. The smoke test proves the component integrates. That distinction is the difference between "the code is correct" and "the system behaves."
+The cognitive pipeline has sixteen components that make LLM calls: appraisal, regulation, inner life, mental model, user model, strategy learning, narrative summarisation, mood appraisal, BDI extraction, and more. We audited all sixteen.
 
-The forty-four minute runtime is a feature, not a bug. It's long enough to see propagation effects that ten-second unit tests can't reveal: how drive intensities drift over consecutive ticks, whether memory accumulation changes the observation builder's output, whether regulation strategies compound correctly across emotional episodes. These are the dynamics that matter for believable cognitive agents, and they only manifest at scale.
+Fourteen of them used static session IDs. `"emotion-regulation"`. `"inner-life"`. `"mood-appraisal"`. `SessionPipeline.openSession` uses `computeIfAbsent` — if a session with that ID already exists, it returns the existing one. Which means when Agent B calls `openSession("emotion-regulation")`, it gets Agent A's session. Agent A's regulation narrative — the specific coping strategy it selected for shame, the appraisal it made of the confrontation — is sitting in the context window when Agent B processes its own entirely different emotional situation.
 
-The 4.93 score is a starting point, not a destination. The GENERIC profile uses original character IDs — no pop-culture priors to inflate scores. As the cognitive architecture grows more sophisticated, the smoke test becomes the canary: if a change to appraisal or regulation degrades drive coherence, the score drops before the 300-tick run ever starts.
+This is not a performance problem. This is a correctness bug. Every multi-agent scenario run to date has had cross-agent cognitive contamination. Vincent Marsh's scheming appraisal is in the context when Clara Bellingham's social-harmony regulation runs. James Hartwell's protection drive narrative is visible when Vincent's dominance drive is being evaluated.
 
-Twenty-five ticks. Three characters. One gap, closed.
+The fix is mechanical: append `agentId` to every session ID. `"emotion-regulation"` becomes `"emotion-regulation-" + agentId`. Ten of sixteen components had `agentId` available at the call site and were fixed immediately. Six need an API change to thread `agentId` through the appraisal chain.
+
+The 4.93 score from the smoke test was produced under contaminated conditions. A clean run with per-agent sessions will establish the true baseline — the score could go up (removing noise from cross-agent pollution) or down (the contamination may have been accidentally helpful). Either way, the measurement will finally be honest.
+
+![Contaminated vs isolated session flow](images/session-contamination-flow.svg)
+
+## What This Means for Multi-Agent Cognitive Architecture
+
+If you're building multi-agent systems with shared LLM infrastructure, audit your session lifecycle. The pattern is common: a component opens a session with a descriptive name, uses it, and moves on. When only one agent runs, this is fine. When multiple agents share the pipeline, every descriptive name becomes a shared context window. Agent isolation requires agent-scoped session IDs — not just for performance, but for cognitive integrity.
+
+The smoke test didn't just find a testing gap. It found a fundamental violation of agent cognitive isolation that had been invisible because no prior test ran multiple agents through the real pipeline at a scale where the contamination accumulated enough to matter. Unit tests use stubs. The 300-tick run uses per-agent sessions in `PlaybookOrchestrator` for character responses but not for the cognitive components that feed into those responses.
+
+The forty-four minute runtime is a feature, not a bug. It's long enough to see propagation effects that unit tests can't reveal: how drive intensities drift over consecutive ticks, whether memory accumulation changes the observation builder's output, whether regulation strategies compound correctly across emotional episodes. These are the dynamics that matter for believable cognitive agents, and they only manifest at scale.
+
+Twenty-five ticks. Three characters. One gap, closed. One contamination bug, found.
