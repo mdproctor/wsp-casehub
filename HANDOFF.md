@@ -1,29 +1,37 @@
 # HANDOFF — casehub-examples (slot 196)
 
-## Last Session
+## Current Work
 
-Implementation plan 10/10 complete. All deferred items filed as issues.
+**Branch:** `issue-932-smoke-scenario` (examples + workspace)
+**Issue:** casehubio/neocortex#932 — smoke scenario, real pipeline integration test
 
-Fixed appraisal-in-tick failure (JSON code fence parsing in `LlmAppraisalStrategy`). Ran A/B evaluation: baseline (302 events, regulation OFF) vs regulation-enabled (305 events, regulation ON) with GENERIC profile. No regression — both runs show sparse drive triggering typical of 300-event GENERIC runs. Regulation activates (confirmed by tick eval tests) but EmotionMapper intensity compression (#816) prevents visible impact in classification metrics.
+### What's Done
 
-## Filed Issues
+- `SmokeScenarioEvalTest.java` created and compiling
+  - `@QuarkusTest @Tag("llm-eval")` in `experiment/` package
+  - 3 GENERIC agents: Vincent Marsh (hooded-claw), James Hartwell (peter-perfect), Clara Bellingham (penelope-pitstop)
+  - Full cognitive pipeline via `ManorCognitivePipelineBuilder` — real MindMapStore, SessionPipeline, CapsEngine, appraisal + regulation
+  - 25-tick loop following `PlaybookOrchestrator.runAutonomousTicks()` pattern
+  - 6 scripted events at ticks 1, 5, 8, 12, 17, 22 spanning arrival → discovery → suspicion → confrontation → threat → resolution
+  - Transcript saved to `docs/eval/smoke-scenario-<date>/transcript.json` in classify_emotions.py format
+  - LLM judge scores sampled events (up to 15), asserts mean >= 3.5 and min >= 2.0
 
-All deferred items and discovered issues are tracked:
-- casehubio/neocortex#805 — Social regulation (Zaki & Williams 2013) — already filed
-- casehubio/neocortex#815 — Cognitive load proxy for strategy selection (Petter 2025)
-- casehubio/neocortex#816 — EmotionMapper ANGER 3-factor intensity compression
-- casehubio/examples#202 — Targeted scenario beats for regulation demonstration
+### What's Next
 
-## Immediate Next Step
+- Fast test run in progress — verifying no regressions
+- Need to run the actual llm-eval test to verify end-to-end
+- May need tuning: event descriptions, tick spacing, or threshold based on first run results
 
-**Ready for work-end.** All plan tasks complete, eval runs saved, deferred items filed.
+### Slot 211 Overlap
 
-Prerequisite chain for demonstrable regulation in scenario runs: #816 (intensity fix) → examples#202 (scenario beats) → re-run A/B eval.
+Moderate risk. Slot 211 works on eval calibration (#905) and pipeline coherence (#894). The smoke test asserts behavioral outcomes (drive quality scores), not pipeline internals, so it should be resilient to 211's changes. Don't couple to specific pipeline wiring or ordering.
+
+## Previous Session
+
+Implementation plan 10/10 complete for emotion regulation (#590/#820). A/B eval saved. All deferred items filed as issues.
 
 ## References
 
-- `wsp-casehub/specs/issue-590-emotion-regulation/2026-11-04-emotion-regulation-design.md` — design spec
-- `wsp-casehub/plans/2026-11-04-emotion-regulation.md` — implementation plan (10/10 tasks complete)
-- Neocortex branch: `issue-590-emotion-regulation` (18 commits)
-- Examples branch: `issue-590-emotion-regulation` (6 commits)
-- Eval results: `wacky-manor/docs/eval/regulation-baseline/` and `regulation-enabled/`
+- Test: `wacky-manor/src/test/java/io/casehub/examples/manor/experiment/SmokeScenarioEvalTest.java`
+- Issue: casehubio/neocortex#932
+- Key patterns followed: `PlaybookOrchestrator` (pipeline wiring), `DriveQualityEvalTest` (judge scoring), `TickExecutor` (parallel query)
