@@ -1,0 +1,12 @@
+# Work Plan — issue-932-smoke-scenario
+
+## Queue
+- [ ] casehubio/neocortex#932 — smoke-scenario-real-pipeline-integration-test ← active
+
+## State
+branch: issue-932-smoke-scenario
+state: active
+issue-repo: casehubio/neocortex
+covers: casehubio/neocortex#932
+Current: casehubio/neocortex#932 — smoke-scenario-real-pipeline-integration-test
+date: 2026-11-11
