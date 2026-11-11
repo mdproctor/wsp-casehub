@@ -1,0 +1,12 @@
+# Work Plan — issue-935-session-reuse-audit
+
+## Queue
+- [ ] casehubio/neocortex#935 — audit-all-llm-interactions-for-session-reuse ← active
+
+## State
+branch: issue-935-session-reuse-audit
+state: active
+issue-repo: casehubio/neocortex
+covers: casehubio/neocortex#935
+Current: casehubio/neocortex#935 — audit-all-llm-interactions-for-session-reuse
+date: 2026-11-11
