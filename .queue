@@ -13,6 +13,18 @@ flyway-next-v:
 
 ## Queue
 - [ ] casehubio/neocortex#830 — Predictor quality — shame and ceiling ← active
+  - [ ] Batch 1: Core API
+    - [ ] Task 1: EventRef sealed type
+    - [ ] Task 2: CognitiveEntry+Journal+Trace+extractions
+  - [ ] Batch 2: Persistence
+    - [ ] Task 3: CognitiveJournalStore+InMemory
+    - [ ] Task 4: ScopedCognitiveJournal
+  - [ ] Batch 3: Wiring
+    - [ ] Task 5: DerivationJournalBridge
+    - [ ] Task 6: Wire journal into CognitionCore+Builder+Consolidation
+  - [ ] Batch 4: Instrumentation
+    - [ ] Task 7: Instrument CognitionCore.tick()
+    - [ ] Task 8: Consolidation+GraphMutated+cleanup
 - [ ] casehubio/neocortex#829 — Scenario validation
 - [ ] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social
