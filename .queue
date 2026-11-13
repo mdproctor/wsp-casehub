@@ -31,20 +31,9 @@ flyway-next-v:
 - [x] casehubio/neocortex#818 — Automatic
 - [x] casehubio/examples#204 — wacky-manor-api-breaks
 - [x] casehubio/neocortex#832 — Emotion-personality capacity gaps
-- [ ] casehubio/neocortex#845 — CDE derivations to PID-5 facets ← active
-  - [ ] Batch 1: Pipeline foundation
-    - [ ] Task 1: Extend AgentDisposition with ampdFacets
-    - [ ] Task 2: Fix EidosCognitiveProfileBridge
-  - [ ] Batch 2: Category A
-    - [ ] Task 3: Upgrade mood curiosity cbr methods
-    - [ ] Task 4: Upgrade social habituation regulation methods
-  - [ ] Batch 3: Category B Tier 1
-    - [ ] Task 5: Impulsivity+Callousness+Anxiousness modulations
-  - [ ] Batch 4: Category B Tier 2
-    - [ ] Task 6: FFM bridge modulations
-  - [ ] Batch 5: Integration
-    - [ ] Task 7: Full test suite verification
-- [ ] casehubio/neocortex#921 — Prediction calibration analysis
+- [x] casehubio/neocortex#845 — CDE derivations to PID-5 facets
+- [ ] casehubio/neocortex#921 — Prediction calibration analysis ← active
 - [ ] casehubio/neocortex#925 — CAPS consolidation coherence scenario
 - [ ] casehubio/neocortex#938 — PipelineCoherenceEvalTest cross-stage
 - [ ] casehubio/neocortex#941 — Drive profile differentiation
+- [ ] casehubio/neocortex#961 — Runtime cognitive pipeline journal
