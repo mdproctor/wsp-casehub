@@ -1,32 +1,38 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-932-smoke-scenario
-status: drained
+branch: 
+status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 820
+covers: 832
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
 
 ## Queue
-- [ ] casehubio/neocortex#830 — Predictor quality — shame and ceiling ← active
-- [ ] casehubio/neocortex#829 — Scenario validation
-- [ ] casehubio/neocortex#819 — Proactive
-- [ ] casehubio/neocortex#805 — Social
-- [ ] casehubio/neocortex#822 — Per-strategy
-- [ ] casehubio/neocortex#823 — Per-modality
-- [ ] casehubio/neocortex#520 — Cognitive
-- [ ] casehubio/examples#203 — Spatial
-- [ ] casehubio/neocortex#806 — CAPS
-- [ ] casehubio/casehub-mosaic#315 — Cognitive
-- [ ] casehubio/neocortex#828 — Regulation predictor observability
+- [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
+- [x] casehubio/neocortex#829 — Scenario validation
+- [x] casehubio/neocortex#819 — Proactive
+- [x] casehubio/neocortex#805 — Social emotion regulation
+- [x] casehubio/neocortex#822 — Per-strategy
+- [x] casehubio/neocortex#823 — Per-modality
+- [x] casehubio/neocortex#520 — Cognitive
+- [x] casehubio/examples#203 — Spatial
+- [x] casehubio/neocortex#806 — CAPS
+- [x] casehubio/casehub-mosaic#315 — Cognitive
+- [x] casehubio/neocortex#828 — Regulation predictor observability
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
 - [x] casehubio/neocortex#815 — Cognitive
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
-- [ ] casehubio/neocortex#818 — Automatic
-- [ ] casehubio/examples#204 — wacky-manor-api-breaks
+- [x] casehubio/neocortex#818 — Automatic
+- [x] casehubio/examples#204 — wacky-manor-api-breaks
+- [ ] casehubio/neocortex#832 — Emotion-personality capacity gaps ← active
+- [ ] casehubio/neocortex#845 — CDE derivations to PID-5 facets
+- [ ] casehubio/neocortex#921 — Prediction calibration analysis
+- [ ] casehubio/neocortex#925 — CAPS consolidation coherence scenario
+- [ ] casehubio/neocortex#938 — PipelineCoherenceEvalTest cross-stage
+- [ ] casehubio/neocortex#941 — Drive profile differentiation
