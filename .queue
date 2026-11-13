@@ -1,12 +1,12 @@
-# Work Plan — issue-590-emotion-regulation
+# Work Plan — Work Plan —
 
 ## State
-branch: main
-status: drained
-project-sha: 
+branch: issue-961-runtime-cognitive-journal
+issue-repo: casehubio/examples
+status: active
+covers: 961
+project-sha: 80630410f6083059833815dfaf32d5e3f54a7f07
 date: 
-issue-repo: casehubio/neocortex
-covers: 820
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
@@ -30,3 +30,4 @@ flyway-next-v:
 - [x] casehubio/neocortex#820 — Regulation
 - [ ] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/examples#204 — wacky-manor-api-breaks
+- [ ] casehubio/examples#961 — Runtime cognitive pipeline journal
