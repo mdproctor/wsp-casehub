@@ -1,0 +1,57 @@
+# Decisions — #845 CDE PID-5 Facet Upgrade
+
+## D1: Extend, not rewrite
+
+**Choice:** Extend existing derivation methods to accept PID-5 facets alongside current inputs — not replace Jungian or disposition inputs wholesale.
+**Alternatives:**
+- Full rewrite to PID-5 only — loses cognitive style dimension that Jungian functions capture (HOW vs WHAT)
+- No change — leaves 6 methods on coarse categorical inputs when continuous scores are available
+**Rationale:** PID-5 facets measure pathological personality traits (WHAT is exhibited). Jungian cognitive functions measure processing style (HOW information is handled). These are complementary dimensions, not competing representations. The PID-5 AMPD framework was designed to complement, not replace, existing personality models (Krueger et al. 2012). Category A methods (DispositionAxes) measure trait dimensions that PID-5 directly covers — upgrade these. Category B methods (WeightedTerms) measure cognitive style — keep Jungian base, add facet modulation.
+**Trade-offs:** Maintaining two input channels adds complexity. Mitigated by the reference pattern (`deriveSearchBudgetDefaults`) already accepting both.
+**Sources:** Krueger et al. (2012) *Psychological Medicine* 42(9):1879-1890; Gore & Widiger (2013) *Journal of Abnormal Psychology* 122:816-821
+**Exploration:** deep-analysis
+**Status:** captured
+
+## D2: Fix the bridge first
+
+**Choice:** Build the missing `EidosCognitiveProfileBridge` → `PersonalityFacet` pipeline before upgrading CDE methods.
+**Alternatives:**
+- Upgrade CDE methods first, bridge later — existing facet-accepting methods are dead code in production regardless
+- Skip bridge, use only YAML profiles — limits facets to test/eval contexts only
+**Rationale:** The biography pipeline (`extract_personality.py`) independently scores 13 AMPD facets and writes them to MindMap properties (`personality-ampd-*`). `EidosCognitiveProfileBridge.toDescriptorView()` currently passes `List.of()` for `personalityFacets`. Fixing this unlocks the 5 existing facet-accepting methods AND the new ones. Scale conversion: 0-100 (MindMap) → 0.0-1.0 (PersonalityFacet).
+**Trade-offs:** Couples the CDE upgrade to the bridge fix. Acceptable because both are needed for correctness.
+**Sources:** `EidosCognitiveProfileBridge.java:110`, `PersonalityProfileHandler.java`, `extract_personality.py`
+**Exploration:** quick
+**Status:** captured
+
+## D3: Category A — PID-5 replaces DispositionAxes lookups
+
+**Choice:** For the 6 DispositionAxes methods, replace categorical string lookups with continuous `facetScore()` modulation. Keep DispositionAxes as fallback when facets are empty.
+**Alternatives:**
+- Keep DispositionAxes as primary — discards resolution (0.6 vs 0.9 collapsed to same bucket)
+**Rationale:** DispositionAxes provide 3-4 categorical levels per dimension. PID-5 facets provide continuous [0,1] scores measuring the same trait dimensions. The `deriveSearchBudgetDefaults` reference pattern already demonstrates this: facets as primary, axes as fallback for uncovered dimensions.
+**Trade-offs:** Behavioral outputs will shift for characters with facet scores near category boundaries. Eval framework catches regressions.
+**Sources:** `CognitiveDerivationEngine.java` lines 340-592 (6 methods); reference pattern at lines 765-844
+**Exploration:** quick
+**Status:** captured
+
+## D4: Category B — Facet modulation of Jungian-derived values
+
+**Choice:** For the 5 WeightedTerms methods, keep Jungian function weights as the base computation. Add PID-5 facet modulation where an empirically validated interaction exists between a PID-5 facet and the cognitive dimension being derived.
+**Alternatives:**
+- Full facet rewrite — PID-5 doesn't measure cognitive style; compositions would be theoretically weaker than Jungian for these dimensions
+- No modulation — misses validated interactions (e.g., Impulsivity degrades working memory)
+**Rationale:** Each modulation must cite a peer-reviewed finding. The non-peer-reviewed "PID-5 maps to Jungian dynamics" source was rejected as insufficient.
+
+Validated modulations:
+| Facet | Modulates | Direction | Citation |
+|---|---|---|---|
+| Impulsivity | working memory span (deriveCapacity) | degrades | Heydarloo et al. (2024) *Memory*; Kofler et al. (2024) *Frontiers in Psychiatry* |
+| Callousness | relationship bias (deriveExtractionBias) | reduces | Blair (2005, 2008, 2013) *Nature Reviews Neuroscience* |
+| Anxiousness | fear weight (deriveAppraisalWeights) | amplifies | Bar-Haim et al. (2007) *Psychological Bulletin* — 172-study meta-analysis, d=0.45 |
+
+Modulations without sufficient literature support are NOT included. Additional modulations can be added in future issues when citations are found.
+**Trade-offs:** Conservative scope — only 3 modulations vs the 5+ that "seem right." Prioritises correctness over coverage.
+**Sources:** See citation table above
+**Exploration:** deep-analysis
+**Status:** captured
