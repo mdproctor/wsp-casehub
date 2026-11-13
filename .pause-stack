@@ -1,3 +1,6 @@
 - branch: issue-154-thinking-field-eval
   issue: 154
   paused: 2026-10-28T00:00:17Z
+- branch: issue-935-session-reuse-audit
+  issue: 832
+  paused: 2026-11-13T13:47:48Z
