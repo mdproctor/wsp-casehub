@@ -13,18 +13,18 @@ flyway-next-v:
 
 ## Queue
 - [ ] casehubio/neocortex#830 — Predictor quality — shame and ceiling ← active
-  - [ ] Batch 1: Core API
-    - [ ] Task 1: EventRef sealed type
-    - [ ] Task 2: CognitiveEntry+Journal+Trace+extractions
-  - [ ] Batch 2: Persistence
-    - [ ] Task 3: CognitiveJournalStore+InMemory
-    - [ ] Task 4: ScopedCognitiveJournal
-  - [ ] Batch 3: Wiring
-    - [ ] Task 5: DerivationJournalBridge
-    - [ ] Task 6: Wire journal into CognitionCore+Builder+Consolidation
-  - [ ] Batch 4: Instrumentation
-    - [ ] Task 7: Instrument CognitionCore.tick()
-    - [ ] Task 8: Consolidation+GraphMutated+cleanup
+  - [x] Batch 1: Core API
+    - [x] Task 1: EventRef sealed type
+    - [x] Task 2: CognitiveEntry+Journal+Trace+extractions
+  - [x] Batch 2: Persistence
+    - [x] Task 3: CognitiveJournalStore+InMemory
+    - [x] Task 4: ScopedCognitiveJournal
+  - [x] Batch 3: Wiring
+    - [x] Task 5: DerivationJournalBridge
+    - [x] Task 6: Wire journal into CognitionCore+Builder+Consolidation
+  - [x] Batch 4: Instrumentation
+    - [x] Task 7: Instrument CognitionCore.tick()
+    - [x] Task 8: Consolidation+GraphMutated+cleanup
 - [ ] casehubio/neocortex#829 — Scenario validation
 - [ ] casehubio/neocortex#819 — Proactive
 - [ ] casehubio/neocortex#805 — Social
@@ -43,3 +43,7 @@ flyway-next-v:
 - [ ] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/examples#204 — wacky-manor-api-breaks
 - [ ] casehubio/examples#961 — Runtime cognitive pipeline journal
+
+## Deferred
+- [ ] GraphMutated CDI listener (S / Med) [casehubio/neocortex] — GraphMutationRecorded CDI event lacks agentId — needs cross-cutting context propagation (ThreadLocal or event enrichment) to correlate mutations with agents
+- [ ] ConsolidationScheduler journal entries (S / Med) [casehubio/neocortex] — ConsolidationScheduler phases need journal.record() calls with per-phase input/output node counts — requires reading ConsolidationPhase API to determine what data is available at phase completion
