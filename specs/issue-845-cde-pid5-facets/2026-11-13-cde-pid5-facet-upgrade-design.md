@@ -60,9 +60,13 @@ disposition:
 
 When an engram file is imported to create an Eidos agent descriptor, ALL personality channels must be preserved — not just disposition axes and Jungian weights.
 
-**Step 0c: Deprecate MindMap personality properties**
+**Step 0c: Clarify MindMap's role — runtime state, not baseline**
 
-`PersonalityProfileHandler` continues to write personality properties to MindMap for backward compatibility, but a deprecation note is added. No new readers should be built for `personality-*` or `jungian-function-*` MindMap properties. The authoritative path is Eidos.
+MindMap stores **runtime personality state** — situational shifts, stress degradation (#712), experience-modulated capacities (#851), growth trajectories. It does NOT store baseline personality definitions.
+
+`PersonalityProfileHandler` currently writes baseline AMPD scores to MindMap properties — this is the wrong store. Baseline personality belongs in Eidos. The handler should be updated to stop writing baseline personality data that duplicates the engram.
+
+Future architecture (connects to #712): the CDE bridge reads Eidos baseline + MindMap personality deltas → computes effective personality → derives cognitive defaults. The rules for HOW personality shifts (shadow archetype profiles) live in Eidos. The CURRENT shift state lives in MindMap.
 
 ### Part 1: Fix the bridge
 
