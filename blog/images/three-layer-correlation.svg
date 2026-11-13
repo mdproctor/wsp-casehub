@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 260" font-family="system-ui, -apple-system, sans-serif" font-size="12">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="350" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#333">Three-Layer Correlation — agentId + eventRef Joins Everything</text>
+
+  <!-- Layer 1 -->
+  <rect x="20" y="40" width="200" height="80" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="120" y="60" text-anchor="middle" font-weight="bold" fill="#1565c0" font-size="13">Derivation Journal</text>
+  <text x="120" y="78" text-anchor="middle" fill="#444" font-size="11">personality → cognitive defaults</text>
+  <text x="120" y="96" text-anchor="middle" fill="#888" font-size="10">eventRef: init</text>
+  <text x="120" y="112" text-anchor="middle" fill="#888" font-size="10">DerivationStarted, StageComputed, ...</text>
+
+  <!-- Layer 2 -->
+  <rect x="250" y="40" width="200" height="80" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="350" y="60" text-anchor="middle" font-weight="bold" fill="#2e7d32" font-size="13">Runtime Journal</text>
+  <text x="350" y="78" text-anchor="middle" fill="#444" font-size="11">stimulus → appraisal → response</text>
+  <text x="350" y="96" text-anchor="middle" fill="#888" font-size="10">eventRef: tick:47</text>
+  <text x="350" y="112" text-anchor="middle" fill="#888" font-size="10">MoodShifted, AppraisalRecorded, ...</text>
+
+  <!-- Layer 3 -->
+  <rect x="480" y="40" width="200" height="80" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="580" y="60" text-anchor="middle" font-weight="bold" fill="#e65100" font-size="13">Session Transcript</text>
+  <text x="580" y="78" text-anchor="middle" fill="#444" font-size="11">the character's words/actions</text>
+  <text x="580" y="96" text-anchor="middle" fill="#888" font-size="10">eventRef: tick:47</text>
+  <text x="580" y="112" text-anchor="middle" fill="#888" font-size="10">"I'm not afraid of you, Muttley."</text>
+
+  <!-- Arrows -->
+  <line x1="220" y1="80" x2="250" y2="80" stroke="#666" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="450" y1="80" x2="480" y2="80" stroke="#666" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Correlation line -->
+  <rect x="140" y="150" width="420" height="40" rx="6" fill="#f5f5f5" stroke="#999"/>
+  <text x="350" y="175" text-anchor="middle" fill="#333" font-size="13" font-weight="bold">agentId + eventRef = the join key across all three layers</text>
+
+  <!-- Trace example -->
+  <rect x="60" y="210" width="580" height="36" rx="6" fill="#fafafa" stroke="#ccc"/>
+  <text x="350" y="233" text-anchor="middle" fill="#555" font-size="11">"Why did Dick Dastardly say that?" → tick:47 → AppraisalRecorded(fear:0.8) → StageComputed(NEG_AFFECT:0.85)</text>
+</svg>
