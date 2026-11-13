@@ -2,69 +2,78 @@
 
 ## Current Work
 
-**Branch:** `issue-935-session-reuse-audit` (workspace), `issue-832-capacity-gaps` (neocortex), `main` (examples)
+**Branch:** `issue-935-session-reuse-audit` (workspace), `issue-845-cde-pid5-facets` (neocortex), `main` (examples)
 **Queue active:** casehubio/neocortex#845 — Upgrade CDE derivations to use PID-5 facets
-**Queue file:** `.queue` with 7 tasks injected for #845
+**Queue file:** `.queue`
 
 ### Session Summary
 
-Design session for #845. Closed two completed issues (#805, #832), then deep-dived into the PID-5/Jungian integration design with literature verification and pipeline architecture discovery.
+Implementation session for #845. Completed Tasks 3-7 (all CDE derivation method upgrades + tests). Tasks 1-2 deferred — `AgentDisposition` is in the eidos repo (not in this slot), not the agency repo as the plan assumed.
 
 ### What Was Done
 
-**#805 — Social emotion regulation — CLOSED:**
-Already fully implemented across #806, #851, #902, #903. Closed with implementation summary comment.
+**#845 — CDE PID-5 facet upgrade — TASKS 3-7 COMPLETE:**
 
-**#832 — Capacity gap mapping — CLOSED:**
-Created `neocortex/docs/research/capacity-gap-mapping.md` cataloging known emotion-personality capacity gaps across 5 subsystems (regulation, proactive, social, ToM, defence). Includes development checklist for new features.
+Commit `504f1c91` on `issue-845-cde-pid5-facets` branch in neocortex.
 
-**#845 — CDE PID-5 facet upgrade — DESIGN COMPLETE, PLAN WRITTEN:**
+**Category A — 6 axes methods upgraded to accept PID-5 facets:**
+- `deriveMoodBaseline`: Risk Taking→pleasure, Emotional Lability→arousal, Withdrawal→dominance
+- `deriveCuriosity`: Withdrawal→structural, Impulsivity→quality, Risk Taking→centrality
+- `deriveCbrStrategy`: Impulsivity→minSimilarity, Risk Taking→decayDays
+- `deriveSocialCognition`: Suspiciousness→trustRate
+- `deriveHabituationConfig`: Impulsivity→habRate/repTol, Risk Taking→novelty
+- `deriveRegulationDefaults`: Emotional Lability→reappraisal, Callousness/Withdrawal→social
 
-Major design findings:
-1. **Pipeline fragmentation discovered.** AMPD/PID-5 facets are written to MindMap by `PersonalityProfileHandler` but NEVER read back. `EidosCognitiveProfileBridge` passes `List.of()` for personalityFacets. Five CDE methods that accept facets are dead code in production.
-2. **Eidos/MindMap seam clarified.** Eidos = baseline personality (engram). MindMap = runtime personality deltas (shifts, degradation, growth). `PersonalityProfileHandler` was writing baseline data to the wrong store.
-3. **Two-tier evidence model established.** Tier 1: peer-reviewed modulations (Impulsivity→WM, Callousness→empathy, Anxiousness→fear). Tier 2: first-principles extensions via FFM bridge (McCrae & Costa 1989 + Gore & Widiger 2013), documented with reasoning chains.
-4. **PID-5 and Jungian are complementary, not competing.** PID-5 = WHAT traits. Jungian = HOW cognition works. Design extends rather than rewrites — Category A replaces DispositionAxes, Category B adds facet modulation to Jungian base.
+**Category B Tier 1 — 3 peer-reviewed modulations:**
+- `deriveCapacity`: Impulsivity→WM (Heydarloo 2024, Kofler 2024)
+- `deriveExtractionBias`: Callousness→relationship bias (Blair 2005/2008/2013)
+- `deriveAppraisalWeights`: Anxiousness→fear (Bar-Haim 2007)
 
-Artifacts produced:
-- Design spec: `wsp-casehub/specs/issue-845-cde-pid5-facets/2026-11-13-cde-pid5-facet-upgrade-design.md`
-- Decisions (D1-D5): `wsp-casehub/specs/issue-845-cde-pid5-facets/decisions.md`
-- Era 7 research doc: `neocortex/docs/research/era7-personality-trait-integration-research.md`
-- Implementation plan: `wsp-casehub/plans/2026-11-13-cde-pid5-facet-upgrade.md`
+**Category B Tier 2 — 5 FFM bridge modulations (McCrae & Costa 1989, Gore & Widiger 2013):**
+- `deriveExtractionBias`: Emotional Lability→affect sensitivity
+- `deriveAppraisalWeights`: Risk Taking→fear, Impulsivity→urgency
+- `deriveCapacity`: Anxiousness→associative reach
+- `deriveGraphStructure`: Withdrawal→connective bias
 
-**#712 — Shadow archetypes — UPDATED:**
-Added implementation insights comment with Eidos/MindMap seam architecture, PID-5 facet delta representation for shadow degradation, and answers to all 4 open design questions.
+**Integration test:** Full pipeline test with combined Jungian + AMPD facets.
+**Backward compat:** Added overloads for `deriveRegulationDefaults(axes)`, `deriveCapacity(profile)`, `deriveAppraisalWeights(profile, axes)` to avoid breaking 20+ existing callers.
+
+**Test results:** 23 new tests + 440 total cognitive-index tests + 7 cognitive-eidos bridge tests = 0 failures.
+
+### Plan correction — repo mismatch
+
+The plan assumed `AgentDisposition` lives in the **agency** repo (`agency/eidos-api/`). It actually lives in the **eidos** repo (`/Users/mdproctor/claude/casehub/eidos/api/`). The eidos repo is not in slot 196.
+
+This means:
+- Task 1 (extend `AgentDisposition` with `ampdFacets`) → requires eidos repo
+- Task 2 (fix `EidosCognitiveProfileBridge` to read AMPD facets) → depends on Task 1
+
+Both are deferred. The CDE methods are fully upgraded and tested — they accept `List<PersonalityFacet>` via `DescriptorView`. When Tasks 1-2 are done, facets will flow from Eidos through the bridge automatically with no further CDE changes.
 
 ### What's Next
 
-**Implementation of #845** — follow the plan at `plans/2026-11-13-cde-pid5-facet-upgrade.md`:
-
-1. **Batch 1: Pipeline foundation** — Extend `AgentDisposition` with `ampdFacets` (agency repo), fix `EidosCognitiveProfileBridge` to read them (neocortex). This is the prerequisite.
-2. **Batch 2: Category A** — Upgrade 6 DispositionAxes methods to use `facetScore()`. Mechanical, follows `deriveSearchBudgetDefaults` reference pattern.
-3. **Batch 3: Category B Tier 1** — 3 peer-reviewed modulations with citations.
-4. **Batch 4: Category B Tier 2 + eval** — 5 FFM bridge modulations + integration test + eval validation.
+1. **Task 1:** Add `ampdFacets` field to `AgentDisposition` in the eidos repo. Requires either adding the eidos repo to slot 196 or working in the canonical copy.
+2. **Task 2:** Fix `EidosCognitiveProfileBridge.toDescriptorView()` to map `AmpdFacet` → `PersonalityFacet`. Currently passes `List.of()` for facets.
+3. **Eval validation:** Run wacky-manor fast tests to verify downstream integration.
+4. **Remaining queue:** #921, #925, #938, #941
 
 ### Key Design Decisions
 
 - **D1:** Extend, not rewrite — PID-5 and Jungian measure complementary dimensions
-- **D2:** Fix bridge (subsumed by D5)
-- **D3:** Category A — PID-5 replaces DispositionAxes lookups
-- **D4:** Category B — two-tier modulation (Tier 1 peer-reviewed, Tier 2 FFM bridge)
-- **D5:** Unify pipeline — Engram → Eidos → Bridge → CDE, single path
-
-### Cross-Repo Dependencies
-
-- **Agency repo** must be modified first (Task 1 — AgentDisposition schema)
-- **Neocortex** depends on the updated agency jar
-- IntelliJ MCP required for implementation (was unavailable during planning session)
+- **D2:** Fix bridge (subsumed by D5) — DEFERRED (eidos repo not in slot)
+- **D3:** Category A — PID-5 modulates DispositionAxes lookups — DONE
+- **D4:** Category B — two-tier modulation (Tier 1 peer-reviewed, Tier 2 FFM bridge) — DONE
+- **D5:** Unify pipeline — Engram → Eidos → Bridge → CDE, single path — PARTIALLY DONE (CDE ready, bridge deferred)
 
 ### Branch State
 
-- Neocortex: `issue-832-capacity-gaps` — has era7 research doc + capacity gap mapping
+- Neocortex: `issue-845-cde-pid5-facets` — all CDE method upgrades + 23 new tests
+- Neocortex: `issue-832-capacity-gaps` — has era7 research doc + capacity gap mapping (not merged to main)
 - Workspace: `issue-935-session-reuse-audit` — has specs, decisions, plan, queue updates
 - Examples: `main` (clean)
-- Queue: 5 remaining issues after #845 (#921, #925, #938, #941)
 
 ### Fast Tests
 
-Not run this session (design-only session, no code changes to CDE methods).
+- cognitive-index: 440 tests, 0 failures (full suite)
+- cognitive-eidos: 7 tests, 0 failures (bridge module)
+- wacky-manor fast tests: not yet run this session
