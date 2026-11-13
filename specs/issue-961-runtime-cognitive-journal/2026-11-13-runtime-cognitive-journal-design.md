@@ -10,7 +10,7 @@ The derivation journal (#960) captures the static personality-to-cognition pipel
 
 Given a 300-tick scenario transcript, there's no way to answer: "which prompt at tick 47 caused this character's fear appraisal to fire, and how did that trace back to their PID-5 facet scores?"
 
-This design introduces a unified cognitive journal that replaces five competing observability mechanisms with a single typed entry model, enabling root-to-tip causal tracing from stimulus through every pipeline stage to response.
+This design introduces a unified cognitive journal that replaces five competing observability mechanisms with a single typed entry model, enabling causal tracing through the appraisal-regulation-mood-drive pipeline — the core cognitive processing chain that shapes character behavior.
 
 ## Problem Analysis
 
@@ -37,7 +37,7 @@ PipelineTrace is an end-of-tick photograph. It captures what the final state IS,
 - Goal formation decisions
 - All intermediate state between stages
 
-The journal captures events as they flow through the pipeline — you see every step, every decision, every intermediate state change. Root to tip.
+The journal captures events as they flow through the core cognitive pipeline — appraisal, regulation, mood, drives, goals, memory, and consolidation. Stages not instrumented in this cut (narrative, strategy learning, reflection, per-subject mental models, temporal focus, memory hygiene) are additive — new entry types can be added to the sealed hierarchy later without changing the CognitiveJournal interface.
 
 ## Architecture
 
@@ -45,83 +45,85 @@ The journal captures events as they flow through the pipeline — you see every 
 
 **1. CognitiveEntry** — sealed interface in `cognition-api`
 
-Every cognitive state change in the system is a CognitiveEntry. Every entry carries `agentId()`, `eventRef()`, `timestamp()`.
+Every cognitive state change in the system is a CognitiveEntry. Every entry carries `tenantId()`, `agentId()`, `eventRef()`, `timestamp()`. The tenantId enables tenant-scoped journal queries in multi-tenant deployments.
 
 ```java
 public sealed interface CognitiveEntry {
 
+    String tenantId();
     String agentId();
     EventRef eventRef();
     Instant timestamp();
 
-    // Derivation domain (replaces DerivationObserver callbacks)
-    record DerivationStarted(String agentId, EventRef eventRef, Instant timestamp,
+    // Derivation domain (bridges DerivationObserver callbacks)
+    record DerivationStarted(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                              String axes, List<String> profileTerms,
                              List<String> facetNames, List<String> goals) implements CognitiveEntry {}
 
-    record StageComputed(String agentId, EventRef eventRef, Instant timestamp,
+    record StageComputed(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                          String method, Map<String, Double> baseValues,
                          List<FacetEffect> facetEffects,
                          Map<String, Double> finalValues) implements CognitiveEntry {}
 
-    record DataFlowed(String agentId, EventRef eventRef, Instant timestamp,
+    record DataFlowed(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                       String sourceMethod, String sourceField,
                       String targetMethod, String targetField,
                       double value) implements CognitiveEntry {}
 
-    record DerivationCompleted(String agentId, EventRef eventRef,
+    record DerivationCompleted(String tenantId, String agentId, EventRef eventRef,
                                Instant timestamp) implements CognitiveEntry {}
 
-    // Runtime tick domain (replaces PipelineTrace snapshot)
-    record AttentionBriefed(String agentId, EventRef eventRef, Instant timestamp,
+    // Runtime tick domain
+    record AttentionBriefed(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                             String briefingContent) implements CognitiveEntry {}
 
-    record MoodShifted(String agentId, EventRef eventRef, Instant timestamp,
+    record MoodShifted(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                        MoodBaseline before, MoodBaseline after,
                        String trigger) implements CognitiveEntry {}
 
-    record DriveActivated(String agentId, EventRef eventRef, Instant timestamp,
+    record DriveActivated(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                           List<String> driveCategories,
                           Map<String, Double> intensities) implements CognitiveEntry {}
 
-    record AppraisalRecorded(String agentId, EventRef eventRef, Instant timestamp,
+    record AppraisalRecorded(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                              AppraisalResult result,
                              Map<String, Double> concernSalience) implements CognitiveEntry {}
 
-    record RegulationDecided(String agentId, EventRef eventRef, Instant timestamp,
+    record RegulationDecided(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                              EmotionRegulationResult result) implements CognitiveEntry {}
 
-    record GoalDecided(String agentId, EventRef eventRef, Instant timestamp,
+    record GoalDecided(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                        List<String> goalsFormed,
                        List<String> goalsRevised) implements CognitiveEntry {}
 
-    record CapsSettled(String agentId, EventRef eventRef, Instant timestamp,
+    record CapsSettled(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                        Map<String, Double> inputActivations,
-                       CapsSettlingSnapshot settling) implements CognitiveEntry {}
+                       CapsSettlingResult settling) implements CognitiveEntry {}
 
-    // Memory and consolidation domain (replaces leaf observers)
-    record MemoryRecalled(String agentId, EventRef eventRef, Instant timestamp,
+    // Memory and consolidation domain
+    record MemoryRecalled(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                           String domain, int resultCount) implements CognitiveEntry {}
 
-    record MemoryFormed(String agentId, EventRef eventRef, Instant timestamp,
+    record MemoryFormed(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                         String domain, double salienceScore,
                         String contentSummary) implements CognitiveEntry {}
 
-    record GraphMutated(String agentId, EventRef eventRef, Instant timestamp,
+    record GraphMutated(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                         GraphMutation mutation) implements CognitiveEntry {}
 
-    record Consolidated(String agentId, EventRef eventRef, Instant timestamp,
+    record Consolidated(String tenantId, String agentId, EventRef eventRef, Instant timestamp,
                         int inputNodes, int outputNodes,
                         long elapsedMs, String phase) implements CognitiveEntry {}
 
-    record ObservationCacheRefreshed(String agentId, EventRef eventRef, Instant timestamp,
+    record ObservationCacheRefreshed(String tenantId, String agentId, EventRef eventRef,
+                                     Instant timestamp,
                                      int condensedNodes, int recentNodes,
                                      int tokenBudget,
                                      int actualTokens) implements CognitiveEntry {}
 }
 ```
 
-FacetEffect is preserved as a standalone record (already exists in DerivationObserver).
+**Type extraction:** FacetEffect is extracted from DerivationObserver to a standalone top-level record in cognition-api (it's currently `DerivationObserver.FacetEffect` — an inner type in L16). CapsSettlingSnapshot is extracted from PipelineTrace to a standalone `CapsSettlingResult` record in cognition-api (currently `PipelineTrace.CapsSettlingSnapshot` — a nested type).
 
 **2. CognitiveJournal** — single-method interface in `cognition-api`
 
@@ -232,72 +234,142 @@ switch (eventRef) {
 }
 ```
 
-### Journal Lifecycle — Per-EventRef Scope
+### Journal Lifecycle — Routing vs Accumulation
 
-CognitiveTrace is scoped per-eventRef:
+CognitiveJournal and CognitiveTrace serve different roles:
+
+- **CognitiveJournal** — the stable routing interface. `@ApplicationScoped` CDI bean. Dispatches entries to the appropriate scope-local CognitiveTrace and to the persistent CognitiveJournalStore.
+- **CognitiveTrace** — scope-local accumulator. Created per event boundary, not shared across scopes. Thread-confined (ArrayList is not thread-safe; no sharing between tick and consolidation threads).
+
+The `@ApplicationScoped` CognitiveJournal implementation manages scope isolation internally:
+
+```java
+@ApplicationScoped
+public class ScopedCognitiveJournal implements CognitiveJournal {
+
+    private final CognitiveJournalStore store;
+    private final ThreadLocal<CognitiveTrace> currentTrace = new ThreadLocal<>();
+
+    public void beginScope(Predicate<CognitiveEntry> filter) {
+        currentTrace.set(new CognitiveTrace(filter));
+    }
+
+    @Override
+    public void record(CognitiveEntry entry) {
+        CognitiveTrace trace = currentTrace.get();
+        if (trace != null) trace.record(entry);
+        store.persist(entry);
+    }
+
+    public CognitiveTrace endScope() {
+        CognitiveTrace trace = currentTrace.get();
+        currentTrace.remove();
+        return trace;
+    }
+}
+```
+
+ThreadLocal ensures tick-thread and consolidation-thread traces are independent. Each scope accumulates at most ~16 entries.
 
 | Scope | Lifecycle | Flush point |
 |-------|-----------|-------------|
-| `tick:N` | CognitionCore.tick() start → end | End of tick, entries persisted to journal store |
-| `init` / `event:id` | Derivation start → complete | Derivation completion |
-| `consolidation:tick:N` | Consolidation run start → end | Consolidation completion |
+| `tick:N` | `beginScope()` at tick start → `endScope()` at tick end | End of tick |
+| `init` / `event:id` | `beginScope()` at derivation start → `endScope()` at derivation complete | Derivation completion |
+| `consolidation:tick:N` | `beginScope()` at consolidation start → `endScope()` at run end | Consolidation completion |
 
-At scope completion, accumulated entries are persisted to the journal store and the in-memory trace is cleared. At most ~16 entries in memory at any time (one per pipeline stage in the current tick).
+### Tick Counter Sequencing
+
+The tick counter is currently incremented at the END of `CognitionCore.tick()` (line 345: `tickCounter.incrementAndGet()`). Journal entries need the tick number at recording time. Change: **increment the tick counter at the START of tick()**, before any entries are recorded. The resulting `EventRef.tick(N)` is used for all entries within that tick. PipelineSnapshotStore's tick number must be aligned — the snapshot at tick N corresponds to journal entries at `tick:N`.
 
 ### Journal Injection
 
-CognitiveJournal as a field on CognitionCore, passed to orchestrators during configuration:
+CognitiveJournal is a CDI `@ApplicationScoped` bean. CognitionCore and ConsolidationScheduler both receive it through their existing CDI/configuration paths:
 
-```
-CognitionCoreFactory
-  └── creates CognitiveJournal instance
-  └── passes to CognitionCore via configure*() methods
-  └── passes same instance to ConsolidationScheduler via CDI
+**CognitionCore** — add a `configureCognitiveJournal(CognitiveJournal journal)` method on CognitionCore, called by CognitivePipelineBuilder during pipeline construction. CognitivePipelineBuilder receives the journal via CDI injection. CognitionCore stores the journal as a field and calls `beginScope()`/`endScope()` around each tick.
 
-CognitionCore.tick()
-  ├── journal.record(AttentionBriefed(...))       // FOUNDATION
-  ├── journal.record(MoodShifted(...))             // FOUNDATION (pre-appraisal)
-  ├── journal.record(DriveActivated(...))          // DERIVED (first pass)
-  ├── journal.record(AppraisalRecorded(...))       // DERIVED
-  ├── journal.record(MoodShifted(...))             // post-DERIVED (re-tick)
-  ├── journal.record(DriveActivated(...))          // post-DERIVED (re-tick)
-  ├── journal.record(RegulationDecided(...))       // DERIVED
-  ├── journal.record(GoalDecided(...))             // TERMINAL
-  ├── journal.record(CapsSettled(...))             // when CAPS runs
-  └── flush to journal store                       // end of tick
+**ConsolidationScheduler** — add `CognitiveJournal` as a CDI constructor parameter (`@Inject`). ConsolidationScheduler calls `beginScope()`/`endScope()` around each consolidation run. Since ScopedCognitiveJournal uses ThreadLocal, the consolidation thread's trace is independent of any tick thread.
 
-ConsolidationScheduler (async, CDI-injected same instance)
-  ├── journal.record(MemoryFormed(...))
-  ├── journal.record(Consolidated(...))
-  └── flush to journal store                       // end of consolidation run
-```
-
-For derivation recording, CognitiveDerivationEngine (L21, cognitive-index) continues to use DerivationObserver (L16). A bridge adapter at L25 (cognition module) converts DerivationObserver callbacks into CognitiveEntry records:
+**DerivationJournalBridge** — CognitiveDerivationEngine (L21, cognitive-index) continues to use DerivationObserver (L16). A bridge adapter at L25 (cognition module) converts DerivationObserver callbacks into CognitiveEntry records:
 
 ```java
 public class DerivationJournalBridge implements DerivationObserver {
     private final CognitiveJournal journal;
+    private final String tenantId;
 
     @Override
     public void onPipelineStart(String agentId, String eventRef, PipelineInput input) {
         journal.record(new CognitiveEntry.DerivationStarted(
-            agentId, EventRef.parse(eventRef), Instant.now(),
+            tenantId, agentId, EventRef.parse(eventRef), Instant.now(),
             input.axes(), input.profileTerms(), input.facetNames(), input.goals()));
     }
     // ... same pattern for other callbacks
 }
 ```
 
+```
+CognitionCore.tick(tenantId, agentId)
+  ├── int tick = tickCounter.incrementAndGet()     // FIRST — tick number available
+  ├── EventRef ref = EventRef.tick(tick)
+  ├── journal.beginScope(filter)
+  ├── journal.record(AttentionBriefed(...))         // FOUNDATION
+  ├── journal.record(MoodShifted(...))              // FOUNDATION (pre-appraisal)
+  ├── journal.record(DriveActivated(...))           // DERIVED (first pass)
+  ├── journal.record(AppraisalRecorded(...))        // DERIVED
+  ├── journal.record(MoodShifted(...))              // post-DERIVED (re-tick)
+  ├── journal.record(DriveActivated(...))           // post-DERIVED (re-tick)
+  ├── journal.record(RegulationDecided(...))        // DERIVED
+  ├── journal.record(GoalDecided(...))              // TERMINAL
+  ├── journal.record(CapsSettled(...))              // when CAPS runs
+  └── CognitiveTrace trace = journal.endScope()     // available for same-tick consumers
+
+ConsolidationScheduler.runPhases(tenantId)
+  ├── journal.beginScope(filter)
+  ├── journal.record(MemoryFormed(...))
+  ├── journal.record(Consolidated(...))
+  └── journal.endScope()
+```
+
+### CognitiveJournalStore — Persistent Store
+
+CognitiveJournalStore persists entries to durable storage and supports cross-tick queries. Placed in `cognitive-observability-core` (L23), following the PipelineSnapshotStore pattern.
+
+```java
+public interface CognitiveJournalStore {
+
+    void persist(CognitiveEntry entry);
+
+    void persistAll(List<CognitiveEntry> entries);
+
+    List<CognitiveEntry> findByAgent(String tenantId, String agentId);
+
+    List<CognitiveEntry> findByEventRef(String tenantId, String agentId, EventRef eventRef);
+
+    List<CognitiveEntry> findByTickRange(String tenantId, String agentId, int fromTick, int toTick);
+
+    <T extends CognitiveEntry> List<T> findByType(String tenantId, String agentId, Class<T> type);
+
+    List<CognitiveEntry> findByTimeWindow(String tenantId, String agentId,
+                                           Instant from, Instant to);
+}
+```
+
+The store is backed by the same storage mechanism as PipelineSnapshotStore (in-memory for tests, SQLite or equivalent for production). Entries are serialized as JSON using Jackson's `@JsonTypeInfo` on the sealed hierarchy — each record type gets a discriminator for deserialization. A contract test (CognitiveJournalStoreContractTest) verifies persist/query round-trips for all 16 entry types.
+
 ### Module Placement
 
 | Component | Module | Layer | Rationale |
 |-----------|--------|-------|-----------|
-| CognitiveEntry (sealed + 16 records) | cognition-api | L25 | Entry types reference AppraisalResult, EmotionRegulationResult, CapsSettlingSnapshot — all L25 types |
+| CognitiveEntry (sealed + 16 records) | cognition-api | L25 | Entry types reference AppraisalResult, EmotionRegulationResult — all L25 types |
 | CognitiveJournal (interface) | cognition-api | L25 | Cognition SPI |
 | CognitiveTrace (in-memory) | cognition-api | L25 | Same as DerivationTrace pattern |
 | EventRef (sealed value type) | cognition-api | L25 | Correlation type used by entries |
+| FacetEffect (extracted record) | cognition-api | L25 | Extracted from DerivationObserver.FacetEffect (L16) |
+| CapsSettlingResult (extracted record) | cognition-api | L25 | Extracted from PipelineTrace.CapsSettlingSnapshot |
+| ScopedCognitiveJournal | cognition | L25 | @ApplicationScoped routing implementation |
 | DerivationJournalBridge | cognition | L25 | Adapts L16 DerivationObserver → L25 CognitiveEntry |
-| CognitiveJournalStore (persistence) | cognitive-observability-core | L23 | Same split as PipelineSnapshotStore |
+| CognitiveJournalStore (interface) | cognitive-observability-core | L23 | Persistent store API |
+
+**New module dependency:** cognition-api adds an explicit dependency on `cognitive-observability-api` (L16) for `GraphMutation`. Currently this is only transitive through cognitive-index. Making it explicit prevents silent breakage if cognitive-index's deps change.
 
 ### Relationship to PipelineTrace
 
@@ -312,15 +384,15 @@ PipelineSnapshotStore consumers (CognitionService.pipelineDump(), CognitivePipel
 
 GraphMutationRecorded CDI events continue to be fired by MutationTrackingDecorator for domain-logic consumers (EntityErasureTokenHandler, EntityMergeTokenHandler) that need reactive notification. The journal subsumes the observability role — a CDI listener also writes a GraphMutated entry for correlation and querying.
 
-### Mechanisms Eliminated
+### Mechanism Disposition
 
-| Old mechanism | Replaced by | Migration |
-|---------------|-------------|-----------|
-| DerivationObserver (L16) | CognitiveEntry derivation types + DerivationJournalBridge | Bridge adapter at L25 converts callbacks to entries |
-| DerivationTrace (L16) | CognitiveTrace | Unified trace with same query patterns |
-| MemoryRecallObserver | CognitiveEntry.MemoryRecalled | Direct journal.record() calls |
-| CompactionObserver | Deleted (dead code) | No consumers exist |
-| ObservationCacheObserver | Deleted (dead code) | No consumers exist |
+| Old mechanism | Status | Migration |
+|---------------|--------|-----------|
+| DerivationObserver (L16) | **Bridged** — interface preserved, used by CognitiveDerivationEngine (L21). DerivationJournalBridge at L25 converts callbacks to CognitiveEntry records. | No breaking changes to L21 consumers |
+| DerivationTrace (L16) | **Superseded** by CognitiveTrace | Direct replacement with same query patterns |
+| MemoryRecallObserver | **Eliminated** | Replace 4 call sites (CognitiveMemoryRetriever) with direct journal.record() |
+| CompactionObserver | **Deleted** (dead code) | No consumers exist |
+| ObservationCacheObserver | **Deleted** (dead code) | No consumers exist |
 
 ### Three-Layer Correlation Model
 
@@ -331,6 +403,8 @@ The journal enables joining three layers by `agentId` + `eventRef`:
 3. **Session transcript** (output) — the character's actual words/actions. Correlated via the same eventRef on prompt generation.
 
 A viewer or LLM can trace any line of dialogue backward through all three layers to the facet score that shaped it.
+
+**Within-scope ordering:** Within a single eventRef scope, entry ordering is guaranteed by insertion order in CognitiveTrace.entries(), not by timestamp. Timestamps within a tick are near-identical (nanosecond differences on the same thread). The causal chain is the list order, not the clock.
 
 ## Testing Strategy
 
@@ -354,17 +428,25 @@ A viewer or LLM can trace any line of dialogue backward through all three layers
 ## Scope
 
 ### In scope
-- [ ] CognitiveEntry sealed interface with 16 record types
+- [ ] CognitiveEntry sealed interface with 16 record types (with tenantId, agentId, eventRef, timestamp)
 - [ ] CognitiveJournal single-method interface with NOOP sentinel
+- [ ] ScopedCognitiveJournal @ApplicationScoped routing implementation (ThreadLocal scope isolation)
 - [ ] CognitiveTrace accumulating implementation with query API
 - [ ] EventRef sealed value type with factory methods and parse/toString
+- [ ] Extract FacetEffect from DerivationObserver to standalone record in cognition-api
+- [ ] Extract CapsSettlingSnapshot from PipelineTrace to standalone CapsSettlingResult in cognition-api
 - [ ] DerivationJournalBridge adapter (DerivationObserver → CognitiveEntry)
-- [ ] CognitiveJournalStore persistent store (replaces journal-related storage)
+- [ ] CognitiveJournalStore interface and implementation (persistent store with query API)
+- [ ] CognitiveJournalStoreContractTest (persist/query round-trip for all 16 types)
+- [ ] Move tick counter increment to start of CognitionCore.tick()
+- [ ] Add cognition-api → cognitive-observability-api explicit dependency (for GraphMutation)
+- [ ] Add CognitiveJournal to CognitivePipelineBuilder and CognitionCore (configureCognitiveJournal)
+- [ ] Add CognitiveJournal to ConsolidationScheduler constructor (@Inject)
 - [ ] Instrument CognitionCore.tick() — record entries at point of computation for all 7 runtime stages
 - [ ] Instrument ConsolidationScheduler — record entries for memory formation, graph mutation, compaction
 - [ ] GraphMutated CDI listener — bridge GraphMutationRecorded events to journal entries
 - [ ] Delete dead code: CompactionObserver, ObservationCacheObserver
-- [ ] Remove MemoryRecallObserver — replace with direct journal.record() calls
+- [ ] Remove MemoryRecallObserver — replace 4 call sites with direct journal.record()
 
 ### Out of scope
 - PipelineTrace/PipelineSnapshotStore changes (coexists as-is)
