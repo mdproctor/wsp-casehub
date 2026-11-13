@@ -66,3 +66,17 @@ Tier 2 modulations are flagged in code comments with the reasoning chain. All mo
 **Sources:** Krueger et al. (2012); Gore & Widiger (2013); McCrae & Costa (1989); Blair (2005, 2008, 2013); Bar-Haim et al. (2007); Heydarloo et al. (2024); Kofler et al. (2024); Ekstrom (DSM-III/Jungian mapping)
 **Exploration:** deep-analysis
 **Status:** captured
+
+## D5: Unify personality pipeline — single path from engram to CDE
+
+**Choice:** Extend Eidos `AgentDisposition` to carry AMPD facets, fix the bridge to read them, deprecate MindMap personality properties. Single path: Engram → Eidos → Bridge → CDE.
+**Alternatives:**
+- Bridge reads from MindMap instead of Eidos — maintains store split, future LLM sessions will wire into whichever they find first
+- Keep both paths active — guaranteed fragmentation, different coding sessions pick different stores
+- Fix bridge only (original D2) — patches the symptom without fixing the architecture
+**Rationale:** Multiple personality data paths are a trap for LLM-assisted development. MindMap has all AMPD data with clean property names — a future session would naturally build a reader for it, creating a third bridge. Eidos must be the single authoritative personality store. The engram file (extract_personality.py output) is the universal character definition; importing it into Eidos must preserve all personality channels.
+**Trade-offs:** Cross-repo change (agency + neocortex). Eidos schema change affects all consumers of AgentDisposition. Mitigated by `ampdFacets` being a new optional field — existing descriptors without it continue to work.
+**Sources:** Pipeline trace: PersonalityProfileHandler writes to MindMap, nothing reads back. EidosCognitiveProfileBridge drops mbtiType/enneagramType and passes empty facets.
+**Exploration:** deep-analysis
+**Depends on:** None — this is the prerequisite for D2, D3, D4
+**Status:** captured

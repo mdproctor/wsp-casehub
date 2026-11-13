@@ -15,13 +15,60 @@ The CDE derives cognitive defaults from personality data. Two independent person
 
 PID-5 domains are maladaptive variants of the Big Five (Krueger et al. 2012; Gore & Widiger 2013). Jungian functions map to FFM via McCrae & Costa (1989). These two validated mappings create a dimension-level bridge: Jung → FFM → PID-5.
 
-**Current problem:** The AMPD facets are written to MindMap properties (`personality-ampd-*`) but never read back into the cognitive pipeline. `EidosCognitiveProfileBridge.toDescriptorView()` passes `List.of()` for `personalityFacets`. Five CDE methods already accept facets but always receive empty lists in production.
+**Current problem:** The personality pipeline is fragmented across two stores with cascading data loss:
+
+1. `extract_personality.py` produces rich 13-framework personality data (the **engram** — universal character store)
+2. MindMap receives ALL data via `PersonalityProfileHandler` — but nothing reads it back. Dead store.
+3. Eidos `AgentDisposition` carries only disposition axes, Jungian weights, MBTI type, enneagram type — drops AMPD, OCEAN, Belbin, DISC, TK, SDI, Attachment, LoC
+4. `EidosCognitiveProfileBridge` passes `List.of()` for `personalityFacets` — even drops mbtiType/enneagramType that Eidos carries
+5. Five CDE methods that accept facets always receive empty lists in production
+
+Multiple data paths create a trap for future LLM sessions: MindMap has all the AMPD data with clean property names, tempting a future session to build a reader for it rather than routing through Eidos. One path, one source of truth prevents this.
 
 ## Architecture
 
+### Part 0: Unify the personality pipeline
+
+**Principle:** Engram → Eidos → Bridge → CDE. Single path, no forks.
+
+**Step 0a: Extend `AgentDisposition` (agency repo)**
+
+Add AMPD facet fields to the Eidos descriptor schema. `AgentDisposition` must carry:
+- Existing: disposition axes, dispositionProfile (Jungian), mbtiType, enneagramType
+- New: `ampdFacets` — list of facet name + score (0-100 integer, matching engram scale)
+
+The Eidos YAML format becomes:
+```yaml
+disposition:
+  mbtiType: INTJ
+  enneagramType: reformer
+  socialOrient: independent
+  riskAppetite:
+    - term: bold
+      weight: 0.95
+  dispositionProfile:
+    - term: Ti
+      weight: 0.35
+  ampdFacets:
+    - facet: callousness
+      score: 20
+    - facet: anxiousness
+      score: 70
+```
+
+**Step 0b: Update the engram import**
+
+When an engram file is imported to create an Eidos agent descriptor, ALL personality channels must be preserved — not just disposition axes and Jungian weights.
+
+**Step 0c: Deprecate MindMap personality properties**
+
+`PersonalityProfileHandler` continues to write personality properties to MindMap for backward compatibility, but a deprecation note is added. No new readers should be built for `personality-*` or `jungian-function-*` MindMap properties. The authoritative path is Eidos.
+
 ### Part 1: Fix the bridge
 
-**`EidosCognitiveProfileBridge.toDescriptorView()`** must read `personality-ampd-*` properties from the agent descriptor, convert 0-100 integer scores to 0.0-1.0 `PersonalityFacet` records, and populate the `personalityFacets` field on `DescriptorView`.
+**`EidosCognitiveProfileBridge.toDescriptorView()`** must read the full `AgentDisposition`:
+- `ampdFacets` → convert 0-100 to 0.0-1.0 `PersonalityFacet` records → populate `personalityFacets`
+- `mbtiType`, `enneagramType` → map into DescriptorView (currently dropped despite being available)
 
 This unlocks the 5 existing facet-accepting methods:
 - `deriveSearchBudgetDefaults`
