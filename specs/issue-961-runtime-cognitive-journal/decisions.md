@@ -7,13 +7,13 @@
 - Monolith multi-method observer (Approach A) — single interface with 15+ callback methods. Unified but interface grows with every new stage, violates OCP. Rejected: single-method + sealed types is strictly better.
 - Tick-scoped journal (Approach C) — journal flows through tick context. Doesn't cover derivation or consolidation lifecycles. Rejected: not truly unified.
 
-**Rationale:** Five existing observability mechanisms (DerivationObserver, PipelineTrace/MemoryRecallObserver, GraphMutationRecorded, PipelineSnapshotStore) each capture partial cognitive data in different formats with different correlation models. (CompactionObserver and ObservationCacheObserver exist in cognitive-observability-api but have zero references anywhere — dead code to be deleted, not unified.) GraphMutationRecorded is a CDI event (fire-and-forget via `@Observes`) rather than an observer interface; the journal subsumes its observation role while the CDI event mechanism may continue for downstream notification if needed. A single journal interface with typed entries eliminates all tension between competing observation mechanisms. The CognitiveJournal recording interface (`record(CognitiveEntry)`) never changes when new entry types are added. The sealed entry hierarchy grows by adding types to the `permits` clause — a mechanical source modification that triggers compile errors in consumers using exhaustive `switch` expressions, forcing explicit handling of new types. This is the intended design: compile-time safety at the cost of source stability in the hierarchy declaration. NOOP is a lambda. Predicate filtering at the trace level is more flexible than per-observer filtering.
+**Rationale:** Five existing observability mechanisms (DerivationObserver, PipelineTrace/MemoryRecallObserver, GraphMutationRecorded, PipelineSnapshotStore) each capture partial cognitive data in different formats with different correlation models. (CompactionObserver and ObservationCacheObserver exist in cognitive-observability-api but have zero references anywhere — dead code to be deleted, not unified.) GraphMutationRecorded is a CDI event (fire-and-forget via `@Observes`) rather than an observer interface; the journal subsumes its observability role (the `GraphMutated` entry type captures the same mutation data for journal queries and correlation). The CDI event mechanism continues unchanged — `MutationTrackingDecorator` keeps firing `GraphMutationRecorded` events for domain-logic consumers (`EntityErasureTokenHandler`, `EntityMergeTokenHandler`) that react to mutations for entity reference index maintenance. These handlers need immediate reactive notification, not historical journal access. A single journal interface with typed entries eliminates all tension between competing observation mechanisms. The CognitiveJournal recording interface (`record(CognitiveEntry)`) never changes when new entry types are added. The sealed entry hierarchy grows by adding types to the `permits` clause — a mechanical source modification that triggers compile errors in consumers using exhaustive `switch` expressions, forcing explicit handling of new types. This is the intended design: compile-time safety at the cost of source stability in the hierarchy declaration. NOOP is a lambda. Predicate filtering at the trace level is more flexible than per-observer filtering.
 
 **Trade-offs:** Refactoring five existing mechanisms is a large blast radius. Every producer and consumer of the old APIs changes. Worth it for a clean, unified design with no competing implementations.
 
 **Sources:** DerivationObserver (`cognitive-observability-api`), DerivationTrace, PipelineTrace (`cognition-api/.../trace/`), CognitionCore.tick() pipeline structure, #960 derivation journal pattern
 **Exploration:** deep-analysis
-**Status:** revised (R1-02: corrected mechanism count from seven to five — two are dead code. R1-04: clarified that CognitiveJournal interface never changes; sealed hierarchy permits clause grows intentionally.)
+**Status:** revised (R1-02: corrected mechanism count from seven to five — two are dead code. R1-04: clarified that CognitiveJournal interface never changes; sealed hierarchy permits clause grows intentionally. R2-01: clarified GraphMutationRecorded CDI events continue for domain-logic consumers; journal subsumes observability role only.)
 
 ## D2: Entry type inventory — 16 types across three domains
 
@@ -111,7 +111,7 @@ At scope completion, accumulated entries are persisted to the journal store and 
 
 ## D7: PipelineTrace coexistence — journal complements, does not replace
 
-**Choice:** PipelineTrace and PipelineSnapshotStore continue to exist alongside the journal. The journal replaces the leaf observation mechanisms (DerivationObserver, MemoryRecallObserver, GraphMutationRecorded). PipelineSnapshotStore remains for end-of-tick state snapshots.
+**Choice:** PipelineTrace and PipelineSnapshotStore continue to exist alongside the journal. The journal subsumes the observability role of the leaf observation mechanisms (DerivationObserver, MemoryRecallObserver, GraphMutationRecorded). GraphMutationRecorded CDI events continue to be fired for domain-logic consumers (entity token handlers). PipelineSnapshotStore remains for end-of-tick state snapshots.
 
 **Alternatives:**
 - Replace PipelineSnapshotStore entirely with journal reconstruction — reconstruct end-of-tick state from journal entries. Possible but expensive: requires replaying entries to build the snapshot, and `promptSections` (Map<String, String> of rendered prompt text) is a rendering side effect not captured by any cognitive state entry. Rejected for initial implementation: adds complexity with no benefit.
@@ -122,9 +122,9 @@ At scope completion, accumulated entries are persisted to the journal store and 
 - Explainability and debugging need the causal chain of state changes → CognitiveJournal with eventRef-scoped entries
 - PipelineCoherenceEvalTest needs trajectory serialization from snapshot sequences → PipelineSnapshotStore
 
-The four existing PipelineSnapshotStore consumers (CognitionService, CognitivePipelineDump, PipelineCoherenceEvalTest, GraphQL resolvers) are unaffected. D1's "unified" claim refers to unifying the five observation mechanisms, not replacing all state persistence.
+The four existing PipelineSnapshotStore consumers (CognitionService, CognitivePipelineDump, PipelineCoherenceEvalTest, GraphQL resolvers) are unaffected. D1's "unified" claim refers to unifying the five observation mechanisms, not replacing all state persistence. GraphMutationRecorded CDI events continue to be fired by MutationTrackingDecorator for domain-logic consumers (EntityErasureTokenHandler, EntityMergeTokenHandler) — the journal subsumes the observability role, not the reactive notification role.
 
 **Depends on:** D1 (journal scope), D4 (module placement)
-**Sources:** CognitionService.pipelineDump(), CognitivePipelineDump, PipelineCoherenceEvalTest, PipelineTrace.promptSections field
+**Sources:** CognitionService.pipelineDump(), CognitivePipelineDump, PipelineCoherenceEvalTest, PipelineTrace.promptSections field, EntityErasureTokenHandler, EntityMergeTokenHandler (entity-token-cdi)
 **Exploration:** surfaced by review (R1-08)
-**Status:** captured
+**Status:** revised (R2-01: clarified GraphMutationRecorded CDI events continue for domain-logic consumers. Changed "replaces" to "subsumes the observability role of.")
