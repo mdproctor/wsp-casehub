@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arrow-green" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .label { font-size: 13px; font-weight: 600; fill: #1e293b; }
+    .detail { font-size: 11px; fill: #64748b; }
+    .good { font-size: 11px; fill: #16a34a; font-weight: 600; }
+  </style>
+
+  <!-- Title -->
+  <text x="360" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b">Unified Pipeline — Single Path, No Forks</text>
+
+  <!-- Engram -->
+  <rect x="20" y="60" width="140" height="70" class="box" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="90" y="85" text-anchor="middle" class="label">Engram</text>
+  <text x="90" y="102" text-anchor="middle" class="detail">All 13 frameworks</text>
+  <text x="90" y="117" text-anchor="middle" class="detail">+ 13 AMPD facets</text>
+
+  <!-- Arrow -->
+  <line x1="160" y1="95" x2="195" y2="95" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- Eidos -->
+  <rect x="200" y="60" width="140" height="70" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="270" y="85" text-anchor="middle" class="label">Eidos</text>
+  <text x="270" y="102" text-anchor="middle" class="detail">Baseline personality</text>
+  <text x="270" y="117" text-anchor="middle" class="good">Full engram preserved</text>
+
+  <!-- Arrow -->
+  <line x1="340" y1="95" x2="375" y2="95" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- Bridge -->
+  <rect x="380" y="60" width="140" height="70" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="450" y="85" text-anchor="middle" class="label">Bridge</text>
+  <text x="450" y="102" text-anchor="middle" class="detail">Baseline + deltas</text>
+  <text x="450" y="117" text-anchor="middle" class="good">All channels mapped</text>
+
+  <!-- Arrow -->
+  <line x1="520" y1="95" x2="555" y2="95" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- CDE -->
+  <rect x="560" y="60" width="140" height="70" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="630" y="85" text-anchor="middle" class="label">CDE</text>
+  <text x="630" y="102" text-anchor="middle" class="detail">All methods active</text>
+  <text x="630" y="117" text-anchor="middle" class="good">Facets + Jungian</text>
+
+  <!-- MindMap below with separate role -->
+  <rect x="380" y="175" width="140" height="70" class="box" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="450" y="198" text-anchor="middle" class="label">MindMap</text>
+  <text x="450" y="215" text-anchor="middle" class="detail">Runtime deltas only</text>
+  <text x="450" y="232" text-anchor="middle" class="detail">Shifts, stress, growth</text>
+
+  <!-- Arrow from MindMap to Bridge -->
+  <line x1="450" y1="175" x2="450" y2="135" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-amber)" stroke-dasharray="5,3"/>
+
+  <!-- Labels -->
+  <text x="90" y="155" text-anchor="middle" class="detail" fill="#3b82f6">Who you ARE</text>
+  <text x="450" y="265" text-anchor="middle" class="detail" fill="#d97706">What's happening NOW</text>
+
+</svg>

@@ -79,4 +79,4 @@ The smoke test didn't just find a testing gap. It found a fundamental violation 
 
 The forty-four minute runtime is a feature, not a bug. It's long enough to see propagation effects that unit tests can't reveal: how drive intensities drift over consecutive ticks, whether memory accumulation changes the observation builder's output, whether regulation strategies compound correctly across emotional episodes. These are the dynamics that matter for believable cognitive agents, and they only manifest at scale.
 
-Twenty-five ticks. Three characters. One gap, closed. One contamination bug, found.
+Twenty-five ticks. Three characters. One gap, closed. One contamination bug, found.f 

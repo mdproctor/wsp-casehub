@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arrow-grey" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .label { font-size: 13px; font-weight: 600; fill: #1e293b; }
+    .detail { font-size: 11px; fill: #64748b; }
+    .loss { font-size: 11px; fill: #ef4444; font-weight: 600; }
+    .dead { font-size: 11px; fill: #dc2626; font-style: italic; }
+  </style>
+
+  <!-- Title -->
+  <text x="360" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b">Fragmented Pipeline — Cascading Data Loss</text>
+
+  <!-- Engram box -->
+  <rect x="20" y="55" width="200" height="70" class="box" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="120" y="78" text-anchor="middle" class="label">Engram</text>
+  <text x="120" y="95" text-anchor="middle" class="detail">13 frameworks</text>
+  <text x="120" y="110" text-anchor="middle" class="detail">13 AMPD facets + Jungian + axes</text>
+
+  <!-- Arrow to MindMap -->
+  <line x1="220" y1="75" x2="310" y2="165" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-grey)"/>
+
+  <!-- Arrow to Eidos -->
+  <line x1="220" y1="105" x2="310" y2="285" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-grey)"/>
+
+  <!-- MindMap box -->
+  <rect x="315" y="140" width="200" height="80" class="box" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="415" y="165" text-anchor="middle" class="label">MindMap</text>
+  <text x="415" y="182" text-anchor="middle" class="detail">Stores ALL data</text>
+  <text x="415" y="197" text-anchor="middle" class="dead">Nothing reads it back</text>
+  <text x="415" y="212" text-anchor="middle" class="dead">DEAD END</text>
+
+  <!-- Loss label 1 -->
+  <text x="540" y="165" class="loss">Lost: evidence,</text>
+  <text x="540" y="180" class="loss">confidence, sources</text>
+
+  <!-- Eidos box -->
+  <rect x="315" y="260" width="200" height="80" class="box" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="415" y="283" text-anchor="middle" class="label">Eidos Descriptor</text>
+  <text x="415" y="300" text-anchor="middle" class="detail">Axes + Jungian + MBTI</text>
+  <text x="415" y="315" text-anchor="middle" class="loss">Drops 9 of 13 frameworks</text>
+  <text x="415" y="330" text-anchor="middle" class="loss">No AMPD facets</text>
+
+  <!-- Arrow to Bridge -->
+  <line x1="515" y1="300" x2="570" y2="300" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-grey)"/>
+
+  <!-- Bridge box -->
+  <rect x="575" y="260" width="130" height="80" class="box" fill="#fce7f3" stroke="#ec4899"/>
+  <text x="640" y="283" text-anchor="middle" class="label">Bridge</text>
+  <text x="640" y="300" text-anchor="middle" class="detail">Reads axes +</text>
+  <text x="640" y="315" text-anchor="middle" class="detail">Jungian only</text>
+  <text x="640" y="330" text-anchor="middle" class="loss">Drops MBTI type</text>
+
+  <!-- Arrow to CDE -->
+  <line x1="640" y1="340" x2="640" y2="370" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- CDE box -->
+  <rect x="575" y="375" width="130" height="35" class="box" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="640" y="397" text-anchor="middle" class="label" fill="#dc2626">CDE: facets = []</text>
+
+</svg>
