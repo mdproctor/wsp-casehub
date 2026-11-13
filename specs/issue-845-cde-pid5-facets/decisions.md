@@ -41,17 +41,28 @@
 **Alternatives:**
 - Full facet rewrite — PID-5 doesn't measure cognitive style; compositions would be theoretically weaker than Jungian for these dimensions
 - No modulation — misses validated interactions (e.g., Impulsivity degrades working memory)
-**Rationale:** Each modulation must cite a peer-reviewed finding. The non-peer-reviewed "PID-5 maps to Jungian dynamics" source was rejected as insufficient.
+**Rationale:** PID-5 and Jungian measure complementary dimensions. The Big Five mediates between them: MBTI→FFM (McCrae & Costa 1989) and FFM→PID-5 (Gore & Widiger 2013) are both peer-reviewed. This creates a validated dimension-level bridge. Function-level extensions are first-principles reasoning grounded in that bridge. The goal is characters that feel real — eval coherence scores are the validation, not clinical diagnosis.
 
-Validated modulations:
+Two-tier modulation approach:
+
+**Tier 1 — Peer-reviewed direct evidence:**
 | Facet | Modulates | Direction | Citation |
 |---|---|---|---|
 | Impulsivity | working memory span (deriveCapacity) | degrades | Heydarloo et al. (2024) *Memory*; Kofler et al. (2024) *Frontiers in Psychiatry* |
 | Callousness | relationship bias (deriveExtractionBias) | reduces | Blair (2005, 2008, 2013) *Nature Reviews Neuroscience* |
 | Anxiousness | fear weight (deriveAppraisalWeights) | amplifies | Bar-Haim et al. (2007) *Psychological Bulletin* — 172-study meta-analysis, d=0.45 |
 
-Modulations without sufficient literature support are NOT included. Additional modulations can be added in future issues when citations are found.
-**Trade-offs:** Conservative scope — only 3 modulations vs the 5+ that "seem right." Prioritises correctness over coverage.
-**Sources:** See citation table above
+**Tier 2 — First-principles extensions via FFM bridge:**
+| Facet | Modulates | Direction | Reasoning chain |
+|---|---|---|---|
+| Emotional Lability | affect sensitivity (deriveExtractionBias) | amplifies | High lability = high Neuroticism (FFM) = amplified emotional reactivity |
+| Risk Taking | fear weight (deriveAppraisalWeights) | reduces | High risk = Disinhibition domain → reduced threat sensitivity |
+| Impulsivity | urgency (deriveAppraisalWeights) | amplifies | Disinhibition domain → immediate threat/opportunity weighting |
+| Anxiousness | associative reach (deriveCapacity) | narrows | Negative Affectivity → attentional narrowing (Bar-Haim adjacent) |
+| Withdrawal | connective bias (deriveGraphStructure) | reduces | Detachment domain → reduced social node connectivity |
+
+Tier 2 modulations are flagged in code comments with the reasoning chain. All modulations are testable via the eval framework — behavioral coherence is the validation gate.
+**Trade-offs:** Tier 2 modulations extend beyond direct peer-reviewed evidence. Mitigated by grounding in validated dimension-level bridge and eval-framework validation.
+**Sources:** Krueger et al. (2012); Gore & Widiger (2013); McCrae & Costa (1989); Blair (2005, 2008, 2013); Bar-Haim et al. (2007); Heydarloo et al. (2024); Kofler et al. (2024); Ekstrom (DSM-III/Jungian mapping)
 **Exploration:** deep-analysis
 **Status:** captured

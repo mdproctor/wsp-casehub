@@ -1,0 +1,130 @@
+# CDE PID-5 Facet Upgrade — Design Spec
+
+Ref: casehubio/neocortex#845
+
+## Goal
+
+Upgrade CognitiveDerivationEngine derivation pathways to use continuous PID-5/AMPD personality facet scores, producing characters whose cognitive defaults reflect richer personality-trait interactions. The test is behavioral coherence — characters should feel real.
+
+## Background
+
+The CDE derives cognitive defaults from personality data. Two independent personality channels exist:
+
+- **Disposition channel** (Jungian functions + DispositionAxes): Measures cognitive processing style — HOW the character thinks. Derived by consensus vote across multiple frameworks (MBTI, OCEAN, Belbin, DISC, etc.) via `extract_personality.py`.
+- **AMPD/facet channel** (PersonalityFacet): Measures pathological personality traits — WHAT maladaptive patterns the character exhibits. 13 PID-5 facets scored independently (0-100) by the biography pipeline.
+
+PID-5 domains are maladaptive variants of the Big Five (Krueger et al. 2012; Gore & Widiger 2013). Jungian functions map to FFM via McCrae & Costa (1989). These two validated mappings create a dimension-level bridge: Jung → FFM → PID-5.
+
+**Current problem:** The AMPD facets are written to MindMap properties (`personality-ampd-*`) but never read back into the cognitive pipeline. `EidosCognitiveProfileBridge.toDescriptorView()` passes `List.of()` for `personalityFacets`. Five CDE methods already accept facets but always receive empty lists in production.
+
+## Architecture
+
+### Part 1: Fix the bridge
+
+**`EidosCognitiveProfileBridge.toDescriptorView()`** must read `personality-ampd-*` properties from the agent descriptor, convert 0-100 integer scores to 0.0-1.0 `PersonalityFacet` records, and populate the `personalityFacets` field on `DescriptorView`.
+
+This unlocks the 5 existing facet-accepting methods:
+- `deriveSearchBudgetDefaults`
+- `deriveChannelModulationDefaults`
+- `deriveExpressionStyles`
+- `deriveRecurringThoughtConfig`
+- `derivePoolConfig`
+
+Scale conversion: `score / 100.0`, validated by PersonalityFacet's `[0.0, 1.0]` constraint.
+
+Fallback: when no AMPD properties exist on the descriptor, `personalityFacets` remains `List.of()`. All CDE methods must handle empty facet lists gracefully (existing pattern: `facetScore()` returns a default of 0.5).
+
+### Part 2: Category A — DispositionAxes → facets (6 methods)
+
+Replace categorical string lookups (`Map<String, Double>`) with continuous `facetScore()` modulation. Keep DispositionAxes as fallback when facets are empty.
+
+| Method | Current input | Key facets replacing axes |
+|---|---|---|
+| `deriveMoodBaseline` | axes.riskAppetite, axes.socialOrient | Risk Taking, Withdrawal, Emotional Lability |
+| `deriveCuriosity` | axes.riskAppetite, axes.socialOrient | Risk Taking, Withdrawal, Suspiciousness |
+| `deriveCbrStrategy` | axes.riskAppetite, axes.ruleFollowing | Risk Taking, Impulsivity |
+| `deriveSocialCognition` | axes.socialOrient, axes.conflictMode | Suspiciousness, Hostility, Withdrawal |
+| `deriveHabituationConfig` | axes.riskAppetite, axes.socialOrient | Risk Taking, Withdrawal, Impulsivity |
+| `deriveRegulationDefaults` | axes (multiple) | Emotional Lability, Anxiousness, Withdrawal, Callousness, Impulsivity |
+
+Each method follows the `deriveSearchBudgetDefaults` reference pattern:
+1. Accept `List<PersonalityFacet> facets` parameter
+2. Extract continuous scores via `facetScore(facets, FACET_NAME, 0.5)`
+3. Compose Big Five proxies where needed (as `deriveSearchBudgetDefaults` composes Openness)
+4. Apply linear modulation from baseline defaults
+5. Fall back to DispositionAxes lookup when facets list is empty
+
+### Part 3: Category B — Facet modulation of Jungian-derived values (5 methods)
+
+Keep Jungian function weights as the base computation. Add PID-5 facet modulation where the interaction is empirically supported (Tier 1) or grounded in the validated FFM bridge (Tier 2).
+
+**Tier 1 — Peer-reviewed direct evidence:**
+
+| Method | Jungian base | Facet modulation | Effect | Citation |
+|---|---|---|---|---|
+| `deriveCapacity` | Te+Si → WM span | Impulsivity | Degrades WM span | Heydarloo 2024; Kofler 2024 |
+| `deriveExtractionBias` | Fi/Fe → relationship bias | Callousness | Reduces relationship bias | Blair 2005, 2008, 2013 |
+| `deriveAppraisalWeights` | Si → fear weight | Anxiousness | Amplifies fear weight | Bar-Haim et al. 2007 |
+
+**Tier 2 — First-principles extensions via FFM bridge:**
+
+| Method | Jungian base | Facet modulation | Effect | Reasoning chain |
+|---|---|---|---|---|
+| `deriveExtractionBias` | Fi/Fe → affect sensitivity | Emotional Lability | Amplifies affect sensitivity | High lability = high Neuroticism → amplified emotional reactivity |
+| `deriveAppraisalWeights` | Si → fear weight | Risk Taking | Reduces fear weight | High risk = Disinhibition → reduced threat sensitivity |
+| `deriveAppraisalWeights` | Te/Ne → urgency | Impulsivity | Amplifies urgency | Disinhibition → immediate threat/opportunity weighting |
+| `deriveCapacity` | Ne+Ni → associative reach | Anxiousness | Narrows associative reach | Negative Affectivity → attentional narrowing |
+| `deriveGraphStructure` | S/N → connective bias | Withdrawal | Reduces connective bias | Detachment → reduced social node connectivity |
+
+**Implementation pattern:** For each modulation, apply a bounded linear adjustment to the Jungian-derived base value:
+
+```java
+double wmBase = 0.5 * (te + si); // Jungian base
+double impulsivity = facetScore(facets, PersonalityFacet.IMPULSIVITY, 0.5);
+double wmSpan = compressCapacity(wmBase - (impulsivity - 0.5) * IMPULSIVITY_WM_WEIGHT);
+```
+
+The modulation weight constants (e.g., `IMPULSIVITY_WM_WEIGHT`) start at 0.2 (modest effect) and are tuned via eval results. Facet score of 0.5 (population mean) produces zero modulation.
+
+**Code documentation:** Tier 1 modulations cite the paper directly. Tier 2 modulations document the reasoning chain:
+```java
+// Tier 2: Withdrawal → reduced connective bias
+// Bridge: Withdrawal → Detachment (PID-5) → low Extraversion (FFM) → fewer social connections
+// Grounded in McCrae & Costa 1989 + Gore & Widiger 2013
+```
+
+### `derivePersonality` — no change
+
+This is the foundation derivation mapping Jungian functions to personality domain weights. Adding PID-5 modulation here would cascade unpredictably. Modulate downstream consumers instead.
+
+## Testing
+
+- **Unit tests:** Each upgraded method gets a test comparing output with facets vs without (empty list should match current behavior within tolerance).
+- **Integration test:** `CognitiveDerivationIntegrationTest` extended with a profile that has both Jungian functions AND AMPD facets — verify facets modulate the Jungian-derived values.
+- **Eval validation:** Run personality differentiation eval after all changes. Characters with extreme facet scores (e.g., high Callousness + dominant Fi) should score as MORE differentiated, not less.
+
+## Ordering
+
+1. **Bridge fix** (Part 1) — unlocks existing dead-code methods
+2. **Category A** (Part 2) — 6 methods, mechanical, follow reference pattern
+3. **Category B Tier 1** (Part 3) — 3 modulations with direct citations
+4. **Category B Tier 2** (Part 3) — 5 modulations with FFM bridge reasoning
+5. **Eval run** — validate behavioral coherence
+
+Parts 1-2 can ship independently. Parts 3-4 build on 1-2.
+
+## References
+
+- Krueger, R.F. et al. (2012). Initial construction of a maladaptive personality trait model and inventory for DSM-5. *Psychological Medicine*, 42(9), 1879-1890.
+- Gore, W.L. & Widiger, T.A. (2013). The DSM-5 dimensional trait model and five-factor models of general personality. *Journal of Abnormal Psychology*, 122, 816-821.
+- McCrae, R.R. & Costa, P.T. (1989). Reinterpreting the Myers-Briggs Type Indicator from the perspective of the five-factor model of personality. *Journal of Personality*, 57(1), 17-40.
+- Blair, R.J.R. (2013). The neurobiology of psychopathic traits in youths. *Nature Reviews Neuroscience*, 14, 786-799.
+- Blair, R.J.R. (2008). Fine cuts of empathy and the amygdala. *Quarterly Journal of Experimental Psychology*, 61(1), 157-170.
+- Bar-Haim, Y. et al. (2007). Threat-related attentional bias in anxious and nonanxious individuals: A meta-analytic study. *Psychological Bulletin*, 133(1), 1-24.
+- Heydarloo, M. et al. (2024). The mediating role of impulsivity in the relationship between executive functions and prospective memory. *Memory*, 33(2).
+- Kofler, M.J. et al. (2024). Working memory and inhibitory control deficits in children with ADHD. *Frontiers in Psychiatry*, 15, 1277583.
+- Ekstrom, S. Jung's typology and DSM-III personality disorders. *Journal of Analytical Psychology*.
+- `CognitiveDerivationEngine.java` lines 765-844 (reference pattern)
+- `EidosCognitiveProfileBridge.java` line 110 (bridge gap)
+- `PersonalityProfileHandler.java` (AMPD property writer)
+- `extract_personality.py` (biography pipeline AMPD scorer)
