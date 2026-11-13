@@ -30,8 +30,8 @@ flyway-next-v:
 - [x] casehubio/neocortex#820 — Regulation
 - [x] casehubio/neocortex#818 — Automatic
 - [x] casehubio/examples#204 — wacky-manor-api-breaks
-- [ ] casehubio/neocortex#832 — Emotion-personality capacity gaps ← active
-- [ ] casehubio/neocortex#845 — CDE derivations to PID-5 facets
+- [x] casehubio/neocortex#832 — Emotion-personality capacity gaps
+- [ ] casehubio/neocortex#845 — CDE derivations to PID-5 facets ← active
 - [ ] casehubio/neocortex#921 — Prediction calibration analysis
 - [ ] casehubio/neocortex#925 — CAPS consolidation coherence scenario
 - [ ] casehubio/neocortex#938 — PipelineCoherenceEvalTest cross-stage
