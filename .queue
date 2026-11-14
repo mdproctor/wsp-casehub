@@ -43,6 +43,11 @@ flyway-next-v:
 - [ ] casehubio/neocortex#818 — Automatic
 - [ ] casehubio/examples#204 — wacky-manor-api-breaks
 - [ ] casehubio/examples#961 — Runtime cognitive pipeline journal
+- [ ] casehubio/neocortex#969 — Wire CognitiveJournal in CognitionCoreFactory
+- [ ] casehubio/neocortex#965 — GraphMutated CDI listener
+- [ ] casehubio/neocortex#966 — ConsolidationScheduler journal
+- [ ] casehubio/neocortex#967 — CognitiveJournal layer evaluation
+- [ ] casehubio/neocortex#968 — Remaining tick stage instrumentation
 
 ## Deferred
 - [ ] GraphMutated CDI listener (S / Med) [casehubio/neocortex] — GraphMutationRecorded CDI event lacks agentId — needs cross-cutting context propagation (ThreadLocal or event enrichment) to correlate mutations with agents
