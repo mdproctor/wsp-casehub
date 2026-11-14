@@ -2,51 +2,58 @@
 
 ## Last Session
 
-Implemented and validated neocortex#932 — smoke scenario integration test. Landed as `2fa64e87` on examples main.
+Implemented neocortex#969 — wire CognitiveJournal in CognitionCoreFactory CDI context. Branch `issue-969-wire-cognitive-journal-cdi` on neocortex, ready for work-end.
 
 ### What Was Built
 
-`SmokeScenarioEvalTest` — a 25-tick, 3-agent integration test running the full cognitive pipeline end-to-end: appraisal, regulation, drives, MindMap evolution, CAPS situation classification. First real pipeline test that sits between unit tests (mocked) and the 300-tick full run (hours).
+Three changes that activate the cognitive journal pipeline end-to-end:
 
-- **Result:** mean eval score 4.93/5.0, min 4.0/5.0, 137 events, 44 min runtime
-- **Agents:** Vincent Marsh (scheming), James Hartwell (gallantry), Clara Bellingham (social-harmony)
-- **Transcript:** `wacky-manor/docs/eval/smoke-scenario-2026-11-11/transcript.json`
+1. **CognitionCoreFactory** — added `@Inject Instance<CognitiveJournal>` and `builder.cognitiveJournal()` call. CognitionCore instances now receive ScopedCognitiveJournal instead of NOOP.
+2. **ConsolidationScheduler** — added `Instance<CognitiveJournal>` to CDI constructor. Journal wired if resolvable, replacing a setter that was never called.
+3. **InMemoryCognitiveJournalStore** — added `@ApplicationScoped`. This was the critical activation step — without it, ScopedCognitiveJournal was CDI-unsatisfiable and all wiring resolved to NOOP.
 
-### Discovered and Fixed
+### Code Review Findings
 
-- **CDI: InformationGapDetector** — added `@Dependent` annotation in neocortex (committed to neocortex main `3b1c4b2d`). Filed examples#205.
-- **CDI: entity-token-cdi** — added explicit dependency to wacky-manor pom.xml. Filed neocortex#936 (should be non-optional in cognition pom).
-- **Surefire fork timeout** — increased to 3600s for llm-eval profile.
-- **ManorEvent types** — only `action`, `dialogue`, `aside`, `narrator` are valid.
+Comprehensive audit revealed pre-existing gaps in the journal pipeline:
+
+- **DerivationJournalBridge** — instantiated only in its test, never in production
+- **MemoryRecallJournalBridge** — zero instantiation sites anywhere (fully dead)
+- **ConsolidationScheduler.setSessionPipeline()** — zero neocortex callers; only wacky-manor's PlaybookOrchestrator calls it. 6 phases always receive null pipeline.
+- **ConsolidationScheduler journal field** — stored but never read during consolidation phases
 
 ### Filed Issues
 
-- neocortex#932 — smoke scenario (CLOSED, landed)
-- neocortex#935 — audit all LLM interactions for session reuse (OPEN)
-- neocortex#936 — entity-token-cdi should not be optional (OPEN)
-- examples#205 — InformationGapDetector CDI fix (OPEN, fix committed)
-- examples#206 — BackendFactoryDiscoveryTest pre-existing failure (OPEN)
+- neocortex#969 — wire CognitiveJournal CDI (THIS SESSION, branch ready)
+- neocortex#980 — ConsolidationScheduler journal instrumentation during consolidation phases (OPEN)
+- neocortex#981 — wire DerivationJournalBridge and MemoryRecallJournalBridge in production (OPEN)
+- neocortex#982 — fix dead sessionPipeline propagation in CDI constructor (OPEN)
+- examples#209 — PlaybookOrchestrator setCognitiveJournal call (OPEN)
 
-### Key Finding: LLM Session Waste
+### Tests
 
-`LlmSituationClassifier` creates a new session (`UUID.randomUUID()`) per classify call — ~150 cold sessions in the smoke test. Sticky sessions per agent would cut 60-70% of the 44-minute runtime. Broader audit filed as neocortex#935 covering all cognitive pipeline LLM interaction points.
+All affected module tests pass: cognition, mindmap-intelligence, cognitive-observability-core.
 
 ## Priorities for Next Session
 
-1. **neocortex#935** — LLM session reuse audit (biggest perf win, affects all eval tests)
-2. **neocortex#936** — make entity-token-cdi non-optional (XS fix, unblocks clean downstream deps)
-3. **.queue items** — predictor quality (#830), scenario validation (#829), and remaining cognitive initiative items
+1. **neocortex#982** — sessionPipeline CDI constructor injection (same pattern as #969, S/Low)
+2. **neocortex#981** — wire journal bridges (S/Low, activates derivation+recall journal entries)
+3. **neocortex#980** — consolidation phase journaling (S/Low, needs CognitiveEntry types)
+4. **Existing queue items** — #853 capacity-modulation, #902 distress-trajectory, etc.
+
+## Previous Session Context
+
+Implemented neocortex#932 — smoke scenario integration test. Landed as `2fa64e87` on examples main. Mean eval score 4.93/5.0, 137 events, 44 min runtime.
 
 ## Slot 211 Overlap
 
-Slot 211 works on eval calibration (#905) and pipeline coherence (#894). The smoke test asserts behavioral outcomes, not pipeline internals — no conflict. But coordinate on neocortex main changes to `CognitionCoreFactory` and session pipeline.
+Slot 211 works on eval calibration (#905) and pipeline coherence (#894). Coordinate on neocortex main changes to CognitionCoreFactory and session pipeline — this session modified CognitionCoreFactory.
 
 ## Neocortex Build Note
 
-Full neocortex reactor build fails at `schema-generator` module. Individual module builds work (used `mindmap-intelligence` and `entity-token-cdi` successfully). May need investigation if full reactor build is needed.
+Full neocortex reactor build fails at `schema-generator` module. Individual module builds work. Used cognition, mindmap-intelligence, cognitive-observability-core successfully.
 
 ## References
 
-- Test: `wacky-manor/src/test/java/io/casehub/examples/manor/experiment/SmokeScenarioEvalTest.java`
-- Eval transcript: `wacky-manor/docs/eval/smoke-scenario-2026-11-11/transcript.json`
-- Neocortex CDI fix: commit `3b1c4b2d` on neocortex main
+- Branch: `issue-969-wire-cognitive-journal-cdi` on neocortex slot 196
+- Commits: `24ce60c0` (CDI wiring), `b32caf82` (store activation)
+- Design spec: `examples/docs/specs/issue-961-runtime-cognitive-journal/`
