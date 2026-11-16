@@ -2,18 +2,12 @@
 
 ## Current State
 
-Queue repopulated with 13 remaining regulation + coping issues. Ready for `work start`.
+Branch `issue-1006-clamp-drive-modulation-delta` in neocortex — 3 commits landing #1006, #1007, #1002. Ready for `work end`. #1011 was already implemented (closed, no code change needed).
 
-No active branch. Neocortex and examples both on main.
-
-## Queue (13 items)
+## Queue (9 items remaining)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1011 | CognitionConfig.copingEnabled() gate | XS | Low | Wiring gate |
-| #1006 | Clamp DriveModulation intensityDelta | XS | Low | Parsing fix |
-| #1007 | Explicit prompt guidance for regulation-routed strategies | XS | Low | Prompt fix |
-| #1002 | Explicit priority ordering for predictor families | XS | Low | Predictor refinement |
 | #999 | CognitiveDefaults structural decomposition | M | Med | Refactor — nested config groups |
 | #1017 | DriveModulation + AttentionDirective dispatch | S | Low | Dispatch wiring |
 | #1018 | Seed CAPS coping attractor weights from CopingDefaults | S | Med | CAPS init |
@@ -32,6 +26,8 @@ No active branch. Neocortex and examples both on main.
 - Batch 3 (DONE): #995 — regulation refactoring
 - Batch 4 (DONE): #997 — CAPS coping attractors + pipeline wiring
 - Batch 5 (DONE): #998 — coping emergence eval (5 tests, floor 4/5)
+- Code review fixes (DONE): #1011 (already implemented), #1006 (intensityDelta clamping), #1007 (regulation-routed prompt guidance), #1002 (strategy family priority ordering)
+- Filed #1036: defensive validation for GoalOperation and AttentionDirective free-text fields
 
 **Regulation epic (#821):**
 - Batches 1–4 (DONE): all individual strategies, fatigue, automatic, proactive, monitoring, per-strategy + per-modality evals, CAPS integration, observability
@@ -47,6 +43,7 @@ Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity 
 - Design spec: `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md`
 - Era7 research: `neocortex/docs/research/era7-personality-trait-integration-research.md`
 - Blog: `examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md`
+- Blog: `examples/docs/blog/2026-11-16-mdp02-every-field-is-a-boundary.md`
 
 ## Neocortex Build Note
 
