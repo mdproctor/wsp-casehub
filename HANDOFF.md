@@ -1,60 +1,56 @@
 # HANDOFF — casehub-examples (slot 196)
 
-## Last Session
+## Current State
 
-Completed neocortex#998 (coping emergence eval — Batch 5). 5 LLM eval tests exercising the full CopingMicroLoop with real LLM calls and LLM-as-judge scoring. All tests floor score 4/5. Branch `issue-998-coping-emergence-eval` on neocortex, ready for work-end.
+Queue repopulated with 13 remaining regulation + coping issues. Ready for `work start`.
 
-### What Was Built
+No active branch. Neocortex and examples both on main.
 
-**#998 — CopingEmergenceEvalTest (branch `issue-998-coping-emergence-eval`):**
-- 5 @Tag("llm-eval") tests in `caps-llm-classifier`: conscientiousness→PLANNING, neuroticism→defensive, strategy chaining, reinterpretation coherence, convergence
-- Personality profiles designed from predictor mechanics: each forces a specific controllability zone + personality dimension path
-- LLM-as-judge scoring with 0–5 scale, retry/backoff, JSON result persistence
-- Drive-narrative alignment: drive names/triggers match scenario vocabulary so RelevanceCheck sustains emotions across iterations
+## Queue (13 items)
 
-### Key Findings
+| # | Title | Scale | Complexity | Notes |
+|---|-------|-------|-----------|-------|
+| #1011 | CognitionConfig.copingEnabled() gate | XS | Low | Wiring gate |
+| #1006 | Clamp DriveModulation intensityDelta | XS | Low | Parsing fix |
+| #1007 | Explicit prompt guidance for regulation-routed strategies | XS | Low | Prompt fix |
+| #1002 | Explicit priority ordering for predictor families | XS | Low | Predictor refinement |
+| #999 | CognitiveDefaults structural decomposition | M | Med | Refactor — nested config groups |
+| #1017 | DriveModulation + AttentionDirective dispatch | S | Low | Dispatch wiring |
+| #1018 | Seed CAPS coping attractor weights from CopingDefaults | S | Med | CAPS init |
+| #1019 | CAPS topology connections to coping outputs | M | Med | CAPS topology |
+| #921 | Prediction calibration analysis | S | Med | Eval — predictor vs LLM |
+| #1031 | Extract shared eval infrastructure | XS | Low | Refactor — EvalTestSupport |
+| #712 | Shadow archetypes — personality degradation | L | High | New capability |
+| #980 | ConsolidationScheduler journal observability | S | Low | Observability |
+| #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
 
-1. **Judge criteria must evaluate behavioural patterns, not strategy names** — SHIFT_RESPONSIBILITY and SUPPRESS_INFORMATION are psychologically equivalent to AVOIDANCE for a neurotic personality. Criteria that name specific enum values score lower than criteria that describe the defensive trajectory.
-2. **Strategy chaining is emergent** — CHAINING profile (reinterp=0.70, planful=0.55) at medium controllability (0.45): reinterpretation wins iteration 0 → agency-rich narrative → CopingCheck shifts controllability above 0.6 → predictor filters to INTENTION → planful wins → PLANNING on iteration 1. Cross-category chain from keyword feedback, not scripted.
-3. **Drive-narrative alignment is load-bearing** — RelevanceCheck is a keyword matcher. If drive names don't appear in the LLM's natural vocabulary for the scenario, emotions drop below coping threshold and the loop exits after one iteration.
+## What's Done
 
-### Code Review
+**Coping epic (#595):**
+- Batch 1 (DONE): #991, #992, #993 — types, predictor, LLM generation
+- Batch 2 (DONE): #994, #996 — micro-loop orchestrator, goal dispatch, keyword expansion
+- Batch 3 (DONE): #995 — regulation refactoring
+- Batch 4 (DONE): #997 — CAPS coping attractors + pipeline wiring
+- Batch 5 (DONE): #998 — coping emergence eval (5 tests, floor 4/5)
 
-Comprehensive audit: correctness, robustness, consistency, thread safety, dead code. No bugs found. One refactoring opportunity: shared eval infrastructure (extractJson, writeResult, judge) duplicated across CopingEmergenceEvalTest and SleepDerivationEvalTest → filed #1031.
+**Regulation epic (#821):**
+- Batches 1–4 (DONE): all individual strategies, fatigue, automatic, proactive, monitoring, per-strategy + per-modality evals, CAPS integration, observability
+- Batch 5 remaining: examples#203 (Traitors format), mosaic#315 (dashboard) — NOT in this slot's queue
+- Independent items in queue above
 
-### Blog
+## Slot 211 Boundary
 
-`examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md` — covers predictor mechanics as test harness, keyword feedback chaining, drive-narrative alignment discovery, LLM-as-judge patterns. 2 SVGs.
+Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity epic + children). Do not duplicate.
 
-### Research Docs Updated
+## Key References
 
-- Design spec `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md` — eval section updated with #998 results table and key findings
-
-### Issues Filed
-
-- #1031 — extract shared eval infrastructure from LLM eval tests (XS/Low)
-- #921 — updated with readiness note (coping emergence eval complete, calibration analysis can start)
-
-## Coping Epic (#595) Status
-
-```
-Batch 1 (DONE):  #991, #992, #993   types, predictor, LLM generation
-Batch 2 (NEXT):  #994, #996         micro-loop orchestrator, goal dispatch + keyword expansion
-Batch 3:         #995               regulation refactor
-Batch 4:         #997               CAPS + pipeline wiring
-Batch 5 (DONE):  #998               emergence eval ← THIS SESSION
-Batch 5:         #921               calibration analysis (unblocked, depends on #1031)
-Independent:     #999, #1002, #1006, #1007, #1011
-New:             #1017, #1018, #1019, #1023, #1031
-```
+- Design spec: `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md`
+- Era7 research: `neocortex/docs/research/era7-personality-trait-integration-research.md`
+- Blog: `examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md`
 
 ## Neocortex Build Note
 
-Full reactor fails at `schema-generator`. Individual module builds work. For eval tests: `mvn install -pl cognition-api,cognition,cognitive-index -am -Dmaven.test.skip=true` then run eval profile.
-
-## References
-
-- Branch: `issue-998-coping-emergence-eval` on neocortex slot 196
-- Design spec: `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md`
-- Blog: `examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md`
-- Eval results: `caps-llm-classifier/target/experiment-results/coping-emergence-eval.json`
+Full reactor fails at `schema-generator`. Use targeted module builds:
+```bash
+mvn install -pl cognition-api,cognition,cognitive-index -am -Dmaven.test.skip=true
+```
