@@ -2,58 +2,69 @@
 
 ## Last Session
 
-Implemented neocortex#993 — CopingGenerationPhase, the LLM layer in the coping cascade. Branch `issue-993-coping-generation-phase` on neocortex, ready for work-end.
+Implemented neocortex#993 (CopingGenerationPhase) and #994 (CopingMicroLoop orchestrator + PreCopingSafetyGate). Both on branch `issue-994-coping-micro-loop` in neocortex, ready for work-end.
 
 ### What Was Built
 
-Two new files implementing the LLM generation layer (Layer 4) of the EMA coping cascade:
+**#993 — CopingGenerationPhase (landed on main as `39b927ac`):**
+- `CopingResult` record (cognition-api) — strategy, narrative, goal ops, drive mods, attention directives
+- `CopingGenerationPhase` (cognition) — LLM layer 4 of coping cascade. System prompt with 16 EMA strategies, JSON parsing, keyword constraint for SEC re-evaluation
 
-1. **CopingResult** (`cognition-api`) — immutable record holding strategy, reinterpreted narrative, and three effect lists (goal operations, drive modulations, attention directives).
-2. **CopingGenerationPhase** (`cognition`) — builds system prompt with 16 EMA strategies (Marsella & Gratch 2009) organized by mental representation category. Parses structured JSON response. Prompt constraint enforces keyword-detectable agency/helplessness vocabulary for SEC re-evaluation feedback loop.
+**#994 — CopingMicroLoop (branch `issue-994-coping-micro-loop`):**
+- `CopingMicroLoop` (cognition) — full appraisal-coping-reappraisal orchestrator: predictor → LLM → effects → keyword SEC re-eval → converge/iterate. Max 3 iterations. Oscillation detection (A→B→A).
+- `PreCopingSafetyGate` (cognition) — fatigue > 0.7 or peak intensity > 0.75 → skip coping. Relocated from regulation Layer 1.
+- `CopingState.withAccumulatedEffects(CopingResult)` — convenience method for micro-loop
+- `EmotionMapper.mergeDimensions()` — promoted to public for cross-package SEC re-evaluation
 
-### Code Review Findings
+### Code Review Findings (#993)
 
-Comprehensive audit — 3 issues fixed (commit `371db490`):
-- GoalOperation axis parsing defaulted to COMPETENCE on null — changed to skip (avoids misdirected goal dispatch)
-- SEC dimension iteration order non-deterministic — sorted by key for reproducible prompts
-- 4 missing tests added: DEFER operation, null-axis skip, invalid drive axis, multiple goal ops
+3 fixes: skip null-axis goal operations, sort SEC dimensions by key, 4 additional tests.
 
-No issues: thread safety, pattern consistency with EmotionRegulationGenerationPhase, system prompt strategy encoding, keyword constraint, CopingResult API surface.
+### Code Review (#994)
+
+Review fork dispatched — results pending at time of handoff write. Check branch for any fix commits.
 
 ### Research Doc Updated
 
-Era7 research doc updated to include CopingGenerationPhase in implementation status.
+Era7 research doc updated with both #993 and #994 implementation status.
 
 ### Blog Revised
 
-`2026-11-16-mdp01-personality-shapes-coping.md` — revised to include CopingGenerationPhase section, full cascade micro-loop SVG diagram, and updated closing. Covers the semantic resolution boundary: mechanical computation for resolved signals, LLM for semantic context, keyword constraint as the bridge.
+`2026-11-16-mdp01-personality-shapes-coping.md` — covers all four pieces: derivation engine, predictor, generation phase, micro-loop orchestrator. Full cascade SVG diagram.
 
-### Deferred Item
+### Issues Filed
 
-- CopingState.withAccumulatedEffects(CopingResult) convenience — noted on #994 (micro-loop orchestrator). Individual methods sufficient; convenience reduces boilerplate.
+- #1006 — clamp DriveModulation intensityDelta in parsing (XS/Low)
+- #1007 — explicit prompt guidance for regulation-routed strategies (XS/Low)
+- #1008 — artifact_sweep.py crashes on image co-promotion (XS/Low, tooling)
+- #1011 — CognitionConfig.copingEnabled() gate (XS/Low)
 
 ## Priorities for Next Session
 
-1. **neocortex#994** — CopingMicroLoop orchestrator + pre-coping safety gate (L/High, core wiring)
-2. **neocortex#996** — goal operations dispatch + CopingCheck keyword expansion (M/Med)
-3. **neocortex#995** — regulation refactoring: receive coping strategy, retire predictor as selector (L/High)
-4. **neocortex#997** — CAPS coping attractors and full pipeline wiring (L/High)
+1. **neocortex#996** — goal operations dispatch + CopingCheck keyword expansion (M/Med)
+2. **neocortex#995** — regulation refactoring: receive coping strategy, retire predictor as selector (L/High)
+3. **neocortex#997** — CAPS coping attractors + pipeline wiring + copingEnabled gate (L/High)
+4. **neocortex#998** — coping emergence eval (M/Med)
 
-## Previous Session Context
+## Coping Epic (#595) Status
 
-Implemented neocortex#991 (CopingDefaults derivation from Big Five via CDE) and #992 (CopingStrategyPredictor — controllability + personality + load selection). Both landed on main.
-
-## Slot 211 Overlap
-
-Slot 211 works on eval calibration (#905) and pipeline coherence (#894). Coordinate on neocortex main changes to CognitionCoreFactory and session pipeline.
+```
+Batch 1 (DONE):  #991, #992, #993   types, predictor, LLM generation
+Batch 2 (DONE):  #994               micro-loop orchestrator + safety gate
+Batch 2 (NEXT):  #996               goal dispatch + keyword expansion
+Batch 3:         #995               regulation refactor
+Batch 4:         #997               CAPS + pipeline wiring
+Batch 5:         #998, #921         eval
+Independent:     #999, #1002, #1006, #1007, #1011
+```
 
 ## Neocortex Build Note
 
-Full neocortex reactor build fails at `schema-generator` module. Individual module builds work. Used cognition-api, cognition successfully.
+Full reactor fails at `schema-generator`. Individual module builds work. Used cognition-api, cognition successfully.
 
 ## References
 
-- Branch: `issue-993-coping-generation-phase` on neocortex slot 196
-- Commits: `d7d0603b` (initial implementation), `371db490` (code review fixes), `242407ad` (research doc)
+- Branch: `issue-994-coping-micro-loop` on neocortex slot 196
+- Landed: `39b927ac` (#993 on main)
 - Design spec: `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md`
 - Blog: `wsp-casehub-neocortex/blog/2026-11-16-mdp01-personality-shapes-coping.md`
