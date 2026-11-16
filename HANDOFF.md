@@ -2,58 +2,58 @@
 
 ## Last Session
 
-Implemented neocortex#969 — wire CognitiveJournal in CognitionCoreFactory CDI context. Branch `issue-969-wire-cognitive-journal-cdi` on neocortex, ready for work-end.
+Implemented neocortex#993 — CopingGenerationPhase, the LLM layer in the coping cascade. Branch `issue-993-coping-generation-phase` on neocortex, ready for work-end.
 
 ### What Was Built
 
-Three changes that activate the cognitive journal pipeline end-to-end:
+Two new files implementing the LLM generation layer (Layer 4) of the EMA coping cascade:
 
-1. **CognitionCoreFactory** — added `@Inject Instance<CognitiveJournal>` and `builder.cognitiveJournal()` call. CognitionCore instances now receive ScopedCognitiveJournal instead of NOOP.
-2. **ConsolidationScheduler** — added `Instance<CognitiveJournal>` to CDI constructor. Journal wired if resolvable, replacing a setter that was never called.
-3. **InMemoryCognitiveJournalStore** — added `@ApplicationScoped`. This was the critical activation step — without it, ScopedCognitiveJournal was CDI-unsatisfiable and all wiring resolved to NOOP.
+1. **CopingResult** (`cognition-api`) — immutable record holding strategy, reinterpreted narrative, and three effect lists (goal operations, drive modulations, attention directives).
+2. **CopingGenerationPhase** (`cognition`) — builds system prompt with 16 EMA strategies (Marsella & Gratch 2009) organized by mental representation category. Parses structured JSON response. Prompt constraint enforces keyword-detectable agency/helplessness vocabulary for SEC re-evaluation feedback loop.
 
 ### Code Review Findings
 
-Comprehensive audit revealed pre-existing gaps in the journal pipeline:
+Comprehensive audit — 3 issues fixed (commit `371db490`):
+- GoalOperation axis parsing defaulted to COMPETENCE on null — changed to skip (avoids misdirected goal dispatch)
+- SEC dimension iteration order non-deterministic — sorted by key for reproducible prompts
+- 4 missing tests added: DEFER operation, null-axis skip, invalid drive axis, multiple goal ops
 
-- **DerivationJournalBridge** — instantiated only in its test, never in production
-- **MemoryRecallJournalBridge** — zero instantiation sites anywhere (fully dead)
-- **ConsolidationScheduler.setSessionPipeline()** — zero neocortex callers; only wacky-manor's PlaybookOrchestrator calls it. 6 phases always receive null pipeline.
-- **ConsolidationScheduler journal field** — stored but never read during consolidation phases
+No issues: thread safety, pattern consistency with EmotionRegulationGenerationPhase, system prompt strategy encoding, keyword constraint, CopingResult API surface.
 
-### Filed Issues
+### Research Doc Updated
 
-- neocortex#969 — wire CognitiveJournal CDI (THIS SESSION, branch ready)
-- neocortex#980 — ConsolidationScheduler journal instrumentation during consolidation phases (OPEN)
-- neocortex#981 — wire DerivationJournalBridge and MemoryRecallJournalBridge in production (OPEN)
-- neocortex#982 — fix dead sessionPipeline propagation in CDI constructor (OPEN)
-- examples#209 — PlaybookOrchestrator setCognitiveJournal call (OPEN)
+Era7 research doc updated to include CopingGenerationPhase in implementation status.
 
-### Tests
+### Blog Revised
 
-All affected module tests pass: cognition, mindmap-intelligence, cognitive-observability-core.
+`2026-11-16-mdp01-personality-shapes-coping.md` — revised to include CopingGenerationPhase section, full cascade micro-loop SVG diagram, and updated closing. Covers the semantic resolution boundary: mechanical computation for resolved signals, LLM for semantic context, keyword constraint as the bridge.
+
+### Deferred Item
+
+- CopingState.withAccumulatedEffects(CopingResult) convenience — noted on #994 (micro-loop orchestrator). Individual methods sufficient; convenience reduces boilerplate.
 
 ## Priorities for Next Session
 
-1. **neocortex#982** — sessionPipeline CDI constructor injection (same pattern as #969, S/Low)
-2. **neocortex#981** — wire journal bridges (S/Low, activates derivation+recall journal entries)
-3. **neocortex#980** — consolidation phase journaling (S/Low, needs CognitiveEntry types)
-4. **Existing queue items** — #853 capacity-modulation, #902 distress-trajectory, etc.
+1. **neocortex#994** — CopingMicroLoop orchestrator + pre-coping safety gate (L/High, core wiring)
+2. **neocortex#996** — goal operations dispatch + CopingCheck keyword expansion (M/Med)
+3. **neocortex#995** — regulation refactoring: receive coping strategy, retire predictor as selector (L/High)
+4. **neocortex#997** — CAPS coping attractors and full pipeline wiring (L/High)
 
 ## Previous Session Context
 
-Implemented neocortex#932 — smoke scenario integration test. Landed as `2fa64e87` on examples main. Mean eval score 4.93/5.0, 137 events, 44 min runtime.
+Implemented neocortex#991 (CopingDefaults derivation from Big Five via CDE) and #992 (CopingStrategyPredictor — controllability + personality + load selection). Both landed on main.
 
 ## Slot 211 Overlap
 
-Slot 211 works on eval calibration (#905) and pipeline coherence (#894). Coordinate on neocortex main changes to CognitionCoreFactory and session pipeline — this session modified CognitionCoreFactory.
+Slot 211 works on eval calibration (#905) and pipeline coherence (#894). Coordinate on neocortex main changes to CognitionCoreFactory and session pipeline.
 
 ## Neocortex Build Note
 
-Full neocortex reactor build fails at `schema-generator` module. Individual module builds work. Used cognition, mindmap-intelligence, cognitive-observability-core successfully.
+Full neocortex reactor build fails at `schema-generator` module. Individual module builds work. Used cognition-api, cognition successfully.
 
 ## References
 
-- Branch: `issue-969-wire-cognitive-journal-cdi` on neocortex slot 196
-- Commits: `24ce60c0` (CDI wiring), `b32caf82` (store activation)
-- Design spec: `examples/docs/specs/issue-961-runtime-cognitive-journal/`
+- Branch: `issue-993-coping-generation-phase` on neocortex slot 196
+- Commits: `d7d0603b` (initial implementation), `371db490` (code review fixes), `242407ad` (research doc)
+- Design spec: `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md`
+- Blog: `wsp-casehub-neocortex/blog/2026-11-16-mdp01-personality-shapes-coping.md`
