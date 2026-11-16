@@ -6,7 +6,7 @@ status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 1002
+covers: 999
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
@@ -32,7 +32,7 @@ flyway-next-v:
 - [x] casehubio/neocortex#1011 — CognitionConfig-copingEnabled-gate
 - [x] casehubio/neocortex#1006 — Clamp-DriveModulation-intensityDelta
 - [x] casehubio/neocortex#1007 — Explicit-prompt-guidance-regulation-routed-strategies
-- [ ] casehubio/neocortex#1002 — Explicit-priority-ordering-predictor-families
+- [x] casehubio/neocortex#1002 — Explicit-priority-ordering-predictor-families
 - [ ] casehubio/neocortex#999 — CognitiveDefaults-structural-decomposition
 - [ ] casehubio/neocortex#1017 — DriveModulation-and-AttentionDirective-dispatch
 - [ ] casehubio/neocortex#1018 — Seed-CAPS-coping-attractor-weights
