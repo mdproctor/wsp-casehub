@@ -6,7 +6,7 @@ status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 1011
+covers: 1006
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
@@ -29,7 +29,7 @@ flyway-next-v:
 - [x] casehubio/neocortex#818 — Automatic
 - [x] casehubio/examples#204 — wacky-manor-api-breaks
 - [x] casehubio/neocortex#998 — coping emergence eval
-- [ ] casehubio/neocortex#1011 — CognitionConfig-copingEnabled-gate
+- [x] casehubio/neocortex#1011 — CognitionConfig-copingEnabled-gate
 - [ ] casehubio/neocortex#1006 — Clamp-DriveModulation-intensityDelta
 - [ ] casehubio/neocortex#1007 — Explicit-prompt-guidance-regulation-routed-strategies
 - [ ] casehubio/neocortex#1002 — Explicit-priority-ordering-predictor-families
