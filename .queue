@@ -1,32 +1,31 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: main
-status: drained
+branch: issue-998-coping-emergence-eval
+status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 820
+covers: 998
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
 
 ## Queue
-- [ ] casehubio/neocortex#830 — Predictor quality — shame and ceiling ← active
-- [ ] casehubio/neocortex#829 — Scenario validation
-- [ ] casehubio/neocortex#819 — Proactive
-- [ ] casehubio/neocortex#805 — Social
-- [ ] casehubio/neocortex#822 — Per-strategy
-- [ ] casehubio/neocortex#823 — Per-modality
-- [ ] casehubio/neocortex#520 — Cognitive
-- [ ] casehubio/examples#203 — Spatial
-- [ ] casehubio/neocortex#806 — CAPS
-- [ ] casehubio/casehub-mosaic#315 — Cognitive
-- [ ] casehubio/neocortex#828 — Regulation predictor observability
+- [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
+- [x] casehubio/neocortex#829 — Scenario validation
+- [x] casehubio/neocortex#819 — Proactive
+- [x] casehubio/neocortex#805 — Social
+- [x] casehubio/neocortex#822 — Per-strategy
+- [x] casehubio/neocortex#823 — Per-modality
+- [x] casehubio/neocortex#520 — Cognitive
+- [x] casehubio/neocortex#806 — CAPS
+- [x] casehubio/neocortex#828 — Regulation predictor observability
 - [x] casehubio/neocortex#590 — Issue #590
 - [x] casehubio/neocortex#816 — EmotionMapper
 - [x] casehubio/neocortex#815 — Cognitive
 - [x] casehubio/neocortex#817 — Suppression
 - [x] casehubio/neocortex#820 — Regulation
-- [ ] casehubio/neocortex#818 — Automatic
-- [ ] casehubio/examples#204 — wacky-manor-api-breaks
+- [x] casehubio/neocortex#818 — Automatic
+- [x] casehubio/examples#204 — wacky-manor-api-breaks
+- [ ] casehubio/neocortex#998 — coping emergence eval
