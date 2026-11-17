@@ -2,13 +2,11 @@
 
 ## Current State
 
-**Session 2026-11-17h:** Resolved rebase conflicts and closed #712 + #1055. Rebased neocortex branch onto canonical main (32 commits ahead from slot 211 #1070-1072). Semantic conflict resolution in 3 files / 11 regions — merged EffectiveCognitiveDefaults migration with PersonalityMetadataEnricher PID-5 enrichment. Code review: 0 CRITICAL, 2 WARNING (deferred as #1085 appraisal weights, #1086 orphaned enricher), 6 NOTEs (filed as #1087-#1089). Blog: "The Rebase Nobody Asked For". Era7 research doc updated. Squash: 11→10 commits. Close ceremony: all 3 repos landed on canonical main. #712 and #1055 closed on GitHub. Slot 196 marked ready for archive.
+**Session 2026-11-17h (continued):** Issue house-cleaning audit: 126→117 open issues. Closed 9 (7 completed epics + 2 verified-fixed). Identified 10 stale literature research epics (kept open as roadmap backlog). Reopened #591 (Theory of Mind) — core ToM landed but full BToM scope incomplete. Audited ToM wiring: `MentalModelOrchestrator` (LLM-based BDI) is fully wired end-to-end; `TheoryOfMindEngine` (Bayesian) has zero production callers. Filed #1094–#1096 for ToM quick wins. All 3 repos published to remotes.
 
-**Session 2026-11-17g:** Completed Batches 4-5 of #712 + full close-out. Code review (1 CRITICAL fixed: per-agent detection isolation, 1 WARNING: volatile journal, 2 NOTEs). Blog: "Wiring the Elastic Band". 6 issues filed (#1079-#1084). Era7 research doc updated. Squash review: neocortex 27→10 commits, eidos 6→5, examples 2 (clean). work-end blocked by rebase conflicts.
+**Session 2026-11-17h:** Resolved rebase conflicts and closed #712 + #1055. Rebased neocortex branch onto canonical main (32 commits ahead from slot 211 #1070-1072). Semantic conflict resolution in 3 files / 11 regions — merged EffectiveCognitiveDefaults migration with PersonalityMetadataEnricher PID-5 enrichment. Code review: 0 CRITICAL, 2 WARNING (deferred as #1085, #1086), 6 NOTEs (#1087-#1089). Blog: "The Rebase Nobody Asked For". Squash: 11→10 commits. Close ceremony: all 3 repos landed + published. Slot 196 marked ready for archive.
 
-**Session 2026-11-17f:** Implemented Batches 4-5 of #712. Batch 4: SituationalPersonalityParticipant (TERMINAL tick wiring) and SituationalDeformationPhase (consolidation). Batch 5: E2E integration test (full stress cycle), noise-floor topology test (caps-engine). 79 tests green (75 cognition + 4 caps-engine, 0 regressions). #712 implementation complete.
-
-**All branches landed.** No active branch work in this slot.
+**All branches landed and published.** No active branch work in this slot.
 
 ## What Was Landed
 
@@ -21,15 +19,29 @@ Tenant-scoped cognitive defaults with resting/effective split. LearningProfile t
 ### eidos#234 — Situational profiles (eidos, 5 commits)
 AmpdFacetShift, SituationalProfile records. Archetype-family profiles for 12 families × 5 modes. SituationalProfileDeriver for family-default injection. 26 tests.
 
-### examples — Doc promotions (examples, 2 commits)
-Blog entries and workspace artifacts promoted from workspace to project.
+## Issue Audit Summary
 
-## Rebase Conflict Resolution Notes
+**Closed this session (9):**
 
-Canonical main gained #1070-1072 (PersonalityMetadataEnricher from slot 211) after the branch was cut. Resolution strategy:
-- **BehavioralSynthesisPhase + DriveProfileDerivationPhase**: EffectiveCognitiveDefaults (feature) + pid5FacetSet/Pid5FacetsConfig (canonical) coexistence. `addPersonalityMetadata` uses LearningProfile API for disposition + PID-5 enrichment. Appraisal weights deferred (#1085) — LearningProfile type boundary.
-- **era7 research doc**: canonical's #977 section and Epic #1050 resolution kept; feature branch coping text preserved.
-- **PersonalityMetadataEnricher**: now orphaned (zero production callers) — tracked as #1086.
+| # | Title | Reason |
+|---|-------|--------|
+| #960 | Derivation pipeline observability | Landed |
+| #65 | memory-memori epic | All children done |
+| #471 | cognitive workbench epic | 9/9 children done |
+| #576 | Cognitive Workbench multi-corpus epic | All children done |
+| #595 | Coping strategies epic | 15/15 children done |
+| #599 | Narrative identity epic | Child done |
+| #789 | Corpus & workspace platform epic | 8/8 children done |
+| #1049 | CognitiveEmergenceSampleTest distrust | Verified fixed by #1044 |
+| #1078 | CopingStrategyPredictorTest arity | Verified fixed by #1052 |
+
+**Stale literature epics (10, kept open as research roadmap):** #538, #591, #593, #594, #597, #598, #600, #602, #603, #604
+
+## ToM Wiring Findings
+
+- **MentalModelOrchestrator** (LLM BDI): fully wired — signals → LLM inference → prompt section → consolidation
+- **TheoryOfMindEngine** (Bayesian): built, tested, zero production callers — the quantitative channel is disconnected
+- **ToM → Trust**: not connected — inferred intentions don't affect trust scores
 
 ## Issues Filed This Session
 
@@ -40,15 +52,25 @@ Canonical main gained #1070-1072 (PersonalityMetadataEnricher from slot 211) aft
 | #1087 | SituationalStateService: log unrecognised mode names during deserialization | XS | Low |
 | #1088 | SituationalStateService.loadOrCreate TOCTOU — use computeIfAbsent | XS | Low |
 | #1089 | Unbounded cache growth in situational personality components | XS | Low |
+| **#1094** | **Wire TheoryOfMindEngine into CognitionCore tick** | **S** | **Low** |
+| **#1095** | **Feed MentalModel BDI into trust evolution** | **S** | **Med** |
+| **#1096** | **Surface Bayesian ToM posterior in prompt section** | **XS** | **Low** |
 
-## Queue (10 items remaining)
+## Queue (next session starts here)
+
+#1094 (Wire TheoryOfMindEngine) is the recommended first pick — biggest impact, all components exist, wiring-only change.
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
 | #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
-| #1041 | CAPS coping → regulation topology bridge | S | Low | |
-| #1042 | Verify inert coping nodes are predictor-only | XS | Low | |
-| #1045 | Surface calibration in observability resolvers | XS | Low | |
+| #1085 | Restore appraisal weight enrichment | S | Low | Rebase artifact |
+| #1086 | PersonalityMetadataEnricher orphaned | XS | Low | Rebase artifact |
+| #1087 | Log unrecognised mode names | XS | Low | |
+| #1088 | loadOrCreate TOCTOU | XS | Low | |
+| #1089 | Unbounded cache growth | XS | Low | |
+| #1094 | **Wire TheoryOfMindEngine into tick** | **S** | **Low** | **Recommended next** |
+| #1095 | MentalModel BDI → trust evolution | S | Med | |
+| #1096 | Surface Bayesian ToM posterior in prompt | XS | Low | Depends on #1094 |
 | #974 | Fix eval test compilation | XS | Low | |
 | #975 | Document CAPS modules in contributor guide | S | Low | |
 | #1043 | Oscillation attractor strategic differentiation | S | Med | |
@@ -56,18 +78,9 @@ Canonical main gained #1070-1072 (PersonalityMetadataEnricher from slot 211) aft
 | #976 | DriveProfileDerivationPhase personality classification | M | High | |
 | #977 | PID-5 facet extension | M | High | |
 
-## Unpublished
-
-3 canonical repos have landed commits not yet pushed to remotes:
-- neocortex: 10 commits
-- eidos: 6 commits  
-- examples: 3 commits
-
-Publish with: `python3 ~/.claude/skills/project/canonical_sync.py publish <canonical repo>`
-
 ## Slot Status
 
-**Slot 196 is marked ready for archive.** Cannot be archived from within the slot — archive from a session outside it.
+**Slot 196 is marked ready for archive.** All repos published. Cannot be archived from within the slot.
 
 ## Neocortex Build Note
 
