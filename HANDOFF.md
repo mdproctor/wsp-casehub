@@ -2,6 +2,8 @@
 
 ## Current State
 
+**Session 2026-11-17f:** Implemented Batch 4 of #712 — SituationalPersonalityParticipant (TERMINAL tick wiring) and SituationalDeformationPhase (consolidation). 3 commits on neocortex. 71 situational tests green (0 regressions). Batch 5 (observability + E2E integration) is next.
+
 **Session 2026-11-17e:** Implemented #1055 — EffectiveCognitiveDefaults with tenant-scoped, provenance-preserving re-derivation. 10 commits, 65+ files changed, 2301 tests green (0 regressions). Code review: 0 CRITICAL, 2 WARNING (both fixed), 2 NOTE. Blog: "The Type-Level Split". Research doc updated. Issues filed: #1073-#1076. This unblocks Batch 4 of #712.
 
 **Branch:** `issue-712-shadow-archetypes-personality-degradation` on neocortex and examples repos.
@@ -46,9 +48,9 @@
 - AgentRegistryEvents listener for base invalidation — operational
 - 1h stale refresh fallback, 24h idle eviction CDI wiring — operational
 
-**Batch 4 (now unblocked):** Tasks 7-8 — SituationalPersonalityParticipant TERMINAL wiring, SituationalDeformationPhase.
+**Batch 4: COMPLETE** — SituationalPersonalityParticipant TERMINAL wiring (6 tests), SituationalDeformationPhase consolidation (5 tests).
 
-**Batch 5:** Tasks 9-11 — Observability, E2E integration test, noise-floor topology test.
+**Batch 5 (next):** Tasks 9-11 — Observability (journal wiring already done), E2E integration test, noise-floor topology test.
 
 **eidos#234 needs a PR** — branch `issue-234-situational-profiles` on eidos. 6 commits, 12 files, 954 insertions.
 
@@ -66,7 +68,7 @@
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #712 | Shadow archetypes — personality degradation | L | High | **IN PROGRESS — Batches 1-3 + #1055 complete, Batch 4 unblocked** |
+| #712 | Shadow archetypes — personality degradation | L | High | **IN PROGRESS — Batches 1-4 complete, Batch 5 next** |
 | #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
 | #1041 | CAPS coping → regulation topology bridge | S | Low | |
 | #1042 | Verify inert coping nodes are predictor-only | XS | Low | |
