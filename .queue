@@ -10,8 +10,8 @@ covers: 712,1055
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096
-active_issue: casehubio/neocortex#1094
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095
+active_issue: casehubio/neocortex#1095
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -60,5 +60,5 @@ active_issue: casehubio/neocortex#1094
 - [ ] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
 - [ ] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
 - [x] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
-- [ ] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
+- [x] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
 - [x] casehubio/neocortex#1096 — Surface-Bayesian-ToM-posterior-in-prompt
