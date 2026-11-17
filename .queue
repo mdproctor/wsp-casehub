@@ -11,6 +11,7 @@ design-repo:
 design-section-hashes: 
 flyway-next-v: 
 done_external: casehubio/neocortex#980
+active_issue: casehubio/neocortex#712
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -53,3 +54,8 @@ done_external: casehubio/neocortex#980
 - [ ] casehubio/neocortex#976 — DriveProfileDerivationPhase-personality-classification
 - [ ] casehubio/neocortex#977 — PID5-facet-extension
 - [ ] casehubio/neocortex#1055 — EffectiveCognitiveDefaults-tenant-scoped-re-derivation
+- [ ] casehubio/neocortex#1085 — Restore-appraisal-weight-enrichment
+- [ ] casehubio/neocortex#1086 — PersonalityMetadataEnricher-orphaned
+- [ ] casehubio/neocortex#1087 — SituationalStateService-log-unrecognised-modes
+- [ ] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
+- [ ] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
