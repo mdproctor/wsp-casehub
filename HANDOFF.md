@@ -2,23 +2,27 @@
 
 ## Current State
 
-#1017 landed on canonical neocortex main (3 commits). Slot marked ready for archive.
+#1018 and #1019 implemented on neocortex branch `issue-1019-caps-topology-coping-connections` (4 commits: feat #1018, feat #1019, style cleanup, design spec update). NOT landed — branches need work-end close ceremony.
 
-**#999 NOT landed** — `issue-999-cognitive-defaults-decomposition` branch exists in slot neocortex but was not carried to canonical. The close ceremony only handled #1017 (the queue's `covers` value). Next session must land #999 separately: rebase onto canonical main (no file overlap with #1017), fast-forward merge, stamp branch. The branch has a squash review marker.
+**#999 NOT landed** — `issue-999-cognitive-defaults-decomposition` branch exists in slot neocortex but was not carried to canonical. The close ceremony only handled #1017 (the queue's `covers` value). Next session must land #999 separately.
 
-**Blocker for #1018:** #1038 (pre-existing compile errors: `EmotionType.INTEREST`, `PipelineTrace` constructor) must be resolved before any cognition module work. Likely needs cross-slot sync.
+**What was built this session:**
+- #1018: CAPS coping attractor weight seeding from CopingDefaults. `initializeAgent()` accepts optional CopingDefaults. Centered bias formula `(t − 0.5) × 0.5` seeds 6 primary coping nodes.
+- #1019: 18 topology connections from mediating nodes to coping outputs. Problem-focused, avoidant, support-seeking, cognitive pathways. Based on Connor-Smith & Flachsbart (2007).
+- Filed #1041: coping → regulation topology bridge (S/Low)
+- Filed #1042: verify inert coping nodes are intentionally predictor-only (XS/Low)
 
-## Queue (7 items remaining after #999 and #1017)
+## Queue (9 items remaining)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1018 | Seed CAPS coping attractor weights from CopingDefaults | S | Med | CAPS init |
-| #1019 | CAPS topology connections to coping outputs | M | Med | CAPS topology |
 | #921 | Prediction calibration analysis | S | Med | Eval — predictor vs LLM |
 | #1031 | Extract shared eval infrastructure | XS | Low | Refactor — EvalTestSupport |
 | #712 | Shadow archetypes — personality degradation | L | High | New capability |
 | #980 | ConsolidationScheduler journal observability | S | Low | Observability |
 | #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
+| #1041 | CAPS coping → regulation topology bridge | S | Low | Closes coping-regulation gap |
+| #1042 | Verify inert coping nodes are predictor-only | XS | Low | Documentation |
 
 ## What's Done
 
@@ -31,9 +35,12 @@
 - Code review fixes (DONE): #1011 (already implemented), #1006 (intensityDelta clamping), #1007 (regulation-routed prompt guidance), #1002 (strategy family priority ordering)
 - Batch 6 (DONE): #999 — CognitiveDefaults structural decomposition (23→8 fields, 4 nested config groups)
 - Batch 7 (DONE): #1017 — DriveModulation + AttentionDirective dispatch wiring
+- Batch 8 (DONE): #1018 — CAPS coping weight seeding, #1019 — mediating→coping topology connections
 - Filed #1036: defensive validation for GoalOperation and AttentionDirective free-text fields
 - Filed #1037: strategiesAttempted IndexOutOfBounds guard in dispatchCopingEffects
 - Filed #1038: pre-existing cognition module compile errors on main
+- Filed #1041: coping → regulation topology bridge
+- Filed #1042: verify inert coping nodes
 
 **Regulation epic (#821):**
 - Batches 1–4 (DONE): all individual strategies, fatigue, automatic, proactive, monitoring, per-strategy + per-modality evals, CAPS integration, observability
@@ -51,6 +58,7 @@ Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity 
 - Blog: `examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md`
 - Blog: `examples/docs/blog/2026-11-16-mdp02-every-field-is-a-boundary.md`
 - Blog: `wsp-casehub/blog/2026-11-17-mdp01-the-record-that-knew-too-much.md` — decomposition + dispatch wiring
+- Blog: `wsp-casehub/blog/2026-11-17-mdp02-wiring-the-coping-layer.md` — CAPS coping weight seeding + topology connections
 
 ## Neocortex Build Note
 
