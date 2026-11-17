@@ -1,7 +1,7 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-712-shadow-archetypes-personality-degradation
+branch: issue-1094-wire-theory-of-mind-engine-into-tick
 status: active
 project-sha: 
 date: 
@@ -10,8 +10,8 @@ covers: 712,1055
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-done_external: casehubio/neocortex#980
-active_issue: casehubio/neocortex#712
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096
+active_issue: casehubio/neocortex#1094
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -59,6 +59,6 @@ active_issue: casehubio/neocortex#712
 - [ ] casehubio/neocortex#1087 — SituationalStateService-log-unrecognised-modes
 - [ ] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
 - [ ] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
-- [ ] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
+- [x] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
 - [ ] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
-- [ ] casehubio/neocortex#1096 — Surface-Bayesian-ToM-posterior-in-prompt
+- [x] casehubio/neocortex#1096 — Surface-Bayesian-ToM-posterior-in-prompt
