@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 260" font-family="'Inter', 'Helvetica Neue', sans-serif">
+  <style>
+    .box { rx: 6; stroke-width: 1.5; }
+    .box-bad { fill: #fed7d7; stroke: #c53030; }
+    .box-good { fill: #c6f6d5; stroke: #276749; }
+    .label { font-size: 11px; fill: #2d3748; font-weight: 600; }
+    .sublabel { font-size: 9px; fill: #718096; }
+    .title { font-size: 12px; fill: #2d3748; font-weight: 700; }
+    .arrow { stroke: #a0aec0; stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+    .arrow-leak { stroke: #c53030; stroke-width: 2; stroke-dasharray: 4,3; fill: none; marker-end: url(#ah-red); }
+    .cross { stroke: #c53030; stroke-width: 3; }
+  </style>
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#a0aec0"/>
+    </marker>
+    <marker id="ah-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#c53030"/>
+    </marker>
+  </defs>
+
+  <!-- Left side: shared state (bad) -->
+  <text x="170" y="20" text-anchor="middle" class="title">Shared lastResult (bug)</text>
+
+  <rect x="20" y="35" width="120" height="40" class="box box-bad"/>
+  <text x="80" y="52" text-anchor="middle" class="label">Agent A tick</text>
+  <text x="80" y="65" text-anchor="middle" class="sublabel">stress engaged</text>
+
+  <rect x="20" y="95" width="120" height="40" class="box box-bad"/>
+  <text x="80" y="112" text-anchor="middle" class="label">Agent B tick</text>
+  <text x="80" y="125" text-anchor="middle" class="sublabel">calm scene</text>
+
+  <rect x="200" y="60" width="120" height="50" class="box box-bad"/>
+  <text x="260" y="80" text-anchor="middle" class="label">volatile</text>
+  <text x="260" y="93" text-anchor="middle" class="label">lastResult</text>
+  <text x="260" y="104" text-anchor="middle" class="sublabel">A's stress leaks to B</text>
+
+  <path d="M140,55 L198,75" class="arrow"/>
+  <path d="M140,115 L198,95" class="arrow-leak"/>
+
+  <!-- Right side: per-agent (good) -->
+  <text x="510" y="20" text-anchor="middle" class="title">Per-agent lastResults (fix)</text>
+
+  <rect x="380" y="35" width="120" height="40" class="box box-good"/>
+  <text x="440" y="52" text-anchor="middle" class="label">Agent A tick</text>
+  <text x="440" y="65" text-anchor="middle" class="sublabel">stress engaged</text>
+
+  <rect x="380" y="95" width="120" height="40" class="box box-good"/>
+  <text x="440" y="112" text-anchor="middle" class="label">Agent B tick</text>
+  <text x="440" y="125" text-anchor="middle" class="sublabel">calm scene</text>
+
+  <rect x="540" y="35" width="120" height="40" class="box box-good"/>
+  <text x="600" y="52" text-anchor="middle" class="label">A: stress</text>
+  <text x="600" y="65" text-anchor="middle" class="sublabel">A's own history</text>
+
+  <rect x="540" y="95" width="120" height="40" class="box box-good"/>
+  <text x="600" y="112" text-anchor="middle" class="label">B: calm</text>
+  <text x="600" y="125" text-anchor="middle" class="sublabel">B's own history</text>
+
+  <path d="M500,55 L538,55" class="arrow"/>
+  <path d="M500,115 L538,115" class="arrow"/>
+
+  <!-- Legend -->
+  <rect x="20" y="170" width="640" height="70" fill="#f7fafc" stroke="#e2e8f0" rx="4"/>
+  <text x="40" y="190" class="sublabel">The detector uses the previous tick's result for fade decay and engagement hysteresis.</text>
+  <text x="40" y="205" class="sublabel">With shared state, Agent B inherits Agent A's stress engagement — its threshold_off</text>
+  <text x="40" y="220" class="sublabel">is already met, so B starts stressed despite a calm scene. ConcurrentHashMap keyed</text>
+  <text x="40" y="235" class="sublabel">by agentId:tenantId isolates each agent's detection history.</text>
+</svg>

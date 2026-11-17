@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" font-family="'Inter', 'Helvetica Neue', sans-serif">
+  <style>
+    .box { fill: #f0f4f8; stroke: #4a5568; stroke-width: 1.5; rx: 6; }
+    .box-active { fill: #ebf8ff; stroke: #2b6cb0; stroke-width: 2; rx: 6; }
+    .box-terminal { fill: #fefcbf; stroke: #b7791f; stroke-width: 2; rx: 6; }
+    .label { font-size: 11px; fill: #2d3748; font-weight: 600; }
+    .sublabel { font-size: 9px; fill: #718096; }
+    .arrow { stroke: #a0aec0; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .arrow-data { stroke: #2b6cb0; stroke-width: 1.5; stroke-dasharray: 4,3; fill: none; marker-end: url(#arrowhead-blue); }
+    .phase-label { font-size: 10px; fill: #a0aec0; font-weight: 700; letter-spacing: 1px; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#a0aec0"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#2b6cb0"/>
+    </marker>
+  </defs>
+
+  <!-- Phase labels -->
+  <text x="85" y="22" class="phase-label">FOUNDATION</text>
+  <text x="265" y="22" class="phase-label">DERIVED</text>
+  <text x="560" y="22" class="phase-label">TERMINAL</text>
+
+  <!-- Foundation phase -->
+  <rect x="20" y="35" width="140" height="45" class="box"/>
+  <text x="90" y="55" text-anchor="middle" class="label">Mood</text>
+  <text x="90" y="68" text-anchor="middle" class="sublabel">PAD state</text>
+
+  <rect x="20" y="95" width="140" height="45" class="box"/>
+  <text x="90" y="115" text-anchor="middle" class="label">Attention</text>
+  <text x="90" y="128" text-anchor="middle" class="sublabel">briefing drain</text>
+
+  <!-- Derived phase -->
+  <rect x="200" y="35" width="140" height="45" class="box-active"/>
+  <text x="270" y="55" text-anchor="middle" class="label">Appraisal</text>
+  <text x="270" y="68" text-anchor="middle" class="sublabel">SEC + situation inputs</text>
+
+  <rect x="200" y="95" width="140" height="45" class="box-active"/>
+  <text x="270" y="115" text-anchor="middle" class="label">Regulation</text>
+  <text x="270" y="128" text-anchor="middle" class="sublabel">strategy selection</text>
+
+  <rect x="200" y="155" width="140" height="45" class="box"/>
+  <text x="270" y="175" text-anchor="middle" class="label">Drives</text>
+  <text x="270" y="188" text-anchor="middle" class="sublabel">intensity update</text>
+
+  <!-- Arrows from Foundation to Derived -->
+  <path d="M160,57 L198,57" class="arrow"/>
+  <path d="M160,117 L198,117" class="arrow"/>
+
+  <!-- Terminal phase — situational personality -->
+  <rect x="460" y="35" width="240" height="135" class="box-terminal"/>
+  <text x="580" y="55" text-anchor="middle" class="label">SituationalPersonality</text>
+  <text x="580" y="55" text-anchor="middle" class="label">Participant</text>
+
+  <text x="480" y="80" class="sublabel">1. advance(state, now)</text>
+  <text x="480" y="95" class="sublabel">2. buildEvidence(appraisal, mood)</text>
+  <text x="480" y="110" class="sublabel">3. detect(evidence, previous)</text>
+  <text x="480" y="125" class="sublabel">4. compositeDelta(profiles × intensity)</text>
+  <text x="480" y="140" class="sublabel">5. pull(state, delta)</text>
+  <text x="480" y="155" class="sublabel">6. updateState → EffectiveDefaults</text>
+
+  <!-- Data arrows from Derived to Terminal -->
+  <path d="M340,57 Q400,57 458,70" class="arrow-data"/>
+  <path d="M340,117 Q400,100 458,90" class="arrow-data"/>
+
+  <!-- EffectiveDefaults output -->
+  <rect x="460" y="200" width="240" height="45" class="box"/>
+  <text x="580" y="220" text-anchor="middle" class="label">EffectiveCognitiveDefaults</text>
+  <text x="580" y="233" text-anchor="middle" class="sublabel">resting + displacement → CDE</text>
+
+  <path d="M580,170 L580,198" class="arrow"/>
+
+  <!-- Consolidation (separate path) -->
+  <rect x="460" y="275" width="240" height="45" class="box"/>
+  <text x="580" y="295" text-anchor="middle" class="label">DeformationPhase</text>
+  <text x="580" y="308" text-anchor="middle" class="sublabel">idle advance on hourly grid</text>
+
+  <path d="M580,245 L580,273" class="arrow" style="stroke-dasharray: 6,3"/>
+</svg>
