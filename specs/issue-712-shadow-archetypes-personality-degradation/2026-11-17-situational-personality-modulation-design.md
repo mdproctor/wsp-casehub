@@ -174,7 +174,15 @@ archetype_profiles:
 
 Each profile is literature-grounded. The descriptions are for documentation — only `facet_deltas` are consumed by the engine.
 
-**Social mode subtypes:** The social mode has subtypes (competitive, collaborative, hierarchical) rather than a single profile. The subtype is detected from the social attractor pattern — trust+proximity = collaborative, distrust+distance = competitive, comply/submit = hierarchical. Each subtype has its own facet deltas.
+**Social mode subtypes:** The social mode has subtypes (competitive, collaborative, hierarchical) rather than a single profile. The subtype is detected from the social output attractor pattern:
+
+| Subtype | Primary signals | Secondary signals |
+|---|---|---|
+| Competitive | distrust > 0.5, distance_maintain > 0.4 | competence drive high, hostility appraisal |
+| Collaborative | trust > 0.5, proximity_seek > 0.4 | affiliation drive high, positive mood |
+| Hierarchical | comply > 0.5 OR submit > 0.5 | low dominance mood, autonomy drive low |
+
+Each subtype has its own facet deltas in the topology YAML. When multiple social subtypes are active simultaneously, they compose additively like other modes.
 
 ### Pipeline integration
 
