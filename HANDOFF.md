@@ -2,63 +2,59 @@
 
 ## Current State
 
-#1018 and #1019 implemented on neocortex branch `issue-1019-caps-topology-coping-connections` (4 commits: feat #1018, feat #1019, style cleanup, design spec update). NOT landed — branches need work-end close ceremony.
+**Session 2026-11-17b:** Completed #921 and #1031 on neocortex. #921 commits on main (CalibrationReport + PredictionCalibrationAnalyzer + tests). #1031 on branch `issue-1031-extract-shared-eval-infrastructure` (eval infrastructure extraction). Both need work-end close ceremony.
 
-**#999 NOT landed** — `issue-999-cognitive-defaults-decomposition` branch exists in slot neocortex but was not carried to canonical. The close ceremony only handled #1017 (the queue's `covers` value). Next session must land #999 separately.
+**Prior session carry-over:** #1018 and #1019 implemented on branch `issue-1019-caps-topology-coping-connections` (4 commits). #999 on branch `issue-999-cognitive-defaults-decomposition`. Neither landed — branches need close ceremony.
 
 **What was built this session:**
-- #1018: CAPS coping attractor weight seeding from CopingDefaults. `initializeAgent()` accepts optional CopingDefaults. Centered bias formula `(t − 0.5) × 0.5` seeds 6 primary coping nodes.
-- #1019: 18 topology connections from mediating nodes to coping outputs. Problem-focused, avoidant, support-seeking, cognitive pathways. Based on Connor-Smith & Flachsbart (2007).
-- Filed #1041: coping → regulation topology bridge (S/Low)
-- Filed #1042: verify inert coping nodes are intentionally predictor-only (XS/Low)
+- #921: `PredictionCalibrationAnalyzer` — static utility comparing predictor vs LLM regulation effectiveness per agent. `CalibrationReport` record with per-source summaries, delta, miscalibration flag, inconclusive status. 23 tests (10 unit + 13 integration).
+- #1031: Extracted `extractJson`, `writeResult`, `judge` from `CopingEmergenceEvalTest` and `SleepDerivationEvalTest` into `EvalTestSupport`. Eliminated three copies of `extractJson`, two copies of `writeResult`, two retry/backoff judge loops. Net -50 lines.
+- Filed #1045: Surface calibration report in `@McpDomain("cognition")` GraphQL resolvers (XS/Low)
+- Updated research doc: `docs/research/2026-11-06-regulation-predictor-quality-phase1-findings.md` — added §6 on calibration analysis
+- Blog: "Knowing When the Model Is Wrong" — prediction calibration, population-level vs individual variation
 
-## Queue (9 items remaining)
+## Queue (13 items remaining)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #921 | Prediction calibration analysis | S | Med | Eval — predictor vs LLM |
-| #1031 | Extract shared eval infrastructure | XS | Low | Refactor — EvalTestSupport |
+| #1031 | Extract shared eval infrastructure | XS | Low | DONE on branch |
 | #712 | Shadow archetypes — personality degradation | L | High | New capability |
 | #980 | ConsolidationScheduler journal observability | S | Low | Observability |
 | #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
 | #1041 | CAPS coping → regulation topology bridge | S | Low | Closes coping-regulation gap |
 | #1042 | Verify inert coping nodes are predictor-only | XS | Low | Documentation |
+| #1045 | Surface calibration in observability resolvers | XS | Low | Depends on #921 |
+| #974 | Fix eval test compilation | XS | Low | Build fix |
+| #975 | Document CAPS modules in contributor guide | S | Low | Documentation |
+| #1043 | Oscillation attractor strategic differentiation | S | Med | CAPS enhancement |
+| #1044 | CognitiveEmergenceSampleTest distrust attractor | S | Med | Test fix |
+| #976 | DriveProfileDerivationPhase personality classification | M | High | New capability |
+| #977 | PID-5 facet extension | M | High | New capability |
 
 ## What's Done
 
+**Calibration (#921):**
+- CalibrationReport + PredictionCalibrationAnalyzer on neocortex main
+- Integration tests proving the full flow: write episodes → load summaries → analyze
+
 **Coping epic (#595):**
-- Batch 1 (DONE): #991, #992, #993 — types, predictor, LLM generation
-- Batch 2 (DONE): #994, #996 — micro-loop orchestrator, goal dispatch, keyword expansion
-- Batch 3 (DONE): #995 — regulation refactoring
-- Batch 4 (DONE): #997 — CAPS coping attractors + pipeline wiring
-- Batch 5 (DONE): #998 — coping emergence eval (5 tests, floor 4/5)
-- Code review fixes (DONE): #1011 (already implemented), #1006 (intensityDelta clamping), #1007 (regulation-routed prompt guidance), #1002 (strategy family priority ordering)
-- Batch 6 (DONE): #999 — CognitiveDefaults structural decomposition (23→8 fields, 4 nested config groups)
-- Batch 7 (DONE): #1017 — DriveModulation + AttentionDirective dispatch wiring
-- Batch 8 (DONE): #1018 — CAPS coping weight seeding, #1019 — mediating→coping topology connections
-- Filed #1036: defensive validation for GoalOperation and AttentionDirective free-text fields
-- Filed #1037: strategiesAttempted IndexOutOfBounds guard in dispatchCopingEffects
-- Filed #1038: pre-existing cognition module compile errors on main
-- Filed #1041: coping → regulation topology bridge
-- Filed #1042: verify inert coping nodes
+- Batches 1–8: all complete (see prior handoff for details)
+- Filed #1036, #1037, #1038, #1041, #1042
 
 **Regulation epic (#821):**
-- Batches 1–4 (DONE): all individual strategies, fatigue, automatic, proactive, monitoring, per-strategy + per-modality evals, CAPS integration, observability
-- Batch 5 remaining: examples#203 (Traitors format), mosaic#315 (dashboard) — NOT in this slot's queue
-- Independent items in queue above
+- Batches 1–4 complete, Batch 5 remaining items not in this slot
 
 ## Slot 211 Boundary
 
-Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity epic + children). Do not duplicate.
+Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity epic + children). Do not duplicate. Issues #974, #975, #1043, #1044, #976, #977 are safe for either slot — not in 211's queue.
 
 ## Key References
 
+- Research doc: `neocortex/docs/research/2026-11-06-regulation-predictor-quality-phase1-findings.md` — updated with §6 on calibration
+- Blog: `wsp-casehub/blog/2026-11-17-mdp03-knowing-when-the-model-is-wrong.md` — calibration analysis
+- Blog: `wsp-casehub/blog/2026-11-17-mdp01-the-record-that-knew-too-much.md` — decomposition + dispatch
+- Blog: `wsp-casehub/blog/2026-11-17-mdp02-wiring-the-coping-layer.md` — CAPS coping wiring
 - Design spec: `wsp-casehub-neocortex/specs/issue-595-coping-strategies/2026-11-15-coping-strategies-design.md`
-- Era7 research: `neocortex/docs/research/era7-personality-trait-integration-research.md`
-- Blog: `examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md`
-- Blog: `examples/docs/blog/2026-11-16-mdp02-every-field-is-a-boundary.md`
-- Blog: `wsp-casehub/blog/2026-11-17-mdp01-the-record-that-knew-too-much.md` — decomposition + dispatch wiring
-- Blog: `wsp-casehub/blog/2026-11-17-mdp02-wiring-the-coping-layer.md` — CAPS coping weight seeding + topology connections
 
 ## Neocortex Build Note
 
