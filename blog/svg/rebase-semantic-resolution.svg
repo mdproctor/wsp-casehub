@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" font-family="system-ui, -apple-system, sans-serif">
+  <style>
+    text { font-size: 12px; fill: #1a1a2e; }
+    .title { font-size: 14px; font-weight: 600; }
+    .label { font-size: 11px; fill: #4a4a6a; }
+    .code { font-family: 'SF Mono', 'Menlo', monospace; font-size: 10px; }
+    .box { rx: 6; ry: 6; stroke-width: 1.5; }
+    .arrow { stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#6a6a8a"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="720" height="480" fill="#fafafa" rx="8"/>
+
+  <!-- Title -->
+  <text x="360" y="28" text-anchor="middle" class="title">Semantic Conflict Resolution: Two Intents, One File</text>
+
+  <!-- Common ancestor -->
+  <rect x="250" y="44" width="220" height="44" class="box" fill="#e8e8f0" stroke="#8888aa"/>
+  <text x="360" y="62" text-anchor="middle" class="title" style="font-size:12px">Common Ancestor (slot main)</text>
+  <text x="360" y="78" text-anchor="middle" class="code">CognitiveDefaultsRegistry + forAgent(agentId)</text>
+
+  <!-- Branch lines -->
+  <path d="M310,88 L180,130" class="arrow" stroke="#6a6a8a"/>
+  <path d="M410,88 L540,130" class="arrow" stroke="#6a6a8a"/>
+
+  <!-- Canonical branch -->
+  <rect x="40" y="130" width="280" height="120" class="box" fill="#e3f0e8" stroke="#4a9a6a"/>
+  <text x="180" y="150" text-anchor="middle" class="title" style="fill:#2a6a4a">Canonical Main (#1070–1072)</text>
+  <text x="60" y="172" class="label">Intent: PID-5 metadata enrichment</text>
+  <text x="60" y="192" class="code">+ pid5FacetSet field</text>
+  <text x="60" y="206" class="code">+ Pid5FacetsConfig CDI injection</text>
+  <text x="60" y="220" class="code">+ PersonalityMetadataEnricher.enrich()</text>
+  <text x="60" y="234" class="code">  → disposition + PID-5 facets + appraisal</text>
+
+  <!-- Feature branch -->
+  <rect x="400" y="130" width="280" height="120" class="box" fill="#e3e8f0" stroke="#4a6a9a"/>
+  <text x="540" y="150" text-anchor="middle" class="title" style="fill:#2a4a6a">Feature Branch (#712)</text>
+  <text x="420" y="172" class="label">Intent: Tenant-scoped API migration</text>
+  <text x="420" y="192" class="code">CognitiveDefaultsRegistry → EffectiveCognitiveDefaults</text>
+  <text x="420" y="206" class="code">forAgent(agentId) → restingFor(tenantId, agentId)</text>
+  <text x="420" y="220" class="code">addDispositionMetadata(meta, tenantId, agentId)</text>
+  <text x="420" y="234" class="code">  → disposition axes only (LearningProfile API)</text>
+
+  <!-- Conflict zone -->
+  <rect x="180" y="276" width="360" height="36" class="box" fill="#f0e0e0" stroke="#c06060"/>
+  <text x="360" y="298" text-anchor="middle" class="title" style="fill:#903030; font-size:12px">⚡ 11 conflict regions across 3 files</text>
+
+  <!-- Merge arrows -->
+  <path d="M180,250 L310,276" class="arrow" stroke="#4a9a6a"/>
+  <path d="M540,250 L410,276" class="arrow" stroke="#4a6a9a"/>
+
+  <!-- Resolution -->
+  <rect x="100" y="336" width="520" height="130" class="box" fill="#f0f0ff" stroke="#6060c0"/>
+  <text x="360" y="358" text-anchor="middle" class="title" style="fill:#3030a0">Semantic Resolution</text>
+
+  <text x="120" y="380" class="code" style="fill:#2a6a4a">✓ pid5FacetSet + Pid5FacetsConfig</text>
+  <text x="410" y="380" class="label" style="fill:#2a6a4a">← canonical's enrichment config</text>
+
+  <text x="120" y="398" class="code" style="fill:#2a4a6a">✓ EffectiveCognitiveDefaults</text>
+  <text x="410" y="398" class="label" style="fill:#2a4a6a">← feature's tenant-scoped type</text>
+
+  <text x="120" y="416" class="code" style="fill:#2a4a6a">✓ restingFor(tenantId, agentId)</text>
+  <text x="410" y="416" class="label" style="fill:#2a4a6a">← feature's LearningProfile API</text>
+
+  <text x="120" y="434" class="code" style="fill:#6a3a6a">✓ addPersonalityMetadata + PID-5 facets</text>
+  <text x="410" y="434" class="label" style="fill:#6a3a6a">← new: both enrichments combined</text>
+
+  <text x="120" y="452" class="code" style="fill:#8a5a2a">△ appraisalWeights deferred</text>
+  <text x="410" y="452" class="label" style="fill:#8a5a2a">← LearningProfile boundary (follow-up)</text>
+
+  <!-- Merge arrow down -->
+  <path d="M360,312 L360,336" class="arrow" stroke="#6060c0"/>
+</svg>
