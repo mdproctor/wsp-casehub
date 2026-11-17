@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Session 2026-11-17e:** Implemented #1055 — EffectiveCognitiveDefaults with tenant-scoped, provenance-preserving re-derivation. 8 commits, 65 files changed, 2301 tests green (0 regressions). This unblocks Batch 4 of #712.
+**Session 2026-11-17e:** Implemented #1055 — EffectiveCognitiveDefaults with tenant-scoped, provenance-preserving re-derivation. 10 commits, 65+ files changed, 2301 tests green (0 regressions). Code review: 0 CRITICAL, 2 WARNING (both fixed), 2 NOTE. Blog: "The Type-Level Split". Research doc updated. Issues filed: #1073-#1076. This unblocks Batch 4 of #712.
 
 **Branch:** `issue-712-shadow-archetypes-personality-degradation` on neocortex and examples repos.
 **Branch:** `issue-234-situational-profiles` on eidos repo (not yet merged — PR needed).
