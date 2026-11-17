@@ -1,12 +1,12 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-921-prediction-calibration-analysis
+branch: issue-1031-extract-shared-eval-infrastructure
 status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 921
+covers: 1031
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
@@ -37,10 +37,11 @@ flyway-next-v:
 - [x] casehubio/neocortex#1017 — DriveModulation-and-AttentionDirective-dispatch
 - [x] casehubio/neocortex#1018 — Seed-CAPS-coping-attractor-weights
 - [x] casehubio/neocortex#1019 — CAPS-topology-connections-to-coping-outputs
-- [ ] casehubio/neocortex#921 — Prediction-calibration-analysis
+- [x] casehubio/neocortex#921 — Prediction-calibration-analysis
 - [ ] casehubio/neocortex#1031 — Extract-shared-eval-infrastructure
 - [ ] casehubio/neocortex#712 — Shadow-archetypes-personality-degradation
 - [ ] casehubio/neocortex#980 — ConsolidationScheduler-journal-observability
 - [ ] casehubio/neocortex#968 — Instrument-remaining-CognitionCore-tick-stages
 - [ ] casehubio/neocortex#1041 — CAPS-coping-to-regulation-connections
 - [ ] casehubio/neocortex#1042 — verify-inert-coping-nodes
+- [ ] casehubio/neocortex#1045 — Surface-prediction-calibration-in-observability
