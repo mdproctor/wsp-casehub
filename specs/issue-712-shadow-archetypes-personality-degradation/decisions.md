@@ -51,7 +51,11 @@
 
 **Choice:** In Eidos: `AgentDisposition.situationalProfiles` holds authored or biographical profiles only (deltas on the AMPD 0–100 scale; facets from the closed `AmpdFacetName` enum). Family defaults (12 × 5) live in a versioned eidos-vocab table. `SituationalProfileResolver` applies them **at read time** for unauthored modes, never materialised into descriptors, so eval retuning needs no re-registration (revised in review round 2: R2-08). neocortex reads only the resolved list.
 **Alternatives:**
-- Per-family table in neocortex. Rejected (R1-09, R1-10): every Creator degrades identically; there is no path for biographical extraction (#712 Q4); and archetype → family resolution needs eidos-vocab, which carries quarkus-arc and is unfit for neocortex cognition.
+- Per-family table in neocortex. Rejected (R1-09, R1-10):
+  - every Creator degrades identically;
+  - there is no path for biographical extraction (#712 Q4);
+  - archetype → family resolution belongs with the archetype vocabulary that Eidos owns (`ArchetypeTerm.family()`), and a neocortex copy of the 48 → 12 mapping, or of the family-default table, would drift from it.
+  - *Record correction (review round 3, R3-08):* rounds 1–2 also argued that neocortex `cognition` must stay framework-neutral and so must not depend on eidos-vocab's compile-scope `quarkus-arc`. That premise is false: `cognition` already imports `io.quarkus.arc.DefaultBean` (`CognitionDefaultBeans.java:27`), and this spec adds more `@DefaultBean` SPIs. The decision rests on ownership and drift alone. The Spring consequence of `@DefaultBean` is handled by explicit Spring beans (spec Part 0d).
 - A generic profile for agents without an archetype. Rejected: it erases differentiation.
 **Status:** new (review round 1). Tracked as casehubio/eidos#234; extraction is #1056.
 
@@ -62,7 +66,11 @@
 
 ## D9: Resting vs effective cognitive defaults
 
-**Choice:** `EffectiveCognitiveDefaults` derives two results per slot. *Resting* is baseline + lasting offset; *effective* adds the transient displacement. Tick-time cognition reads effective. Every component that writes durable state (consolidation phases, CAPS init and learning, relational schema evolution, drive adaptation, strategy learning, PEO) reads resting. An ArchUnit test enforces that no `ConsolidationPhase` reads effective.
+**Choice:** `EffectiveCognitiveDefaults` derives two results per slot. *Resting* is baseline + lasting offset; *effective* adds the transient displacement. The split follows the **kind of parameter read** (restated in review round 3, R3-06):
+- **Learning-rule parameters** (rates, ceilings, gates of trust/role update, CAPS learning and initialisation, drive adaptation, strategy learning, graduation, PEO drift ceiling) come from resting. They are enforced by type: `restingFor` returns `LearningProfile`, and every learning rule takes a `LearningProfile`.
+- **Behaviour, and the record of experience** produced under the current state (regulation strategy and outcome, appraisal of an action, goal formation), use effective `CognitiveDefaults`.
+
+The round-2 wording ("anything that persists durable state reads resting", enforced by ArchUnit on `ConsolidationPhase`) contradicted the consumer list and could not police tick-time writers.
 **Alternative:** Move the consolidation-maintained signals into the endogenous class (R2-02 option b). Rejected: it leaves transient state leaking into every durable learner, not only the detector's inputs.
 **Rationale:** TESSERA. Transient states reach durable structure only through the slow, bounded lasting-change channel (homeOffset). This removes consolidation-speed feedback loops by construction.
 **Status:** new (review round 2: R2-02)
@@ -86,3 +94,25 @@
 **Choice:** `target = clamp01(home + clamp(Σ I·δ, ±S_max))`, anchored to the deformed home, not the immutable baseline. Boundedness comes from |homeOffset| ≤ D_max, not from moving the anchor.
 **Alternative:** Anchor to the baseline (reviewer proposal, R1-04). Rejected: under stress, a permanently deformed character would be pulled partly back toward their original personality, so stress would undo deformation.
 **Status:** new (review round 1)
+
+## D12: Exposure dose weighted by sustained situational evidence
+
+**Choice:** Load and signed exposure accrue at weight 1 inside exposure windows. A window opens or extends to `now + hold` (10 min) on each tick where a group winner has `X > 0` and `E ≥ θ_off`. Outside windows the relaxation tail accrues at `w_tail = 0.1`. `τ_fatigue` (12) and `τ_drift` (15) are re-tuned so chronic daily stress still saturates.
+**Alternatives:**
+- Unweighted tail (rev 3). Rejected (R3-05): the 6 h tail was about 80 % of any exposure's load, so a 10-minute and a 2-hour episode left the same trace. Duration collapsed into entry count.
+- Two relaxation time constants. Rejected: it changes the observable state trajectory (how fast the character visibly returns) to fix a dose-accounting problem.
+- Document duration-insensitivity as intended. Rejected: it contradicts TESSERA's "repeated, sustained" states and §Goal.
+**Rationale:** Perseverative cognition prolongs stress activation beyond the stressor (Brosschot, Gerin & Thayer 2006), so the tail counts, but less than the stressor itself. Simulated: 30 days × 10 / 30 / 100 turns give o = 0.045 / 0.071 / 0.098 (monotone; 10 ≤ ½ · 100). Cadence invariance holds exactly.
+**Status:** new (review round 3: R3-05)
+
+## D13: One assembly path for CognitionCore
+
+**Choice:** `CognitivePipelineBuilder` is the only constructor path; the `CognitionCore` constructor is package-private. `CognitionCoreFactory` (Quarkus CDI) and `AgencyAutoConfiguration` (Spring, with explicit beans for every Quarkus `@DefaultBean`) both build through it. agency `AgencyBeans` and the agentic-yaml `CognitionStack` migrate to it. `build()` fails fast on a half-wired situational configuration. Wiring tests boot both production graphs.
+**Alternative:** Add the missing configure calls to each of the three hand-built roots. Rejected: that repeats the bridgeAll / PEO failure class (built, never assembled) three times over, and the next feature would need the same three edits.
+**Status:** new (review round 3: R3-01). Tracked as casehubio/agency#484.
+
+## D14: Per-classifier calibrated noise floor
+
+**Choice:** The `above_floor` threshold `x_floor` is a per-classifier, per-model calibrated parameter: the 95th percentile of confidences on a frozen neutral / incidental-mention calibration corpus. The uncalibrated default is 0.6. The sub-floor hold margin `G·x_sub < θ_off` is validated with the measured `x_floor` and `m_floor`.
+**Alternative:** The topology vocabulary band (0.3, rev 3). Rejected (R3-02): only the unused keyword classifier reads those bands; `LlmSituationClassifier` confidences are free-form.
+**Status:** new (review round 3: R3-02). Refines D10.
