@@ -2,14 +2,16 @@
 
 ## Current State
 
-Branch `issue-1006-clamp-drive-modulation-delta` in neocortex — 3 commits landing #1006, #1007, #1002. Ready for `work end`. #1011 was already implemented (closed, no code change needed).
+Two branches ready in neocortex:
+- `issue-999-cognitive-defaults-decomposition` — 2 commits: 4 new group records + CognitiveDefaults decomposition (23→8 fields). All 473 cognitive-index tests pass. Full neocortex compile green.
+- `issue-1017-drive-modulation-attention-dispatch` — 3 commits: DriveModulation + AttentionDirective dispatch wiring + design spec updates. IntelliJ diagnostics clean. **Cannot run tests** — pre-existing compile errors in cognition module on main (#1038).
 
-## Queue (9 items remaining)
+**Blocker for next session:** #1038 (pre-existing compile errors: `EmotionType.INTEREST`, `PipelineTrace` constructor) must be resolved before #1018 or any cognition module work. Likely needs cross-slot sync.
+
+## Queue (7 items remaining after #999 and #1017)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #999 | CognitiveDefaults structural decomposition | M | Med | Refactor — nested config groups |
-| #1017 | DriveModulation + AttentionDirective dispatch | S | Low | Dispatch wiring |
 | #1018 | Seed CAPS coping attractor weights from CopingDefaults | S | Med | CAPS init |
 | #1019 | CAPS topology connections to coping outputs | M | Med | CAPS topology |
 | #921 | Prediction calibration analysis | S | Med | Eval — predictor vs LLM |
@@ -27,7 +29,11 @@ Branch `issue-1006-clamp-drive-modulation-delta` in neocortex — 3 commits land
 - Batch 4 (DONE): #997 — CAPS coping attractors + pipeline wiring
 - Batch 5 (DONE): #998 — coping emergence eval (5 tests, floor 4/5)
 - Code review fixes (DONE): #1011 (already implemented), #1006 (intensityDelta clamping), #1007 (regulation-routed prompt guidance), #1002 (strategy family priority ordering)
+- Batch 6 (DONE): #999 — CognitiveDefaults structural decomposition (23→8 fields, 4 nested config groups)
+- Batch 7 (DONE): #1017 — DriveModulation + AttentionDirective dispatch wiring
 - Filed #1036: defensive validation for GoalOperation and AttentionDirective free-text fields
+- Filed #1037: strategiesAttempted IndexOutOfBounds guard in dispatchCopingEffects
+- Filed #1038: pre-existing cognition module compile errors on main
 
 **Regulation epic (#821):**
 - Batches 1–4 (DONE): all individual strategies, fatigue, automatic, proactive, monitoring, per-strategy + per-modality evals, CAPS integration, observability
@@ -44,6 +50,7 @@ Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity 
 - Era7 research: `neocortex/docs/research/era7-personality-trait-integration-research.md`
 - Blog: `examples/docs/blog/2026-11-16-mdp01-the-loop-that-learns-to-chain.md`
 - Blog: `examples/docs/blog/2026-11-16-mdp02-every-field-is-a-boundary.md`
+- Blog: `wsp-casehub/blog/2026-11-17-mdp01-the-record-that-knew-too-much.md` — decomposition + dispatch wiring
 
 ## Neocortex Build Note
 
