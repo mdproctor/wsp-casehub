@@ -2,54 +2,47 @@
 
 ## Current State
 
-**Session 2026-11-17i:** Theory of Mind activation — wired the Bayesian ToM engine into the cognitive pipeline. Landed 3 issues (#1094, #1095, #1096), closed on GitHub, published to origin. Code review found and fixed thread safety issue, memory leak, and false-positive risk. Filed 3 follow-up issues (#1097, #1098, #1099). Updated era5 and capacity-gap research docs. Blog: "The Agent That Knew What You Felt".
+**Session 2026-11-17j:** Closed rebase debt — 4 XS/Low issues landed (#1085, #1086, #1087, #1099). Appraisal weight enrichment restored, PersonalityMetadataEnricher consolidated, situational state logging added, MentalModelPromptSection test coverage filled. Filed #1106 (CognitionCore compilation mismatch). Blog: "Closing the Rebase Debt". Updated era7 research doc.
 
-**All branches landed and published.** No active branch work in this slot.
+**All branches landed.** 5 unpublished commits on canonical neocortex. Slot 196 marked ready for archive.
 
 ## What Was Landed This Session
 
-### #1094 — Wire TheoryOfMindEngine into CognitionCore tick (neocortex)
-`TheoryOfMindBridge` maps appraisal SEC dimensions (conduciveness → incongruence, controllability → power) to soft Bayesian threat evidence, and ActionTendencies to soft behavior evidence. Creates a fresh 3-node Bayesian network per inference (thread-safe). Runs per-subject in `CognitionCore.tick()` after `mentalModel.tick()`. Posterior stored on `MentalModelOrchestrator` via `recordTomPosterior()`. Journal entry `TheoryOfMindInferred` for observability.
+### #1085 — Restore appraisal weight enrichment (neocortex)
+Added `appraisalWeights()` delegate to `LearningProfile`. Restored appraisal weight metadata keys (`appraisal.urgencyWeight`, `appraisal.relationshipWeight`, `appraisal.fearOnsetThreshold`, `appraisal.selfStandardsStrictness`, `appraisal.otherStandardsStrictness`) in both consolidation phase enrichment methods. Test coverage in `LearningProfileTest`.
 
-### #1095 — Feed MentalModel BDI into trust evolution (neocortex)
-`RelationalSchemaEvolutionPhase` now accepts optional `MentalModelLookup`. After computing the observation-driven trust delta, checks BDI snapshot for the subject. Hostile intent (deception, manipulation) with confidence ≥0.5 biases trust delta -0.15. Cooperative intent (help, collaboration) biases +0.05. Intentions at full weight, desires at 0.5×. Negative exclusions for false positives (helpless, distrust, mistrust, overshare).
+### #1086 — Consolidate PersonalityMetadataEnricher (neocortex)
+Added `LearningProfile` overload to `PersonalityMetadataEnricher`. Rewired both `BehavioralSynthesisPhase` and `DriveProfileDerivationPhase` to delegate to it — 50 lines of duplicate inline code replaced by 3-line delegations. Existing `CognitiveDefaultsRegistry` overload now delegates through `LearningProfile.from()`. Side effect: enrichment no longer gated by `descriptor == null` — agents with appraisal weights but no descriptor now get appraisal enrichment (correct behaviour). Test coverage in `PersonalityMetadataEnricherTest`.
 
-### #1096 — Surface Bayesian ToM posterior in MentalModelPromptSection (neocortex)
-`MentalModelPromptSection` renders quantitative emotional read alongside BDI text. Gated at 60% dominant confidence. Format: "positive: 15%, neutral: 25%, distressed: 60% → likely distressed". Two-channel cognitive read: qualitative BDI + quantitative Bayesian posterior.
+### #1087 — Log unrecognised situational mode names (neocortex)
+Added `LOG.fine()` to `SituationalStateService` catch block for `SituationalMode.valueOf()` failures. Forward-compatibility guard preserved, debugging trail added.
 
-## Review Fixes Applied
-
-- **Thread safety:** `TheoryOfMindBridge` creates engine per-call instead of sharing mutable instance across concurrent agent ticks
-- **Memory leak:** `MentalModelOrchestrator.evictStale()` now evicts `tomPosteriors` alongside stale `states`
-- **False positives:** Cooperative intent classifier excludes "helpless", "distrust", "mistrust", "overshare"
+### #1099 — Test MentalModelPromptSection posterior rendering (neocortex)
+4 tests covering the 60% confidence threshold: above (rendered), at exactly 60% (not rendered — strict `>`), below (not rendered), null posterior (no section). Tests exercise the full public API path through a mocked orchestrator.
 
 ## Issues Filed This Session
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1097 | Personality-modulated CPTs for TheoryOfMindEngine | M | Med | Next ToM step — anxiety/callousness condition priors |
-| #1098 | Replace keyword intent classifier with BDI-dimension semantic classification | S | Med | Known fragility in keyword matching |
-| #1099 | MentalModelPromptSection: test posterior rendering and 60% threshold | XS | Low | Test coverage gap from review |
+| #1106 | CognitionCore compilation error: BehavioralSynthesisPhase signature mismatch | XS | Low | Pre-existing — `lastInputActivations`/`lastSettlingResult` take 1 arg, callers pass 2 |
 
 ## Research Docs Updated
 
-- `era5-relational-cognition-research.md` — added BDI→trust biasing sub-section to §4, new Bayesian ToM section
-- `capacity-gap-mapping.md` — ToM maturity "Absent" → "Foundational", documented what's wired and what remains
+- `era7-personality-trait-integration-research.md` — marked appraisal weight gap as resolved (#1085), updated PersonalityMetadataEnricher status from orphaned to revived (#1086)
 
-## Queue — 4 items remaining
+## Queue — 3 items remaining
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1085 | Restore appraisal weight enrichment | S | Low | Rebase artifact |
-| #1086 | PersonalityMetadataEnricher orphaned | XS | Low | Rebase artifact |
-| #1087 | Log unrecognised mode names | XS | Low | |
-| #1089 | Unbounded cache growth | XS | Low | |
+| #1089 | Unbounded cache growth | XS | Low | Deferred — no impact with fixed 17-character cast |
+| #1097 | Personality-modulated CPTs for TheoryOfMindEngine | M | Med | Design-heavy — anxiety/callousness condition priors |
+| #1098 | Replace keyword intent classifier with BDI-dimension semantic | M | Med | Known fragility in keyword matching |
 
-All 4 are small cleanup items. #1085 and #1086 are rebase artifacts from the #712 landing. #1087 and #1089 are situational personality hardening.
+#1089 is deferred until dynamic agent creation becomes a requirement. #1097 and #1098 are M/Med design work needing brainstorming and literature review — fresh session recommended.
 
 ## Slot Status
 
-**Slot 196 was marked ready for archive in a prior session.** All repos published. Cannot be archived from within the slot.
+**Slot 196 marked ready for archive.** 5 unpublished commits on canonical neocortex. Cannot be archived from within the slot.
 
 ## Neocortex Build Note
 
@@ -57,3 +50,5 @@ Full reactor fails at `schema-generator`. Use targeted module builds:
 ```bash
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml test -s examples/.mvn/slot-settings.xml
 ```
+
+**Additional:** `cognition` module has a pre-existing compilation error (#1106) — `CognitionCore.java` calls `BehavioralSynthesisPhase.lastInputActivations(tenantId, agentId)` with 2 args but the method now takes 1. Install `cognitive-index` and `mindmap-intelligence` before running `cognition` tests.
