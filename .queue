@@ -1,12 +1,12 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-1031-extract-shared-eval-infrastructure
+branch: issue-712-shadow-archetypes-personality-degradation
 status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 1031
+covers: 712
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
@@ -38,7 +38,7 @@ flyway-next-v:
 - [x] casehubio/neocortex#1018 — Seed-CAPS-coping-attractor-weights
 - [x] casehubio/neocortex#1019 — CAPS-topology-connections-to-coping-outputs
 - [x] casehubio/neocortex#921 — Prediction-calibration-analysis
-- [ ] casehubio/neocortex#1031 — Extract-shared-eval-infrastructure
+- [x] casehubio/neocortex#1031 — Extract-shared-eval-infrastructure
 - [ ] casehubio/neocortex#712 — Shadow-archetypes-personality-degradation
 - [ ] casehubio/neocortex#980 — ConsolidationScheduler-journal-observability
 - [ ] casehubio/neocortex#968 — Instrument-remaining-CognitionCore-tick-stages
