@@ -2,6 +2,8 @@
 
 ## Current State
 
+**Session 2026-11-17g:** Completed Batches 4-5 of #712 + full close-out. Code review (1 CRITICAL fixed: per-agent detection isolation, 1 WARNING: volatile journal, 2 NOTEs). Blog: "Wiring the Elastic Band". 6 issues filed (#1079-#1084). Era7 research doc updated. Squash review: neocortex 27→10 commits, eidos 6→5, examples 2 (clean). **work-end blocked:** rebase onto canonical main conflicts in 3 files (BehavioralSynthesisPhase, DriveProfileDerivationPhase, era7 research doc) from slot 211 #1070-1072 PersonalityMetadataEnricher work that landed on canonical main. Resolve conflicts and re-run ceremony.
+
 **Session 2026-11-17f:** Implemented Batches 4-5 of #712. Batch 4: SituationalPersonalityParticipant (TERMINAL tick wiring) and SituationalDeformationPhase (consolidation). Batch 5: E2E integration test (full stress cycle), noise-floor topology test (caps-engine). 6 commits on neocortex. 79 tests green (75 cognition + 4 caps-engine, 0 regressions). #712 implementation complete — all 11 plan tasks done.
 
 **Session 2026-11-17e:** Implemented #1055 — EffectiveCognitiveDefaults with tenant-scoped, provenance-preserving re-derivation. 10 commits, 65+ files changed, 2301 tests green (0 regressions). Code review: 0 CRITICAL, 2 WARNING (both fixed), 2 NOTE. Blog: "The Type-Level Split". Research doc updated. Issues filed: #1073-#1076. This unblocks Batch 4 of #712.
@@ -53,6 +55,14 @@
 **Batch 5: COMPLETE** — Journal entry types (SituationalModulation, SituationalDeformationConsolidated), E2E integration test (4 tests), noise-floor topology test (4 tests in caps-engine).
 
 **All batches complete.** #712 is implementation-complete: config, integrator, detector, state service, delta converter, tick participant, consolidation phase, journal entries, E2E integration, noise-floor validation.
+
+**Work-end blocker:** Rebase onto canonical neocortex main conflicts in 3 files. Canonical main gained #1070-1072 (PersonalityMetadataEnricher) from slot 211 after this branch was cut. Conflicts are in:
+- `docs/research/era7-personality-trait-integration-research.md` — both updated the "Remaining work" section
+- `mindmap-intelligence/.../BehavioralSynthesisPhase.java` — 4 conflict regions, likely `LearningProfile` migration vs #1070 pid5Facets config changes
+- `mindmap-intelligence/.../DriveProfileDerivationPhase.java` — same pattern
+Resolution: checkout canonical main, rebase branch onto it, resolve conflicts in the 2 Java files (take ours for LearningProfile migration, integrate theirs for pid5Facets config), re-run squash marker, re-run close ceremony.
+
+**Issues filed this session:** #1079 (field-classification test), #1080 (AgentRegistryEvents listener), #1081 (stale refresh + eviction CDI), #1082 (CDI wiring for participant), #1083 (RelationalSchemaResolver trust signal), #1084 (PipelineTrace snapshot)
 
 **eidos#234 needs a PR** — branch `issue-234-situational-profiles` on eidos. 6 commits, 12 files, 954 insertions.
 
