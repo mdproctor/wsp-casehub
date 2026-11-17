@@ -1,12 +1,12 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-1019-caps-topology-coping-connections
+branch: issue-921-prediction-calibration-analysis
 status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 1019
+covers: 921
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
