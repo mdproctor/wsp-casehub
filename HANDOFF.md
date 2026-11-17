@@ -2,11 +2,11 @@
 
 ## Current State
 
-Two branches ready in neocortex:
-- `issue-999-cognitive-defaults-decomposition` — 2 commits: 4 new group records + CognitiveDefaults decomposition (23→8 fields). All 473 cognitive-index tests pass. Full neocortex compile green.
-- `issue-1017-drive-modulation-attention-dispatch` — 3 commits: DriveModulation + AttentionDirective dispatch wiring + design spec updates. IntelliJ diagnostics clean. **Cannot run tests** — pre-existing compile errors in cognition module on main (#1038).
+#1017 landed on canonical neocortex main (3 commits). Slot marked ready for archive.
 
-**Blocker for next session:** #1038 (pre-existing compile errors: `EmotionType.INTEREST`, `PipelineTrace` constructor) must be resolved before #1018 or any cognition module work. Likely needs cross-slot sync.
+**#999 NOT landed** — `issue-999-cognitive-defaults-decomposition` branch exists in slot neocortex but was not carried to canonical. The close ceremony only handled #1017 (the queue's `covers` value). Next session must land #999 separately: rebase onto canonical main (no file overlap with #1017), fast-forward merge, stamp branch. The branch has a squash review marker.
+
+**Blocker for #1018:** #1038 (pre-existing compile errors: `EmotionType.INTEREST`, `PipelineTrace` constructor) must be resolved before any cognition module work. Likely needs cross-slot sync.
 
 ## Queue (7 items remaining after #999 and #1017)
 
