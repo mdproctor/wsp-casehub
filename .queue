@@ -62,3 +62,6 @@ active_issue: casehubio/neocortex#1095
 - [x] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
 - [x] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
 - [x] casehubio/neocortex#1096 — Surface-Bayesian-ToM-posterior-in-prompt
+- [ ] casehubio/neocortex#1097 — Personality-modulated-CPTs-for-TheoryOfMindEngine
+- [ ] casehubio/neocortex#1098 — Replace-keyword-intent-classifier-with-BDI-semantic
+- [ ] casehubio/neocortex#1099 — MentalModelPromptSection-test-posterior-rendering
