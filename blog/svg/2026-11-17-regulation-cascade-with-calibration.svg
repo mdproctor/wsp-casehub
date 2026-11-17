@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" font-family="system-ui, -apple-system, sans-serif" font-size="13">
+  <style>
+    .layer { fill: #f8f9fa; stroke: #dee2e6; stroke-width: 1.5; rx: 8; }
+    .layer-active { fill: #e8f4f8; stroke: #4dabcf; stroke-width: 2; rx: 8; }
+    .label { font-weight: 600; fill: #343a40; }
+    .sublabel { font-size: 11; fill: #868e96; }
+    .arrow { stroke: #868e96; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .arrow-calibration { stroke: #e67700; stroke-width: 2; stroke-dasharray: 6 3; fill: none; marker-end: url(#arrowhead-cal); }
+    .box-cal { fill: #fff3e0; stroke: #e67700; stroke-width: 2; rx: 8; }
+    .cal-label { font-weight: 600; fill: #e67700; }
+    .source-tag { font-size: 10; font-weight: 600; fill: #fff; }
+    .tag-bg-safety { fill: #e03131; rx: 3; }
+    .tag-bg-caps { fill: #7048e8; rx: 3; }
+    .tag-bg-predictor { fill: #1971c2; rx: 3; }
+    .tag-bg-shame { fill: #c2255c; rx: 3; }
+    .tag-bg-llm { fill: #2f9e44; rx: 3; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#868e96"/>
+    </marker>
+    <marker id="arrowhead-cal" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#e67700"/>
+    </marker>
+  </defs>
+
+  <!-- Layer 1: Safety Gate -->
+  <rect class="layer" x="30" y="20" width="260" height="52"/>
+  <text class="label" x="48" y="44">Layer 1: Safety Gate</text>
+  <text class="sublabel" x="48" y="60">Fatigue > 0.7 or intensity > threshold</text>
+  <rect class="tag-bg-safety" x="230" y="30" width="50" height="18"/>
+  <text class="source-tag" x="236" y="43">SAFETY</text>
+
+  <!-- Arrow down -->
+  <path class="arrow" d="M160,72 L160,90"/>
+  <text class="sublabel" x="170" y="84">miss</text>
+
+  <!-- Layer 2: CAPS -->
+  <rect class="layer" x="30" y="90" width="260" height="52"/>
+  <text class="label" x="48" y="114">Layer 2: CAPS Settling</text>
+  <text class="sublabel" x="48" y="130">Connectionist attractor resolution</text>
+  <rect class="tag-bg-caps" x="238" y="100" width="42" height="18"/>
+  <text class="source-tag" x="244" y="113">CAPS</text>
+
+  <!-- Arrow down -->
+  <path class="arrow" d="M160,142 L160,160"/>
+  <text class="sublabel" x="170" y="154">miss</text>
+
+  <!-- Layer 3: Predictor -->
+  <rect class="layer-active" x="30" y="160" width="260" height="52"/>
+  <text class="label" x="48" y="184">Layer 3: Predictor</text>
+  <text class="sublabel" x="48" y="200">Personality weights (Barańczuk 2019)</text>
+  <rect class="tag-bg-predictor" x="216" y="170" width="64" height="18"/>
+  <text class="source-tag" x="220" y="183">PREDICTOR</text>
+
+  <!-- Arrow down -->
+  <path class="arrow" d="M160,212 L160,230"/>
+  <text class="sublabel" x="170" y="224">miss</text>
+
+  <!-- Layer 3b: Shame Context -->
+  <rect class="layer" x="30" y="230" width="260" height="52"/>
+  <text class="label" x="48" y="254">Layer 3b: Shame Context</text>
+  <text class="sublabel" x="48" y="270">Surface-level shame override</text>
+  <rect class="tag-bg-shame" x="225" y="240" width="55" height="18"/>
+  <text class="source-tag" x="231" y="253">SHAME</text>
+
+  <!-- Arrow down -->
+  <path class="arrow" d="M160,282 L160,300"/>
+  <text class="sublabel" x="170" y="294">miss</text>
+
+  <!-- Layer 4: LLM -->
+  <rect class="layer" x="30" y="300" width="260" height="52"/>
+  <text class="label" x="48" y="324">Layer 4: LLM Generation</text>
+  <text class="sublabel" x="48" y="340">Situational reasoning, no pin</text>
+  <rect class="tag-bg-llm" x="246" y="310" width="34" height="18"/>
+  <text class="source-tag" x="252" y="323">LLM</text>
+
+  <!-- All layers -> effectiveness recording -->
+  <path class="arrow" d="M290,46 L340,46 L340,206 L370,206"/>
+  <path class="arrow" d="M290,116 L330,116 L330,206 L370,206"/>
+  <path class="arrow" d="M290,186 L370,186"/>
+  <path class="arrow" d="M290,256 L350,256 L350,216 L370,216"/>
+  <path class="arrow" d="M290,326 L360,326 L360,226 L370,226"/>
+
+  <!-- Effectiveness recording box -->
+  <rect class="layer" x="370" y="170" width="160" height="68"/>
+  <text class="label" x="388" y="194">Episode Store</text>
+  <text class="sublabel" x="388" y="210">source + strategy</text>
+  <text class="sublabel" x="388" y="224">+ effectiveness</text>
+
+  <!-- Arrow to calibration -->
+  <path class="arrow-calibration" d="M530,206 L570,206"/>
+
+  <!-- Calibration box -->
+  <rect class="box-cal" x="570" y="145" width="135" height="130"/>
+  <text class="cal-label" x="588" y="168">Calibration</text>
+  <text class="cal-label" x="588" y="183">Analyzer</text>
+  <text class="sublabel" x="588" y="202">per-agent delta:</text>
+  <text class="sublabel" x="588" y="216">PREDICTOR mean</text>
+  <text class="sublabel" x="588" y="230">vs LLM mean</text>
+  <text x="588" y="252" font-size="11" font-weight="600" fill="#e67700">Δ &gt; 0.15 → flag</text>
+  <text x="588" y="266" font-size="11" font-weight="600" fill="#e67700">miscalibrated</text>
+
+  <!-- Legend -->
+  <text class="sublabel" x="30" y="385">Each layer tags its strategy selection with a source. Episodes accumulate.</text>
+  <text class="sublabel" x="30" y="400">The calibration analyzer compares per-agent effectiveness across sources.</text>
+</svg>
