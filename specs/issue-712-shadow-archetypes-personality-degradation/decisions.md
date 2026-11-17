@@ -51,13 +51,13 @@
 
 ## D5: Persistence of runtime personality state
 
-**Choice:** Extend DispositionSignalStore — existing store already persists per-agent personality signals with decay
+**Choice:** New neocortex-local SituationalPersonalityStore (SQLite) — co-located with consumer, avoids cross-repo API changes
 **Alternatives:**
-- New dedicated SQLite store — clean separation but adds another persistence layer alongside existing signal store and CAPS state store
+- Extend DispositionSignalStore (eidos-api) — keeps all personality state in one place but the store's API operates on Jungian function terms, not PID-5 facets; this is a new storage domain, not a simple extension
 - MindMap cognitive nodes — follows drive-intensity pattern but violates #845 principle ("MindMap stores runtime effects, not personality state")
-**Rationale:** Keeps all personality runtime state in one place (Eidos stores). The signal store is already the mutable companion to the immutable descriptor. homeFacets drift is conceptually the same as the existing trait drift mechanism.
-**Trade-offs:** DispositionSignalStore is in the eidos library (external to neocortex). Extension may need API changes in the eidos repo.
-**Sources:** DispositionSignalStore (eidos-api), #845 design spec §Part 0c (MindMap role clarification)
+**Rationale:** DispositionSignalStore's existing API is incompatible (Jungian terms vs PID-5 facets). A neocortex-local store avoids cross-repo coupling while keeping the data close to SituationalPersonalityParticipant. Schema: agent_id, facet_name, current_value, home_value, elasticity, elasticity_floor, last_updated.
+**Trade-offs:** Personality runtime state now spans two stores (DispositionSignalStore for Jungian evolution, SituationalPersonalityStore for facet elasticity). But these are genuinely different domains.
+**Sources:** DispositionSignalStore API (eidos-api), SqliteCapsEngine pattern (caps-engine), #845 design spec §Part 0c
 **Exploration:** quick
 **Depends on:** D2 (state representation defines what needs persisting)
-**Status:** captured
+**Status:** revised (decision review — cross-repo coupling concern)
