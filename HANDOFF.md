@@ -2,59 +2,63 @@
 
 ## Current State
 
-**Session 2026-11-17c:** Designed and started implementing #712 (Shadow archetypes — situational personality modulation). Design spec through 3 adversarial review rounds (rev 4). Batch 1 of implementation plan complete (3 tasks, 44 tests). Code review clean. Blog written. Research doc updated.
+**Session 2026-11-17d:** Continued #712 implementation — Batch 2 (appraisal fixes), eidos#234 (situational profiles prerequisite), Batch 3 (MindMap persistence + delta conversion). Code review clean (0 CRITICAL, 5 WARNING all fixed). Blog written. Research doc updated. Two issues filed (#1068, #1069).
 
-**Branch:** `issue-712-shadow-archetypes-personality-degradation` on both neocortex and examples repos.
+**Branch:** `issue-712-shadow-archetypes-personality-degradation` on neocortex and examples repos.
+**Branch:** `issue-234-situational-profiles` on eidos repo (not yet merged — PR needed).
 
 ## What Was Built This Session
 
-### Design (complete)
-- **Design spec** (rev 4, 850 lines): `wsp-casehub/specs/issue-712-shadow-archetypes-personality-degradation/2026-11-17-situational-personality-modulation-design.md`
-- **5 architectural decisions** in `decisions.md`
-- **Implementation plan** (11 tasks, 5 batches): `wsp-casehub/plans/2026-11-17-situational-personality-modulation.md`
-- **Core model:** Elastic band — one personality state vector, situational attractors pull facets, displacement relaxes back toward home, prolonged exposure drifts home permanently. CDE is oblivious.
-- **Detection model:** Gain-form evidence: `E = X·(1+β·N)·(1+β·R)`. Structural guarantee: X=0 ⇒ E=0. Five modes (stress, flow, 3 social) in 2 exclusive groups.
+### Neocortex — Batch 2: Appraisal Fixes (9 tests)
+- `LlmAppraisalStrategy.parseResponse`: SEC dimensions now passed through to AppraisalResult (were computed but dropped)
+- `CognitionTickContext`: added `tickEventRef` field for tick stamping
+- `AppraisalTickParticipant`: added `currentResultAt(agentId, tenantId, EventRef)` and `currentInputActivations(agentId, tenantId)` accessors
+- `RelationalBiasing`: clamped output to [0, 1]
 
-### Implementation — Batch 1 (complete, 44 tests green)
-All in `neocortex/cognition/src/main/java/io/casehub/neocortex/cognition/situational/`:
+### Eidos — #234: Situational Profiles (26 tests, 616 total eidos tests green)
+- **api**: `AmpdFacetShift` record (13 PID-5 facets, |delta| ≤ 50), `SituationalProfile` record (5 closed modes), `AgentDisposition.situationalProfiles` field + Builder, `AgentDescriptorComparator` coverage
+- **eidos-core**: `DispositionDeserializer` parses `situationalProfiles` from YAML
+- **vocab**: `archetype-situational-profiles.yaml` — 60 profiles (12 families × 5 modes), `SituationalProfileDefaults` loader
+- **runtime**: `SituationalProfileDeriver` — runs after `ArchetypeDeriver`, resolves archetype→family, injects family defaults
 
-1. **Config loader + validator** (19 tests): `SituationalMode` enum, `SignalTransform` enum, `SituationalPersonalityConfig`, `SituationalPersonalityConfigLoader`, `situational-personality.yaml` with all 5 modes. Load-time validation: weight sums, topology node existence, transform constraints, sub-floor hold margin.
+### Neocortex — Batch 3: State Infrastructure (16 tests)
+- `SubgraphTypes.PERSONALITY_STATE` constant in mindmap-api
+- `SituationalStateService`: load/create/persist personality state per tenant+agent in MindMap, deterministic SHA-256 node naming, tenant-scoped subgraph, property serialization round-trip
+- `SituationalDeltaConverter`: eidos SituationalProfile (0-100 AMPD) → neocortex SituationalMode → facet delta maps (0-1 normalized)
 
-2. **Integrator** (13 tests): `PersonalityState`, `FacetState`, `PersonalityStateIntegrator` — advance() on wall-clock hourly grid, pull() for attractor displacement. Exact exponential relaxation, exposure weighting, fatigue/healing/drift at hour closes, cadence-independent.
+### Code Review Fixes
+- `SituationalStateService.persist`: creates node if missing (was silently dropping state)
+- `SituationalProfileDefaults`: InputStream wrapped in try-with-resources
+- `SituationalProfileDeriver`: uses builder instead of fragile 12-arg constructor
+- `DispositionDeserializer`: null-safety guard on shift node fields
 
-3. **Detector** (12 tests): `SituationalDetector`, `SituationalEvidence`, `DetectionResult` — gain-form evidence model, engagement hysteresis, group-exclusive winner selection with switch margin, social gate.
-
-### Issues Filed (by design review)
-- **#1055** — EffectiveCognitiveDefaults (resting/effective split) — PREREQUISITE for Batch 4
-- **eidos#234** — Situational profiles in Eidos (AmpdFacetName, SituationalProfileResolver) — PREREQUISITE for Batch 3
-- **agency#484** — CognitivePipelineBuilder single assembly path — PREREQUISITE for wiring
-- **#1056–#1059** — Deferred #712 scope items (biographical extraction, temporal drift, narrative frame, CARMA integration)
-- **#1060–#1065** — Pre-existing defects (PEO never ticked, agentId-keyed caches, duplicated CAPS settlements, scheduler starvation, bounded search, no hierarchy roles)
+### Issues Filed
+- **#1068** — LlmAppraisalStrategy prompt clause for situational facets (XS/Low, blocked by #1055)
+- **#1069** — AppraisalTickParticipant map cleanup for agent churn (XS/Low)
 
 ### Blog
-- "The Elastic Band: Personality That Bends Under Pressure" — `wsp-casehub/blog/2026-11-17-mdp01-the-elastic-band.md`
+- "Where Personality Lives" — `wsp-casehub/blog/2026-11-17-mdp05-where-personality-lives.md`
 
 ### Research Doc
-- Updated `neocortex/docs/research/era7-personality-trait-integration-research.md` — added Era 7b section on situational personality modulation
+- Updated `neocortex/docs/research/era7-personality-trait-integration-research.md` — Batches 1-3 status, eidos#234 delivered
 
 ## What's Next
 
-**Batch 2 (no prerequisites):** Task 4 — Appraisal fixes (Part 0c). LlmAppraisalStrategy SEC dimensions, AppraisalTickParticipant accessors, RelationalBiasing clamp.
-
-**Batch 3 (blocked on eidos#234):** Tasks 5-6 — SituationalStateService + MindMap persistence, profile resolution.
-
 **Batch 4 (blocked on #1055):** Tasks 7-8 — SituationalPersonalityParticipant TERMINAL wiring, SituationalDeformationPhase.
 
-**Batch 5:** Tasks 9-11 — Observability, E2E integration test, noise-floor topology test.
+**Batch 5 (blocked on Batch 4):** Tasks 9-11 — Observability, E2E integration test, noise-floor topology test.
 
-**Recommendation:** Next session should either (a) continue Batch 2 on this branch, or (b) start the prerequisites (#1055 or eidos#234) on a separate slot if parallel progress is desired.
+**#1055 is the critical path.** L/High — EffectiveCognitiveDefaults with tenant-scoped, provenance-preserving re-derivation. 108 production callsite migration across cognition, cognitive-index, mindmap-intelligence, cognitive-eidos. Lives in neocortex.
 
-## Queue (12 items remaining after #712)
+**eidos#234 needs a PR** — branch `issue-234-situational-profiles` on eidos. 6 commits, 12 files, 954 insertions. All installed to local Maven but not pushed/merged.
+
+**Recommendation:** Next session should either (a) start #1055 to unblock Batch 4, or (b) advance to other queue items while #1055 is pending.
+
+## Queue (11 items remaining after #712)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #712 | Shadow archetypes — personality degradation | L | High | **IN PROGRESS — Batch 1 complete** |
-| #980 | ConsolidationScheduler journal observability | S | Low | Observability |
+| #712 | Shadow archetypes — personality degradation | L | High | **IN PROGRESS — Batches 1-3 complete, Batch 4 blocked on #1055** |
 | #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
 | #1041 | CAPS coping → regulation topology bridge | S | Low | |
 | #1042 | Verify inert coping nodes are predictor-only | XS | Low | |
@@ -72,16 +76,15 @@ All in `neocortex/cognition/src/main/java/io/casehub/neocortex/cognition/situati
 - Implementation plan: `wsp-casehub/plans/2026-11-17-situational-personality-modulation.md`
 - Decisions: `wsp-casehub/specs/issue-712-shadow-archetypes-personality-degradation/decisions.md`
 - Research doc: `neocortex/docs/research/era7-personality-trait-integration-research.md` (§Era 7b)
-- Blog: `wsp-casehub/blog/2026-11-17-mdp01-the-elastic-band.md`
-- Design review: `/Users/mdproctor/reviews/casehub-slots/issue-712-situational-personality-20261117-063006/`
-
-## Slot 211 Boundary
-
-Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity epic). Issues #974, #975, #1043, #1044, #976, #977 are safe for either slot.
+- Blogs: `wsp-casehub/blog/2026-11-17-mdp01-the-elastic-band.md`, `wsp-casehub/blog/2026-11-17-mdp05-where-personality-lives.md`
 
 ## Neocortex Build Note
 
 Full reactor fails at `schema-generator`. Use targeted module builds:
 ```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml test -Dtest="SituationalPersonalityConfigTest,PersonalityStateIntegratorTest,SituationalDetectorTest" -s examples/.mvn/slot-settings.xml
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml test -Dtest="SituationalPersonalityConfigTest,PersonalityStateIntegratorTest,SituationalDetectorTest,SituationalStateServiceTest,SituationalDeltaConverterTest,AppraisalFixesTest" -s examples/.mvn/slot-settings.xml
 ```
+
+## Slot 211 Boundary
+
+Slot 211 owns #1023 (Drive annotation provenance) and #827 (Cognitive curiosity epic). Slot 211 landed #980 (ConsolidationScheduler journal observability). Issues #974, #975, #1043, #1044, #976, #977 are safe for either slot.
