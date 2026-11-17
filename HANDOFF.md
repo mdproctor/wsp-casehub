@@ -2,85 +2,49 @@
 
 ## Current State
 
-**Session 2026-11-17g:** Completed Batches 4-5 of #712 + full close-out. Code review (1 CRITICAL fixed: per-agent detection isolation, 1 WARNING: volatile journal, 2 NOTEs). Blog: "Wiring the Elastic Band". 6 issues filed (#1079-#1084). Era7 research doc updated. Squash review: neocortex 27→10 commits, eidos 6→5, examples 2 (clean). **work-end blocked:** rebase onto canonical main conflicts in 3 files (BehavioralSynthesisPhase, DriveProfileDerivationPhase, era7 research doc) from slot 211 #1070-1072 PersonalityMetadataEnricher work that landed on canonical main. Resolve conflicts and re-run ceremony.
+**Session 2026-11-17h:** Resolved rebase conflicts and closed #712 + #1055. Rebased neocortex branch onto canonical main (32 commits ahead from slot 211 #1070-1072). Semantic conflict resolution in 3 files / 11 regions — merged EffectiveCognitiveDefaults migration with PersonalityMetadataEnricher PID-5 enrichment. Code review: 0 CRITICAL, 2 WARNING (deferred as #1085 appraisal weights, #1086 orphaned enricher), 6 NOTEs (filed as #1087-#1089). Blog: "The Rebase Nobody Asked For". Era7 research doc updated. Squash: 11→10 commits. Close ceremony: all 3 repos landed on canonical main. #712 and #1055 closed on GitHub. Slot 196 marked ready for archive.
 
-**Session 2026-11-17f:** Implemented Batches 4-5 of #712. Batch 4: SituationalPersonalityParticipant (TERMINAL tick wiring) and SituationalDeformationPhase (consolidation). Batch 5: E2E integration test (full stress cycle), noise-floor topology test (caps-engine). 6 commits on neocortex. 79 tests green (75 cognition + 4 caps-engine, 0 regressions). #712 implementation complete — all 11 plan tasks done.
+**Session 2026-11-17g:** Completed Batches 4-5 of #712 + full close-out. Code review (1 CRITICAL fixed: per-agent detection isolation, 1 WARNING: volatile journal, 2 NOTEs). Blog: "Wiring the Elastic Band". 6 issues filed (#1079-#1084). Era7 research doc updated. Squash review: neocortex 27→10 commits, eidos 6→5, examples 2 (clean). work-end blocked by rebase conflicts.
 
-**Session 2026-11-17e:** Implemented #1055 — EffectiveCognitiveDefaults with tenant-scoped, provenance-preserving re-derivation. 10 commits, 65+ files changed, 2301 tests green (0 regressions). Code review: 0 CRITICAL, 2 WARNING (both fixed), 2 NOTE. Blog: "The Type-Level Split". Research doc updated. Issues filed: #1073-#1076. This unblocks Batch 4 of #712.
+**Session 2026-11-17f:** Implemented Batches 4-5 of #712. Batch 4: SituationalPersonalityParticipant (TERMINAL tick wiring) and SituationalDeformationPhase (consolidation). Batch 5: E2E integration test (full stress cycle), noise-floor topology test (caps-engine). 79 tests green (75 cognition + 4 caps-engine, 0 regressions). #712 implementation complete.
 
-**Branch:** `issue-712-shadow-archetypes-personality-degradation` on neocortex and examples repos.
-**Branch:** `issue-234-situational-profiles` on eidos repo (not yet merged — PR needed).
+**All branches landed.** No active branch work in this slot.
 
-## What Was Built This Session (#1055)
+## What Was Landed
 
-### cognitive-index — Core types
-- `EffectiveCognitiveDefaults`: tenant-scoped slot management with resting/effective split, version-based concurrency protocol (ConcurrentHashMap.compute with baseVersion/stateVersion guards), `forTesting()` helper
-- `LearningProfile`: type-level enforcement — wraps CognitiveDefaults, exposes only learning-rule parameters. Learning rules cannot be fed effective values without a compile error
-- `DescriptorViewSource` SPI: lazy population from Eidos without a tick
-- `PersonalityStateSource` SPI: lazy population from situational state
-- `PersonalityStateSnapshot`: immutable per-facet (homeOffset, displacement) projection
-- `DescriptorView.withFacets()`: facet composition for resting/effective derivation
-- `DefaultPersonalityStateSource`: empty default for environments without situational state
-- `EffectiveCognitiveDefaults.merge()`: pure static merge(explicit, derived), replaces deleted `deriveAndMerge`
+### #712 — Shadow archetypes: situation-dependent personality degradation (neocortex, 10 commits)
+Situational personality modulation: elastic band model where personality facets displace under stress and return toward resting values. Config loader, integrator, mode detector (gain-form evidence model), state service (MindMap persistence), tick participant (TERMINAL phase), consolidation phase (SituationalDeformationPhase), journal entries, E2E integration + noise-floor topology tests.
 
-### cognitive-eidos — Bridge refactoring
-- `EidosCognitiveProfileBridge`: simplified to pure translation utility — `bridgeAll`/`registerFromDescriptor` deleted, `toDescriptorView` now public static
-- `EidosDescriptorViewSource`: implements DescriptorViewSource SPI over AgentRegistry
+### #1055 — EffectiveCognitiveDefaults (neocortex, included in #712 branch)
+Tenant-scoped cognitive defaults with resting/effective split. LearningProfile type-safety wrapper for resting consumers. DescriptorViewSource and PersonalityStateSource SPIs. Consumer migration across cognition, mindmap-intelligence, cognitive-eidos (49 files).
 
-### cognition — Pipeline wiring + consumer migration
-- `CognitionCore.tick`: wires `updateBase` before FOUNDATION via `EidosCognitiveProfileBridge.toDescriptorView`
-- `CognitivePipelineBuilder`: field/method renamed to `effectiveDefaults`
-- `CognitionCoreFactory`: CDI injection type changed
-- `CognitionDefaultBeans`: CDI producer type changed
-- New module edge: `cognition → cognitive-eidos` (acyclic)
-- **Effective consumers migrated** (8 files): AppraisalTickParticipant, EmotionRegulationTickParticipant, ProactiveRegulationParticipant, SearchBudgetTickParticipant, DefaultCognitiveResourcePool, MindMapDriveSource (tenantId threaded to personalityFallback), CognitionCore internal references
-- **Resting consumers migrated** (5 files): DriveAdaptationPhase, PersonalityEvolutionOrchestrator (tenantId added), RelationalSchemaEvolutionPhase, RelationshipStagePhase, StrategyLearningOrchestrator
+### eidos#234 — Situational profiles (eidos, 5 commits)
+AmpdFacetShift, SituationalProfile records. Archetype-family profiles for 12 families × 5 modes. SituationalProfileDeriver for family-default injection. 26 tests.
 
-### mindmap-intelligence — Consumer migration
-- **Effective consumer**: ActionAppraisalObserver (tenantId threaded to lookupWeights), CognitiveAttentionAccumulator (tenant-scoped enumeration via agentIds)
-- **Resting consumers** (6 files): BehavioralSynthesisPhase, DefaultGraduationScorer, DriveProfileDerivationPhase, RecurringThoughtPhase, CuriosityDescriptionGenerationPhase, SearchBudgetDescriptionGenerationPhase
+### examples — Doc promotions (examples, 2 commits)
+Blog entries and workspace artifacts promoted from workspace to project.
 
-### Explicit-layer consumers (unchanged by design)
-- `DeclarativeRuleRegistry`, `CognitiveLoader`, `CognitiveProfileWatcher` — authored rules/vocabulary, stay on `CognitiveDefaultsRegistry`
+## Rebase Conflict Resolution Notes
 
-## What's Next
+Canonical main gained #1070-1072 (PersonalityMetadataEnricher from slot 211) after the branch was cut. Resolution strategy:
+- **BehavioralSynthesisPhase + DriveProfileDerivationPhase**: EffectiveCognitiveDefaults (feature) + pid5FacetSet/Pid5FacetsConfig (canonical) coexistence. `addPersonalityMetadata` uses LearningProfile API for disposition + PID-5 enrichment. Appraisal weights deferred (#1085) — LearningProfile type boundary.
+- **era7 research doc**: canonical's #977 section and Epic #1050 resolution kept; feature branch coping text preserved.
+- **PersonalityMetadataEnricher**: now orphaned (zero production callers) — tracked as #1086.
 
-**Deferred from #1055:**
-- Field-classification test (enumerates every CognitiveDefaults component and asserts its view) — verification, not functional
-- AgentRegistryEvents listener for base invalidation — operational
-- 1h stale refresh fallback, 24h idle eviction CDI wiring — operational
+## Issues Filed This Session
 
-**Batch 4: COMPLETE** — SituationalPersonalityParticipant TERMINAL wiring (6 tests), SituationalDeformationPhase consolidation (5 tests).
+| # | Title | Scale | Complexity |
+|---|-------|-------|-----------|
+| #1085 | Restore appraisal weight enrichment in classification metadata | S | Low |
+| #1086 | PersonalityMetadataEnricher orphaned after EffectiveCognitiveDefaults migration | XS | Low |
+| #1087 | SituationalStateService: log unrecognised mode names during deserialization | XS | Low |
+| #1088 | SituationalStateService.loadOrCreate TOCTOU — use computeIfAbsent | XS | Low |
+| #1089 | Unbounded cache growth in situational personality components | XS | Low |
 
-**Batch 5: COMPLETE** — Journal entry types (SituationalModulation, SituationalDeformationConsolidated), E2E integration test (4 tests), noise-floor topology test (4 tests in caps-engine).
-
-**All batches complete.** #712 is implementation-complete: config, integrator, detector, state service, delta converter, tick participant, consolidation phase, journal entries, E2E integration, noise-floor validation.
-
-**Work-end blocker:** Rebase onto canonical neocortex main conflicts in 3 files. Canonical main gained #1070-1072 (PersonalityMetadataEnricher) from slot 211 after this branch was cut. Conflicts are in:
-- `docs/research/era7-personality-trait-integration-research.md` — both updated the "Remaining work" section
-- `mindmap-intelligence/.../BehavioralSynthesisPhase.java` — 4 conflict regions, likely `LearningProfile` migration vs #1070 pid5Facets config changes
-- `mindmap-intelligence/.../DriveProfileDerivationPhase.java` — same pattern
-Resolution: checkout canonical main, rebase branch onto it, resolve conflicts in the 2 Java files (take ours for LearningProfile migration, integrate theirs for pid5Facets config), re-run squash marker, re-run close ceremony.
-
-**Issues filed this session:** #1079 (field-classification test), #1080 (AgentRegistryEvents listener), #1081 (stale refresh + eviction CDI), #1082 (CDI wiring for participant), #1083 (RelationalSchemaResolver trust signal), #1084 (PipelineTrace snapshot)
-
-**eidos#234 needs a PR** — branch `issue-234-situational-profiles` on eidos. 6 commits, 12 files, 954 insertions.
-
-## Test Results
-
-| Module | Tests | Pass | Fail | Notes |
-|--------|-------|------|------|-------|
-| cognitive-index | 493 | 493 | 0 | |
-| cognitive-eidos | 6 | 6 | 0 | |
-| mindmap-intelligence | 691 | 691 | 0 | |
-| cognition | 1116 | 1111 | 5 | 5 pre-existing failures, 0 regressions |
-| **Total** | **2306** | **2301** | **5** | **0 regressions from #1055** |
-
-## Queue (11 items remaining after #712)
+## Queue (10 items remaining)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #712 | Shadow archetypes — personality degradation | L | High | **IMPLEMENTATION COMPLETE — all 5 batches, 79 tests** |
 | #968 | Instrument remaining CognitionCore.tick() stages | M | Low | Observability |
 | #1041 | CAPS coping → regulation topology bridge | S | Low | |
 | #1042 | Verify inert coping nodes are predictor-only | XS | Low | |
@@ -92,12 +56,18 @@ Resolution: checkout canonical main, rebase branch onto it, resolve conflicts in
 | #976 | DriveProfileDerivationPhase personality classification | M | High | |
 | #977 | PID-5 facet extension | M | High | |
 
-## Key References
+## Unpublished
 
-- Design spec: `wsp-casehub/specs/issue-712-shadow-archetypes-personality-degradation/2026-11-17-situational-personality-modulation-design.md` §Part 0a
-- Implementation plan: `wsp-casehub/plans/2026-11-17-effective-cognitive-defaults.md`
-- Overall plan: `wsp-casehub/plans/2026-11-17-situational-personality-modulation.md`
-- Decisions: `wsp-casehub/specs/issue-712-shadow-archetypes-personality-degradation/decisions.md`
+3 canonical repos have landed commits not yet pushed to remotes:
+- neocortex: 10 commits
+- eidos: 6 commits  
+- examples: 3 commits
+
+Publish with: `python3 ~/.claude/skills/project/canonical_sync.py publish <canonical repo>`
+
+## Slot Status
+
+**Slot 196 is marked ready for archive.** Cannot be archived from within the slot — archive from a session outside it.
 
 ## Neocortex Build Note
 
