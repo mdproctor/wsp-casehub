@@ -41,23 +41,23 @@ active_issue: casehubio/neocortex#1095
 - [x] casehubio/neocortex#1019 — CAPS-topology-connections-to-coping-outputs
 - [x] casehubio/neocortex#921 — Prediction-calibration-analysis
 - [x] casehubio/neocortex#1031 — Extract-shared-eval-infrastructure
-- [ ] casehubio/neocortex#712 — Shadow-archetypes-personality-degradation
+- [x] casehubio/neocortex#712 — Shadow-archetypes-personality-degradation
 - [x] casehubio/neocortex#980 — ConsolidationScheduler-journal-observability
-- [ ] casehubio/neocortex#968 — Instrument-remaining-CognitionCore-tick-stages
-- [ ] casehubio/neocortex#1041 — CAPS-coping-to-regulation-connections
-- [ ] casehubio/neocortex#1042 — verify-inert-coping-nodes
-- [ ] casehubio/neocortex#1045 — Surface-prediction-calibration-in-observability
-- [ ] casehubio/neocortex#974 — Fix-eval-test-compilation
-- [ ] casehubio/neocortex#975 — Document-CAPS-modules-contributor-guide
-- [ ] casehubio/neocortex#1043 — Oscillation-attractor-strategic-differentiation
-- [ ] casehubio/neocortex#1044 — CognitiveEmergenceSampleTest-distrust-attractor
-- [ ] casehubio/neocortex#976 — DriveProfileDerivationPhase-personality-classification
-- [ ] casehubio/neocortex#977 — PID5-facet-extension
-- [ ] casehubio/neocortex#1055 — EffectiveCognitiveDefaults-tenant-scoped-re-derivation
+- [x] casehubio/neocortex#968 — Instrument-remaining-CognitionCore-tick-stages
+- [x] casehubio/neocortex#1041 — CAPS-coping-to-regulation-connections
+- [x] casehubio/neocortex#1042 — verify-inert-coping-nodes
+- [x] casehubio/neocortex#1045 — Surface-prediction-calibration-in-observability
+- [x] casehubio/neocortex#974 — Fix-eval-test-compilation
+- [x] casehubio/neocortex#975 — Document-CAPS-modules-contributor-guide
+- [x] casehubio/neocortex#1043 — Oscillation-attractor-strategic-differentiation
+- [x] casehubio/neocortex#1044 — CognitiveEmergenceSampleTest-distrust-attractor
+- [x] casehubio/neocortex#976 — DriveProfileDerivationPhase-personality-classification
+- [x] casehubio/neocortex#977 — PID5-facet-extension
+- [x] casehubio/neocortex#1055 — EffectiveCognitiveDefaults-tenant-scoped-re-derivation
 - [ ] casehubio/neocortex#1085 — Restore-appraisal-weight-enrichment
 - [ ] casehubio/neocortex#1086 — PersonalityMetadataEnricher-orphaned
 - [ ] casehubio/neocortex#1087 — SituationalStateService-log-unrecognised-modes
-- [ ] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
+- [x] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
 - [ ] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
 - [x] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
 - [x] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
