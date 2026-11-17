@@ -52,7 +52,13 @@
 
 **eidos#234 needs a PR** — branch `issue-234-situational-profiles` on eidos. 6 commits, 12 files, 954 insertions. All installed to local Maven but not pushed/merged.
 
-**Recommendation:** Next session should either (a) start #1055 to unblock Batch 4, or (b) advance to other queue items while #1055 is pending.
+**Next session: implement #1055** — EffectiveCognitiveDefaults. The branch covers both #712 and #1055. Start by reading the four key files:
+1. `neocortex/cognitive-index/src/main/java/io/casehub/neocortex/cognitive/index/CognitiveDefaultsRegistry.java` — current registry (replace)
+2. `neocortex/cognitive-index/src/main/java/io/casehub/neocortex/cognitive/index/CognitiveDerivationEngine.java` — `deriveAndMerge` → pure `merge`
+3. `neocortex/cognitive-eidos/src/main/java/io/casehub/neocortex/cognitive/eidos/EidosCognitiveProfileBridge.java` — delete `bridgeAll`/`registerFromDescriptor`, keep translation
+4. `neocortex/cognition/src/main/java/io/casehub/neocortex/cognition/core/CognitionCore.java` — wire baseline via bridge `toDescriptorView`
+
+The ~108 callsite migration (CognitiveDefaultsRegistry → EffectiveCognitiveDefaults) is mechanical — `forAgent(agentId)` → `forAgent(tenantId, agentId)`. Use IntelliJ `ide_find_references` to enumerate all call sites.
 
 ## Queue (11 items remaining after #712)
 

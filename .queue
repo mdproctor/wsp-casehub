@@ -6,10 +6,11 @@ status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 712
+covers: 712,1055
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
+done_external: casehubio/neocortex#980
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -40,7 +41,7 @@ flyway-next-v:
 - [x] casehubio/neocortex#921 — Prediction-calibration-analysis
 - [x] casehubio/neocortex#1031 — Extract-shared-eval-infrastructure
 - [ ] casehubio/neocortex#712 — Shadow-archetypes-personality-degradation
-- [ ] casehubio/neocortex#980 — ConsolidationScheduler-journal-observability
+- [x] casehubio/neocortex#980 — ConsolidationScheduler-journal-observability
 - [ ] casehubio/neocortex#968 — Instrument-remaining-CognitionCore-tick-stages
 - [ ] casehubio/neocortex#1041 — CAPS-coping-to-regulation-connections
 - [ ] casehubio/neocortex#1042 — verify-inert-coping-nodes
@@ -51,3 +52,4 @@ flyway-next-v:
 - [ ] casehubio/neocortex#1044 — CognitiveEmergenceSampleTest-distrust-attractor
 - [ ] casehubio/neocortex#976 — DriveProfileDerivationPhase-personality-classification
 - [ ] casehubio/neocortex#977 — PID5-facet-extension
+- [ ] casehubio/neocortex#1055 — EffectiveCognitiveDefaults-tenant-scoped-re-derivation
