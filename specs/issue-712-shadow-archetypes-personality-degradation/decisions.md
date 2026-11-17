@@ -1,63 +1,88 @@
-## D1: Pipeline placement for situational personality modulator
+## D1: Pipeline placement for situational personality modulation
 
-**Choice:** New tick participant — `SituationalPersonalityParticipant`
+**Choice:** Split by time scale. A tick participant, `SituationalPersonalityParticipant` registered in `CognitionPhase.TERMINAL`, owns the fast state: mode detection, `current`, and exposure accumulation. A consolidation phase, `SituationalDeformationPhase`, owns the slow state: lasting `homeOffset` and `resilience`.
 **Alternatives:**
-- Extend PersonalityEvolutionOrchestrator — keeps personality logic together but mixes slow (evolution) and fast (situational) time scales in one component
-- Extend BehavioralSynthesisPhase — minimal new code but couples to consolidation cycle, not per-tick
-**Rationale:** Clean separation of concerns. The modulator runs every tick, reads multi-signal state (CAPS attractors, mood PAD, drive profile, appraisal results), computes personality pull toward situational attractors, updates runtime personality state, and triggers CDE re-derivation. The rest of the pipeline is unaware.
-**Trade-offs:** New component to maintain vs extending existing ones. More moving parts.
-**Sources:** CAPS settling pipeline (BehavioralSynthesisPhase.java), PersonalityEvolutionOrchestrator.java, CognitiveDerivationEngine.java
-**Exploration:** quick
-**Status:** captured
+- Single per-tick participant owning all state (round 1). Rejected in review R1-14: it mixes fast and slow time scales, which is the very reason PEO was rejected. It also makes lasting change depend on tick rate.
+- Extend PersonalityEvolutionOrchestrator. It mixes time scales, it is never ticked in production (#1060), and it operates on Jungian terms only.
+- Extend BehavioralSynthesisPhase. Consolidation cadence only, so it cannot drive per-turn state.
+**Rationale:** State → trait consolidation (TESSERA, Wrzus & Roberts 2017) is a slow, repeated-exposure process. In neocortex, long-term change already runs in consolidation (`DriveAdaptationPhase`, CAPS weight learning). TERMINAL is the only phase that sees this tick's appraisal and post-appraisal mood.
+**Trade-offs:** Two components share one state object, through `SituationalStateService` with per-key locking.
+**Status:** revised (review round 1: R1-03, R1-14)
 
 ## D2: Elastic band state representation
 
-**Choice:** Home + elasticity — three values per facet: `currentFacets` (where the personality IS), `homeFacets` (where it gravitates when no situation active), `elasticity` (how well it returns, 0.0–1.0)
+**Choice:** Per facet, all state is relative (review round 2: R2-07): displacement `d` relative to home (`current = clamp01(home + d)`, never stored absolute); `homeOffset` relative to the Eidos baseline (lasting deformation, |offset| ≤ D_max); `resilience` ∈ [r_min, 1] (scales return speed, degraded by load, healed by rest); signed exposure and unsigned load accumulators drained by consolidation. Per mode: intensity and engaged flag.
 **Alternatives:**
-- Exposure accumulator — simpler but home is always Eidos baseline, no permanent personality change modeled
-- Dual drift rates — mathematically equivalent but no explicit elasticity parameter, less intuitive
-**Rationale:** Clear physical meaning maps directly to the elastic band metaphor. Elasticity degrades with exposure intensity/duration, recovers during rest. Home drifts toward current at a rate proportional to (1 - elasticity). Three numbers per facet, all testable.
-**Trade-offs:** More state to persist (3 values × 13 facets = 39 numbers per agent). But the state is interpretable and debuggable.
-**Sources:** Elastic band metaphor from user, CAPS attractor model (CapsAttractor.java)
-**Exploration:** quick
-**Depends on:** D1 (pipeline placement determines who reads/writes this state)
-**Status:** captured
+- Round-1 `current` / `home` / `elasticity` / `elasticity_floor`. Rejected: home drift was unbounded (R1-04); the floor never limited recovery, had no initial value and ratcheted to 0 (R1-05).
+- Absolute `home`. Rejected: an offset preserves the lived deformation when the Eidos baseline is corrected.
+**Rationale:** Bounded by construction (see the spec's invariants table). Grounded in set-point (Jeronimus 2014), resilience (Bonanno 2004) and sensitisation (Post 1992).
+**Status:** revised (review round 1: R1-04, R1-05)
 
 ## D3: CDE integration path
 
-**Choice:** Modified DescriptorView — feed modulated facets into CDE through the existing DescriptorView → derive path
+**Choice:** A tenant-scoped `EffectiveCognitiveDefaults` stores each slot's inputs: the base `DescriptorView` from Eidos and an optional facet overlay. It re-derives via `merge(explicitLayer, CDE.derive(base.withFacets(overlay)))`, atomically. Situational modulation calls `updateFacets`; baseline wiring calls `updateBase`.
 **Alternatives:**
-- Post-CDE modification of CognitiveDefaults directly — bypasses CDE's derivation logic (PID-5→FFM→cognitive chains wouldn't run)
-- Wrapper store between Eidos and bridge — clean abstraction but adds indirection layer
-**Rationale:** CDE is oblivious. It receives different facet scores and derives cognitive defaults naturally through all 14+ pathways. The existing merge path (deriveAndMerge) handles explicit-wins-over-derived. All the PID-5→FFM→cognitive-parameter chains from #845 run on the modulated values without modification.
-**Trade-offs:** CDE re-derivation happens every tick when situational state changes, not just on evolution events. Potential performance cost — but CDE is stateless and fast (pure arithmetic).
-**Sources:** EidosCognitiveProfileBridge.toDescriptorView(), CDE.deriveAndMerge(), #845 design spec
-**Exploration:** quick
-**Depends on:** D1, D2 (tick participant computes effectiveFacets from elastic state)
-**Status:** captured
+- Round-1 `deriveAndMerge` through the bridge. Rejected: explicit-wins merge against the previously merged result makes every refresh a no-op (R1-01); agentId-keyed, non-atomic registry (R1-08); bridge not wired in production (R1-02); wrong owner (R1-12).
+- Post-CDE modification of `CognitiveDefaults`. Rejected: it bypasses the PID-5 → FFM → parameter chains.
+**Rationale:** One derivation entry point for baseline and situational inputs, which is #845's "single path, no forks". It also creates the convergence point that PEO evolution needs (#1060).
+**Status:** revised (review round 1). Tracked as #1055.
 
 ## D4: Situational mode detection design
 
-**Choice:** Weighted threshold classifier — weighted sum of CAPS attractors, mood PAD, drive states, appraisal results per mode, compared to threshold
+**Choice:** A per-mode weighted classifier over typed, normalised signals, split into exogenous signals (situation-classifier inputs, per-tick CAPS mediating units, relational schema) and endogenous signals (SEC dimensions, post-appraisal mood). Engagement uses hysteresis and a time-based fade. Modes are in two exclusive groups (affective: stress/flow; social: three frames).
+**Invariant:** `w_N < θ_off`, so endogenous evidence alone can neither engage nor hold a mode. This makes the modulation → appraisal → detector loop structurally unable to lock in.
 **Alternatives:**
-- Rule-based classifier — explicit if/then rules per mode. More readable but rigid, adding signals means more rules
-- Secondary CAPS settling network — reuses settling algorithm but over-engineered for a classification task
-**Rationale:** Each mode's detection is a pure function: weighted sum of already-resolved signals > threshold → mode active at that intensity. Weights and thresholds defined in the situational topology YAML alongside attractor profiles. Fully deterministic, tunable via eval results, testable in isolation.
-**Trade-offs:** Less readable than explicit rules. Weight tuning requires eval runs to calibrate.
-**Sources:** CAPS attractor detection (CapsSettler.extractAttractors), DriveCompetitionDetector.DRIVE_CAPS_MAPPINGS, MoodOrchestrator
-**Exploration:** quick
-**Depends on:** D1 (tick participant reads these signals)
-**Status:** captured
+- Round-1 classifier over CAPS output attractors, an undefined `threat` appraisal and raw PAD. Rejected (R1-06): it referenced nonexistent and structurally dead signals, used the consolidation-stale settling cache, and had no normalisation.
+- Rule-based classifier. Less tunable.
+- Secondary CAPS network. Over-engineered.
+**Rationale:** Stress is defined by the transactional/SEC appraisal pattern (Lazarus & Folkman 1984); flow by challenge–skill balance (Csikszentmihalyi). CAPS contributes its if-then signature through mediating units (the "layer above CAPS" #712 asks for). The social subtypes now use the same classifier as the modes; round 1 used rules there (R1-15).
+**Status:** revised (review round 1: R1-06, R1-07, R1-15)
 
 ## D5: Persistence of runtime personality state
 
-**Choice:** New neocortex-local SituationalPersonalityStore (SQLite) — co-located with consumer, avoids cross-repo API changes
+**Choice:** A MindMap node (`cognitiveKind = situational-personality-state`) in the agent's cognitive subgraph, accessed through `SituationalStateService` (in-memory cache, per-key locks, write-through per tick).
 **Alternatives:**
-- Extend DispositionSignalStore (eidos-api) — keeps all personality state in one place but the store's API operates on Jungian function terms, not PID-5 facets; this is a new storage domain, not a simple extension
-- MindMap cognitive nodes — follows drive-intensity pattern but violates #845 principle ("MindMap stores runtime effects, not personality state")
-**Rationale:** DispositionSignalStore's existing API is incompatible (Jungian terms vs PID-5 facets). A neocortex-local store avoids cross-repo coupling while keeping the data close to SituationalPersonalityParticipant. Schema: agent_id, facet_name, current_value, home_value, elasticity, elasticity_floor, last_updated.
-**Trade-offs:** Personality runtime state now spans two stores (DispositionSignalStore for Jungian evolution, SituationalPersonalityStore for facet elasticity). But these are genuinely different domains.
-**Sources:** DispositionSignalStore API (eidos-api), SqliteCapsEngine pattern (caps-engine), #845 design spec §Part 0c
-**Exploration:** quick
-**Depends on:** D2 (state representation defines what needs persisting)
-**Status:** revised (decision review — cross-repo coupling concern)
+- Round-1 neocortex-local SQLite `SituationalPersonalityStore`. Rejected: it contradicts #845 Step 0c and the #712 design comment, which put runtime personality state in MindMap. The round-1 decision misquoted #845 to argue the opposite. It also needed its own SPI, in-memory default and backend, duplicating MindMap.
+- Extend DispositionSignalStore. Its API is Jungian terms, and it is baseline-side.
+**Rationale:** Documented architecture. Consolidation phases already operate on MindMap. Tenant scoping and the backend CDI ladder come with the MindMap SPI.
+**Status:** reversed (review round 1: R1-11)
+
+## D6: Where situational profiles (shadow rules) live
+
+**Choice:** In Eidos: `AgentDisposition.situationalProfiles` holds authored or biographical profiles only (deltas on the AMPD 0–100 scale; facets from the closed `AmpdFacetName` enum). Family defaults (12 × 5) live in a versioned eidos-vocab table. `SituationalProfileResolver` applies them **at read time** for unauthored modes, never materialised into descriptors, so eval retuning needs no re-registration (revised in review round 2: R2-08). neocortex reads only the resolved list.
+**Alternatives:**
+- Per-family table in neocortex. Rejected (R1-09, R1-10): every Creator degrades identically; there is no path for biographical extraction (#712 Q4); and archetype → family resolution needs eidos-vocab, which carries quarkus-arc and is unfit for neocortex cognition.
+- A generic profile for agents without an archetype. Rejected: it erases differentiation.
+**Status:** new (review round 1). Tracked as casehubio/eidos#234; extraction is #1056.
+
+## D7: Explicitly pinned cognitive-default fields under situational modulation
+
+**Choice:** Pinned fields are immune. Explicit YAML is an authoring override and wins over every derivation. Explicit profiles may not pin facets, because facets have one source, Eidos.
+**Status:** new (review round 1: R1-01)
+
+## D9: Resting vs effective cognitive defaults
+
+**Choice:** `EffectiveCognitiveDefaults` derives two results per slot. *Resting* is baseline + lasting offset; *effective* adds the transient displacement. Tick-time cognition reads effective. Every component that writes durable state (consolidation phases, CAPS init and learning, relational schema evolution, drive adaptation, strategy learning, PEO) reads resting. An ArchUnit test enforces that no `ConsolidationPhase` reads effective.
+**Alternative:** Move the consolidation-maintained signals into the endogenous class (R2-02 option b). Rejected: it leaves transient state leaking into every durable learner, not only the detector's inputs.
+**Rationale:** TESSERA. Transient states reach durable structure only through the slow, bounded lasting-change channel (homeOffset). This removes consolidation-speed feedback loops by construction.
+**Status:** new (review round 2: R2-02)
+
+## D10: Detector evidence form
+
+**Choice:** `E = min(1, X·(1 + β_N·N)·(1 + β_R·R))`. Endogenous (SEC, mood) and relational evidence are gains on exogenous situational evidence. Situation inputs pass through `above_faint`, and mediating units are measured from the agent's resting settlement. The loader validates the faint-hold margin `G·x_faint < θ_off`.
+**Alternative:** Rev 2's additive form with `w_N < θ_off`. Rejected: its margin was 0.02, so faint vocabulary held modes indefinitely (R2-01), and a standing relationship engaged social frames alone (R2-06).
+**Rationale:** Mood-congruent appraisal amplifies congruent evidence rather than substituting for it (Bower 1981; Forgas 1995). `X = 0 ⇒ E = 0` exactly.
+**Status:** new (review round 2: R2-01, R2-06). Supersedes the round-1 settled `w_N < θ_off` invariant.
+
+## D11: One integrator on a fixed wall-clock hour grid
+
+**Choice:** Fast relaxation and slow updates (fatigue, heal, drift, set-point) are integrated by one pure `advance(slot, to)` over wall-clock hours. Slow variables change only at hour closes. Any trigger (tick or consolidation) advances to now, with identical results. `SituationalDeformationPhase` is the trigger and audit point for idle agents.
+**Alternative:** Slow updates only inside the ConsolidationPhase (round-1 settled decision). Rejected after R2-05: windowed, non-commuting updates depend on cadence, and the scheduler starves (#1063).
+**Rationale:** Cadence invariance is exact. Resilience is current for the fast loop, so the `r↓ → L↑` feedback is captured. The intent of the round-1 decision is kept: slow variables are never updated per tick or at tick-rate-dependent rates.
+**Status:** new (review round 2: R2-05). Amends the round-1 settled decision on slow-state placement.
+
+## D8: Anchor of the situational target
+
+**Choice:** `target = clamp01(home + clamp(Σ I·δ, ±S_max))`, anchored to the deformed home, not the immutable baseline. Boundedness comes from |homeOffset| ≤ D_max, not from moving the anchor.
+**Alternative:** Anchor to the baseline (reviewer proposal, R1-04). Rejected: under stress, a permanently deformed character would be pulled partly back toward their original personality, so stress would undo deformation.
+**Status:** new (review round 1)
