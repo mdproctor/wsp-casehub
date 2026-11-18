@@ -2,58 +2,73 @@
 
 ## Current State
 
-**Session 2026-11-18f:** Completed #1133 (tomFacetScore per-facet defaults) and #1134 (CognitionObservationBuilder personality-modulated ToM). Code reviewed, blog written, 1 follow-up issue filed (#1137). Work landed and published to remote.
+**Session 2026-11-18g:** Housekeeping session — closed 6 issues directly on main (3 already-done, 3 with code changes). Code reviewed, blog written, 2 follow-up issues filed (#1148, #1149). ARC42STORIES deployment contract strengthened after review. All commits on main, not a feature branch.
 
-**Slot 196 is marked ready for archive** — queue has 1 new follow-up item and 1 deferred item.
+**Queue position:** 70/78 (8 open items + 1 deferred). Next: #965.
 
-## What Was Done — Session 18f
+## What Was Done — Session 18g
 
-### Landed commits (neocortex, published)
+### Commits on neocortex main
 
-**`615029939` fix(#1133): use per-facet defaults in tomFacetScore**
+| SHA | Issue | Summary |
+|-----|-------|---------|
+| `e8e1504a5` | #982 | CDI `Instance<SessionPipeline>` in ConsolidationScheduler — 6 phases were receiving null |
+| `fcb7ed89d` | #1104 | Single-instance-per-tenant deployment contract in ARC42STORIES §7 + §12 |
+| `3cb95e55a` | #574 | Phase 2b provenance fields: `related_entities`, `source_entity_ref`, `source_provenance` |
+| `988a9035d` | #962 | Instrument 4 remaining CDE methods with derivation journal (14/14 coverage) |
+| `1bbf56bd1` | #1104 | Add 6 cognitive orchestrators to deployment contract (code review finding) |
 
-- `tomFacetScore` now takes a `defaultValue` parameter. Anxiousness defaults to 0.5; callousness and suspiciousness default to 0.0 — matching `TomPersonalityModulation.NEUTRAL`.
-- Previously all three defaulted to 0.5, causing agents without explicit PID-5 facets to be moderately callous and suspicious by default.
+### Issues Closed (no code change — already done)
 
-**`16bdfe1e7` fix(#1134): route CognitionObservationBuilder through personality-modulated ToM**
+- **#1008** — artifact_sweep.py verification module import (fix already applied)
+- **#541** — GOAL_SYSTEM extraction prompt (already updated)
 
-- `observeCharacterState()` now creates `TheoryOfMindEngine` with the observer's `TomPersonalityModulation` from `CognitionCore.tomModulation()`.
-- Behaviour evidence converted to soft distribution and scaled by suspiciousness via `TheoryOfMindBridge.scaleBehaviorEvidence`.
-- Visibility changes: `CognitionCore.tomModulation` private → public, `TheoryOfMindBridge.scaleBehaviorEvidence` package → public.
+### Code Review Findings
 
-### Code review findings
-
-- All three personality dimensions now reach every ToM inference site. No remaining bypass paths.
-- Missing test: `observeCharacterState` personality-modulated path is untested at builder level (components individually tested) → filed #1137.
+1. **Fixed:** ARC42STORIES deployment contract missing 6 orchestrators (MoodOrchestrator, DriveOrchestrator, NarrativeOrchestrator, GroupNarrativeOrchestrator, CognitiveGoalOrchestrator, SocialNormDetector) → committed as `1bbf56bd1`
+2. **Filed #1148:** coverage.py `source_provenance` mapping doesn't consume Phase 2b's `source_provenance` field
+3. **Filed #1149:** Literature citations (Eysenck, McAdams, Paulhus & Williams, etc.) removed during CDE instrumentation refactoring
 
 ### Blog
 
-- `blog/2026-11-18-mdp05-the-defaults-that-lied.md` — wrong defaults, builder bypass, parallel-path divergence pattern.
+- `blog/2026-11-18-mdp01-the-pipeline-that-couldnt-explain-itself.md` — four traceability fixes: CDI wiring, deployment contracts, data lineage, derivation journal
 
 ### Issues Filed
 
-- **casehubio/neocortex#1137** — Test CognitionObservationBuilder personality-modulated ToM path (S/Low)
+- **casehubio/neocortex#1148** — coverage: source_provenance field not consumed for Phase 2b (XS/Low)
+- **casehubio/neocortex#1149** — docs: restore literature citations in CDE instrumented methods (XS/Low)
 
 ### Issues Closed
 
-- **casehubio/neocortex#1133** — tomFacetScore default wrong for suspiciousness/callousness
-- **casehubio/neocortex#1134** — CognitionObservationBuilder bypasses personality-modulated ToM
-
-## Prior Session — 18e
-
-Completed #1127 (suspiciousness evidence weighting) and #1131 (CacheEvictionScheduler thread safety). Filed #1133 and #1134 as follow-ups. See blog entry `2026-11-18-mdp04-the-evidence-nobody-trusted.md`.
+- **casehubio/neocortex#1008** — artifact_sweep.py crashes on image co-promotion
+- **casehubio/neocortex#982** — consolidation: setSessionPipeline propagation is dead
+- **casehubio/neocortex#1104** — Deployment contract: single-instance per tenant
+- **casehubio/neocortex#574** — Phase 2b memories lack provenance fields
+- **casehubio/neocortex#541** — Update GOAL_SYSTEM extraction prompt
+- **casehubio/neocortex#962** — Instrument remaining 4 CDE methods
 
 ## Queue — remaining items
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1137 | Test CognitionObservationBuilder personality-modulated ToM path | S | Low | Filed this session |
+| #965 | GraphMutated CDI listener — agentId | S | Med | ← next. Design choice: ThreadLocal vs event enrichment |
+| #966 | Instrument ConsolidationScheduler phases | S | Low | Pairs with #962 (CDE done, scheduler phases not) |
+| #981 | Wire journal bridges — production | S | Med | |
+| #967 | Evaluate CognitiveJournal lower layer | S | Med | |
+| #1067 | Extract PredictionCalibrationAnalyzer | S | Low | |
+| #1066 | Expand PersonalityDifferentiationTest | S | Low | |
+| #1148 | coverage source_provenance Phase 2b | XS | Low | Filed this session |
+| #1149 | Restore CDE literature citations | XS | Low | Filed this session |
 
 ### Deferred
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
-| #1089 | Unbounded cache growth situational personality | XS | Low | Partially addressed by #1125 scheduler |
+| #1089 | Unbounded cache growth situational personality | XS | Low |
+
+## Prior Session — 18f
+
+Completed #1133 (tomFacetScore per-facet defaults) and #1134 (CognitionObservationBuilder personality-modulated ToM). Filed #1137.
 
 ## Neocortex Build Note
 
