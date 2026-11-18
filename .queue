@@ -78,6 +78,18 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1116 — Consolidate-duplicate-TenantAgentKey-records
 - [x] casehubio/neocortex#1140 — Update-CLAUDE-md-for-1136-speech-pipeline-types
 - [x] casehubio/neocortex#1139 — Document-NonVerbalConfig-parameters
+- [ ] casehubio/neocortex#1008 — artifact-sweep-image-co-promotion-crash
+- [ ] casehubio/neocortex#982 — consolidation-setSessionPipeline-dead
+- [ ] casehubio/neocortex#1104 — deployment-contract-single-instance
+- [ ] casehubio/neocortex#574 — phase-2b-provenance-fields
+- [ ] casehubio/neocortex#541 — update-GOAL-SYSTEM-extraction-prompt
+- [ ] casehubio/neocortex#962 — instrument-remaining-CDE-methods
+- [ ] casehubio/neocortex#965 — GraphMutated-CDI-listener-agentId
+- [ ] casehubio/neocortex#966 — instrument-ConsolidationScheduler-phases
+- [ ] casehubio/neocortex#981 — wire-journal-bridges-production
+- [ ] casehubio/neocortex#967 — evaluate-CognitiveJournal-lower-layer
+- [ ] casehubio/neocortex#1067 — extract-PredictionCalibrationAnalyzer
+- [ ] casehubio/neocortex#1066 — expand-PersonalityDifferentiationTest
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
