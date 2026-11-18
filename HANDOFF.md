@@ -6,7 +6,7 @@
 
 **Session 2026-11-18a:** Closed #1098 — replaced keyword intent classifier with LLM-resolved IntentValence. Filed #1112 (eval test for valence classification quality). Blog: "The Second Time Keywords Lied". Updated era5, era7 research docs and mental-model design spec.
 
-**Branch `issue-1113-remove-keyword-sec-checks` has 3 commits ready for work-end.**
+**Branch `issue-1113-remove-keyword-sec-checks` has 5 commits ready for work-end.** Code review complete — found and fixed a bug where `NoOpAppraisalStrategy` broke multi-iteration coping tests. Blog updated with #1113 epilogue. Research docs (era7, computational-emotion) updated. All CLAUDE.md references cleaned.
 
 ## What Was Landed This Session
 
