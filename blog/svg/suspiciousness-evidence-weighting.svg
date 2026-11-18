@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420" style="max-width:680px;font-family:system-ui,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#6b7280" stroke-width="1"/>
+    </marker>
+    <marker id="arr-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#dc2626" stroke-width="1"/>
+    </marker>
+  </defs>
+
+  <rect width="680" height="420" fill="#fafafa" rx="6"/>
+
+  <!-- Title -->
+  <text x="340" y="22" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">Three Personality Dimensions, Two Modulation Layers</text>
+
+  <!-- Layer labels -->
+  <text x="20" y="58" font-size="10" font-weight="600" fill="#6b7280" text-decoration="underline">CPT MODULATION (Engine construction)</text>
+  <text x="20" y="248" font-size="10" font-weight="600" fill="#6b7280" text-decoration="underline">EVIDENCE WEIGHTING (Bridge, pre-inference)</text>
+
+  <!-- Anxiety box -->
+  <rect x="30" y="70" width="140" height="70" rx="4" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="100" y="92" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">Anxiousness</text>
+  <text x="100" y="108" text-anchor="middle" font-size="9" fill="#2563eb">shifts threat prior</text>
+  <text x="100" y="121" text-anchor="middle" font-size="8" fill="#3b82f6">Bar-Haim 2007</text>
+
+  <!-- Callousness box -->
+  <rect x="30" y="155" width="140" height="70" rx="4" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5"/>
+  <text x="100" y="177" text-anchor="middle" font-size="11" font-weight="600" fill="#9d174d">Callousness</text>
+  <text x="100" y="193" text-anchor="middle" font-size="9" fill="#be185d">weakens distress→avoidant</text>
+  <text x="100" y="206" text-anchor="middle" font-size="8" fill="#db2777">Blair 2005/2013</text>
+
+  <!-- Arrow anxiety → network -->
+  <line x1="170" y1="105" x2="250" y2="105" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- Arrow callousness → network -->
+  <line x1="170" y1="190" x2="250" y2="155" stroke="#f9a8d4" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Bayesian network box -->
+  <rect x="255" y="68" width="190" height="160" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1"/>
+  <text x="350" y="88" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">Bayesian Network</text>
+
+  <!-- Threat node -->
+  <rect x="275" y="98" width="100" height="30" rx="12" fill="#bbf7d0" stroke="#4ade80" stroke-width="1"/>
+  <text x="325" y="118" text-anchor="middle" font-size="9" fill="#166534">SituationThreat</text>
+
+  <!-- Emotion node -->
+  <rect x="295" y="148" width="100" height="30" rx="12" fill="#bbf7d0" stroke="#4ade80" stroke-width="1"/>
+  <text x="345" y="168" text-anchor="middle" font-size="9" fill="#166534">EmotionalState</text>
+
+  <!-- Behavior node -->
+  <rect x="315" y="198" width="110" height="30" rx="12" fill="#bbf7d0" stroke="#4ade80" stroke-width="1"/>
+  <text x="370" y="218" text-anchor="middle" font-size="9" fill="#166534">ObservedBehavior</text>
+
+  <!-- Network edges -->
+  <line x1="325" y1="128" x2="340" y2="146" stroke="#6b7280" stroke-width="1" marker-end="url(#arr)"/>
+  <line x1="350" y1="178" x2="365" y2="196" stroke="#6b7280" stroke-width="1" marker-end="url(#arr)"/>
+
+  <!-- Posterior output -->
+  <rect x="490" y="140" width="160" height="45" rx="4" fill="#fef3c7" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="570" y="158" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">Posterior</text>
+  <text x="570" y="174" text-anchor="middle" font-size="8" fill="#b45309">P(positive, neutral, distressed)</text>
+  <line x1="445" y1="163" x2="486" y2="163" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- EVIDENCE LAYER - Suspiciousness -->
+  <rect x="30" y="265" width="160" height="75" rx="4" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+  <text x="110" y="287" text-anchor="middle" font-size="11" font-weight="600" fill="#991b1b">Suspiciousness</text>
+  <text x="110" y="303" text-anchor="middle" font-size="9" fill="#dc2626">scales behavior evidence</text>
+  <text x="110" y="316" text-anchor="middle" font-size="8" fill="#ef4444">approach → avoidant transfer</text>
+  <text x="110" y="329" text-anchor="middle" font-size="8" fill="#f87171">Fenigstein 1992; Combs 2007</text>
+
+  <!-- Evidence vectors -->
+  <rect x="250" y="270" width="175" height="100" rx="4" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="337" y="288" text-anchor="middle" font-size="10" font-weight="600" fill="#5b21b6">Behavior Evidence Vector</text>
+
+  <!-- Before -->
+  <text x="270" y="310" font-size="9" fill="#7c3aed">before:</text>
+  <rect x="310" y="299" width="48" height="14" rx="2" fill="#bbf7d0"/>
+  <text x="334" y="309" text-anchor="middle" font-size="8" fill="#166534">0.60</text>
+  <rect x="362" y="299" width="24" height="14" rx="2" fill="#e5e7eb"/>
+  <text x="374" y="309" text-anchor="middle" font-size="8" fill="#6b7280">0.20</text>
+  <rect x="390" y="299" width="24" height="14" rx="2" fill="#fecaca"/>
+  <text x="402" y="309" text-anchor="middle" font-size="8" fill="#991b1b">0.20</text>
+
+  <!-- After -->
+  <text x="270" y="340" font-size="9" fill="#dc2626">after:</text>
+  <rect x="310" y="329" width="24" height="14" rx="2" fill="#bbf7d0"/>
+  <text x="322" y="339" text-anchor="middle" font-size="8" fill="#166534">0.28</text>
+  <rect x="338" y="329" width="24" height="14" rx="2" fill="#e5e7eb"/>
+  <text x="350" y="339" text-anchor="middle" font-size="8" fill="#6b7280">0.20</text>
+  <rect x="366" y="329" width="48" height="14" rx="2" fill="#fecaca"/>
+  <text x="390" y="339" text-anchor="middle" font-size="8" fill="#991b1b">0.52</text>
+
+  <!-- Labels -->
+  <text x="270" y="362" font-size="7" fill="#9ca3af">approach  neutral  avoidant</text>
+
+  <!-- Arrow suspiciousness → evidence -->
+  <line x1="190" y1="302" x2="246" y2="302" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr-red)"/>
+
+  <!-- Arrow evidence → network behavior node -->
+  <path d="M 425 320 Q 480 320 480 240 Q 480 218 425 218" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+  <text x="500" y="275" font-size="8" fill="#7c3aed">soft evidence</text>
+
+  <!-- Legend -->
+  <rect x="490" y="340" width="170" height="65" rx="4" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1"/>
+  <text x="500" y="356" font-size="8" font-weight="600" fill="#374151">Key insight:</text>
+  <text x="500" y="370" font-size="8" fill="#6b7280">Anxiety + callousness → CPTs</text>
+  <text x="500" y="382" font-size="8" fill="#6b7280">Suspiciousness → evidence vectors</text>
+  <text x="500" y="394" font-size="8" fill="#6b7280">Same network, different layers</text>
+</svg>
