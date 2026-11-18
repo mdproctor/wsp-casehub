@@ -72,6 +72,7 @@ active_issue: casehubio/neocortex#1134
 - [x] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
 - [x] casehubio/neocortex#1133 — tomFacetScore-default-wrong-for-suspiciousness-callousness
 - [ ] casehubio/neocortex#1134 — CognitionObservationBuilder-bypasses-personality-modulated-ToM
+- [ ] casehubio/neocortex#1137 — Test-CognitionObservationBuilder-personality-modulated-ToM-path
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
