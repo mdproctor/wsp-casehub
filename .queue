@@ -78,7 +78,7 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1117 — PersonalityStateService-toSnapshot-compositionVersion
 - [x] casehubio/neocortex#1116 — Consolidate-duplicate-TenantAgentKey-records
 - [x] casehubio/neocortex#1140 — Update-CLAUDE-md-for-1136-speech-pipeline-types
-- [ ] casehubio/neocortex#1139 — Document-NonVerbalConfig-parameters ← active
+- [x] casehubio/neocortex#1139 — Document-NonVerbalConfig-parameters
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
