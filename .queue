@@ -70,6 +70,8 @@ active_issue:
 - [ ] casehubio/neocortex#1125 — Wire-periodic-evictIdle-calls
 - [ ] casehubio/neocortex#1127 — Suspiciousness-modulated-evidence-weighting
 - [ ] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
+- [ ] casehubio/neocortex#1133 — tomFacetScore-default-wrong-for-suspiciousness-callousness
+- [ ] casehubio/neocortex#1134 — CognitionObservationBuilder-bypasses-personality-modulated-ToM
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
