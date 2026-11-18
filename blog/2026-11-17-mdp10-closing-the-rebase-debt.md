@@ -65,4 +65,4 @@ Two smaller items closed the remaining branch debt.
 
 Rebase conflict resolution creates a specific kind of technical debt: items you *understand* but deliberately defer because they don't belong in a merge commit. The rebase entry identified the appraisal weight gap and the orphaned enricher as follow-ups. This session closed them.
 
-The turnaround matters. Deferred rebase debt that sits for weeks becomes mysterious — the context that made the deferral obvious is gone, and the next person to find the gap has to reconstruct the reasoning from scratch. Close it in the next session while the design decisions are still fresh. The fix was straightforward precisely because the reasoning hadn't decayed.
+The turnaround matters. Deferred rebase debt that sits for weeks becomes mysterious — the context that made the deferral obvious is gone, and the next person to find the gap has to reconstruct the reasoning from scratch. Close it in the next session while the design decisions are still fresh. The fix was straightforward precisely because the reasoning hadn't decaye
