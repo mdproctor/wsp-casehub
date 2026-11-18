@@ -2,53 +2,51 @@
 
 ## Current State
 
-**Session 2026-11-17j:** Closed rebase debt — 4 XS/Low issues landed (#1085, #1086, #1087, #1099). Appraisal weight enrichment restored, PersonalityMetadataEnricher consolidated, situational state logging added, MentalModelPromptSection test coverage filled. Filed #1106 (CognitionCore compilation mismatch). Blog: "Closing the Rebase Debt". Updated era7 research doc.
+**Session 2026-11-18a:** Closed #1098 — replaced keyword intent classifier with LLM-resolved IntentValence. Filed #1112 (eval test for valence classification quality). Blog: "The Second Time Keywords Lied". Updated era5, era7 research docs and mental-model design spec.
 
-**All branches landed.** 5 unpublished commits on canonical neocortex. Slot 196 marked ready for archive.
+**All branches landed and published.** Slot 196 marked ready for archive.
 
 ## What Was Landed This Session
 
-### #1085 — Restore appraisal weight enrichment (neocortex)
-Added `appraisalWeights()` delegate to `LearningProfile`. Restored appraisal weight metadata keys (`appraisal.urgencyWeight`, `appraisal.relationshipWeight`, `appraisal.fearOnsetThreshold`, `appraisal.selfStandardsStrictness`, `appraisal.otherStandardsStrictness`) in both consolidation phase enrichment methods. Test coverage in `LearningProfileTest`.
+### #1098 — Replace keyword intent classifier with BDI-dimension semantic classification (neocortex)
 
-### #1086 — Consolidate PersonalityMetadataEnricher (neocortex)
-Added `LearningProfile` overload to `PersonalityMetadataEnricher`. Rewired both `BehavioralSynthesisPhase` and `DriveProfileDerivationPhase` to delegate to it — 50 lines of duplicate inline code replaced by 3-line delegations. Existing `CognitiveDefaultsRegistry` overload now delegates through `LearningProfile.from()`. Side effect: enrichment no longer gated by `descriptor == null` — agents with appraisal weights but no descriptor now get appraisal enrichment (correct behaviour). Test coverage in `PersonalityMetadataEnricherTest`.
+**3 commits landed:**
 
-### #1087 — Log unrecognised situational mode names (neocortex)
-Added `LOG.fine()` to `SituationalStateService` catch block for `SituationalMode.valueOf()` failures. Forward-compatibility guard preserved, debugging trail added.
+1. **feat:** Added `IntentValence` enum (HOSTILE, COOPERATIVE, NEUTRAL) to `AttributedState`. `classifyIntentBias` now reads the valence field directly instead of substring matching. Removed `isHostile`, `isCooperative`, `containsAny`. LLM extraction prompt updated to include valence in JSON schema. `formatBdi` includes existing entries' valence in re-inference prompts. 6-arg backward-compatible constructor defaults to NEUTRAL. Serialization handles missing valence gracefully.
 
-### #1099 — Test MentalModelPromptSection posterior rendering (neocortex)
-4 tests covering the 60% confidence threshold: above (rendered), at exactly 60% (not rendered — strict `>`), below (not rendered), null posterior (no section). Tests exercise the full public API path through a mocked orchestrator.
+2. **fix:** `decayMap` was using the 6-arg constructor, silently resetting LLM-classified valence to NEUTRAL during confidence decay. Fixed to preserve `s.valence()`.
+
+3. **docs:** Updated era5-relational-cognition-research, era7-personality-trait-integration-research, and mental-model-design spec to reflect the IntentValence approach.
+
+### Blog promoted to examples
+- `docs/blog/2026-11-18-mdp01-the-second-time-keywords-lied.md` — the semantic resolution boundary applied to BDI intent classification
 
 ## Issues Filed This Session
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1106 | CognitionCore compilation error: BehavioralSynthesisPhase signature mismatch | XS | Low | Pre-existing — `lastInputActivations`/`lastSettlingResult` take 1 arg, callers pass 2 |
+| #1112 | Eval test for LLM valence classification quality | S | Med | Verify the LLM produces correct hostile/cooperative/neutral labels across BDI scenarios |
 
-## Research Docs Updated
-
-- `era7-personality-trait-integration-research.md` — marked appraisal weight gap as resolved (#1085), updated PersonalityMetadataEnricher status from orphaned to revived (#1086)
-
-## Queue — 3 items remaining
+## Queue — 2 items remaining
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
 | #1089 | Unbounded cache growth | XS | Low | Deferred — no impact with fixed 17-character cast |
-| #1097 | Personality-modulated CPTs for TheoryOfMindEngine | M | Med | Design-heavy — anxiety/callousness condition priors |
-| #1098 | Replace keyword intent classifier with BDI-dimension semantic | M | Med | Known fragility in keyword matching |
+| #1097 | Personality-modulated CPTs for TheoryOfMindEngine | M | Med | Design-heavy — personality-driven Bayesian priors for ToM |
 
-#1089 is deferred until dynamic agent creation becomes a requirement. #1097 and #1098 are M/Med design work needing brainstorming and literature review — fresh session recommended.
+#1089 is deferred until dynamic agent creation becomes a requirement. #1097 is M/Med design work — an anxious agent should weight threat evidence more heavily, a callous agent should have different priors about others' emotional states. Needs literature review on personality-modulated Bayesian networks. Fresh session recommended.
+
+## Coping Keyword Classifier — Flagged for Future
+
+The blog's closing paragraph flags the coping micro-loop in emotion regulation as a third candidate for the same keyword → semantic resolution treatment. `RelationalSchemaEvolutionPhase` is now clean, but `CopingCheck` or similar may still use keyword detection for SEC re-evaluation triggers. Worth auditing when the coping layer is next touched.
 
 ## Slot Status
 
-**Slot 196 marked ready for archive.** 5 unpublished commits on canonical neocortex. Cannot be archived from within the slot.
+**Slot 196 marked ready for archive.** All canonical repos published. Cannot be archived from within the slot.
 
 ## Neocortex Build Note
 
 Full reactor fails at `schema-generator`. Use targeted module builds:
 ```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml test -s examples/.mvn/slot-settings.xml
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml test -s slot-settings.xml
 ```
-
-**Additional:** `cognition` module has a pre-existing compilation error (#1106) — `CognitionCore.java` calls `BehavioralSynthesisPhase.lastInputActivations(tenantId, agentId)` with 2 args but the method now takes 1. Install `cognitive-index` and `mindmap-intelligence` before running `cognition` tests.
