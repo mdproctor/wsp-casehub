@@ -1,7 +1,7 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-1127-suspiciousness-evidence-weighting
+branch: issue-1133-tomFacetScore-default-wrong
 status: active
 project-sha: 
 date: 
@@ -10,8 +10,8 @@ covers: 712,1055
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131
-active_issue: 
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133
+active_issue: casehubio/neocortex#1134
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -70,7 +70,7 @@ active_issue:
 - [x] casehubio/neocortex#1125 — Wire-periodic-evictIdle-calls
 - [x] casehubio/neocortex#1127 — Suspiciousness-modulated-evidence-weighting
 - [x] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
-- [ ] casehubio/neocortex#1133 — tomFacetScore-default-wrong-for-suspiciousness-callousness
+- [x] casehubio/neocortex#1133 — tomFacetScore-default-wrong-for-suspiciousness-callousness
 - [ ] casehubio/neocortex#1134 — CognitionObservationBuilder-bypasses-personality-modulated-ToM
 
 ## Deferred
