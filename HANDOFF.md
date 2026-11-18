@@ -2,9 +2,9 @@
 
 ## Current State
 
-**Session 2026-11-18h:** Completed #966 — instrumented ConsolidationScheduler phases with cognitive journal entries. Code reviewed (found/fixed defensive try-catch issue). Blog revised. 2 follow-up issues filed (#1155, #1156). Research doc updated. All commits on neocortex main.
+**Session 2026-11-18h:** Completed 3 observability issues (#966, #1150, #1151) on neocortex main. Code reviewed, blog revised, 2 follow-up issues filed (#1155, #1156), research doc updated. Queue has 2 remaining items (both filed this session).
 
-**Queue position:** 71/78 (4 open items + 2 newly filed + 1 deferred). Next: #1150.
+**Queue position:** 73/78 (2 open items + 1 deferred). Next: #1155.
 
 ## What Was Done — Session 18h
 
@@ -12,19 +12,21 @@
 
 | SHA | Issue | Summary |
 |-----|-------|---------|
-| `23d84dbcc` | #966 | Per-phase `Consolidated` journal entries in `runPhases()` — phase name, elapsed time, artifact count |
-| `938a0513f` | #966 | Defensive try-catch guard — journal failures cannot corrupt PhaseResult (code review finding) |
-| `a12399950` | #966 | Research doc update — era7 observability section marks #962 and #966 as landed |
+| `23d84dbcc` | #966 | Per-phase `Consolidated` journal entries in `runPhases()` |
+| `938a0513f` | #966 | Defensive try-catch guard — journal failures cannot corrupt PhaseResult |
+| `a12399950` | #966 | Research doc update — era7 observability marks #962 and #966 as landed |
+| `cf268f3ee` | #1150 | Add `agentId` to `ExtractionRequested`, propagate across `@ObservesAsync` boundary |
+| `478d6a78e` | #1151 | Wire `MutationContext.setAgent()` in `ConversationBridge.process()` from principalId |
 
 ### Code Review Findings
 
-1. **Fixed:** `journal.record()` sat inside the phase's try-catch — a throwing journal produced duplicate PhaseResult entries (one success, one failure). Wrapped in its own defensive try-catch. Test added.
+1. **Fixed:** `journal.record()` sat inside the phase's try-catch — a throwing journal produced duplicate PhaseResult entries. Wrapped in defensive try-catch.
 2. **Filed #1155:** EventRef is always `consolidation(init())` — no tick counter to distinguish cycles.
-3. **Filed #1156:** ConsolidationPhase doesn't expose inputNodes/outputNodes — `inputNodes` is always 0.
+3. **Filed #1156:** ConsolidationPhase doesn't expose inputNodes/outputNodes.
 
 ### Blog
 
-- Revised `blog/2026-11-18-mdp01-the-pipeline-that-couldnt-explain-itself.md` — added "When the observer breaks the observed" section about the defensive pattern. Updated SVG to 5 layers.
+- Revised `blog/2026-11-18-mdp01-the-pipeline-that-couldnt-explain-itself.md` — added "When the observer breaks the observed" section. Updated SVG to 5 layers.
 
 ### Issues Filed
 
@@ -34,15 +36,23 @@
 ### Issues Closed
 
 - **casehubio/neocortex#966** — Instrument ConsolidationScheduler phases with cognitive journal entries
+- **casehubio/neocortex#1150** — Add agentId to ExtractionRequested for journal correlation
+- **casehubio/neocortex#1151** — Wire MutationContext.setAgent() in ConversationBridge callers
+
+### Design Note — #1151
+
+The issue specified modifying callers of `ConversationBridge.process()`. Investigation found no production callers within neocortex — all callers are in application repos (examples/wacky-manor). Instead of cross-repo caller changes, `process()` now sets agentId from its `principalId` parameter internally, making it self-contained.
 
 ## Queue — remaining items
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1150 | ExtractionRequested agentId journal correlation | — | — | ← next |
-| #1151 | ConversationBridge MutationContext setAgent | — | — | |
-| #1155 | ConsolidationScheduler tick counter EventRef | XS | Low | Filed this session |
+| #1155 | ConsolidationScheduler tick counter EventRef | XS | Low | ← next. Filed this session |
 | #1156 | ConsolidationPhase input/output node counts | S | Low | Filed this session |
+
+### Queue note
+
+#1150 and #1151 are closed on GitHub but remain unchecked in the `.queue` file — plan_manager advance didn't mark them. Next session should verify queue state matches GitHub.
 
 ### Deferred
 
@@ -64,4 +74,4 @@ JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/pom.xml install -Dmav
 
 ## IntelliJ Slot Note
 
-IntelliJ MCP may become unresponsive during heavy rebase/indexing. If `ide_index_status` shows unresponsive for >60s, restart IDE. Use python scripts in scratchpad as fallback for file writes when IDE is down.
+IntelliJ MCP may become unresponsive during heavy rebase/indexing. If `ide_index_status` shows unresponsive for >60s, restart IDE.
