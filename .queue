@@ -58,18 +58,18 @@ active_issue:
 - [x] casehubio/neocortex#1086 — PersonalityMetadataEnricher-orphaned
 - [x] casehubio/neocortex#1087 — SituationalStateService-log-unrecognised-modes
 - [x] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
-- [ ] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
+- [x] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
 - [x] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
 - [x] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
 - [x] casehubio/neocortex#1096 — Surface-Bayesian-ToM-posterior-in-prompt
-- [ ] casehubio/neocortex#1097 — Personality-modulated-CPTs-for-TheoryOfMindEngine
-- [ ] casehubio/neocortex#1098 — Replace-keyword-intent-classifier-with-BDI-semantic
+- [x] casehubio/neocortex#1097 — Personality-modulated-CPTs-for-TheoryOfMindEngine
+- [x] casehubio/neocortex#1098 — Replace-keyword-intent-classifier-with-BDI-semantic
 - [x] casehubio/neocortex#1099 — MentalModelPromptSection-test-posterior-rendering
-- [ ] casehubio/neocortex#1112 — Eval-test-for-LLM-valence-classification-quality
-- [ ] casehubio/neocortex#1113 — Remove-all-keyword-based-SEC-checks
-- [ ] casehubio/neocortex#1125 — Wire-periodic-evictIdle-calls
-- [ ] casehubio/neocortex#1127 — Suspiciousness-modulated-evidence-weighting
-- [ ] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
+- [x] casehubio/neocortex#1112 — Eval-test-for-LLM-valence-classification-quality
+- [x] casehubio/neocortex#1113 — Remove-all-keyword-based-SEC-checks
+- [x] casehubio/neocortex#1125 — Wire-periodic-evictIdle-calls
+- [x] casehubio/neocortex#1127 — Suspiciousness-modulated-evidence-weighting
+- [x] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
 - [ ] casehubio/neocortex#1133 — tomFacetScore-default-wrong-for-suspiciousness-callousness
 - [ ] casehubio/neocortex#1134 — CognitionObservationBuilder-bypasses-personality-modulated-ToM
 
