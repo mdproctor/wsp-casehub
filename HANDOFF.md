@@ -2,61 +2,50 @@
 
 ## Current State
 
-**Session 2026-11-18d:** Completed #1125 (cache eviction scheduler). Filed #1131 (thread-safety hardening) and examples#211 (wacky-manor wiring). Blog written. Work landed and published to remote.
+**Session 2026-11-18e:** Completed #1127 (suspiciousness-modulated evidence weighting) and #1131 (CacheEvictionScheduler thread safety). Code reviewed, blog written, research docs updated, 2 follow-up issues filed. Work landed and published to remote.
 
-**Slot 196 is marked ready for archive** — queue has remaining items but all branches landed.
+**Slot 196 is marked ready for archive** — queue has newly filed follow-up items only.
 
-**Next issue:** #1127 — Suspiciousness-modulated evidence weighting for TheoryOfMindEngine (S/Med). Needs a fresh branch.
+## What Was Done — Session 18e
 
-## What Was Done — Session 18d
+### Landed commits (neocortex, published)
 
-### Landed commit `be9996c7b` (neocortex, published)
+**`0e12f160` feat(#1127): add suspiciousness-modulated evidence weighting to TheoryOfMindBridge**
 
-**feat(#1125): wire periodic evictIdle() calls for cognitive caches**
+- `TomPersonalityModulation` — added `double suspiciousness` [0,1] field. NEUTRAL baseline = 0.0.
+- `TheoryOfMindBridge.scaleBehaviorEvidence()` — scales behavior soft-evidence vector before junction tree. High suspiciousness transfers approach weight to avoidant (`approach * suspiciousness * 0.6`). Literature: Fenigstein & Vanable 1992 (paranoia and interpretive bias), Combs et al. 2007 (attributional bias).
+- `CognitionCore.tomModulation()` — extracts `PersonalityFacet.SUSPICIOUSNESS` from personality profile.
+- 5 new tests: 1 engine-level (zero suspiciousness = NEUTRAL), 4 bridge-level (contrastive pairs + direct scaling math).
 
-- `CacheEvictionScheduler` — dual-threshold (tick count AND wall-clock time). Evicts only when both >= 60 ticks AND >= 5 minutes since last eviction. Registered evictors receive configurable `maxIdle` duration (default 10 min).
-- Wired into `CognitionCore.tick()` at end of pipeline, after snapshot store.
-- `EffectiveCognitiveDefaults` auto-registers via `configureCacheEviction()`.
-- `SituationalPersonalityParticipant` registered externally (not wired in any app yet — see examples#211).
-- Builder support: `CognitivePipelineBuilder.cacheEviction(scheduler)`.
-- Review fixes: try-catch per evictor (exception resilience), removed double-registration path from `setEffectiveDefaults`.
+**`905fa379` feat(#1131): use CopyOnWriteArrayList for CacheEvictionScheduler thread safety**
 
-### Tests (11 total)
+- `ArrayList` → `CopyOnWriteArrayList` for the evictors list. Standard COWAL pattern for read-heavy/write-rare.
 
-- 7 unit tests: tick-only threshold, time-only threshold, both thresholds, reset after eviction, no-op with no evictors, multi-evictor, default constructor, exception resilience
-- 3 integration tests: scheduler invoked during tick, effectiveDefaults auto-registration, null-safe when unconfigured
+**`57d3325c` docs: update research docs for #1127**
+
+- `capacity-gap-mapping.md` — moved #1127 from "What remains" to "What was done", updated three-level modulation description.
+- `era5-relational-cognition-research.md` — replaced outdated "CPTs are fixed" with personality modulation table covering all three mechanisms.
+
+### Code review findings
+
+- `tomFacetScore` default of 0.5 is wrong for suspiciousness and callousness — agents without explicit facets get non-neutral ToM modulation → filed #1133 (XS/Low).
+- `CognitionObservationBuilder` bypasses personality-modulated ToM entirely → filed #1134 (S/Med).
 
 ### Blog
 
-- `blog/2026-11-18-mdp03-the-methods-nobody-called.md` — dual-threshold design, configure-or-not pattern, review catches
+- `blog/2026-11-18-mdp04-the-evidence-nobody-trusted.md` — three-layer ToM modulation, evidence scaling vs CPT modulation, attributional bias literature.
 
 ### Issues Filed
 
-- **casehubio/neocortex#1131** — `CacheEvictionScheduler` use `CopyOnWriteArrayList` for thread safety (XS/Low)
-- **casehubio/examples#211** — Wire `SituationalPersonalityParticipant.evictIdle` in wacky-manor (XS/Low)
-
-## Prior Sessions (retained for context)
-
-### Session 18c — branch `issue-1097-personality-modulated-tom-cpts` (landed)
-
-1. **feat (#1097):** `TomPersonalityModulation` — anxiety shifts threat prior (Bar-Haim 2007), callousness weakens distress-avoidant coupling (Blair 2005/2013).
-2. **feat (#1089):** `evictIdle(Duration)` on situational caches.
-
-### Session 18b — branch `issue-1113-remove-keyword-sec-checks` (landed)
-
-1. **feat (#1113):** Deleted all keyword-based SEC checks.
-2. **feat (#1112):** `ValenceClassificationEvalTest` — 14 BDI scenarios.
-
-### Session 18a — branch `issue-1098-bdi-semantic-classifier` (landed)
-
-1. **feat (#1098):** `IntentValence` enum, LLM extraction prompt valence, removed keyword classifiers.
+- **casehubio/neocortex#1133** — `tomFacetScore` default 0.5 wrong for suspiciousness/callousness (XS/Low)
+- **casehubio/neocortex#1134** — `CognitionObservationBuilder` bypasses personality-modulated ToM (S/Med)
 
 ## Queue — remaining items
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1127 | Suspiciousness-modulated ToM evidence weighting | S | Med | Active — next to start |
-| #1131 | CacheEvictionScheduler CopyOnWriteArrayList | XS | Low | Thread-safety hardening |
+| #1133 | tomFacetScore default wrong for suspiciousness/callousness | XS | Low | Filed this session |
+| #1134 | CognitionObservationBuilder bypasses personality-modulated ToM | S | Med | Filed this session |
 
 ### Deferred
 
