@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" font-family="system-ui, -apple-system, sans-serif" font-size="13">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#475569"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="28" text-anchor="middle" font-size="15" font-weight="600" fill="#1e293b">Mutation → Journal Bridge: Data Flow</text>
+
+  <!-- Layer labels -->
+  <text x="16" y="72" font-size="11" fill="#94a3b8" font-weight="500">COGNITIVE TICK</text>
+  <text x="16" y="172" font-size="11" fill="#94a3b8" font-weight="500">MINDMAP LAYER</text>
+  <text x="16" y="302" font-size="11" fill="#94a3b8" font-weight="500">CDI EVENT BUS</text>
+
+  <!-- Cognitive tick sets context -->
+  <rect x="140" y="52" width="200" height="44" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="240" y="70" text-anchor="middle" font-weight="600" fill="#1e40ad">MutationContext</text>
+  <text x="240" y="86" text-anchor="middle" font-size="11" fill="#3b82f6">.set("source")  .setAgent("agent-7")</text>
+
+  <!-- ThreadLocal arrow down -->
+  <line x1="240" y1="96" x2="240" y2="140" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrow-blue)"/>
+  <text x="250" y="122" font-size="10" fill="#2563eb" font-style="italic">ThreadLocal</text>
+
+  <!-- MutationTrackingDecorator -->
+  <rect x="140" y="142" width="260" height="52" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="270" y="162" text-anchor="middle" font-weight="600" fill="#334155">MutationTrackingDecorator</text>
+  <text x="270" y="178" text-anchor="middle" font-size="11" fill="#64748b">wraps MindMapStore, fires events</text>
+
+  <!-- persistMutation arrow -->
+  <line x1="270" y1="194" x2="270" y2="234" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="280" y="218" font-size="10" fill="#64748b">persistMutation()</text>
+
+  <!-- GraphMutationRecorded event -->
+  <rect x="140" y="236" width="260" height="52" rx="6" fill="#fef3c7" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="270" y="256" text-anchor="middle" font-weight="600" fill="#92400e">GraphMutationRecorded</text>
+  <text x="270" y="272" text-anchor="middle" font-size="11" fill="#b45309">tenantId + agentId + mutation</text>
+
+  <!-- CDI event fire -->
+  <line x1="270" y1="288" x2="270" y2="316" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="280" y="306" font-size="10" fill="#64748b">CDI @Observes</text>
+
+  <!-- Three observers -->
+  <!-- Bridge (new) -->
+  <rect x="120" y="318" width="200" height="52" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="2"/>
+  <text x="220" y="338" text-anchor="middle" font-weight="600" fill="#166534">GraphMutatedJournalBridge</text>
+  <text x="220" y="354" text-anchor="middle" font-size="11" fill="#15803d">→ CognitiveEntry.GraphMutated</text>
+  <text x="120" y="386" font-size="10" fill="#166534" font-weight="600">NEW</text>
+
+  <!-- EntityErasureTokenHandler -->
+  <rect x="460" y="236" width="230" height="40" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="575" y="260" text-anchor="middle" font-size="12" fill="#64748b">EntityErasureTokenHandler</text>
+
+  <!-- EntityMergeTokenHandler -->
+  <rect x="460" y="286" width="230" height="40" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="575" y="310" text-anchor="middle" font-size="12" fill="#64748b">EntityMergeTokenHandler</text>
+
+  <!-- Arrows to existing observers -->
+  <line x1="400" y1="262" x2="458" y2="258" stroke="#94a3b8" stroke-width="1" marker-end="url(#arrow)"/>
+  <line x1="400" y1="268" x2="458" y2="302" stroke="#94a3b8" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- Journal output -->
+  <rect x="460" y="340" width="230" height="44" rx="6" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1.5"/>
+  <text x="575" y="358" text-anchor="middle" font-weight="600" fill="#5b21b6">CognitiveJournal</text>
+  <text x="575" y="374" text-anchor="middle" font-size="11" fill="#7c3aed">correlated by agentId + eventRef</text>
+
+  <!-- Bridge to journal arrow -->
+  <line x1="320" y1="352" x2="458" y2="358" stroke="#166534" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Label: "agentId travels IN via ThreadLocal, OUT via event" -->
+  <rect x="430" y="52" width="270" height="66" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1"/>
+  <text x="445" y="72" font-size="11" fill="#c2410c" font-weight="600">Design principle:</text>
+  <text x="445" y="88" font-size="11" fill="#9a3412">agentId travels IN via ThreadLocal</text>
+  <text x="445" y="104" font-size="11" fill="#9a3412">agentId travels OUT via the event</text>
+</svg>
