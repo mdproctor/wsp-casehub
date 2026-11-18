@@ -2,9 +2,11 @@
 
 ## Current State
 
+**Session 2026-11-18b:** Completed #1113 and #1112 on branch `issue-1113-remove-keyword-sec-checks`.
+
 **Session 2026-11-18a:** Closed #1098 — replaced keyword intent classifier with LLM-resolved IntentValence. Filed #1112 (eval test for valence classification quality). Blog: "The Second Time Keywords Lied". Updated era5, era7 research docs and mental-model design spec.
 
-**All branches landed and published.** Slot 196 marked ready for archive.
+**Branch `issue-1113-remove-keyword-sec-checks` has 3 commits ready for work-end.**
 
 ## What Was Landed This Session
 
@@ -21,23 +23,26 @@
 ### Blog promoted to examples
 - `docs/blog/2026-11-18-mdp01-the-second-time-keywords-lied.md` — the semantic resolution boundary applied to BDI intent classification
 
-## Issues Filed This Session
+## Issues Filed This Session (18a)
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1112 | Eval test for LLM valence classification quality | S | Med | Verify the LLM produces correct hostile/cooperative/neutral labels across BDI scenarios |
-| #1113 | Remove all keyword-based SEC checks — require LLM for cognitive appraisal | M | Med | All 4 SEC checks (Coping, Implication, Normative, Relevance) use keyword matching. Delete them, make SessionPipeline a hard requirement. |
+| #1112 | Eval test for LLM valence classification quality | S | Med | **Done (18b)** — `ValenceClassificationEvalTest` with 14 scenarios + edge case |
+| #1113 | Remove all keyword-based SEC checks — require LLM for cognitive appraisal | M | Med | **Done (18b)** — deleted 8 source, 1 API, 11 test files; -1828 lines |
 
-## Next Up — #1113: Remove all keyword-based SEC checks
+## What Was Done This Session (18b)
 
-**Scaffolded as active issue.** `work continue` picks it up.
+### #1113 — Remove all keyword-based SEC checks
+- Deleted 8 keyword/individual-LLM check classes and SchererAppraisalConfig
+- `CognitionDefaultBeans.appraisalStrategy()` now throws if no SessionPipeline
+- `CopingMicroLoop` takes `AppraisalStrategy` instead of `List<SecCheck>` for re-evaluation
+- Deleted 11 test files, updated 3 test files
+- Updated CLAUDE.md and cognitive-model-reference.md
 
-**What to do:**
-1. Delete `CopingCheck.java`, `ImplicationCheck.java`, `NormativeCheck.java`, `RelevanceCheck.java`
-2. Delete `LlmCopingCheck.java` (redundant — `LlmAppraisalStrategy` covers all dimensions)
-3. Remove `SchererAppraisalStrategy` fallback from `CognitionDefaultBeans.appraisalStrategy()` — if no `SessionPipeline`, fail explicitly
-4. Update tests that directly instantiate keyword checks — mock `SessionPipeline` instead
-5. `LlmAppraisalStrategy` is already the active path and produces all 7 SEC dimensions in one call
+### #1112 — Eval test for LLM valence classification quality
+- `ValenceClassificationEvalTest` with 14 BDI scenarios across hostile/cooperative/neutral
+- Corpus accuracy test (>= 75% threshold)
+- LLM-judged edge case: benevolent manipulation (cooperative goals via hostile means)
 
 **Files to touch:**
 - `cognition/src/main/java/.../appraisal/CopingCheck.java` — delete
