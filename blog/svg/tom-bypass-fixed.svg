@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" font-family="system-ui, -apple-system, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#555" stroke-width="1.2"/>
+    </marker>
+    <marker id="arr-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#c44" stroke-width="1.2"/>
+    </marker>
+    <marker id="arr-grn" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#4a4" stroke-width="1.2"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="28" text-anchor="middle" font-size="15" font-weight="600" fill="#333">Before / After: CognitionObservationBuilder ToM path</text>
+
+  <!-- BEFORE section -->
+  <rect x="20" y="50" width="330" height="310" rx="8" fill="#fff5f5" stroke="#daa"/>
+  <text x="185" y="72" text-anchor="middle" font-size="14" font-weight="600" fill="#944">Before (bypassed)</text>
+
+  <!-- Personality box (greyed out) -->
+  <rect x="40" y="90" width="130" height="50" rx="6" fill="#eee" stroke="#bbb" stroke-dasharray="4,3"/>
+  <text x="105" y="112" text-anchor="middle" fill="#999" font-size="11">PID-5 Facets</text>
+  <text x="105" y="127" text-anchor="middle" fill="#aaa" font-size="10">(ignored)</text>
+
+  <!-- BehaviorType enum -->
+  <rect x="200" y="90" width="130" height="50" rx="6" fill="#fff" stroke="#888"/>
+  <text x="265" y="112" text-anchor="middle" font-size="11" fill="#555">BehaviorType enum</text>
+  <text x="265" y="127" text-anchor="middle" font-size="10" fill="#888">hard evidence</text>
+
+  <!-- Engine NEUTRAL -->
+  <rect x="100" y="175" width="180" height="55" rx="6" fill="#fff" stroke="#c44"/>
+  <text x="190" y="197" text-anchor="middle" font-size="12" fill="#555">TheoryOfMindEngine()</text>
+  <text x="190" y="213" text-anchor="middle" font-size="10" fill="#c44">always NEUTRAL</text>
+
+  <!-- Arrow from BehaviorType to Engine -->
+  <line x1="265" y1="140" x2="230" y2="175" stroke="#555" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- Posterior -->
+  <rect x="130" y="270" width="140" height="40" rx="6" fill="#fff" stroke="#888"/>
+  <text x="200" y="294" text-anchor="middle" font-size="11" fill="#555">Posterior</text>
+
+  <line x1="190" y1="230" x2="200" y2="270" stroke="#555" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- Red X marks -->
+  <text x="105" y="166" text-anchor="middle" font-size="18" fill="#c44">✗</text>
+  <text x="45" y="210" text-anchor="start" font-size="10" fill="#c44">no anxiousness</text>
+  <text x="45" y="223" text-anchor="start" font-size="10" fill="#c44">no callousness</text>
+  <text x="45" y="236" text-anchor="start" font-size="10" fill="#c44">no suspiciousness</text>
+
+  <!-- AFTER section -->
+  <rect x="370" y="50" width="330" height="310" rx="8" fill="#f5fff5" stroke="#ada"/>
+  <text x="535" y="72" text-anchor="middle" font-size="14" font-weight="600" fill="#494">After (modulated)</text>
+
+  <!-- Personality box (active) -->
+  <rect x="390" y="90" width="130" height="50" rx="6" fill="#e8f5e8" stroke="#4a4"/>
+  <text x="455" y="112" text-anchor="middle" fill="#333" font-size="11">PID-5 Facets</text>
+  <text x="455" y="127" text-anchor="middle" fill="#4a4" font-size="10">per-facet defaults</text>
+
+  <!-- BehaviorType + scaling -->
+  <rect x="550" y="90" width="130" height="50" rx="6" fill="#fff" stroke="#888"/>
+  <text x="615" y="108" text-anchor="middle" font-size="11" fill="#555">BehaviorType</text>
+  <text x="615" y="123" text-anchor="middle" font-size="10" fill="#4a4">→ soft evidence</text>
+  <text x="615" y="136" text-anchor="middle" font-size="10" fill="#4a4">→ scaled</text>
+
+  <!-- Engine modulated -->
+  <rect x="450" y="175" width="180" height="55" rx="6" fill="#fff" stroke="#4a4"/>
+  <text x="540" y="197" text-anchor="middle" font-size="12" fill="#555">TheoryOfMindEngine(mod)</text>
+  <text x="540" y="213" text-anchor="middle" font-size="10" fill="#4a4">personality CPTs</text>
+
+  <!-- Arrows -->
+  <line x1="455" y1="140" x2="490" y2="175" stroke="#4a4" stroke-width="1.2" marker-end="url(#arr-grn)"/>
+  <line x1="615" y1="140" x2="580" y2="175" stroke="#4a4" stroke-width="1.2" marker-end="url(#arr-grn)"/>
+
+  <!-- Posterior -->
+  <rect x="480" y="270" width="140" height="40" rx="6" fill="#fff" stroke="#888"/>
+  <text x="550" y="294" text-anchor="middle" font-size="11" fill="#555">Posterior</text>
+
+  <line x1="540" y1="230" x2="550" y2="270" stroke="#555" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- Green check marks -->
+  <text x="395" y="210" text-anchor="start" font-size="10" fill="#4a4">✓ anxiousness prior</text>
+  <text x="395" y="223" text-anchor="start" font-size="10" fill="#4a4">✓ callousness CPTs</text>
+  <text x="395" y="236" text-anchor="start" font-size="10" fill="#4a4">✓ suspiciousness scaling</text>
+
+  <!-- Legend -->
+  <text x="360" y="385" text-anchor="middle" font-size="10" fill="#888">Left: observeCharacterState() always used NEUTRAL engine with hard evidence. Right: personality modulation reaches every ToM path.</text>
+</svg>
