@@ -74,8 +74,8 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1134 — CognitionObservationBuilder-bypasses-personality-modulated-ToM
 - [x] casehubio/neocortex#1137 — Test-CognitionObservationBuilder-personality-modulated-ToM-path
 - [x] casehubio/neocortex#1141 — Fix-DispositionSignalWriterTest-broken-by-eidos-API
-- [ ] casehubio/neocortex#1138 — Cap-narrative-field-length-CopingGenerationPhase ← active
-- [ ] casehubio/neocortex#1117 — PersonalityStateService-toSnapshot-compositionVersion
+- [x] casehubio/neocortex#1138 — Cap-narrative-field-length-CopingGenerationPhase
+- [ ] casehubio/neocortex#1117 — PersonalityStateService-toSnapshot-compositionVersion ← active
 - [ ] casehubio/neocortex#1116 — Consolidate-duplicate-TenantAgentKey-records
 - [ ] casehubio/neocortex#1140 — Update-CLAUDE-md-for-1136-speech-pipeline-types
 - [ ] casehubio/neocortex#1139 — Document-NonVerbalConfig-parameters
