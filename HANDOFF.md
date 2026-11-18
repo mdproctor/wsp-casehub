@@ -2,41 +2,62 @@
 
 ## Current State
 
-**Session 2026-11-18b:** Landed #1113 and #1112. Published to remote. Issues closed.
+**Session 2026-11-18c:** Completed #1097 (personality-modulated ToM CPTs) and #1089 (cache eviction). Filed #1125 and #1127 for follow-up. Blog written. Research docs updated.
 
-**All keyword classifiers are now removed from the cognitive pipeline.** The arc from #1098 (BDI intent) through #1113 (SEC appraisal) is complete. `LlmAppraisalStrategy` is the only appraisal path; `SessionPipeline` is required.
+**Neocortex branch:** `issue-1097-personality-modulated-tom-cpts` — 5 commits on `canonical-main`. Rebased onto canonical during session (slot was behind). **Not pushed to remote yet.**
 
-**Slot 196 marked ready for archive.** All canonical repos published. Cannot be archived from within the slot.
+**Slot 196 is NOT ready for archive** — queue has 2 new issues.
 
-## What Was Landed
+## What Was Done — Session 18c
 
-### Session 18b — branch `issue-1113-remove-keyword-sec-checks` (2 commits)
+### Branch `issue-1097-personality-modulated-tom-cpts` (5 commits, neocortex)
 
-1. **feat (#1113):** Deleted CopingCheck, ImplicationCheck, NormativeCheck, RelevanceCheck, SchererAppraisalStrategy, LlmCopingCheck, LlmImplicationCheck, LlmNormativeCheck, SchererAppraisalConfig, SecCheck. `CognitionDefaultBeans.appraisalStrategy()` throws if no SessionPipeline. `CopingMicroLoop.reEvaluate()` delegates to `AppraisalStrategy`. Updated CLAUDE.md, cognitive-model-reference.md, era7 and computational-emotion research docs.
+1. **feat (#1097):** `TomPersonalityModulation` record (anxiousness, callousness). `TheoryOfMindEngine` parameterized constructor — anxiety shifts threat prior (Bar-Haim 2007), callousness weakens distress→avoidant coupling (Blair 2005/2013). Linear interpolation preserves CPT normalization. NEUTRAL modulation = identical to original fixed CPTs.
 
-2. **feat (#1112):** `ValenceClassificationEvalTest` — 14 BDI scenarios (hostile/cooperative/neutral) with >= 75% accuracy threshold, plus LLM-judged edge case (benevolent manipulation).
+2. **feat (#1097):** `TheoryOfMindBridge.infer(AppraisalResult, TomPersonalityModulation)` overload. Existing no-arg delegates with NEUTRAL.
 
-### Session 18a — branch `issue-1098-bdi-semantic-classifier` (3 commits)
+3. **feat (#1097):** `CognitionCore.tick()` wiring — extracts ANXIOUSNESS and CALLOUSNESS from `EffectiveCognitiveDefaults`, builds modulation per ToM inference call. Missing facets default to 0.5/0.0 (neutral).
 
-1. **feat (#1098):** `IntentValence` enum on `AttributedState`, LLM extraction prompt valence, removed `isHostile`/`isCooperative`/`containsAny`.
-2. **fix:** `decayMap` preserves `s.valence()` instead of resetting to NEUTRAL.
-3. **docs:** Updated era5, era7, mental-model-design spec.
+4. **feat (#1089):** `evictIdle(Duration)` on `SituationalStateService` and `SituationalPersonalityParticipant`. Last-access tracking via `ConcurrentHashMap<String, Instant>`. Collect-then-remove pattern for thread safety.
+
+5. **fix:** Review corrections — `loadOrCreate` cache-hit now updates `lastAccess`; restored literal UTF-8 → and ' characters in javadocs.
+
+### Tests
+
+- 11 engine tests (7 existing + 4 new): anxiety raises/lowers baseline distress, callousness discounts avoidance evidence, NEUTRAL matches default
+- 13 bridge tests (10 existing + 3 new): anxious/callous agents produce measurably different posteriors from same appraisal, NEUTRAL matches unmodulated
+- 11 state service tests (9 existing + 2 new): evictIdle removes stale, keeps recent
+- 1149 full cognition suite: all green
 
 ### Blog
-- `docs/blog/2026-11-18-mdp01-the-second-time-keywords-lied.md` — updated with #1113 epilogue: "The Third Time — And the Last"
+- `blog/2026-11-18-mdp02-the-prior-that-knew-who-was-looking.md` — personality-modulated ToM CPTs, the two interpolation dimensions, why linear preserves normalization, cache eviction cleanup
 
-## Review Findings Fixed
+### Issues Filed
+- **#1125** — Wire periodic `evictIdle()` calls for cognitive caches (S/Low)
+- **#1127** — Suspiciousness-modulated evidence weighting for TheoryOfMindEngine (S/Med)
 
-- **NoOpAppraisalStrategy broke multi-iteration coping tests** — returned empty emotions, loop exited after one iteration. Replaced with sustaining appraisal lambda.
-- **SecCheck interface orphaned** — zero references after keyword removal. Deleted.
-- **Stale CLAUDE.md module-level directory listings** — removed deleted class references from lines 163-164.
+### Research Docs
+- `capacity-gap-mapping.md` — updated ToM personality gap as closed
+
+## Prior Sessions (retained for context)
+
+### Session 18b — branch `issue-1113-remove-keyword-sec-checks`
+
+1. **feat (#1113):** Deleted all keyword-based SEC checks. `LlmAppraisalStrategy` is the only appraisal path.
+2. **feat (#1112):** `ValenceClassificationEvalTest` — 14 BDI scenarios.
+
+### Session 18a — branch `issue-1098-bdi-semantic-classifier`
+
+1. **feat (#1098):** `IntentValence` enum, LLM extraction prompt valence, removed keyword classifiers.
+2. **fix:** `decayMap` preserves valence.
+3. **docs:** Updated era5, era7, mental-model-design spec.
 
 ## Queue — 2 items remaining
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1097 | Personality-modulated CPTs for TheoryOfMindEngine | M | Med | Design-heavy — Bayesian priors from personality traits |
-| #1089 | Unbounded cache growth | XS | Low | Deferred |
+| #1125 | Wire periodic evictIdle() calls | S | Low | Three classes have the method, nothing calls it |
+| #1127 | Suspiciousness-modulated ToM evidence weighting | S | Med | Evidence scaling, not CPT modulation |
 
 ## Neocortex Build Note
 
@@ -44,3 +65,13 @@ Full reactor fails at `schema-generator`. Use targeted module builds:
 ```bash
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition/pom.xml test -s slot-settings.xml
 ```
+
+After rebase, install upstream modules before cognition tests:
+```bash
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/mindmap-intelligence/pom.xml install -Dmaven.test.skip=true -s slot-settings.xml
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/cognition-api/pom.xml install -Dmaven.test.skip=true -s slot-settings.xml
+```
+
+## IntelliJ Slot Note
+
+IntelliJ MCP operates on the **canonical** neocortex at `/Users/mdproctor/claude/casehub/neocortex`, not the slot copy. `ide_create_file`, `ide_insert_member`, and `ide_replace_text_in_file` write to canonical, not slot. For slot work, use python scripts in the scratchpad to write files, or use `ide_open_project` with the slot path (though it may still alias to canonical).
