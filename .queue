@@ -10,8 +10,8 @@ covers: 712,1055
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127
-active_issue: casehubio/neocortex#1131
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131
+active_issue: 
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
