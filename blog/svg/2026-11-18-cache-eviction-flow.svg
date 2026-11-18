@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" font-family="system-ui, -apple-system, sans-serif" font-size="13">
+  <style>
+    .box { rx: 6; ry: 6; }
+    .label { font-weight: 600; font-size: 13px; }
+    .detail { font-size: 11px; fill: #555; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .gate { fill: #fef3c7; stroke: #d97706; stroke-width: 1.5; }
+    .action { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.5; }
+    .source { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.5; }
+    .skip { fill: #f3f4f6; stroke: #9ca3af; stroke-width: 1.5; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#333"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="24" text-anchor="middle" font-size="15" font-weight="700">CacheEvictionScheduler — dual-threshold eviction</text>
+
+  <!-- CognitionCore.tick() -->
+  <rect x="20" y="50" width="160" height="44" class="box source"/>
+  <text x="100" y="68" text-anchor="middle" class="label">CognitionCore.tick()</text>
+  <text x="100" y="84" text-anchor="middle" class="detail">tickNumber++</text>
+
+  <!-- onTick -->
+  <rect x="230" y="50" width="160" height="44" class="box action"/>
+  <text x="310" y="68" text-anchor="middle" class="label">scheduler.onTick(n)</text>
+  <text x="310" y="84" text-anchor="middle" class="detail">end of every tick</text>
+
+  <!-- Arrow tick to onTick -->
+  <path d="M180,72 L225,72" class="arrow"/>
+
+  <!-- Gate 1: ticks -->
+  <rect x="230" y="130" width="160" height="44" class="box gate"/>
+  <text x="310" y="148" text-anchor="middle" class="label">ticks ≥ 60?</text>
+  <text x="310" y="164" text-anchor="middle" class="detail">since last eviction</text>
+
+  <!-- Arrow onTick to gate1 -->
+  <path d="M310,94 L310,125" class="arrow"/>
+
+  <!-- Gate 2: time -->
+  <rect x="230" y="210" width="160" height="44" class="box gate"/>
+  <text x="310" y="228" text-anchor="middle" class="label">time ≥ 5 min?</text>
+  <text x="310" y="244" text-anchor="middle" class="detail">since last eviction</text>
+
+  <!-- Arrow gate1 to gate2 (yes) -->
+  <path d="M310,174 L310,205" class="arrow"/>
+  <text x="318" y="195" class="detail" fill="#16a34a">yes</text>
+
+  <!-- No path from gate1 -->
+  <rect x="460" y="130" width="100" height="44" class="box skip"/>
+  <text x="510" y="156" text-anchor="middle" class="detail">skip</text>
+  <path d="M390,152 L455,152" class="arrow"/>
+  <text x="430" y="145" class="detail" fill="#dc2626">no</text>
+
+  <!-- No path from gate2 -->
+  <rect x="460" y="210" width="100" height="44" class="box skip"/>
+  <text x="510" y="236" text-anchor="middle" class="detail">skip</text>
+  <path d="M390,232 L455,232" class="arrow"/>
+  <text x="430" y="225" class="detail" fill="#dc2626">no</text>
+
+  <!-- Evict -->
+  <rect x="230" y="290" width="160" height="44" class="box action"/>
+  <text x="310" y="308" text-anchor="middle" class="label">run evictors</text>
+  <text x="310" y="324" text-anchor="middle" class="detail">each with maxIdle duration</text>
+
+  <!-- Arrow gate2 to evict (yes) -->
+  <path d="M310,254 L310,285" class="arrow"/>
+  <text x="318" y="275" class="detail" fill="#16a34a">yes</text>
+
+  <!-- Evictors on the right -->
+  <rect x="460" y="275" width="230" height="28" class="box source"/>
+  <text x="575" y="294" text-anchor="middle" class="label">EffectiveCognitiveDefaults.evictIdle()</text>
+
+  <rect x="460" y="307" width="230" height="28" class="box source"/>
+  <text x="575" y="326" text-anchor="middle" class="label">SituationalPersonalityParticipant.evictIdle()</text>
+
+  <!-- Arrow evict to evictors -->
+  <path d="M390,305 L455,290" class="arrow"/>
+  <path d="M390,315 L455,320" class="arrow"/>
+
+  <!-- Reset note -->
+  <text x="195" y="318" text-anchor="end" class="detail" fill="#2563eb">reset tick + time</text>
+</svg>
