@@ -1,17 +1,17 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-1133-tomFacetScore-default-wrong
+branch: 
 status: active
 project-sha: 
 date: 
 issue-repo: casehubio/neocortex
-covers: 712,1055
+covers: casehubio/neocortex#1137
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
 done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
-active_issue: casehubio/neocortex#1134
+active_issue: casehubio/neocortex#1137
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -72,7 +72,13 @@ active_issue: casehubio/neocortex#1134
 - [x] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
 - [x] casehubio/neocortex#1133 — tomFacetScore-default-wrong-for-suspiciousness-callousness
 - [x] casehubio/neocortex#1134 — CognitionObservationBuilder-bypasses-personality-modulated-ToM
-- [ ] casehubio/neocortex#1137 — Test-CognitionObservationBuilder-personality-modulated-ToM-path
+- [x] casehubio/neocortex#1137 — Test-CognitionObservationBuilder-personality-modulated-ToM-path
+- [x] casehubio/neocortex#1141 — Fix-DispositionSignalWriterTest-broken-by-eidos-API
+- [ ] casehubio/neocortex#1138 — Cap-narrative-field-length-CopingGenerationPhase ← active
+- [ ] casehubio/neocortex#1117 — PersonalityStateService-toSnapshot-compositionVersion
+- [ ] casehubio/neocortex#1116 — Consolidate-duplicate-TenantAgentKey-records
+- [ ] casehubio/neocortex#1140 — Update-CLAUDE-md-for-1136-speech-pipeline-types
+- [ ] casehubio/neocortex#1139 — Document-NonVerbalConfig-parameters
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
