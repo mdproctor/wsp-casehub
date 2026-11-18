@@ -69,6 +69,7 @@ active_issue: casehubio/neocortex#1127
 - [ ] casehubio/neocortex#1113 — Remove-all-keyword-based-SEC-checks
 - [ ] casehubio/neocortex#1125 — Wire-periodic-evictIdle-calls
 - [ ] casehubio/neocortex#1127 — Suspiciousness-modulated-evidence-weighting
+- [ ] casehubio/neocortex#1131 — CacheEvictionScheduler-CopyOnWriteArrayList
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
