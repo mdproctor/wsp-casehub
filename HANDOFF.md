@@ -2,50 +2,52 @@
 
 ## Current State
 
-**Session 2026-11-18e:** Completed #1127 (suspiciousness-modulated evidence weighting) and #1131 (CacheEvictionScheduler thread safety). Code reviewed, blog written, research docs updated, 2 follow-up issues filed. Work landed and published to remote.
+**Session 2026-11-18f:** Completed #1133 (tomFacetScore per-facet defaults) and #1134 (CognitionObservationBuilder personality-modulated ToM). Code reviewed, blog written, 1 follow-up issue filed (#1137). Work landed and published to remote.
 
-**Slot 196 is marked ready for archive** — queue has newly filed follow-up items only.
+**Slot 196 is marked ready for archive** — queue has 1 new follow-up item and 1 deferred item.
 
-## What Was Done — Session 18e
+## What Was Done — Session 18f
 
 ### Landed commits (neocortex, published)
 
-**`0e12f160` feat(#1127): add suspiciousness-modulated evidence weighting to TheoryOfMindBridge**
+**`615029939` fix(#1133): use per-facet defaults in tomFacetScore**
 
-- `TomPersonalityModulation` — added `double suspiciousness` [0,1] field. NEUTRAL baseline = 0.0.
-- `TheoryOfMindBridge.scaleBehaviorEvidence()` — scales behavior soft-evidence vector before junction tree. High suspiciousness transfers approach weight to avoidant (`approach * suspiciousness * 0.6`). Literature: Fenigstein & Vanable 1992 (paranoia and interpretive bias), Combs et al. 2007 (attributional bias).
-- `CognitionCore.tomModulation()` — extracts `PersonalityFacet.SUSPICIOUSNESS` from personality profile.
-- 5 new tests: 1 engine-level (zero suspiciousness = NEUTRAL), 4 bridge-level (contrastive pairs + direct scaling math).
+- `tomFacetScore` now takes a `defaultValue` parameter. Anxiousness defaults to 0.5; callousness and suspiciousness default to 0.0 — matching `TomPersonalityModulation.NEUTRAL`.
+- Previously all three defaulted to 0.5, causing agents without explicit PID-5 facets to be moderately callous and suspicious by default.
 
-**`905fa379` feat(#1131): use CopyOnWriteArrayList for CacheEvictionScheduler thread safety**
+**`16bdfe1e7` fix(#1134): route CognitionObservationBuilder through personality-modulated ToM**
 
-- `ArrayList` → `CopyOnWriteArrayList` for the evictors list. Standard COWAL pattern for read-heavy/write-rare.
-
-**`57d3325c` docs: update research docs for #1127**
-
-- `capacity-gap-mapping.md` — moved #1127 from "What remains" to "What was done", updated three-level modulation description.
-- `era5-relational-cognition-research.md` — replaced outdated "CPTs are fixed" with personality modulation table covering all three mechanisms.
+- `observeCharacterState()` now creates `TheoryOfMindEngine` with the observer's `TomPersonalityModulation` from `CognitionCore.tomModulation()`.
+- Behaviour evidence converted to soft distribution and scaled by suspiciousness via `TheoryOfMindBridge.scaleBehaviorEvidence`.
+- Visibility changes: `CognitionCore.tomModulation` private → public, `TheoryOfMindBridge.scaleBehaviorEvidence` package → public.
 
 ### Code review findings
 
-- `tomFacetScore` default of 0.5 is wrong for suspiciousness and callousness — agents without explicit facets get non-neutral ToM modulation → filed #1133 (XS/Low).
-- `CognitionObservationBuilder` bypasses personality-modulated ToM entirely → filed #1134 (S/Med).
+- All three personality dimensions now reach every ToM inference site. No remaining bypass paths.
+- Missing test: `observeCharacterState` personality-modulated path is untested at builder level (components individually tested) → filed #1137.
 
 ### Blog
 
-- `blog/2026-11-18-mdp04-the-evidence-nobody-trusted.md` — three-layer ToM modulation, evidence scaling vs CPT modulation, attributional bias literature.
+- `blog/2026-11-18-mdp05-the-defaults-that-lied.md` — wrong defaults, builder bypass, parallel-path divergence pattern.
 
 ### Issues Filed
 
-- **casehubio/neocortex#1133** — `tomFacetScore` default 0.5 wrong for suspiciousness/callousness (XS/Low)
-- **casehubio/neocortex#1134** — `CognitionObservationBuilder` bypasses personality-modulated ToM (S/Med)
+- **casehubio/neocortex#1137** — Test CognitionObservationBuilder personality-modulated ToM path (S/Low)
+
+### Issues Closed
+
+- **casehubio/neocortex#1133** — tomFacetScore default wrong for suspiciousness/callousness
+- **casehubio/neocortex#1134** — CognitionObservationBuilder bypasses personality-modulated ToM
+
+## Prior Session — 18e
+
+Completed #1127 (suspiciousness evidence weighting) and #1131 (CacheEvictionScheduler thread safety). Filed #1133 and #1134 as follow-ups. See blog entry `2026-11-18-mdp04-the-evidence-nobody-trusted.md`.
 
 ## Queue — remaining items
 
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
-| #1133 | tomFacetScore default wrong for suspiciousness/callousness | XS | Low | Filed this session |
-| #1134 | CognitionObservationBuilder bypasses personality-modulated ToM | S | Med | Filed this session |
+| #1137 | Test CognitionObservationBuilder personality-modulated ToM path | S | Low | Filed this session |
 
 ### Deferred
 
