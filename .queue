@@ -58,7 +58,6 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1086 — PersonalityMetadataEnricher-orphaned
 - [x] casehubio/neocortex#1087 — SituationalStateService-log-unrecognised-modes
 - [x] casehubio/neocortex#1088 — SituationalStateService-loadOrCreate-TOCTOU
-- [x] casehubio/neocortex#1089 — Unbounded-cache-growth-situational-personality
 - [x] casehubio/neocortex#1094 — Wire-TheoryOfMindEngine-into-tick
 - [x] casehubio/neocortex#1095 — MentalModel-BDI-to-trust-evolution
 - [x] casehubio/neocortex#1096 — Surface-Bayesian-ToM-posterior-in-prompt
