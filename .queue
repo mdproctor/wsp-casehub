@@ -76,8 +76,8 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1141 — Fix-DispositionSignalWriterTest-broken-by-eidos-API
 - [x] casehubio/neocortex#1138 — Cap-narrative-field-length-CopingGenerationPhase
 - [x] casehubio/neocortex#1117 — PersonalityStateService-toSnapshot-compositionVersion
-- [ ] casehubio/neocortex#1116 — Consolidate-duplicate-TenantAgentKey-records ← active
-- [ ] casehubio/neocortex#1140 — Update-CLAUDE-md-for-1136-speech-pipeline-types
+- [x] casehubio/neocortex#1116 — Consolidate-duplicate-TenantAgentKey-records
+- [ ] casehubio/neocortex#1140 — Update-CLAUDE-md-for-1136-speech-pipeline-types ← active
 - [ ] casehubio/neocortex#1139 — Document-NonVerbalConfig-parameters
 
 ## Deferred
