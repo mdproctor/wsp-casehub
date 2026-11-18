@@ -1,7 +1,7 @@
 # Work Plan — issue-590-emotion-regulation
 
 ## State
-branch: issue-1085-restore-appraisal-weight-enrichment
+branch: issue-1098-bdi-semantic-classifier
 status: active
 project-sha: 
 date: 
@@ -10,8 +10,8 @@ covers: 712,1055
 design-repo: 
 design-section-hashes: 
 flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099
-active_issue: casehubio/neocortex#1099
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098
+active_issue: casehubio/neocortex#1098
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
