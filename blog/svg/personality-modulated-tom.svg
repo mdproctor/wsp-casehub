@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" style="max-width:620px;font-family:system-ui,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#6b7280" stroke-width="1"/>
+    </marker>
+  </defs>
+
+  <rect width="620" height="340" fill="#fafafa" rx="6"/>
+
+  <!-- Title -->
+  <text x="310" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#374151">Personality-Modulated Theory of Mind</text>
+
+  <!-- Personality box -->
+  <rect x="20" y="40" width="130" height="80" rx="4" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5"/>
+  <text x="85" y="60" text-anchor="middle" font-size="11" font-weight="600" fill="#9d174d">Personality</text>
+  <text x="85" y="77" text-anchor="middle" font-size="9" fill="#be185d">anxiousness [0,1]</text>
+  <text x="85" y="90" text-anchor="middle" font-size="9" fill="#be185d">callousness [0,1]</text>
+  <text x="85" y="105" text-anchor="middle" font-size="8" fill="#9d174d">from EffectiveCognitiveDefaults</text>
+
+  <!-- Modulation box -->
+  <rect x="195" y="50" width="110" height="60" rx="4" fill="#fef3c7" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="250" y="72" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Modulation</text>
+  <text x="250" y="88" text-anchor="middle" font-size="9" fill="#b45309">TomPersonality</text>
+  <text x="250" y="99" text-anchor="middle" font-size="9" fill="#b45309">Modulation</text>
+
+  <!-- Arrow personality → modulation -->
+  <line x1="150" y1="80" x2="191" y2="80" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Bayesian network section -->
+  <rect x="345" y="35" width="255" height="130" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1"/>
+  <text x="472" y="52" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">Bayesian Network (per agent)</text>
+
+  <!-- Threat node -->
+  <rect x="360" y="62" width="100" height="45" rx="4" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1.5"/>
+  <text x="410" y="80" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">Threat</text>
+  <text x="410" y="93" text-anchor="middle" font-size="8" fill="#059669">prior ← anxiety</text>
+
+  <!-- Emotion node -->
+  <rect x="360" y="115" width="100" height="40" rx="4" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1.5"/>
+  <text x="410" y="133" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">Emotion</text>
+  <text x="410" y="145" text-anchor="middle" font-size="8" fill="#059669">P(E|T)</text>
+
+  <!-- Behavior node -->
+  <rect x="490" y="115" width="100" height="40" rx="4" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1.5"/>
+  <text x="540" y="133" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">Behavior</text>
+  <text x="540" y="145" text-anchor="middle" font-size="8" fill="#059669">CPT ← callousness</text>
+
+  <!-- Arrows within network -->
+  <line x1="410" y1="107" x2="410" y2="111" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="460" y1="135" x2="486" y2="135" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Arrow modulation → threat -->
+  <path d="M305,70 Q330,62 356,75" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- Arrow modulation → behavior -->
+  <path d="M305,90 Q380,160 486,135" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- Two agent comparison -->
+  <rect x="20" y="185" width="280" height="140" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="160" y="202" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">Same situation, different priors</text>
+
+  <!-- Empathic agent -->
+  <rect x="35" y="212" width="120" height="100" rx="4" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="95" y="230" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">Empathic</text>
+  <text x="95" y="245" text-anchor="middle" font-size="9" fill="#3b82f6">ax=0.3, ca=0.0</text>
+  <rect x="45" y="255" width="100" height="8" rx="2" fill="#e5e7eb"/>
+  <rect x="45" y="255" width="25" height="8" rx="2" fill="#16a34a"/>
+  <text x="45" y="278" font-size="8" fill="#6b7280">threat prior: relaxed</text>
+  <rect x="45" y="285" width="100" height="8" rx="2" fill="#e5e7eb"/>
+  <rect x="45" y="285" width="75" height="8" rx="2" fill="#dc2626"/>
+  <text x="45" y="307" font-size="8" fill="#6b7280">distress read: strong</text>
+
+  <!-- Callous agent -->
+  <rect x="165" y="212" width="120" height="100" rx="4" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+  <text x="225" y="230" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">Callous</text>
+  <text x="225" y="245" text-anchor="middle" font-size="9" fill="#dc2626">ax=0.5, ca=0.8</text>
+  <rect x="175" y="255" width="100" height="8" rx="2" fill="#e5e7eb"/>
+  <rect x="175" y="255" width="50" height="8" rx="2" fill="#f59e0b"/>
+  <text x="175" y="278" font-size="8" fill="#6b7280">threat prior: neutral</text>
+  <rect x="175" y="285" width="100" height="8" rx="2" fill="#e5e7eb"/>
+  <rect x="175" y="285" width="30" height="8" rx="2" fill="#dc2626"/>
+  <text x="175" y="307" font-size="8" fill="#6b7280">distress read: weak</text>
+
+  <!-- Posterior comparison -->
+  <rect x="320" y="185" width="280" height="140" rx="6" fill="#fefce8" stroke="#fde68a" stroke-width="1"/>
+  <text x="460" y="202" text-anchor="middle" font-size="10" font-weight="600" fill="#854d0e">Posterior P(emotion | avoidant behavior)</text>
+
+  <!-- Empathic posterior -->
+  <text x="335" y="225" font-size="9" font-weight="600" fill="#1e40af">Empathic agent:</text>
+  <rect x="335" y="232" width="250" height="12" rx="2" fill="#e5e7eb"/>
+  <rect x="335" y="232" width="30" height="12" rx="2" fill="#16a34a"/>
+  <rect x="365" y="232" width="45" height="12" fill="#facc15"/>
+  <rect x="410" y="232" width="175" height="12" rx="2" fill="#dc2626"/>
+  <text x="348" y="260" font-size="8" fill="#16a34a">P+</text>
+  <text x="385" y="260" font-size="8" fill="#a16207">N</text>
+  <text x="490" y="260" font-size="8" fill="#dc2626">D (high)</text>
+
+  <!-- Callous posterior -->
+  <text x="335" y="280" font-size="9" font-weight="600" fill="#991b1b">Callous agent:</text>
+  <rect x="335" y="287" width="250" height="12" rx="2" fill="#e5e7eb"/>
+  <rect x="335" y="287" width="50" height="12" rx="2" fill="#16a34a"/>
+  <rect x="385" y="287" width="110" height="12" fill="#facc15"/>
+  <rect x="495" y="287" width="90" height="12" rx="2" fill="#dc2626"/>
+  <text x="358" y="315" font-size="8" fill="#16a34a">P+</text>
+  <text x="435" y="315" font-size="8" fill="#a16207">N (high)</text>
+  <text x="535" y="315" font-size="8" fill="#dc2626">D</text>
+</svg>
