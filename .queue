@@ -11,7 +11,7 @@ design-repo:
 design-section-hashes: 
 flyway-next-v: 
 done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112
-active_issue: 
+active_issue: casehubio/neocortex#1089
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -67,6 +67,8 @@ active_issue:
 - [x] casehubio/neocortex#1099 — MentalModelPromptSection-test-posterior-rendering
 - [ ] casehubio/neocortex#1112 — Eval-test-for-LLM-valence-classification-quality
 - [ ] casehubio/neocortex#1113 — Remove-all-keyword-based-SEC-checks
+- [ ] casehubio/neocortex#1125 — Wire-periodic-evictIdle-calls
+- [ ] casehubio/neocortex#1127 — Suspiciousness-modulated-evidence-weighting
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
