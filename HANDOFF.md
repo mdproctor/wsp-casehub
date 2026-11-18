@@ -26,6 +26,7 @@
 | # | Title | Scale | Complexity | Notes |
 |---|-------|-------|-----------|-------|
 | #1112 | Eval test for LLM valence classification quality | S | Med | Verify the LLM produces correct hostile/cooperative/neutral labels across BDI scenarios |
+| #1113 | Remove all keyword-based SEC checks — require LLM for cognitive appraisal | M | Med | All 4 SEC checks (Coping, Implication, Normative, Relevance) use keyword matching. Delete them, make SessionPipeline a hard requirement. |
 
 ## Queue — 2 items remaining
 
@@ -36,9 +37,9 @@
 
 #1089 is deferred until dynamic agent creation becomes a requirement. #1097 is M/Med design work — an anxious agent should weight threat evidence more heavily, a callous agent should have different priors about others' emotional states. Needs literature review on personality-modulated Bayesian networks. Fresh session recommended.
 
-## Coping Keyword Classifier — Flagged for Future
+## Keyword Classifier Audit — All Four SEC Checks Affected
 
-The blog's closing paragraph flags the coping micro-loop in emotion regulation as a third candidate for the same keyword → semantic resolution treatment. `RelationalSchemaEvolutionPhase` is now clean, but `CopingCheck` or similar may still use keyword detection for SEC re-evaluation triggers. Worth auditing when the coping layer is next touched.
+Audit confirmed all four SEC checks in `SchererAppraisalStrategy` use substring matching on narrative text — `CopingCheck` (51 keywords), `ImplicationCheck` (20), `NormativeCheck` (14), `RelevanceCheck` (drive name matching). Every one has false positives ("can"→candy, "won"→wonder, "right"→copyright). `LlmAppraisalStrategy` already replaces the entire pipeline. Filed as #1113: delete all keyword checks, make `SessionPipeline` a hard requirement. You cannot run cognitive neocortex without an LLM.
 
 ## Slot Status
 
