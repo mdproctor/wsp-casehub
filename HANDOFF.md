@@ -2,52 +2,71 @@
 
 ## Current State
 
-**Session 2026-11-19b:** Completed 12 issues across two sub-sessions. All work published to origin. Queue has 3 open items + 1 deferred. Protocol captured for queue routing.
+**Session 2026-11-19c:** Completed #1160 (CAPS harness) and #1163 (test fix). #1162 blocked on JDK 21. Designed and filed era 8 divergence test suite (epic #1175, 7 child issues). Blog written. All published.
 
-**Queue position:** 82/86 (3 open + 1 deferred). Next: #1160.
+**Queue position:** 86/97 (11 open + 1 deferred). Next: #1172.
 
-## What Was Done — Session 19a+19b
+## What Was Done — Session 19c
 
 ### Issues Closed (code changes)
 
 | SHA | Issue | Summary |
 |-----|-------|---------|
-| `23d84dbcc` | #966 | Per-phase `Consolidated` journal entries |
-| `938a0513f` | #966 | Defensive try-catch guard |
-| `cf268f3ee` | #1150 | agentId across `@ObservesAsync` |
-| `478d6a78e` | #1151 | ConversationBridge agentId from principalId |
-| `0a149c15a` | #981 | Wire journal bridges in production |
-| `eb0447d7a` | #1067 | Extract PredictionCalibrationAnalyzer to cognition-api |
-| `1f1c592bf` | #1148 | coverage.py source_provenance mapping |
-| `e88f7fda1` | #1149 | Restore CDE literature citations |
-| `0f3556809` | #1155 | Tick counter for EventRef |
-| `12f689e4a` | #1156 | inputNodeCount/outputNodeCount on ConsolidationPhase |
-| `13e29be55` | #1159 | Per-agent curiosity deprivation bias |
+| `e48396c52` | #1160 | `withBehavioralSynthesis(boolean)` + `capsSettlingResult()` on CognitionTestHarness — CAPS settling and behavioral attractor divergence test |
+| `c88e8117b` | #1163 | EffectiveCognitiveDefaultsTest assertion fix — `"situational [usual 0.50]"` |
 
-### Issues Closed (evaluation/investigation)
+### Issues Blocked
 
-| Issue | Decision |
-|-------|----------|
-| #967 | Keep bridge pattern |
-| #1066 | Harness blockers identified |
-| #1161 | Closed — serial tunnel rejected; ScopedValue filed as #1162 |
+| Issue | Blocker |
+|-------|---------|
+| #1162 | `maven.compiler.release=21`, ScopedValue needs JDK 25+ (#1173) |
 
-### Protocol Captured
-
-**PP-20261119-8971fd** — Always append to primary workspace queue (`wsp-casehub/.queue`). Per-repo workspace queues are invisible to work.py.
-
-### Publishing
-
-- neocortex: 14 commits published to origin
-- examples: 1 commit published to origin (protocol)
-
-## Queue — remaining items
+### Issues Filed
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
-| #1160 | CognitionTestHarness CAPS/behavioral attractors | M | Med |
-| #1162 | MutationContext → ScopedValue migration | S | Low |
-| #1163 | EffectiveCognitiveDefaultsTest situational origin fix | XS | Low |
+| #1171 | CAPS settling trajectory assertions | XS | Low |
+| #1172 | CognitionTestHarness trajectory accessor | XS | Low |
+| #1173 | Raise maven.compiler.release to 25+ | M | Med |
+| #1174 | InnerLifeOrchestratorTest NPE | XS | Low |
+| #1175 | Epic: cognitive pipeline divergence test suite | L | Med |
+| #1176 | DivergenceFixtures + DerivationDivergenceTest | S | Low |
+| #1177 | AppraisalDivergenceTest | S | Low |
+| #1178 | ConsolidationDivergenceTest | S | Med |
+| #1179 | PromptSectionDivergenceTest | S | Low |
+| #1180 | TheoryOfMindDivergenceTest | M | Med |
+| #1181 | EmotionRegulationDivergenceTest | M | Med |
+| #1182 | Delete PersonalityDifferentiationTest | XS | Low |
+
+### Research
+
+- **Era 7** updated — #1160, #1163 landed; #1162 blocked
+- **Era 8** created — cognitive pipeline validation research (48-capability audit, divergence test suite design, two-layer validation strategy)
+
+### Blog
+
+- `2026-11-19-mdp01-the-attractor-that-proved-personality.md` — CAPS behavioral attractor divergence testing
+
+### Publishing
+
+- neocortex: era7 update + era8 + #1160 + #1163 published to origin
+- workspace: spec + blog + queue published to origin
+
+## Queue — next items
+
+| # | Title | Scale | Complexity | Depends on |
+|---|-------|-------|-----------|-----------|
+| #1172 | CognitionTestHarness trajectory accessor | XS | Low | — |
+| #1174 | InnerLifeOrchestratorTest NPE | XS | Low | — |
+| #1176 | DivergenceFixtures + DerivationDivergenceTest | S | Low | — |
+| #1177 | AppraisalDivergenceTest | S | Low | #1176 |
+| #1178 | ConsolidationDivergenceTest | S | Med | #1176 |
+| #1179 | PromptSectionDivergenceTest | S | Low | #1176 |
+| #1180 | TheoryOfMindDivergenceTest | M | Med | #1176 |
+| #1181 | EmotionRegulationDivergenceTest | M | Med | #1176 |
+| #1182 | Delete PersonalityDifferentiationTest | XS | Low | #1176-#1179 |
+| #1173 | Raise maven.compiler.release to 25+ | M | Med | — |
+| #1171 | CAPS settling trajectory assertions | XS | Low | — |
 
 ### Deferred
 
@@ -55,9 +74,18 @@
 |---|-------|-------|-----------|
 | #1089 | Unbounded cache growth situational personality | XS | Low |
 
-### Key Decision: ThreadLocal vs ScopedValue
+## Key Design Decision: Divergence Test Architecture
 
-MutationContext uses ThreadLocal for cross-cutting mutation provenance. This is the correct pattern (not serial tunnel through 30+ classes). ThreadLocal breaks at `@ObservesAsync` — the agentId on ExtractionRequested handles that boundary. #1162 proposes migrating to `ScopedValue` (JEP 506, final in JDK 25) when JDK 25+ runtime is confirmed. ScopedValue is immutable, auto-scoped, no cleanup burden.
+48 cognitive capabilities audited. 6 had divergence tests (12.5% coverage). Era 8 designs a systematic test suite:
+- 7 test classes in `eval.divergence` package
+- Shared `DivergenceFixtures` with OPEN/CAUTIOUS personality pairs
+- Real pipeline (InMemoryCapsEngine, real CDE, real consolidation)
+- All tests deterministic (no LLM)
+- Spec: `wsp-casehub/specs/cognitive-divergence-test-suite/2026-11-19-divergence-test-suite-design.md`
+
+## Key Finding: Tenant ID Trap
+
+CAPS initialization in harness Builder used `"test-tenant"` while `consolidate()` runs with caller's tenant. Both agents silently auto-initialized with identical default axes. Fix: lazy initialization in `consolidate()` using caller's actual tenant ID.
 
 ## Neocortex Build Note
 
@@ -66,6 +94,6 @@ git -C neocortex fetch canonical main && git -C neocortex rebase canonical/main
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/pom.xml install -Dmaven.test.skip=true -s neocortex/.mvn/slot-settings.xml -T1C
 ```
 
-## Known Pre-existing Test Failure
+## Known Pre-existing Test Failures
 
-`EffectiveCognitiveDefaultsTest.situationalOriginSetWhenFacetShifted` — filed as #1163.
+- `InnerLifeOrchestratorTest.tickWithAdditionalSectionsAppendsToSystemPrompt` — NPE, filed as #1174
