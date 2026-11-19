@@ -99,8 +99,8 @@ covers: casehubio/neocortex#1171
 - [x] casehubio/neocortex#1155 — ConsolidationScheduler-tick-counter-EventRef
 - [x] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts
 - [x] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
-- [ ] casehubio/neocortex#1171 — CAPS-settling-trajectory-assertions ← active
-- [ ] casehubio/neocortex#1172 — CognitionTestHarness-trajectory-accessor
+- [x] casehubio/neocortex#1171 — CAPS-settling-trajectory-assertions
+- [ ] casehubio/neocortex#1172 — CognitionTestHarness-trajectory-accessor ← active
 - [ ] casehubio/neocortex#1173 — raise-maven-compiler-release-25
 - [ ] casehubio/neocortex#1174 — InnerLifeOrchestratorTest-NPE
 - [ ] casehubio/neocortex#1176 — DivergenceFixtures-DerivationDivergenceTest
