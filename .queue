@@ -89,8 +89,8 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#981 — wire-journal-bridges-production
 - [x] casehubio/neocortex#967 — evaluate-CognitiveJournal-lower-layer
 - [x] casehubio/neocortex#1067 — extract-PredictionCalibrationAnalyzer
-- [ ] casehubio/neocortex#1066 — expand-PersonalityDifferentiationTest ← active
-- [ ] casehubio/neocortex#1148 — coverage-source-provenance-phase2b
+- [x] casehubio/neocortex#1066 — expand-PersonalityDifferentiationTest
+- [ ] casehubio/neocortex#1148 — coverage-source-provenance-phase2b ← active
 - [ ] casehubio/neocortex#1149 — restore-CDE-literature-citations
 
 ## Deferred
