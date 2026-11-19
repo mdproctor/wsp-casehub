@@ -12,6 +12,7 @@ design-section-hashes:
 flyway-next-v: 
 done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
 active_issue: casehubio/neocortex#1137
+active: casehubio/neocortex#1160
 
 ## Queue
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
@@ -95,9 +96,9 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1155 — ConsolidationScheduler-tick-counter-EventRef
 - [x] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts
 - [x] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
-- [ ] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors ← active
-- [ ] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
+- [ ] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration ← active
 - [ ] casehubio/neocortex#1163 — EffectiveCognitiveDefaultsTest-situational-origin
+- [ ] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
