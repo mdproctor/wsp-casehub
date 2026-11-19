@@ -4,7 +4,7 @@
 branch: 
 issue-repo: casehubio/neocortex
 status: active
-covers: casehubio/neocortex#1008
+covers: casehubio/neocortex#1155
 project-sha: 
 date: 
 design-repo: 
@@ -92,8 +92,8 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1066 — expand-PersonalityDifferentiationTest
 - [x] casehubio/neocortex#1148 — coverage-source-provenance-phase2b
 - [x] casehubio/neocortex#1149 — restore-CDE-literature-citations
-- [ ] casehubio/neocortex#1155 — ConsolidationScheduler-tick-counter-EventRef
-- [ ] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts
+- [x] casehubio/neocortex#1155 — ConsolidationScheduler-tick-counter-EventRef
+- [ ] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts ← active
 - [ ] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
 - [ ] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
 - [ ] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
