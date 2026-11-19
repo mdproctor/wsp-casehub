@@ -91,7 +91,7 @@ The case engine's data persistence uses a standard SPI. JSON collections are one
                     ▼ classify-ticket binding fires
                          │
                     Worker do: block executes
-                    (switch: JQ keyword match)
+                    (call: agent → LLM or simulator classifies)
                          │
                     Context updated: category=HARDWARE, status=TRIAGED
                          │
@@ -613,11 +613,17 @@ These unblock the YAML-only helpdesk with full agentic capabilities.
 10. Create a small TS example (or TS variant of helpdesk) demonstrating the decorator path
 11. Demonstrate YAML and TS expressing the same behaviour — same runtime, two syntaxes
 
-### Phase 4 — Polish
+### Phase 4 — Viewer + testing
 
-12. Side-by-side documentation comparing Java and YAML versions
-13. Playbook visualiser enhancements for case binding + agent rendering
-14. LLM generation tutorial (prompt → YAML → visualise → review)
+12. Three-way viewer (YAML / visual / split) with linked navigation
+13. Headless playbook runner (Playwright, Quarkus integration) — playbooks as CI integration tests
+14. ARIA-based selectors in playbook steps
+
+### Phase 5 — Polish
+
+15. Side-by-side documentation comparing Java and YAML versions
+16. Playbook visualiser enhancements for case binding + agent rendering
+17. LLM generation tutorial (prompt → YAML → visualise → review)
 
 ---
 
