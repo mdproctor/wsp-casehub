@@ -76,11 +76,11 @@
 
 ## D7: Eidos + LLM as first-class showcase
 
-**Choice:** The YAML helpdesk demonstrates eidos agent descriptors and LLM-based classification as the primary agentic pattern. Support agents have eidos identities with capabilities and disposition. Ticket classification uses an LLM via `call: agent` and agent-config. Work routing uses eidos capability matching, not hardcoded groups.
+**Choice:** The YAML helpdesk formalizes the agentic patterns the Java version already demonstrates (workers-as-agents, capability dispatch, dynamic routing) using eidos descriptors, and upgrades the classifier from keyword matching to LLM-based via `call: agent` + agent-config.
 **Alternatives:**
-- Keep keyword matching in YAML (switch: block) — simpler but doesn't showcase eidos/LLM
-- Add eidos only without LLM — demonstrates agent identity but not the agentic classification pattern
-**Rationale:** The helpdesk's purpose is to demonstrate a simple, complete agentic pattern. Eidos descriptors + LLM classification + capability routing is the minimum viable showcase. The Java version has none of this — making the YAML version an upgrade, not just a port.
+- Keep keyword matching in YAML (switch: block) — preserves Java version's approach but doesn't showcase eidos/LLM
+- Add eidos only without LLM — demonstrates agent identity but not the classification upgrade
+**Rationale:** The Java helpdesk already has the agentic pattern — workers with capabilities, capability-based dispatch, dynamic routing. Eidos formalizes those identities. LLM classification demonstrates the natural upgrade path from keyword matching to semantic understanding. Same pattern, better implementation.
 **Trade-offs:** Requires API key for LLM provider; non-deterministic classification
 **Sources:** casehub-eidos (AgentDescriptor, AgentRegistry, SystemPromptRenderer), casehub-platform-agent-config-core (AgentManifest), wacky-manor eidos usage patterns
 **Exploration:** deep-analysis

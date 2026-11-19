@@ -16,7 +16,7 @@ Three motivations drive this:
 
 3. **Web developer onboarding.** TS decorators (`@Observes`, `@Publish`) provide a familiar code-first authoring mode that compiles to the same runtime. YAML and TS are peer syntaxes — same paradigm, different audiences.
 
-The existing Java helpdesk remains alongside as a comparison — but the YAML version goes further, adding eidos and LLM capabilities the Java version doesn't have.
+The Java helpdesk already demonstrates the core agentic pattern — workers as agents with capabilities, capability-based dispatch, dynamic routing. The YAML version expresses those same patterns declaratively, and upgrades the classification from keyword matching to LLM-based via eidos. Both remain alongside as a comparison: same agentic model, two authoring approaches.
 
 ---
 
@@ -446,10 +446,10 @@ For zero-Java apps, the engine must discover and register case definitions witho
 | Aspect | Java (`helpdesk/`) | YAML (`helpdesk-apps/`) |
 |--------|-------------------|------------------------|
 | Data model | Java records + enums (5 files) | `app.yaml` collections |
-| Classification | Java keyword matching | LLM via eidos agent + `call: agent` |
-| Agent identity | None | Eidos descriptors (capabilities, disposition) |
-| Agent routing | Hardcoded candidate groups | Eidos capability-based matching |
-| LLM config | None | `agent-manifest.yaml` |
+| Classification | Java keyword matching (simple agent) | LLM via eidos agent + `call: agent` |
+| Agent identity | Java workers with capabilities | Eidos descriptors (capabilities, disposition) |
+| Agent routing | Dynamic candidate groups (JQ) | Eidos capability-based matching |
+| LLM config | N/A (keyword-based) | `agent-manifest.yaml` |
 | Case lifecycle | Java dispatchers (4 files) | YAML `do:` blocks |
 | Reactive bindings | Java CaseHub + augment() | YAML bindings section |
 | Event handling | CDI `@Observes` (3 files) | Push topics from YAML workers |
@@ -458,7 +458,7 @@ For zero-Java apps, the engine must discover and register case definitions witho
 | Push/WebSocket | Java endpoint + observer (4 files) | Built-in push infrastructure |
 | MCP integration | Java interface + impl (6 files) | Declarative (TBD) |
 | REST endpoints | Java resources (4 files) | Auto-generated from app.yaml |
-| **Total** | ~20 Java, no LLM, no eidos | ~7 YAML + seed JSON, full agentic stack |
+| **Total** | ~20 Java (agentic pattern, keyword classifier) | ~7 YAML + seed JSON (same pattern, LLM classifier) |
 
 ---
 
