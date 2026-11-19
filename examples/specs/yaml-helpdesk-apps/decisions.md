@@ -86,3 +86,17 @@
 **Exploration:** deep-analysis
 **Status:** captured
 **Depends on:** D1 (full lifecycle scope)
+
+## D8: LLM / simulator dual-wiring — every demo runs both ways
+
+**Choice:** The agent manifest wires agents to either a real LLM provider or a simulator. Switchable via config property or Quarkus profile. Simulator is the default for demos — no API key needed, deterministic responses. LLM mode available for live demos showing semantic classification.
+**Alternatives:**
+- LLM only — requires API key for every demo run, non-deterministic
+- Simulator only — doesn't demonstrate real LLM capability
+- Separate demo apps for each mode — duplicates the example
+**Rationale:** The helpdesk was built before platform simulation existed. Now every demo should demonstrate both modes. The simulator config also serves as a teaching tool — users see how simulation rules map to LLM behaviour. This pattern should be standard for all examples.
+**Trade-offs:** Simulator rules must be kept in sync with what the LLM would actually produce
+**Sources:** casehub-platform-simulation-config, casehub-platform-agent-simulation-core, casehub-platform-simulation-testing
+**Exploration:** quick
+**Status:** captured
+**Depends on:** D7 (eidos + LLM)

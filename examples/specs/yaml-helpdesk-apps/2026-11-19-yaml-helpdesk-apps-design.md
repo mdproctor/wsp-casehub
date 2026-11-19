@@ -10,7 +10,7 @@ A complete helpdesk application — case lifecycle, LLM-based classification, ei
 
 Three motivations drive this:
 
-1. **Eidos + LLM showcase.** The helpdesk demonstrates a simple, complete agentic pattern: support agents defined as eidos descriptors with capabilities and dispositions, an LLM classifier agent that semantically understands tickets, and capability-based routing that matches work to the right agent. All configured in YAML — agent descriptors, LLM provider config, case lifecycle.
+1. **Eidos + LLM + simulation showcase.** The helpdesk demonstrates a simple, complete agentic pattern: support agents defined as eidos descriptors, an LLM classifier agent, and capability-based routing. The agent manifest wires to either a real LLM or a simulator — every demo runs both ways. Simulator mode needs no API key and responds deterministically; LLM mode shows semantic classification. The switchable wiring also teaches the simulation pattern itself.
 
 2. **LLM-generated apps with visual review.** An LLM generates YAML. The playbook visualiser renders the full lifecycle as an interactive flow. A human reviewer sees the behaviour, not the syntax. This scales where reading code or YAML does not.
 
@@ -310,17 +310,45 @@ agents:
       communication-style: patient
 ```
 
-### agent-manifest.yaml — LLM provider config
+### agent-manifest.yaml — LLM / simulator provider config
+
+The manifest wires agents to either a real LLM or a simulator. Every demo must support both modes — switchable via profile or config. Simulator mode runs without an API key, making demos self-contained. It also teaches the simulation pattern itself.
 
 ```yaml
 # META-INF/eidos/agent-manifest.yaml
 providers:
-  - name: classifier-provider
+  # Real LLM — used in production or live demos
+  - name: classifier-llm
     type: anthropic
     model: claude-haiku-5-5
     source:
       credential-ref: anthropic-api-key
+
+  # Simulator — used for demos, testing, and teaching
+  - name: classifier-sim
+    type: simulator
+    responses:
+      classify-ticket:
+        rules:
+          - when: { subject-contains: [laptop, monitor, keyboard, printer] }
+            then: { category: HARDWARE, priority: HIGH }
+          - when: { subject-contains: [password, access, login, vpn] }
+            then: { category: ACCESS, priority: LOW }
+          - when: { subject-contains: [install, update, license, ide] }
+            then: { category: SOFTWARE, priority: MEDIUM }
+          - default: { category: OTHER, priority: MEDIUM }
+
+# Active provider — switch between LLM and simulator
+# Set via config property or Quarkus profile:
+#   -Dagent.provider=classifier-llm   (real LLM)
+#   -Dagent.provider=classifier-sim   (simulator, default for demos)
+active: classifier-sim
 ```
+
+This dual-wiring pattern means:
+- **Demo mode** (default): simulator responds deterministically, no API key needed, instant responses
+- **Live mode**: real LLM classifies semantically, requires API key, shows the LLM upgrade over keywords
+- **Teaching**: the simulator config itself is a teaching tool — users see how simulation rules map to LLM behaviour, understand what the simulator replaces
 
 ### helpdesk.page.yaml — UI definition
 
