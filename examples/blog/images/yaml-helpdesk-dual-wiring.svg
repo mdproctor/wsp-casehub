@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 280" font-family="system-ui, -apple-system, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#555"/>
+    </marker>
+  </defs>
+
+  <text x="300" y="25" text-anchor="middle" font-size="15" font-weight="bold" fill="#333">Agent Manifest — LLM / Simulator Dual Wiring</text>
+
+  <!-- Case YAML -->
+  <rect x="30" y="50" width="140" height="60" rx="6" fill="#f0f4ff" stroke="#4a90d9" stroke-width="1.5"/>
+  <text x="100" y="75" text-anchor="middle" font-weight="bold" font-size="12" fill="#4a90d9">Case YAML</text>
+  <text x="100" y="92" text-anchor="middle" font-size="10" fill="#666">call: agent</text>
+
+  <!-- Arrow to manifest -->
+  <line x1="170" y1="80" x2="220" y2="80" stroke="#555" marker-end="url(#arr)"/>
+
+  <!-- Manifest -->
+  <rect x="220" y="45" width="160" height="70" rx="6" fill="#fff8f0" stroke="#d4a06a" stroke-width="1.5"/>
+  <text x="300" y="70" text-anchor="middle" font-weight="bold" font-size="12" fill="#d4a06a">agent-manifest</text>
+  <text x="300" y="87" text-anchor="middle" font-size="10" fill="#666">active: ?</text>
+  <text x="300" y="102" text-anchor="middle" font-size="9" fill="#999">-Dagent.provider=...</text>
+
+  <!-- Arrow to LLM -->
+  <line x1="380" y1="65" x2="440" y2="50" stroke="#555" marker-end="url(#arr)"/>
+  <!-- Arrow to Simulator -->
+  <line x1="380" y1="95" x2="440" y2="120" stroke="#555" marker-end="url(#arr)"/>
+
+  <!-- LLM Provider -->
+  <rect x="440" y="30" width="140" height="50" rx="6" fill="#e8f5e9" stroke="#4caf50" stroke-width="1.5"/>
+  <text x="510" y="52" text-anchor="middle" font-weight="bold" font-size="11" fill="#4caf50">LLM Provider</text>
+  <text x="510" y="68" text-anchor="middle" font-size="10" fill="#666">Anthropic / OpenAI</text>
+
+  <!-- Simulator -->
+  <rect x="440" y="100" width="140" height="50" rx="6" fill="#fff3e0" stroke="#ff9800" stroke-width="1.5"/>
+  <text x="510" y="122" text-anchor="middle" font-weight="bold" font-size="11" fill="#ff9800">Simulator</text>
+  <text x="510" y="138" text-anchor="middle" font-size="10" fill="#666">deterministic rules</text>
+
+  <!-- Comparison table -->
+  <rect x="30" y="170" width="540" height="100" rx="6" fill="#fafafa" stroke="#ddd" stroke-width="1"/>
+
+  <text x="50" y="195" font-size="11" fill="#666" font-weight="bold">Mode</text>
+  <text x="180" y="195" font-size="11" fill="#666" font-weight="bold">API Key</text>
+  <text x="290" y="195" font-size="11" fill="#666" font-weight="bold">Response</text>
+  <text x="430" y="195" font-size="11" fill="#666" font-weight="bold">Use case</text>
+
+  <line x1="40" y1="202" x2="560" y2="202" stroke="#ddd"/>
+
+  <text x="50" y="222" font-size="11" fill="#ff9800" font-weight="bold">Simulator</text>
+  <text x="180" y="222" font-size="11" fill="#333">None needed</text>
+  <text x="290" y="222" font-size="11" fill="#333">Deterministic</text>
+  <text x="430" y="222" font-size="11" fill="#333">Demos, CI, teaching</text>
+
+  <text x="50" y="250" font-size="11" fill="#4caf50" font-weight="bold">LLM</text>
+  <text x="180" y="250" font-size="11" fill="#333">Required</text>
+  <text x="290" y="250" font-size="11" fill="#333">Semantic</text>
+  <text x="430" y="250" font-size="11" fill="#333">Production, live demos</text>
+</svg>
