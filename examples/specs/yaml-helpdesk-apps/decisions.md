@@ -113,3 +113,17 @@
 **Exploration:** quick
 **Status:** captured
 **Depends on:** D5 (playbook visualiser), D8 (simulator for deterministic test runs)
+
+## D10: Three-way viewer — YAML / visual / split
+
+**Choice:** All YAML artifacts (case definitions, playbooks, eidos descriptors, agent manifest) viewable in three modes: raw YAML, graphical visualisation, or split view with linked navigation. Clicking a visual step highlights the corresponding YAML; editing YAML live-updates the visual.
+**Alternatives:**
+- YAML only (current) — doesn't leverage the graphical viewer
+- Visual only — loses the ability to see/edit the source
+- Two separate views without linking — no navigation between them
+**Rationale:** The split view makes the relationship between declaration and behaviour explicit. Essential for learning, LLM review, and debugging. The graphical playbook viewer already exists — this is about surfacing it alongside the YAML in a unified experience.
+**Trade-offs:** Live YAML→visual update needs incremental parsing; malformed YAML mid-edit must degrade gracefully
+**Sources:** Pages playbook visualiser, existing YAML viewer in helpdesk demo
+**Exploration:** quick
+**Status:** captured
+**Depends on:** D5 (playbook visualiser)

@@ -448,6 +448,30 @@ The `verify:` steps are the key addition — in teaching mode they show green ch
 
 This closes the LLM-generated apps loop: **generate → review → test**, all from YAML. An LLM generates the app YAML and the playbook. The visualiser lets you review the behaviour. Headless execution verifies it actually works. No separate test harness needed.
 
+### Three-way viewer — YAML / visual / split
+
+The helpdesk demo currently shows YAML in a text viewer. With the graphical playbook viewer now available, the app needs three viewing modes:
+
+| Mode | What the user sees |
+|------|--------------------|
+| **YAML** | Raw YAML text — the case definition, playbook steps, agent descriptors |
+| **Visual** | Graphical flow — bindings as nodes, state transitions as edges, agent dispatch visible |
+| **Split** | Both side by side — YAML on the left, visual on the right, linked |
+
+**Linked navigation:** In split mode, clicking a visual step highlights the corresponding YAML block. Editing YAML live-updates the visual. This makes the relationship between declaration and behaviour explicit.
+
+**Applies to all YAML artifacts:**
+- Case definition YAML → visual shows binding flow, state machine, goals
+- Playbook YAML → visual shows step sequence, verify checkpoints, branch points
+- Eidos descriptors → visual shows agent capabilities, disposition axes
+- Agent manifest → visual shows provider wiring (LLM vs simulator)
+
+**Why this matters:**
+- **Learning:** "what does this YAML produce?" — see it instantly
+- **LLM review:** generated YAML alongside its visual flow — catch errors visually
+- **Debugging:** trace a failure from visual step back to YAML source
+- **Teaching simulation:** in split mode, see simulator rules alongside the visual flow they produce
+
 ---
 
 ## Platform work
