@@ -97,6 +97,7 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
 - [ ] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors ← active
 - [ ] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
+- [ ] casehubio/neocortex#1163 — EffectiveCognitiveDefaultsTest-situational-origin
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
