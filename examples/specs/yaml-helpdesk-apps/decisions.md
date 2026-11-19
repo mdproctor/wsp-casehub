@@ -100,3 +100,16 @@
 **Exploration:** quick
 **Status:** captured
 **Depends on:** D7 (eidos + LLM)
+
+## D9: Playbooks as dual-purpose — teaching AND integration tests
+
+**Choice:** Playbook YAML serves both as interactive teaching walkthrough (browser) and as headless integration tests (Playwright/CI). `verify:` steps with expected values become pass/fail assertions in headless mode. Same artifact, two execution modes.
+**Alternatives:**
+- Separate test suite — Java/TS test classes alongside playbooks, duplicating the scenario logic
+- Playbooks for teaching only — separate integration tests in a different format
+**Rationale:** The playbook already has verification steps (verify-ticket-exists, verify-notification). Formalizing assertions makes the playbook a testable artifact. For LLM-generated apps, this closes the loop: generate YAML → review visually → test headlessly. No separate test harness.
+**Trade-offs:** Headless runner needs to handle timing (async bindings, eventual consistency). Verify steps need retry/poll semantics for reactive flows.
+**Sources:** helpdesk-demo.yaml verification steps, Pages playbook infrastructure, Playwright headless execution
+**Exploration:** quick
+**Status:** captured
+**Depends on:** D5 (playbook visualiser), D8 (simulator for deterministic test runs)

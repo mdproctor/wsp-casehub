@@ -360,18 +360,93 @@ Reuses the existing Pages helpdesk page YAML (from the Pages repo):
 - New ticket form with schema validation
 - Agent roster with speciality chart
 
-### helpdesk-demo.yaml — playbook scenario
+### helpdesk-demo.yaml — playbook scenario + integration test
 
-Extends the existing 4-step intake playbook into a full lifecycle demo:
-1. Bootstrap classification rules
-2. Submit a ticket via the form
-3. Watch classification fire automatically (visualiser shows the binding)
-4. See work item created for specialist
-5. Claim and resolve the work item
-6. Watch notification fire automatically
-7. Verify on dashboard
+The playbook serves dual purpose: **teaching** (visual walkthrough in browser) and **testing** (headless execution with assertions as integration tests).
 
-Each step is visible in the playbook visualiser, including the case engine's reactive steps.
+```yaml
+# playbooks/helpdesk-demo.yaml
+schema: client
+version: 1.0
+
+steps:
+  # 1. Bootstrap
+  - name: bootstrap-classifications
+    action: bootstrap-classifications
+    data: { ... }
+
+  # 2. Submit ticket via UI (ARIA selectors — tests accessibility as a side effect)
+  - name: submit-ticket
+    fill: { role: textbox, name: "Subject", value: "Laptop won't boot" }
+  - name: select-priority
+    select: { role: combobox, name: "Priority", value: "HIGH" }
+  - name: click-submit
+    click: { role: button, name: "Submit" }
+
+  # 3. Assert: ticket classified correctly (business logic assertion)
+  - name: verify-classification
+    verify:
+      endpoint: /api/apps/helpdesk/tickets
+      expect:
+        - match: { subject: "Laptop won't boot" }
+          assert:
+            category: HARDWARE
+            priority: HIGH
+            status: TRIAGED
+
+  # 4. Assert: work item created for specialist
+  - name: verify-work-item
+    verify:
+      endpoint: /api/work/items/list-all
+      expect:
+        - match: { title-contains: "Laptop won't boot" }
+          assert:
+            candidate-groups: [hw-specialist]
+            status: PENDING
+
+  # 5. Claim and resolve (ARIA selectors)
+  - name: claim-work-item
+    click: { role: button, name: "Claim" }
+  - name: resolve-ticket
+    fill: { role: textbox, name: "Resolution", value: "Replaced battery" }
+  - name: click-resolve
+    click: { role: button, name: "Resolve" }
+
+  # 6. Assert: notification sent
+  - name: verify-notification
+    verify:
+      endpoint: /api/push/topics/helpdesk:notifications
+      expect:
+        - assert:
+            to: { not-empty: true }
+            message: { contains: "Laptop won't boot" }
+
+  # 7. Assert: case complete
+  - name: verify-case-complete
+    verify:
+      endpoint: /api/apps/helpdesk/tickets
+      expect:
+        - match: { subject: "Laptop won't boot" }
+          assert:
+            status: RESOLVED
+            notified: true
+```
+
+**Two execution modes:**
+
+| Mode | How | Purpose |
+|------|-----|---------|
+| **Teaching** | Browser with playbook visualiser | User watches each step execute, sees bindings fire, understands the flow |
+| **Testing** | Headless Playwright (Quarkus integration) via CI | Same playbook runs automated, `verify:` steps become pass/fail assertions, produces test report |
+
+Playbook steps use **ARIA-based selectors** (`role: button, name: "Submit"`) instead of CSS selectors. This means:
+- Tests verify accessibility as a side effect — if ARIA roles are broken, the test fails
+- Selectors are resilient to UI structure changes
+- Demonstrates accessible-first testing as a best practice
+
+The `verify:` steps are the key addition — in teaching mode they show green checkmarks in the visualiser; in testing mode they're assertion failures that break the build.
+
+This closes the LLM-generated apps loop: **generate → review → test**, all from YAML. An LLM generates the app YAML and the playbook. The visualiser lets you review the behaviour. Headless execution verifies it actually works. No separate test harness needed.
 
 ---
 
