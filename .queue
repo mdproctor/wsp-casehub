@@ -91,7 +91,7 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1067 — extract-PredictionCalibrationAnalyzer
 - [x] casehubio/neocortex#1066 — expand-PersonalityDifferentiationTest
 - [x] casehubio/neocortex#1148 — coverage-source-provenance-phase2b
-- [ ] casehubio/neocortex#1149 — restore-CDE-literature-citations ← active
+- [x] casehubio/neocortex#1149 — restore-CDE-literature-citations
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
