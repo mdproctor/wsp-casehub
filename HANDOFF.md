@@ -2,76 +2,65 @@
 
 ## Current State
 
-**Session 2026-11-19a:** Completed 9 issues across the observability initiative. Queue fully drained (only deferred #1089 remains). Code reviewed, blog revised with 6 traceability layers, 4 follow-up issues filed (#1155, #1156, #1159, #1160, #1161). Research docs updated.
+**Session 2026-11-19b:** Completed 12 issues across two sub-sessions. All work published to origin. Queue has 3 open items + 1 deferred. Protocol captured for queue routing.
 
-**Queue status:** drained. 1 deferred (#1089). 4 follow-up issues in neocortex workspace queue. Main queue empty.
+**Queue position:** 82/86 (3 open + 1 deferred). Next: #1160.
 
-## What Was Done — Session 19a (continuing from 18h)
+## What Was Done — Session 19a+19b
 
 ### Issues Closed (code changes)
 
 | SHA | Issue | Summary |
 |-----|-------|---------|
-| `23d84dbcc` | #966 | Per-phase `Consolidated` journal entries in ConsolidationScheduler |
-| `938a0513f` | #966 | Defensive try-catch — journal failures cannot corrupt PhaseResult |
-| `cf268f3ee` | #1150 | Add agentId to ExtractionRequested, propagate across `@ObservesAsync` |
-| `478d6a78e` | #1151 | ConversationBridge.process() sets agentId from principalId |
-| `0a149c15a` | #981 | Wire DerivationJournalBridge + MemoryRecallJournalBridge in production CDI |
-| `eb0447d7a` | #1067 | Extract PredictionCalibrationAnalyzer/CalibrationReport/SourceOutcomeSummary to cognition-api |
-| `1f1c592bf` | #1148 | coverage.py source_provenance maps to itself, not source_passage |
-| `e88f7fda1` | #1149 | Restore literature citations in CDE instrumented methods |
+| `23d84dbcc` | #966 | Per-phase `Consolidated` journal entries |
+| `938a0513f` | #966 | Defensive try-catch guard |
+| `cf268f3ee` | #1150 | agentId across `@ObservesAsync` |
+| `478d6a78e` | #1151 | ConversationBridge agentId from principalId |
+| `0a149c15a` | #981 | Wire journal bridges in production |
+| `eb0447d7a` | #1067 | Extract PredictionCalibrationAnalyzer to cognition-api |
+| `1f1c592bf` | #1148 | coverage.py source_provenance mapping |
+| `e88f7fda1` | #1149 | Restore CDE literature citations |
+| `0f3556809` | #1155 | Tick counter for EventRef |
+| `12f689e4a` | #1156 | inputNodeCount/outputNodeCount on ConsolidationPhase |
+| `13e29be55` | #1159 | Per-agent curiosity deprivation bias |
 
-### Issues Closed (evaluation/investigation, no code)
+### Issues Closed (evaluation/investigation)
 
 | Issue | Decision |
 |-------|----------|
-| #967 | Keep bridge pattern — moving CognitiveJournal to lower layer would require splitting CognitiveEntry types |
-| #1066 | Harness blockers identified — per-agent curiosity wiring, CAPS exposure, behavioral attractor setup all missing |
+| #967 | Keep bridge pattern |
+| #1066 | Harness blockers identified |
+| #1161 | Closed — serial tunnel rejected; ScopedValue filed as #1162 |
 
-### Follow-up Issues Filed
+### Protocol Captured
 
-| Issue | Title | Scale | Complexity |
-|-------|-------|-------|-----------|
-| #1155 | ConsolidationScheduler tick counter for EventRef | XS | Low |
-| #1156 | ConsolidationPhase input/output node counts | S | Low |
-| #1159 | CognitionTestHarness per-agent curiosity wiring | S | Med |
-| #1160 | CognitionTestHarness CAPS/behavioral attractor exposure | M | Med |
-| #1161 | Replace MutationContext ThreadLocal with explicit parameter passing | M | Med |
+**PP-20261119-8971fd** — Always append to primary workspace queue (`wsp-casehub/.queue`). Per-repo workspace queues are invisible to work.py.
 
-### Code Review Findings
+### Publishing
 
-1. **Fixed:** journal.record() inside phase try-catch → duplicate PhaseResult. Wrapped defensively.
-2. All CDI wiring uses Instance.isResolvable() consistently.
-3. ExtractionRequested has 3 backward-compatible constructors (5/7/8 args).
-4. MutationContext ThreadLocal identified as a broader problem → filed #1161.
+- neocortex: 14 commits published to origin
+- examples: 1 commit published to origin (protocol)
 
-### Blog
-
-- `blog/2026-11-18-mdp01-the-pipeline-that-couldnt-explain-itself.md` — revised 3x. Final version has 7 sections, 6 traceability layers (SVG), covers scheduler journal, defensive pattern, bridge wiring, and ThreadLocal/@ObservesAsync async boundary gotcha.
-
-## Remaining Queue Items (neocortex workspace only)
+## Queue — remaining items
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
-| #1155 | ConsolidationScheduler tick counter EventRef | XS | Low |
-| #1156 | ConsolidationPhase input/output node counts | S | Low |
-| #1159 | CognitionTestHarness per-agent curiosity | S | Med |
-| #1160 | CognitionTestHarness CAPS/attractors | M | Med |
-| #1161 | Replace MutationContext ThreadLocal | M | Med |
+| #1160 | CognitionTestHarness CAPS/behavioral attractors | M | Med |
+| #1162 | MutationContext → ScopedValue migration | S | Low |
+| #1163 | EffectiveCognitiveDefaultsTest situational origin fix | XS | Low |
 
-### Deferred (main queue)
+### Deferred
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
 | #1089 | Unbounded cache growth situational personality | XS | Low |
 
-## Prior Session — 18g/18h
+### Key Decision: ThreadLocal vs ScopedValue
 
-Closed 6 observability issues (#982, #1104, #574, #962, #1008, #541). Filed #1148, #1149. CDI SessionPipeline wiring, deployment contract, Phase 2b provenance, CDE journal instrumentation.
+MutationContext uses ThreadLocal for cross-cutting mutation provenance. This is the correct pattern (not serial tunnel through 30+ classes). ThreadLocal breaks at `@ObservesAsync` — the agentId on ExtractionRequested handles that boundary. #1162 proposes migrating to `ScopedValue` (JEP 506, final in JDK 25) when JDK 25+ runtime is confirmed. ScopedValue is immutable, auto-scoped, no cleanup burden.
 
 ## Neocortex Build Note
 
-Slot repos may need syncing with canonical before building. Run:
 ```bash
 git -C neocortex fetch canonical main && git -C neocortex rebase canonical/main
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/pom.xml install -Dmaven.test.skip=true -s neocortex/.mvn/slot-settings.xml -T1C
@@ -79,4 +68,4 @@ JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/pom.xml install -Dmav
 
 ## Known Pre-existing Test Failure
 
-`EffectiveCognitiveDefaultsTest.situationalOriginSetWhenFacetShifted` — expects `"situational"` but gets `"situational [usual 0.50]"`. Unrelated to this session's work. Affects only `cognitive-index` tests.
+`EffectiveCognitiveDefaultsTest.situationalOriginSetWhenFacetShifted` — filed as #1163.
