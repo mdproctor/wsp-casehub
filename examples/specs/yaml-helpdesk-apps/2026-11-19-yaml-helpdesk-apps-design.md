@@ -2,19 +2,21 @@
 
 **Date:** 2026-11-19
 **Status:** draft
-**Scope:** casehubio/examples, casehub-engine, casehub-pages
+**Scope:** casehubio/examples, casehub-engine, casehub-pages, casehub-eidos
 
 ## Vision
 
-A complete helpdesk application — case lifecycle, reactive automation, dashboards, forms — defined entirely in YAML. Zero Java. Zero compilation. The same behaviour as the existing 20-class Java helpdesk, expressed in ~5 declarative files.
+A complete helpdesk application — case lifecycle, LLM-based classification, eidos agent descriptors, reactive automation, dashboards, forms — defined entirely in YAML. Zero Java. Zero compilation. Not just a port of the existing helpdesk, but an **upgrade**: a simple but complete showcase for eidos agent identity, LLM classification, and the agentic dispatch pattern.
 
-Two motivations drive this:
+Three motivations drive this:
 
-1. **LLM-generated apps with visual review.** An LLM generates YAML. The playbook visualiser renders the full lifecycle as an interactive flow. A human reviewer sees the behaviour, not the syntax. This scales where reading code or YAML does not.
+1. **Eidos + LLM showcase.** The helpdesk demonstrates a simple, complete agentic pattern: support agents defined as eidos descriptors with capabilities and dispositions, an LLM classifier agent that semantically understands tickets, and capability-based routing that matches work to the right agent. All configured in YAML — agent descriptors, LLM provider config, case lifecycle.
 
-2. **Web developer onboarding.** TS decorators (`@Observes`, `@Publish`) provide a familiar code-first authoring mode that compiles to the same runtime. YAML and TS are peer syntaxes — same paradigm, different audiences.
+2. **LLM-generated apps with visual review.** An LLM generates YAML. The playbook visualiser renders the full lifecycle as an interactive flow. A human reviewer sees the behaviour, not the syntax. This scales where reading code or YAML does not.
 
-The existing Java helpdesk remains alongside as a comparison. Same behaviour, two authoring models, side by side.
+3. **Web developer onboarding.** TS decorators (`@Observes`, `@Publish`) provide a familiar code-first authoring mode that compiles to the same runtime. YAML and TS are peer syntaxes — same paradigm, different audiences.
+
+The existing Java helpdesk remains alongside as a comparison — but the YAML version goes further, adding eidos and LLM capabilities the Java version doesn't have.
 
 ---
 
@@ -131,6 +133,9 @@ helpdesk-apps/
         agents.json               # 5 seed agents
     casehub/
       helpdesk-ticket.yaml        # case lifecycle: bindings, workers, goals
+    META-INF/eidos/
+      descriptors.yaml            # eidos agent descriptors for support agents + classifier
+      agent-manifest.yaml         # LLM provider config (which model, credentials)
     playbooks/
       helpdesk-demo.yaml          # interactive demo scenario
   src/main/webui/                 # minimal TS (only if needed)
@@ -175,7 +180,7 @@ access:
 
 ### helpdesk-ticket.yaml — case lifecycle
 
-The brain of the application. Defines reactive bindings with inline worker logic:
+The brain of the application. Defines reactive bindings with workers that use eidos agents:
 
 ```yaml
 dsl: 1.0.0
@@ -196,22 +201,23 @@ capabilities:
       jq: '. + { notified: true }'
 
 workers:
-  - name: keyword-classifier
+  # LLM-based classifier — uses eidos agent descriptor for prompt + agent-config for LLM provider
+  - name: ticket-classifier
     capabilities: [classify-ticket]
+    agent: classifier-agent          # references eidos descriptor by slot
     do:
       - classify:
-          switch:
-            - when: "${ .subject | test(\"laptop|monitor|keyboard|printer\"; \"i\") }"
-              then:
-                set: { category: HARDWARE, priority: HIGH }
-            - when: "${ .subject | test(\"password|access|login|vpn\"; \"i\") }"
-              then:
-                set: { category: ACCESS, priority: LOW }
-            - when: "${ .subject | test(\"install|update|license|ide\"; \"i\") }"
-              then:
-                set: { category: SOFTWARE, priority: MEDIUM }
-            - default:
-                set: { category: OTHER, priority: MEDIUM }
+          call: agent                # invokes the eidos agent via configured LLM
+          with:
+            prompt: >
+              Classify this support ticket into one category and priority.
+              Categories: HARDWARE, SOFTWARE, ACCESS, OTHER
+              Priorities: LOW, MEDIUM, HIGH, URGENT
+              Ticket subject: ${ .subject }
+              Ticket description: ${ .description }
+            output-schema:
+              category: { type: enum, values: [HARDWARE, SOFTWARE, ACCESS, OTHER] }
+              priority: { type: enum, values: [LOW, MEDIUM, HIGH, URGENT] }
 
   - name: notification-sender
     capabilities: [notify-customer]
@@ -237,15 +243,10 @@ bindings:
     trigger:
       on: context-change
       when: "${ .status == \"TRIAGED\" and .resolution == null }"
-    human-task:
+    # Eidos capability-based routing — matches agents by capability, not hardcoded groups
+    agent-task:
       title: "Resolve: ${ .subject }"
-      candidate-groups:
-        jq: >
-          if .category == "HARDWARE" then ["hw-specialist"]
-          elif .category == "SOFTWARE" then ["sw-specialist"]
-          elif .category == "ACCESS" then ["access-specialist"]
-          else ["general-specialist"]
-          end
+      capability: "${ .category | ascii_downcase }-support"
 
   - name: notify-resolution
     trigger:
@@ -261,6 +262,64 @@ goals:
 completion:
   success:
     all-goals: met
+```
+
+### descriptors.yaml — eidos agent descriptors
+
+Defines the agents with capabilities, disposition, and personality:
+
+```yaml
+# META-INF/eidos/descriptors.yaml
+agents:
+  - slot: classifier-agent
+    name: Ticket Classifier
+    capabilities:
+      - name: ticket-classification
+        domain: support-triage
+        quality: high
+        latency: low
+    disposition:
+      conflict-mode: analytical
+      risk-appetite: conservative
+
+  - slot: hw-specialist
+    name: Carlos Rivera
+    capabilities:
+      - name: hardware-support
+        domain: hardware-troubleshooting
+    disposition:
+      social-orientation: collaborative
+      communication-style: methodical
+
+  - slot: sw-specialist
+    name: Jordan Lee
+    capabilities:
+      - name: software-support
+        domain: software-troubleshooting
+    disposition:
+      social-orientation: independent
+      communication-style: direct
+
+  - slot: access-specialist
+    name: Alex Thompson
+    capabilities:
+      - name: access-support
+        domain: identity-access-management
+    disposition:
+      social-orientation: collaborative
+      communication-style: patient
+```
+
+### agent-manifest.yaml — LLM provider config
+
+```yaml
+# META-INF/eidos/agent-manifest.yaml
+providers:
+  - name: classifier-provider
+    type: anthropic
+    model: claude-haiku-5-5
+    source:
+      credential-ref: anthropic-api-key
 ```
 
 ### helpdesk.page.yaml — UI definition
@@ -289,6 +348,20 @@ Each step is visible in the playbook visualiser, including the case engine's rea
 ---
 
 ## Platform work
+
+### 0. Eidos agent dispatch from case YAML (casehub-eidos + casehub-engine)
+
+**What:** Workers in case YAML reference eidos agents by slot. At dispatch time, the engine resolves the agent via `AgentRegistry`, uses the descriptor for prompt generation (`SystemPromptRenderer`), and calls the LLM via agent-config.
+
+**Why:** The existing `FlowWorkerFunctionProvider` supports `call: http`. We need a `call: agent` variant that calls an eidos-registered agent. This is the bridge between case YAML workers and the eidos/LLM stack.
+
+**Approach:**
+- New `agent:` field on workers — references an eidos descriptor slot
+- New `call: agent` step type in `do:` blocks — invokes the referenced agent via configured LLM
+- Agent-task bindings use eidos capability matching (`AgentRegistry.find()`) instead of hardcoded candidate groups
+- `CapabilityHealth.probe()` for agent availability at dispatch time
+
+**Size:** Medium — new worker function provider + binding resolver, but eidos and agent-config already exist.
 
 ### 1. Case engine auto-discovery (casehub-engine)
 
@@ -373,7 +446,11 @@ For zero-Java apps, the engine must discover and register case definitions witho
 | Aspect | Java (`helpdesk/`) | YAML (`helpdesk-apps/`) |
 |--------|-------------------|------------------------|
 | Data model | Java records + enums (5 files) | `app.yaml` collections |
-| Case lifecycle | Java dispatchers (4 files) | `helpdesk-ticket.yaml` `do:` blocks |
+| Classification | Java keyword matching | LLM via eidos agent + `call: agent` |
+| Agent identity | None | Eidos descriptors (capabilities, disposition) |
+| Agent routing | Hardcoded candidate groups | Eidos capability-based matching |
+| LLM config | None | `agent-manifest.yaml` |
+| Case lifecycle | Java dispatchers (4 files) | YAML `do:` blocks |
 | Reactive bindings | Java CaseHub + augment() | YAML bindings section |
 | Event handling | CDI `@Observes` (3 files) | Push topics from YAML workers |
 | UI | Lit web components (3 TS files) | `helpdesk.page.yaml` |
@@ -381,37 +458,39 @@ For zero-Java apps, the engine must discover and register case definitions witho
 | Push/WebSocket | Java endpoint + observer (4 files) | Built-in push infrastructure |
 | MCP integration | Java interface + impl (6 files) | Declarative (TBD) |
 | REST endpoints | Java resources (4 files) | Auto-generated from app.yaml |
-| **Total** | ~20 Java + YAML + TS | ~5 YAML + seed JSON |
+| **Total** | ~20 Java, no LLM, no eidos | ~7 YAML + seed JSON, full agentic stack |
 
 ---
 
 ## Delivery sequence
 
-### Phase 1 — Foundation (engine + pages changes)
+### Phase 1 — Foundation (engine + eidos + pages)
 
-1. JSON collection SPI adapter for case engine
-2. Case YAML auto-discovery
-3. Push topic publish endpoint
+1. Eidos agent dispatch from case YAML (`call: agent`, `agent-task:` bindings)
+2. JSON collection SPI adapter for case engine
+3. Case YAML auto-discovery
+4. Push topic publish endpoint
 
-These unblock the YAML-only helpdesk.
+These unblock the YAML-only helpdesk with full agentic capabilities.
 
 ### Phase 2 — YAML helpdesk example
 
-4. Create `helpdesk-apps/` module with app.yaml, case YAML, page YAML, playbooks, seed data
-5. Validate end-to-end: ticket creation → classification → work item → resolution → notification
-6. Verify playbook visualiser renders the lifecycle flow
+5. Create `helpdesk-apps/` module: app.yaml, case YAML, page YAML, eidos descriptors, agent manifest, playbooks, seed data
+6. Validate end-to-end: ticket creation → LLM classification → eidos-routed work item → resolution → notification
+7. Verify playbook visualiser renders the lifecycle flow including agent dispatch
 
 ### Phase 3 — TS decorator framework
 
-7. Implement `@Observes`, `@Publish`, `@ApplicationScoped` decorators
-8. Wire to push topic WebSocket transport
-9. Create a small TS example (or TS variant of helpdesk) demonstrating the decorator path
+8. Implement `@Observes`, `@Publish`, `@ApplicationScoped` decorators
+9. Wire to push topic WebSocket transport
+10. Create a small TS example (or TS variant of helpdesk) demonstrating the decorator path
+11. Demonstrate YAML and TS expressing the same behaviour — same runtime, two syntaxes
 
 ### Phase 4 — Polish
 
-10. Side-by-side documentation comparing Java and YAML versions
-11. Playbook visualiser enhancements for case binding rendering
-12. LLM generation tutorial (prompt → YAML → visualise → review)
+12. Side-by-side documentation comparing Java and YAML versions
+13. Playbook visualiser enhancements for case binding + agent rendering
+14. LLM generation tutorial (prompt → YAML → visualise → review)
 
 ---
 

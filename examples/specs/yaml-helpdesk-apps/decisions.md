@@ -1,8 +1,8 @@
 # Decisions — YAML Helpdesk Apps
 
-## D1: Scope — full lifecycle, not just CRUD
+## D1: Scope — full lifecycle with eidos + LLM, not just CRUD
 
-**Choice:** Full case lifecycle (classify → assign → resolve → notify) expressed in YAML, not just CRUD with dashboards
+**Choice:** Full case lifecycle with eidos agent descriptors and LLM-based classification, expressed in YAML. Not a port of the Java version — an upgrade that adds agentic capabilities the Java version doesn't have.
 **Alternatives:**
 - CRUD + rich playbooks — playbooks orchestrate workflow via step sequences, loses reactive bindings
 - CRUD only — brings Pages helpdesk as-is, doesn't demonstrate case engine
@@ -73,3 +73,16 @@
 **Sources:** Existing helpdesk/ directory structure
 **Exploration:** quick
 **Status:** captured
+
+## D7: Eidos + LLM as first-class showcase
+
+**Choice:** The YAML helpdesk demonstrates eidos agent descriptors and LLM-based classification as the primary agentic pattern. Support agents have eidos identities with capabilities and disposition. Ticket classification uses an LLM via `call: agent` and agent-config. Work routing uses eidos capability matching, not hardcoded groups.
+**Alternatives:**
+- Keep keyword matching in YAML (switch: block) — simpler but doesn't showcase eidos/LLM
+- Add eidos only without LLM — demonstrates agent identity but not the agentic classification pattern
+**Rationale:** The helpdesk's purpose is to demonstrate a simple, complete agentic pattern. Eidos descriptors + LLM classification + capability routing is the minimum viable showcase. The Java version has none of this — making the YAML version an upgrade, not just a port.
+**Trade-offs:** Requires API key for LLM provider; non-deterministic classification
+**Sources:** casehub-eidos (AgentDescriptor, AgentRegistry, SystemPromptRenderer), casehub-platform-agent-config-core (AgentManifest), wacky-manor eidos usage patterns
+**Exploration:** deep-analysis
+**Status:** captured
+**Depends on:** D1 (full lifecycle scope)
