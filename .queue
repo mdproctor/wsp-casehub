@@ -86,8 +86,8 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#962 — instrument-remaining-CDE-methods
 - [x] casehubio/neocortex#965 — GraphMutated-CDI-listener-agentId
 - [x] casehubio/neocortex#966 — instrument-ConsolidationScheduler-phases
-- [ ] casehubio/neocortex#981 — wire-journal-bridges-production ← active
-- [ ] casehubio/neocortex#967 — evaluate-CognitiveJournal-lower-layer
+- [x] casehubio/neocortex#981 — wire-journal-bridges-production
+- [ ] casehubio/neocortex#967 — evaluate-CognitiveJournal-lower-layer ← active
 - [ ] casehubio/neocortex#1067 — extract-PredictionCalibrationAnalyzer
 - [ ] casehubio/neocortex#1066 — expand-PersonalityDifferentiationTest
 - [ ] casehubio/neocortex#1148 — coverage-source-provenance-phase2b
