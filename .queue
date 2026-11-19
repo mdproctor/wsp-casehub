@@ -93,8 +93,8 @@ active_issue: casehubio/neocortex#1137
 - [x] casehubio/neocortex#1148 — coverage-source-provenance-phase2b
 - [x] casehubio/neocortex#1149 — restore-CDE-literature-citations
 - [x] casehubio/neocortex#1155 — ConsolidationScheduler-tick-counter-EventRef
-- [ ] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts ← active
-- [ ] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
+- [x] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts
+- [ ] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity ← active
 - [ ] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
 - [ ] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
 
