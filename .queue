@@ -103,6 +103,13 @@ covers: casehubio/neocortex#1171
 - [ ] casehubio/neocortex#1172 — CognitionTestHarness-trajectory-accessor
 - [ ] casehubio/neocortex#1173 — raise-maven-compiler-release-25
 - [ ] casehubio/neocortex#1174 — InnerLifeOrchestratorTest-NPE
+- [ ] casehubio/neocortex#1176 — DivergenceFixtures-DerivationDivergenceTest
+- [ ] casehubio/neocortex#1177 — AppraisalDivergenceTest
+- [ ] casehubio/neocortex#1178 — ConsolidationDivergenceTest
+- [ ] casehubio/neocortex#1179 — PromptSectionDivergenceTest
+- [ ] casehubio/neocortex#1180 — TheoryOfMindDivergenceTest
+- [ ] casehubio/neocortex#1181 — EmotionRegulationDivergenceTest
+- [ ] casehubio/neocortex#1182 — delete-PersonalityDifferentiationTest
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
