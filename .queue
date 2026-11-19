@@ -1,23 +1,6 @@
-# Work Plan —
-
-## State
-branch: main
-issue-repo: casehubio/neocortex
-status: active
-covers: casehubio/neocortex#1155
-project-sha: 
-date: 
-design-repo: 
-design-section-hashes: 
-flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
-active_issue: casehubio/neocortex#1137
-active: casehubio/neocortex#1160
-
-## Queue
-- [ ] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors ← active
-- [ ] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
-- [ ] casehubio/neocortex#1163 — EffectiveCognitiveDefaultsTest-situational-origin
+- [x] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
+- [x] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
+- [x] casehubio/neocortex#1163 — EffectiveCognitiveDefaultsTest-situational-origin
 - [x] casehubio/neocortex#830 — Predictor quality — shame and ceiling
 - [x] casehubio/neocortex#829 — Scenario validation
 - [x] casehubio/neocortex#819 — Proactive
@@ -99,6 +82,19 @@ active: casehubio/neocortex#1160
 - [x] casehubio/neocortex#1155 — ConsolidationScheduler-tick-counter-EventRef
 - [x] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts
 - [x] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
+
+## State
+branch: 
+issue-repo: casehubio/neocortex
+status: drained
+project-sha: 
+date: 
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
+active_issue: casehubio/neocortex#1137
+active: casehubio/neocortex#1160
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
