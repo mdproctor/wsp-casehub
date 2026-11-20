@@ -2,9 +2,36 @@
 
 ## Current State
 
-**Session 2026-11-20a:** Completed 10 issues (#1172-#1182). Full era 8 divergence test suite — 36 tests, 6 classes. All landed on canonical main and published to origin. Vault Radar false positive fixed (extraction_pass → extraction_phase).
+**Session 2026-11-20b:** Completed 2 issues (#1187, #1188). Extended divergence suite from 36 to 42 tests. Added standalone Bayesian ToM bridge tests and tick-level appraisal infrastructure. Filed #1195 (capsInputActivations wiring). Blog revised. Research doc updated.
 
-**Queue position:** Next: #1171 (CAPS settling trajectory assertions, XS/Low).
+**Queue position:** Next: #1195 (wire SituationClassifier for capsInputActivations, S/Low). #1089 deferred.
+
+## What Was Done — Session 20b
+
+### Issues Landed
+
+| Issue | Summary |
+|-------|---------|
+| #1187 | TheoryOfMindBridgeDivergenceTest — 4 standalone Bayesian posterior tests |
+| #1188 | TestAppraisalStrategy + withAppraisalEnabled + 2 tick-level appraisal divergence tests |
+
+### Key Finding
+
+Callousness/anxiousness interaction in ToM Bayesian CPTs: for avoidant behaviour, callousness (Blair 2005) weakens the distress→avoidant coupling, which counters the anxiousness-driven threat prior shift. Tests must use neutral (ATTENDING) behaviour to isolate the anxiousness pathway.
+
+### Issues Filed
+
+| # | Title | Scale | Complexity |
+|---|-------|-------|-----------|
+| #1195 | Wire SituationClassifier into harness for capsInputActivations divergence | S | Low |
+
+### Blog
+
+- Revised `2026-11-20-mdp01-thirty-six-proofs-that-personality-is-structural.md` → retitled to "Forty-Two Proofs", added ToM bridge and tick-level appraisal sections
+
+### Research
+
+- Updated `era8-cognitive-pipeline-validation-research.md` — test structure, counts, progress table
 
 ## What Was Done — Session 20a
 
@@ -28,7 +55,7 @@
 |-------|--------|
 | #1173 | maven.compiler.release must stay at 21 for Maven 4.0 alignment |
 
-### Issues Filed
+### Issues Filed (session 20a)
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
@@ -37,25 +64,13 @@
 
 ### Infrastructure Fix
 
-Renamed `extraction_pass` → `extraction_phase` across 12 files in `biographies/` to unblock IBM Vault Radar false positive (password_assignment/Ping detection on a metadata field name).
-
-### Blog
-
-- `2026-11-20-mdp01-thirty-six-proofs-that-personality-is-structural.md`
-
-### Publishing
-
-- neocortex: 14 commits published to origin (including divergence suite + Vault Radar fix)
-- examples: blog promoted and published
-- workspace: published
+Renamed `extraction_pass` → `extraction_phase` across 12 files in `biographies/` to unblock IBM Vault Radar false positive.
 
 ## Queue — next items
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
-| #1171 | CAPS settling trajectory assertions | XS | Low |
-| #1187 | Standalone TheoryOfMindBridge divergence tests | S | Low |
-| #1188 | Extend harness with lightweight appraisal | M | Med |
+| #1195 | Wire SituationClassifier for capsInputActivations divergence | S | Low |
 
 ### Deferred
 
