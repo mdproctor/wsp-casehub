@@ -3,7 +3,7 @@
 ## State
 branch: 
 issue-repo: casehubio/neocortex
-status: drained
+status: active
 project-sha: 
 date: 
 design-repo: 
@@ -12,6 +12,7 @@ flyway-next-v:
 done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
 active_issue: casehubio/neocortex#1137
 active: casehubio/neocortex#1160
+covers: casehubio/neocortex#964
 
 ## Queue
 - [x] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
@@ -112,7 +113,7 @@ active: casehubio/neocortex#1160
 - [x] casehubio/neocortex#1187 — standalone-ToM-bridge-tests
 - [x] casehubio/neocortex#1188 — harness-appraisal-extension
 - [x] casehubio/neocortex#1195 — wire-SituationClassifier-capsInputActivations
-- [ ] casehubio/neocortex#964 — YAML-round-trip-ampdFacets
+- [ ] casehubio/neocortex#964 — YAML-round-trip-ampdFacets ← active
 - [ ] casehubio/neocortex#1080 — AgentRegistryEvents-EffectiveCognitiveDefaults
 - [ ] casehubio/neocortex#1189 — Python-cross-passage-direct-API
 - [ ] casehubio/neocortex#1190 — EdgeInferencePhase-parseRelationships-tests
