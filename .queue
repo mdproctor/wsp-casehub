@@ -1,20 +1,3 @@
-# Work Plan —
-
-## State
-branch: 
-issue-repo: casehubio/neocortex
-status: active
-covers: 
-project-sha: 
-date: 
-design-repo: 
-design-section-hashes: 
-flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
-active_issue: casehubio/neocortex#1137
-active: casehubio/neocortex#1160
-
-## Queue
 - [x] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
 - [x] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
 - [x] casehubio/neocortex#1163 — EffectiveCognitiveDefaultsTest-situational-origin
@@ -100,18 +83,31 @@ active: casehubio/neocortex#1160
 - [x] casehubio/neocortex#1156 — ConsolidationPhase-input-output-node-counts
 - [x] casehubio/neocortex#1159 — CognitionTestHarness-per-agent-curiosity
 - [x] casehubio/neocortex#1171 — CAPS-settling-trajectory-assertions
-- [ ] casehubio/neocortex#1172 — CognitionTestHarness-trajectory-accessor ← done on issue-1172-caps-trajectory-accessor
-- [ ] casehubio/neocortex#1173 — raise-maven-compiler-release-25 ← done on issue-1172-caps-trajectory-accessor
-- [ ] casehubio/neocortex#1174 — InnerLifeOrchestratorTest-NPE ← done on issue-1174-innerlife-orchestrator-npe
-- [ ] casehubio/neocortex#1176 — DivergenceFixtures-DerivationDivergenceTest ← done on issue-1176-divergence-fixtures
-- [ ] casehubio/neocortex#1177 — AppraisalDivergenceTest ← done on issue-1177-appraisal-divergence
-- [ ] casehubio/neocortex#1178 — ConsolidationDivergenceTest ← done on issue-1178-consolidation-divergence
-- [ ] casehubio/neocortex#1179 — PromptSectionDivergenceTest ← done on issue-1179-prompt-section-divergence
-- [ ] casehubio/neocortex#1180 — TheoryOfMindDivergenceTest ← done on issue-1180-theory-of-mind-divergence
-- [ ] casehubio/neocortex#1181 — EmotionRegulationDivergenceTest ← done on issue-1181-emotion-regulation-divergence
-- [ ] casehubio/neocortex#1182 — delete-PersonalityDifferentiationTest ← done on issue-1182-delete-personality-diff-test
-- [ ] casehubio/neocortex#1187 — standalone-ToM-bridge-tests
+- [x] casehubio/neocortex#1172 — CognitionTestHarness-trajectory-accessor
+- [x] casehubio/neocortex#1173 — raise-maven-compiler-release-25
+- [x] casehubio/neocortex#1174 — InnerLifeOrchestratorTest-NPE
+- [x] casehubio/neocortex#1176 — DivergenceFixtures-DerivationDivergenceTest
+- [x] casehubio/neocortex#1177 — AppraisalDivergenceTest
+- [x] casehubio/neocortex#1178 — ConsolidationDivergenceTest
+- [x] casehubio/neocortex#1179 — PromptSectionDivergenceTest
+- [x] casehubio/neocortex#1180 — TheoryOfMindDivergenceTest
+- [x] casehubio/neocortex#1181 — EmotionRegulationDivergenceTest
+- [x] casehubio/neocortex#1182 — delete-PersonalityDifferentiationTest
+- [ ] casehubio/neocortex#1187 — standalone-ToM-bridge-tests        ← active
 - [ ] casehubio/neocortex#1188 — harness-appraisal-extension
+
+## State
+branch: 
+issue-repo: casehubio/neocortex
+status: active
+project-sha: 
+date: 
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
+active_issue: casehubio/neocortex#1137
+active: casehubio/neocortex#1160
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
