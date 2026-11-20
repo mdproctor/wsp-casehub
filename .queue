@@ -4,7 +4,6 @@
 branch: 
 issue-repo: casehubio/neocortex
 status: active
-covers: 
 project-sha: 
 date: 
 design-repo: 
@@ -110,14 +109,9 @@ active: casehubio/neocortex#1160
 - [x] casehubio/neocortex#1180 — TheoryOfMindDivergenceTest
 - [x] casehubio/neocortex#1181 — EmotionRegulationDivergenceTest
 - [x] casehubio/neocortex#1182 — delete-PersonalityDifferentiationTest
-- [ ] casehubio/neocortex#1187 — standalone-ToM-bridge-tests ← done on issue-1182-delete-personality-diff-test
-- [ ] casehubio/neocortex#1188 — harness-appraisal-extension ← done on issue-1182-delete-personality-diff-test
-  - [x] Batch 1: Strategy+Wiring
-    - [x] Task 1: TestAppraisalStrategy
-    - [x] Task 2: Harness withAppraisalEnabled
-  - [x] Batch 2: Divergence Tests
-    - [x] Task 3: Tick-level assertions
-- [ ] casehubio/neocortex#1195 — wire-SituationClassifier-capsInputActivations
+- [x] casehubio/neocortex#1187 — standalone-ToM-bridge-tests
+- [x] casehubio/neocortex#1188 — harness-appraisal-extension
+- [ ] casehubio/neocortex#1195 — wire-SituationClassifier-capsInputActivations ← done on issue-1182-delete-personality-diff-test
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
