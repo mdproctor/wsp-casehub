@@ -2,71 +2,65 @@
 
 ## Current State
 
-**Session 2026-11-19c:** Completed #1160 (CAPS harness) and #1163 (test fix). #1162 blocked on JDK 21. Designed and filed era 8 divergence test suite (epic #1175, 7 child issues). Blog written. All published.
+**Session 2026-11-20a:** Completed 10 issues (#1172-#1182). Full era 8 divergence test suite implemented — 36 tests across 6 classes, all pass. Blog written. Research docs updated. `work end` blocked on `canonical_sync.land_all` error — landing deferred to next session.
 
-**Queue position:** 86/97 (11 open + 1 deferred). Next: #1172.
+**Queue position:** Next: #1171 (CAPS settling trajectory assertions). 10 done items awaiting landing.
 
-## What Was Done — Session 19c
+**Branch state:**
+- neocortex: `issue-1172-caps-trajectory-accessor` — 11 commits, squash-reviewed
+- examples: `issue-1182-delete-personality-diff-test` — 1 commit (blog promotion), squash-reviewed
+- workspace: `issue-1182-delete-personality-diff-test` — 2 commits (blog + queue), squash-reviewed
 
-### Issues Closed (code changes)
+## What Was Done — Session 20a
+
+### Issues Completed (code changes in neocortex)
 
 | SHA | Issue | Summary |
 |-----|-------|---------|
-| `e48396c52` | #1160 | `withBehavioralSynthesis(boolean)` + `capsSettlingResult()` on CognitionTestHarness — CAPS settling and behavioral attractor divergence test |
-| `c88e8117b` | #1163 | EffectiveCognitiveDefaultsTest assertion fix — `"situational [usual 0.50]"` |
+| `8658aa49d` | #1172 | CapsTrajectory record + capsTrajectory() accessor on CognitionTestHarness |
+| `1565623ff` | #1174 | Fix InnerLifeOrchestratorTest NPE — stub DriveProfile mock agentId/tenantId/drives |
+| `cd29aea6e` | #1176 | DivergenceFixtures + DerivationDivergenceTest — 9 derivation divergence tests |
+| `2336caa44` | #1177 | AppraisalDivergenceTest — 6 tick-level divergence tests |
+| `e8e0dc259` | #1178 | ConsolidationDivergenceTest — 5 consolidation divergence tests |
+| `830aaa81a` | #1179 | PromptSectionDivergenceTest — 8 prompt rendering divergence tests |
+| `bcc38433d` | #1180 | TheoryOfMindDivergenceTest — 4 ToM divergence tests |
+| `39456ddbf` | #1181 | EmotionRegulationDivergenceTest — 4 regulation divergence tests |
+| `3d15529a8` | #1182 | Delete PersonalityDifferentiationTest — migrated to divergence suite |
+| `e60584de0` | — | Refactor: extract seededCognitiveStore + assertAttractorsDiverge helpers |
+| `d751b5437` | — | Update era8 research doc — divergence suite complete |
 
-### Issues Blocked
+### Issues Closed (not planned)
 
-| Issue | Blocker |
-|-------|---------|
-| #1162 | `maven.compiler.release=21`, ScopedValue needs JDK 25+ (#1173) |
+| Issue | Reason |
+|-------|--------|
+| #1173 | maven.compiler.release must stay at 21 for Maven 4.0 alignment |
 
 ### Issues Filed
 
 | # | Title | Scale | Complexity |
 |---|-------|-------|-----------|
-| #1171 | CAPS settling trajectory assertions | XS | Low |
-| #1172 | CognitionTestHarness trajectory accessor | XS | Low |
-| #1173 | Raise maven.compiler.release to 25+ | M | Med |
-| #1174 | InnerLifeOrchestratorTest NPE | XS | Low |
-| #1175 | Epic: cognitive pipeline divergence test suite | L | Med |
-| #1176 | DivergenceFixtures + DerivationDivergenceTest | S | Low |
-| #1177 | AppraisalDivergenceTest | S | Low |
-| #1178 | ConsolidationDivergenceTest | S | Med |
-| #1179 | PromptSectionDivergenceTest | S | Low |
-| #1180 | TheoryOfMindDivergenceTest | M | Med |
-| #1181 | EmotionRegulationDivergenceTest | M | Med |
-| #1182 | Delete PersonalityDifferentiationTest | XS | Low |
-
-### Research
-
-- **Era 7** updated — #1160, #1163 landed; #1162 blocked
-- **Era 8** created — cognitive pipeline validation research (48-capability audit, divergence test suite design, two-layer validation strategy)
+| #1187 | Standalone TheoryOfMindBridge divergence tests | S | Low |
+| #1188 | Extend harness with lightweight appraisal for tick-level divergence | M | Med |
 
 ### Blog
 
-- `2026-11-19-mdp01-the-attractor-that-proved-personality.md` — CAPS behavioral attractor divergence testing
+- `2026-11-20-mdp01-thirty-six-proofs-that-personality-is-structural.md` — divergence test suite: 36 tests, 6 dimensions, personality as structure
 
-### Publishing
+### Research
 
-- neocortex: era7 update + era8 + #1160 + #1163 published to origin
-- workspace: spec + blog + queue published to origin
+- era8 updated — all divergence test issues marked as landed, #1173 closed, follow-up issues (#1187, #1188) added
+
+## Blocking: work end landing
+
+`work end` fails during `canonical_sync.land_all` with a traceback in `_prepare()` (line 840). All branches are squash-reviewed. Next session should retry `work end` — if it still fails, debug `canonical_sync.py`.
 
 ## Queue — next items
 
 | # | Title | Scale | Complexity | Depends on |
 |---|-------|-------|-----------|-----------|
-| #1172 | CognitionTestHarness trajectory accessor | XS | Low | — |
-| #1174 | InnerLifeOrchestratorTest NPE | XS | Low | — |
-| #1176 | DivergenceFixtures + DerivationDivergenceTest | S | Low | — |
-| #1177 | AppraisalDivergenceTest | S | Low | #1176 |
-| #1178 | ConsolidationDivergenceTest | S | Med | #1176 |
-| #1179 | PromptSectionDivergenceTest | S | Low | #1176 |
-| #1180 | TheoryOfMindDivergenceTest | M | Med | #1176 |
-| #1181 | EmotionRegulationDivergenceTest | M | Med | #1176 |
-| #1182 | Delete PersonalityDifferentiationTest | XS | Low | #1176-#1179 |
-| #1173 | Raise maven.compiler.release to 25+ | M | Med | — |
 | #1171 | CAPS settling trajectory assertions | XS | Low | — |
+| #1187 | Standalone TheoryOfMindBridge divergence tests | S | Low | — |
+| #1188 | Extend harness with lightweight appraisal | M | Med | — |
 
 ### Deferred
 
@@ -74,18 +68,9 @@
 |---|-------|-------|-----------|
 | #1089 | Unbounded cache growth situational personality | XS | Low |
 
-## Key Design Decision: Divergence Test Architecture
+## Key Design Decision: Divergence Test Methodology
 
-48 cognitive capabilities audited. 6 had divergence tests (12.5% coverage). Era 8 designs a systematic test suite:
-- 7 test classes in `eval.divergence` package
-- Shared `DivergenceFixtures` with OPEN/CAUTIOUS personality pairs
-- Real pipeline (InMemoryCapsEngine, real CDE, real consolidation)
-- All tests deterministic (no LLM)
-- Spec: `wsp-casehub/specs/cognitive-divergence-test-suite/2026-11-19-divergence-test-suite-design.md`
-
-## Key Finding: Tenant ID Trap
-
-CAPS initialization in harness Builder used `"test-tenant"` while `consolidate()` runs with caller's tenant. Both agents silently auto-initialized with identical default axes. Fix: lazy initialization in `consolidate()` using caller's actual tenant ID.
+OPEN/CAUTIOUS personality pair from PID-5 dimensional model — maximises differentiation across all 48 cognitive capabilities. DivergenceFixtures centralises personality definitions, derivation calls, and harness builders. Tests fall into two tiers: derivation-level (pure function, no tick) and tick/consolidation-level (real pipeline with InMemoryMindMapStore, InMemoryCapsEngine). All deterministic, no LLM, no mocks.
 
 ## Neocortex Build Note
 
@@ -96,4 +81,4 @@ JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/pom.xml install -Dmav
 
 ## Known Pre-existing Test Failures
 
-- `InnerLifeOrchestratorTest.tickWithAdditionalSectionsAppendsToSystemPrompt` — NPE, filed as #1174
+- Pre-existing main-source compilation errors in cognition module (SituationalSnapshotAccessor, DevelopmentalPhaseResolver) — from other branches' work, not related to this session
