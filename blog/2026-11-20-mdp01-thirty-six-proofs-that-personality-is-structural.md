@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Forty-Two Proofs That Personality Is Structural"
+title: "Forty-Three Proofs That Personality Is Structural"
 date: 2026-11-20
 entry_type: note
 subtype: diary
@@ -9,19 +9,19 @@ tags: [divergence-testing, personality, cognitive-pipeline, caps, derivation, ap
 series: cognitive-pipeline
 ---
 
-# Forty-Two Proofs That Personality Is Structural
+# Forty-Three Proofs That Personality Is Structural
 
 *Continues from [The Attractor That Proved Personality](2026-11-19-mdp01-the-attractor-that-proved-personality.md).*
 
 The last session proved that CAPS behavioral attractors diverge between personalities. One test, one layer. The cognitive pipeline has 48 capabilities that derive from personality — mood baselines, coping defaults, appraisal weights, regulation strategies, search budgets, curiosity channels, expression styles, recurring thought thresholds, graph structure biases, goal prioritization parameters. If any of those capabilities produce identical output for two different personalities given the same situation, that capability isn't doing its job.
 
-I audited all 48. Six had tests. Forty-two had none.
+I audited all 48. Six had tests. Forty-two had none. Then one more gap surfaced.
 
 ## The audit
 
 The cognitive pipeline processes personality through six distinct stages. Each stage takes the personality definition — disposition axes, facets, weighted terms, goals — and produces measurably different behaviour.
 
-![Cognitive pipeline divergence test coverage — 7 dimensions, 42 tests](images/divergence-test-dimensions.svg)
+![Cognitive pipeline divergence test coverage — 7 dimensions, 43 tests](images/divergence-test-dimensions.svg)
 
 **Derivation** is the base layer. `CognitiveDerivationEngine.derive()` transforms a `DescriptorView` into a `CognitiveDefaults` record — hundreds of parameters controlling every downstream component. Mood baseline PAD values, coping tendencies, regulation capacities, CBR retrieval modes, social cognition defaults, habituation thresholds, cognitive capacity limits, expression styles, recurring thought sensitivity. All derived deterministically from the personality definition. No tick, no pipeline, no state — pure function.
 
@@ -34,6 +34,14 @@ The cognitive pipeline processes personality through six distinct stages. Each s
 **Theory of mind** determines how agents model each other. Trust formation rate — how quickly an agent moves from cautious to trusting — is derived from the disposition axes. Suspiciousness facet scores scale how much weight threat evidence receives. Relationship biases determine how prominently relational context features in the agent's extraction of meaning from observations.
 
 **Emotion regulation** is the most consequential divergence. Reappraisal capacity versus suppression capacity — an open agent reframes stressors, a cautious agent buries them. Confrontation tendency versus avoidance tendency — the coping strategy selection when under pressure. The anxiousness and emotional lability facet gaps (open: 0.2, cautious: 0.85) guarantee that situational displacement accumulates faster for the cautious agent. Same stress, different regulatory response, different long-term personality trajectory.
+
+## Consolidation results visible in the pipeline trace
+
+The 42nd test proved attractors diverge during consolidation. But consolidation produced another signal the trace wasn't reporting: `capsInputActivations` — the raw input activations that the CAPS network settles from. `BehavioralSynthesisPhase` computed them during the sleep cycle, but `CognitionCore` didn't know the phase existed. The trace field was always empty.
+
+The fix was two wiring changes in the test harness. First, hoist the `InMemoryCapsEngine` and `RuleBasedSituationClassifier` creation before `CognitivePipelineBuilder.build()` and wire the classifier through `pipelineBuilder.situationClassifier()` — matching production, where the classifier reaches both the consolidation phase and the `AppraisalTickParticipant`. Second, call `core.configureBehavioralSynthesis(bsp)` after constructing the phase — connecting the sleep cycle to the waking cycle so the trace can read back what consolidation produced.
+
+The 43rd test asserts that CAPS input activations differ between OPEN and CAUTIOUS after consolidate + tick. The OPEN agent's adventure and curiosity drives map to approach-oriented input nodes. The CAUTIOUS agent's suspicion and self-preservation drives map to vigilance-oriented input nodes. Different drives, different CAPS input activations, different settling trajectories. The trace now reports all of it.
 
 ## Bayesian posteriors diverge — not just the config
 
@@ -83,7 +91,7 @@ This matters for maintenance. When a new personality facet is added to the PID-5
 
 ## What this proves
 
-Forty-two tests, seven dimensions, every test deterministic, every test under 500ms, no LLM calls, no mocks. The suite proves that personality flows through every stage of the cognitive pipeline and produces measurably different output at each stage — from pure derivation through tick-level appraisal through Bayesian posterior inference.
+Forty-three tests, seven dimensions, every test deterministic, every test under 500ms, no LLM calls, no mocks. The suite proves that personality flows through every stage of the cognitive pipeline and produces measurably different output at each stage — from pure derivation through tick-level appraisal through Bayesian posterior inference through consolidation input activations.
 
 The Bayesian ToM tests add something the derivation tests couldn't: they prove that personality modulation propagates through a probabilistic inference engine and shifts the posterior distribution. The callousness interaction is the clearest example — a single facet score changes which observed behaviours are diagnostic of distress. That's not a parameter check. That's a computational proof that personality shapes how agents model each other's mental states.
 
@@ -91,4 +99,4 @@ The tick-level appraisal tests add something the derivation tests couldn't: they
 
 The implication for cognitive agent architecture: personality is not a prompt prefix. It is not a system message that says "you are cautious." It is structural — it determines the weights in the network, the thresholds in the regulators, the biases in the extractors, the priors in the Bayesian inference, the strategies in the coping system, the basins in the attractor landscape. Two agents with different personalities given the same observation will appraise it differently, regulate it differently, model each other differently, consolidate it differently, and act on it differently. Not because they were told to, but because their cognitive architecture routes information differently.
 
-That's what the 48-capability audit and the 42-test suite exist to prove. And to catch the moment any refactoring, any new capability, any pipeline change breaks that guarantee.
+That's what the 48-capability audit and the 43-test suite exist to prove. And to catch the moment any refactoring, any new capability, any pipeline change breaks that guarantee.

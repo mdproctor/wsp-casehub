@@ -11,7 +11,7 @@
 
   <!-- Header -->
   <text x="400" y="30" text-anchor="middle" class="header">Cognitive Pipeline Divergence Coverage</text>
-  <text x="400" y="48" text-anchor="middle" class="subheader">48 capabilities audited · 36 tests · 6 dimensions · 0 mocks</text>
+  <text x="400" y="48" text-anchor="middle" class="subheader">48 capabilities audited · 43 tests · 7 dimensions · 0 mocks</text>
 
   <!-- Derivation -->
   <rect x="20" y="70" width="240" height="150" rx="8" fill="#EBF5FB" stroke="#2980B9" stroke-width="1.5"/>
@@ -27,23 +27,24 @@
   <!-- Appraisal -->
   <rect x="280" y="70" width="240" height="150" rx="8" fill="#FEF9E7" stroke="#F39C12" stroke-width="1.5"/>
   <text x="400" y="92" text-anchor="middle" class="dim-label">Appraisal / Tick</text>
-  <text x="400" y="108" text-anchor="middle" class="test-count">6 tests · AppraisalDivergenceTest</text>
-  <text x="290" y="126" class="test-name">appraisal weights</text>
-  <text x="290" y="140" class="test-name">emotion mapping (SEC weights)</text>
-  <text x="290" y="154" class="test-name">drive composition (curiosity)</text>
-  <text x="290" y="168" class="test-name">behavioral attractors (CAPS)</text>
-  <text x="290" y="182" class="test-name">search budgets (4 dimensions)</text>
-  <text x="290" y="196" class="test-name">curiosity channel (I-type/D-type)</text>
+  <text x="400" y="108" text-anchor="middle" class="test-count">8 tests · AppraisalDivergenceTest</text>
+  <text x="290" y="126" class="test-name">appraisal weights · emotion mapping</text>
+  <text x="290" y="140" class="test-name">drive composition (curiosity)</text>
+  <text x="290" y="154" class="test-name">behavioral attractors (CAPS)</text>
+  <text x="290" y="168" class="test-name">search budgets (4 dimensions)</text>
+  <text x="290" y="182" class="test-name">curiosity channel (I-type/D-type)</text>
+  <text x="290" y="196" class="test-name">tick-level SEC + action tendencies</text>
 
   <!-- Consolidation -->
   <rect x="540" y="70" width="240" height="150" rx="8" fill="#F5EEF8" stroke="#8E44AD" stroke-width="1.5"/>
   <text x="660" y="92" text-anchor="middle" class="dim-label">Consolidation</text>
-  <text x="660" y="108" text-anchor="middle" class="test-count">5 tests · ConsolidationDivergenceTest</text>
+  <text x="660" y="108" text-anchor="middle" class="test-count">6 tests · ConsolidationDivergenceTest</text>
   <text x="550" y="126" class="test-name">behavioral attractors (CAPS settle)</text>
   <text x="550" y="140" class="test-name">drive classification (CBR mode)</text>
   <text x="550" y="154" class="test-name">experience graduation thresholds</text>
   <text x="550" y="168" class="test-name">belief revision (inference style)</text>
   <text x="550" y="182" class="test-name">goal prioritization (extraction bias)</text>
+  <text x="550" y="196" class="test-name">CAPS input activations (trace)</text>
 
   <!-- Prompt Rendering -->
   <rect x="20" y="240" width="240" height="160" rx="8" fill="#EAFAF1" stroke="#27AE60" stroke-width="1.5"/>
@@ -57,11 +58,12 @@
   <!-- Theory of Mind -->
   <rect x="280" y="240" width="240" height="160" rx="8" fill="#FDEDEC" stroke="#E74C3C" stroke-width="1.5"/>
   <text x="400" y="262" text-anchor="middle" class="dim-label">Theory of Mind</text>
-  <text x="400" y="278" text-anchor="middle" class="test-count">4 tests · TheoryOfMindDivergenceTest</text>
-  <text x="290" y="296" class="test-name">trust formation rate</text>
-  <text x="290" y="310" class="test-name">suspiciousness evidence scaling</text>
-  <text x="290" y="324" class="test-name">relational biasing (extraction)</text>
-  <text x="290" y="338" class="test-name">channel weight drivers</text>
+  <text x="400" y="278" text-anchor="middle" class="test-count">8 tests · ToM + Bridge Divergence</text>
+  <text x="290" y="296" class="test-name">trust formation · suspiciousness</text>
+  <text x="290" y="310" class="test-name">relational biasing · channel weights</text>
+  <text x="290" y="324" class="test-name">Bayesian posterior (ambiguous threat)</text>
+  <text x="290" y="338" class="test-name">cooperative approach · distress inference</text>
+  <text x="290" y="352" class="test-name">dominance-approach attribution</text>
 
   <!-- Emotion Regulation -->
   <rect x="540" y="240" width="240" height="160" rx="8" fill="#FDF2E9" stroke="#E67E22" stroke-width="1.5"/>
