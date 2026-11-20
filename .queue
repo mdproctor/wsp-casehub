@@ -3,7 +3,7 @@
 ## State
 branch: issue-964-yaml-roundtrip-ampd-facets
 issue-repo: casehubio/neocortex
-status: scaffolded
+status: active
 covers: 
 project-sha: 
 date: 
