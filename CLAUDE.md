@@ -9,13 +9,13 @@
 | claudony | `/Users/mdproctor/claude/casehub/claudony` | `casehub/claudony/` |
 | connectors | `/Users/mdproctor/claude/casehub/connectors` | `casehub/connectors/` |
 | devtown | `/Users/mdproctor/claude/casehub/devtown` | `casehub/devtown/` |
-| engine | `/Users/mdproctor/claude/casehub/engine` | `casehub/engine/` |
+| engine | `/Users/mdproctor/claude/casehub/slots/226/engine` | `casehub/engine/` |
 | examples | `/Users/mdproctor/claude/casehub/examples` | standalone: `~/claude/public/casehub-examples/` |
 | flow | `/Users/mdproctor/claude/casehub/flow` | `casehub/flow/` (deferred — needs /init) |
 | ledger | `/Users/mdproctor/claude/casehub/ledger` | `casehub/ledger/` |
-| parent | `/Users/mdproctor/claude/casehub/parent` | `casehub/parent/` |
+| parent | `/Users/mdproctor/claude/casehub/slots/226/parent` | `casehub/parent/` |
 | qhorus | `/Users/mdproctor/claude/casehub/qhorus` | `casehub/qhorus/` |
-| work | `/Users/mdproctor/claude/casehub/work` | `casehub/work/` |
+| work | `/Users/mdproctor/claude/casehub/slots/226/work` | `casehub/work/` |
 
 ## Session Start
 
@@ -23,7 +23,7 @@ Open Claude here for cross-repo work. Load the repos relevant to your session:
 
 ```
 add-dir /Users/mdproctor/claude/casehub/ledger
-add-dir /Users/mdproctor/claude/casehub/work
+add-dir /Users/mdproctor/claude/casehub/slots/226/work
 ```
 
 ## Shared Artifacts
