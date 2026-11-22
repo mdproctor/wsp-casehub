@@ -1,20 +1,3 @@
-# Work Plan —
-
-## State
-branch: 
-issue-repo: casehubio/neocortex
-status: active
-covers: 
-project-sha: 
-date: 
-design-repo: 
-design-section-hashes: 
-flyway-next-v: 
-done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
-active_issue: casehubio/neocortex#1137
-active: casehubio/neocortex#1160
-
-## Queue
 - [x] casehubio/neocortex#1160 — CognitionTestHarness-CAPS-behavioral-attractors
 - [x] casehubio/neocortex#1162 — MutationContext-ScopedValue-migration
 - [x] casehubio/neocortex#1163 — EffectiveCognitiveDefaultsTest-situational-origin
@@ -113,13 +96,26 @@ active: casehubio/neocortex#1160
 - [x] casehubio/neocortex#1187 — standalone-ToM-bridge-tests
 - [x] casehubio/neocortex#1188 — harness-appraisal-extension
 - [x] casehubio/neocortex#1195 — wire-SituationClassifier-capsInputActivations
-- [ ] casehubio/neocortex#964 — YAML-round-trip-ampdFacets ← done on issue-964-yaml-roundtrip-ampd-facets
-- [ ] casehubio/neocortex#1080 — AgentRegistryEvents-EffectiveCognitiveDefaults ← done on issue-964-yaml-roundtrip-ampd-facets
-- [ ] casehubio/neocortex#1189 — Python-cross-passage-direct-API ← done on issue-964-yaml-roundtrip-ampd-facets
-- [ ] casehubio/neocortex#1190 — EdgeInferencePhase-parseRelationships-tests ← done on issue-964-yaml-roundtrip-ampd-facets
-- [ ] casehubio/neocortex#1193 — SituationalSnapshotAccessorProducer-integration ← done on issue-964-yaml-roundtrip-ampd-facets
-- [ ] casehubio/neocortex#1194 — trustAccessor-numeric-effect ← done on issue-964-yaml-roundtrip-ampd-facets
-- [ ] casehubio/neocortex#1196 — standardise-orchestrator-key-format ← done on issue-964-yaml-roundtrip-ampd-facets
+- [x] casehubio/neocortex#964 — YAML-round-trip-ampdFacets
+- [x] casehubio/neocortex#1080 — AgentRegistryEvents-EffectiveCognitiveDefaults
+- [x] casehubio/neocortex#1189 — Python-cross-passage-direct-API
+- [x] casehubio/neocortex#1190 — EdgeInferencePhase-parseRelationships-tests
+- [x] casehubio/neocortex#1193 — SituationalSnapshotAccessorProducer-integration
+- [x] casehubio/neocortex#1194 — trustAccessor-numeric-effect
+- [x] casehubio/neocortex#1196 — standardise-orchestrator-key-format
+
+## State
+branch: 
+issue-repo: casehubio/neocortex
+status: drained
+project-sha: 
+date: 
+design-repo: 
+design-section-hashes: 
+flyway-next-v: 
+done_external: casehubio/neocortex#980,casehubio/neocortex#1094,casehubio/neocortex#1096,casehubio/neocortex#1095,casehubio/neocortex#1085,casehubio/neocortex#1086,casehubio/neocortex#1087,casehubio/neocortex#1099,casehubio/neocortex#1098,casehubio/neocortex#1113,casehubio/neocortex#1112,casehubio/neocortex#1125,casehubio/neocortex#1127,casehubio/neocortex#1131,casehubio/neocortex#1133,casehubio/neocortex#1134
+active_issue: casehubio/neocortex#1137
+active: casehubio/neocortex#1160
 
 ## Deferred
 - [ ] casehubio/neocortex#1089 (XS / Low) []
