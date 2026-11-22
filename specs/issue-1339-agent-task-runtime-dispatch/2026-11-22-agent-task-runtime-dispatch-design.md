@@ -30,17 +30,17 @@ New record in `api` module, package `io.casehub.api.model.ai`:
 ```java
 public record AgentTaskConfig(
     String agentId,
-    String tenancyId,
-    String inputProjection,
-    String outputProjection) {
+    ExpressionEvaluator inputMapping,
+    ExpressionEvaluator outputMapping) {
   public AgentTaskConfig {
     Objects.requireNonNull(agentId, "agentId is required");
-    Objects.requireNonNull(tenancyId, "tenancyId is required");
   }
 }
 ```
 
-Analogous to `AgentSlotConfig` but identity-based: carries the `agentId` of the selected agent rather than a slot reference. The `inputProjection` and `outputProjection` are JQ strings from the `AgentTaskTarget`'s mappings.
+Analogous to `AgentSlotConfig` but identity-based: carries the `agentId` of the selected agent rather than a slot reference. The `inputMapping` and `outputMapping` are `ExpressionEvaluator` instances carried directly from `AgentTaskTarget` — no string extraction or type assumption. This preserves the full evaluator type (JQ, MVEL, Lambda, etc.) without lossy round-tripping.
+
+No `tenancyId` field — the execution handler uses `ExecutionMetadata.tenancyId()` (consistent with the existing `executeDeferred()` path).
 
 ### 2. AgentWorkerFunction — Third Construction Path
 
@@ -53,6 +53,16 @@ public record AgentWorkerFunction(
     AgentTaskConfig agentTaskConfig)
     implements WorkerFunction<Map<String, Object>, Map<String, Object>> {
 
+  public AgentWorkerFunction {
+    int count = (invoker != null ? 1 : 0)
+        + (slotConfig != null ? 1 : 0)
+        + (agentTaskConfig != null ? 1 : 0);
+    if (count != 1) {
+      throw new IllegalArgumentException(
+          "Exactly one of invoker, slotConfig, agentTaskConfig must be non-null");
+    }
+  }
+
   // existing: eager(invoker), ofSlot(slotConfig)
 
   public static AgentWorkerFunction ofAgent(AgentTaskConfig config) {
@@ -64,6 +74,8 @@ public record AgentWorkerFunction(
   }
 }
 ```
+
+The compact constructor enforces mutual exclusivity — exactly one construction mode is active. The existing `AgentWorkerFunction(WorkerAgentInvoker invoker)` convenience constructor delegates through the canonical constructor with `(invoker, null, null)`.
 
 ### 3. Dispatch Handler — publishAgentTaskSchedule()
 
@@ -79,11 +91,17 @@ The method:
 1. Queries `AgentRegistry.find(AgentQuery.byCapabilityAndDomain(at.capability(), at.domain(), caseInstance.tenancyId))`
 2. If empty → log warning, return (no matching agent)
 3. Takes first match (best quality) → extracts `descriptor.agentId()`
-4. Builds `AgentTaskConfig` with agentId, tenancyId, and input/output projections from the target's `ExpressionEvaluator` mappings
-5. Constructs synthetic `Worker` with `AgentWorkerFunction.ofAgent(config)` and a synthetic `Capability`
-6. Dispatches via `WorkerScheduleEvent`
+4. Builds `AgentTaskConfig` with agentId and the target's `inputMapping()`/`outputMapping()` `ExpressionEvaluator` instances (carried directly, no string extraction)
+5. Constructs synthetic `Worker` and `Capability`:
+   - **Worker name:** `"agent-task:" + binding.getName()` — binding-scoped, ensuring distinct locking/idempotency per binding (WorkerScheduleEventHandler uses worker name for lock keys and event log entries)
+   - **Worker function:** `AgentWorkerFunction.ofAgent(config)`
+   - **Worker executionPolicy:** default `new ExecutionPolicy()`
+   - **Capability name:** `at.capability()`
+   - **Capability inputProjection/outputProjection:** `null` — input/output transformation is handled exclusively by `AgentTaskConfig`'s evaluators at execution time, NOT at schedule time via `WorkerScheduleEvent.effectiveInputProjection()`. This avoids double-projection.
+6. Calls `quiescenceTracker.onWorkerDispatched(caseInstance.getUuid())` — required so the case doesn't close prematurely while the agent invocation is in flight
+7. Dispatches via `WorkerScheduleEvent` with `inputProjectionOverride = null` (projections handled at execution time)
 
-`CaseContextChangedEventHandler` needs `AgentRegistry` as a new constructor dependency. It is already a CDI bean in `runtime-core` (with `NoOpAgentRegistry` as a fallback).
+`CaseContextChangedEventHandler` needs `AgentRegistry` as a new constructor dependency. The `AgentRegistry` CDI bean is produced in the `runtime` module (`RuntimeBeans`/`NoOpAgentRegistry`); `runtime-core` already has `eidos-api` on its compile classpath (it references `CapabilityHealth`).
 
 ### 4. Execution Handler — executeAgentTask()
 
@@ -97,10 +115,10 @@ if (agent.isAgentTask()) {
 
 The `executeAgentTask` method:
 
-1. `agentRegistry.findById(config.agentId(), config.tenancyId())` → `Optional<AgentDescriptor>`
+1. `agentRegistry.findById(config.agentId(), metadata.tenancyId())` → `Optional<AgentDescriptor>` (tenancyId from `ExecutionMetadata`, consistent with the `executeDeferred()` path)
 2. If empty → `HandlerResult(WorkerResult.failed("Agent not found: " + agentId))`
 3. `systemPromptRenderer.render(descriptor, AgentPromptContext.forFormat(MARKDOWN))` → system prompt
-4. Build input/output transformers from `config.inputProjection()` / `config.outputProjection()` (same as `executeDeferred()`)
+4. Build input/output transformers from `config.inputMapping()` / `config.outputMapping()` — apply the `ExpressionEvaluator` instances directly via `evaluator.apply(input)`, not via string-based `JqTransformer` reconstruction
 5. Construct `WorkerAgentInvoker` with rendered prompt, transformers
 6. Delegate to existing `executeWithInvoker(invoker, worker, inputData)`
 
@@ -114,6 +132,7 @@ The `executeAgentTask` method:
 | `SchedulerService.createJobData()` | `runtime-core` | Add `AgentTaskTarget` case — throw `IllegalStateException` |
 | `QuartzWorkerExecutionManager.createTriggerJobData()` | `scheduler-quartz` | Add `AgentTaskTarget` case — throw `IllegalStateException` |
 | `CbrCaseRetainObserver.buildRoutingKeyMap()` | `runtime` | Add `AgentTaskTarget` case — map binding name to capability name |
+| `PlanningCasePlanModelSnapshotProvider.mapTargetType()` | `planning-core` | Add `AgentTaskTarget` case — map to `TargetType.CAPABILITY` (agent-task bindings are capability-resolved) |
 | `BindingExecutorResolver.resolve()` | `common-core` | Already has the case arm — no change needed |
 
 ### 6. Constructor Wiring
