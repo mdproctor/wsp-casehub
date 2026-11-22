@@ -103,11 +103,13 @@
 - [x] casehubio/neocortex#1193 — SituationalSnapshotAccessorProducer-integration
 - [x] casehubio/neocortex#1194 — trustAccessor-numeric-effect
 - [x] casehubio/neocortex#1196 — standardise-orchestrator-key-format
+- [ ] casehubio/neocortex#593 — issue 593        ← active
 
 ## State
-branch: 
+branch: main
 issue-repo: casehubio/neocortex
-status: drained
+status: active
+covers: casehubio/neocortex#593
 project-sha: 
 date: 
 design-repo: 
