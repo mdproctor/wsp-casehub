@@ -2,43 +2,35 @@
 
 ## Current State
 
-**Session 2026-11-20c:** Completed #1195 (wire SituationClassifier for capsInputActivations). Queue drained. Blog revised 42→43 proofs. Research doc updated. Issue closed.
+**Session 2026-11-22a:** Completed 7 issues (#964, #1080, #1189, #1190, #1193, #1194, #1196). Queue drained. Blog written. All repos published.
 
 **Queue position:** Drained. #1089 deferred (unbounded cache growth, XS/Low).
 
-## What Was Done — Session 20c
+## What Was Done — Session 22a
 
 ### Issues Landed
 
-| Issue | Summary |
-|-------|---------|
-| #1195 | Wire SituationClassifier into harness for capsInputActivations divergence — 1 test |
-
-### Key Changes
-
-1. **CognitionTestHarness**: hoisted capsEngine/classifier creation before `pipelineBuilder.build()`, wired `situationClassifier()` through the pipeline builder, added `core.configureBehavioralSynthesis(bsp)` so PipelineTrace exposes capsInputActivations from consolidation
-2. **ConsolidationDivergenceTest**: added `capsInputActivationsDiverge` — OPEN vs CAUTIOUS produce different CAPS input activations after consolidate + tick (test 43 in divergence suite)
-
-### Blog
-
-- Revised `2026-11-20-mdp01-thirty-six-proofs-that-personality-is-structural.md` → retitled to "Forty-Three Proofs", added capsInputActivations section, updated SVG diagram (all counts updated)
-
-### Research
-
-- Updated `era8-cognitive-pipeline-validation-research.md` — 43 tests, #1195 in landed table
-
-## What Was Done — Session 20b
-
-### Issues Landed
-
-| Issue | Summary |
-|-------|---------|
-| #1187 | TheoryOfMindBridgeDivergenceTest — 4 standalone Bayesian posterior tests |
-| #1188 | TestAppraisalStrategy + withAppraisalEnabled + 2 tick-level appraisal divergence tests |
+| Issue | Repo | Summary |
+|-------|------|---------|
+| #964 | eidos | YAML round-trip fix + 3 tests for ampdFacets deserialization in DispositionDeserializer |
+| #1080 | neocortex | CDI observer for AgentDescriptorUpdated → EffectiveCognitiveDefaults cache invalidation |
+| #1189 | neocortex | Unified 3 LLM call paths in extract_structure.py via user_prompt parameter |
+| #1190 | neocortex | 5 edge-case tests for EdgeInferencePhase.parseRelationships regex fragility |
+| #1193 | neocortex | 3 unit tests for SituationalSnapshotAccessorProducer mapping logic |
+| #1194 | neocortex | trustAccessor numeric effect test — βR amplification verification |
+| #1196 | neocortex | Standardised 8 orchestrator ConcurrentHashMap key formats to agentId:tenantId |
 
 ### Key Finding
 
-Callousness/anxiousness interaction in ToM Bayesian CPTs: for avoidant behaviour, callousness (Blair 2005) weakens the distress→avoidant coupling, which counters the anxiousness-driven threat prior shift. Tests must use neutral (ATTENDING) behaviour to isolate the anxiousness pathway.
+Code review surfaced a missing null guard on ampdFacets YAML parsing — `facetNode.get("facet")` would NPE if the YAML object was missing either field. Fixed to match the adjacent situationalProfiles parsing pattern.
+
+### Blog
+
+- `2026-11-22-mdp01-the-gaps-nobody-sees.md` — infrastructure gaps in cognitive architectures: silent deserialization failures, stale caches, inconsistent key formats
+
+### Research
+
+- Updated `era8-cognitive-pipeline-validation-research.md` — added 7 issues to landed table
 
 ## Queue — next items
 
@@ -50,14 +42,16 @@ Drained.
 |---|-------|-------|-----------|
 | #1089 | Unbounded cache growth situational personality | XS | Low |
 
+## Not Landed (pre-existing conflicts from other branches)
+
+- `wsp-casehub-neocortex:issue-1098-bdi-semantic-classifier` — conflicts in blog files
+- `wsp-casehub-agency:issue-1098-bdi-semantic-classifier` — conflicts in .queue
+
+These are workspace repos from a different branch, not from this session's work.
+
 ## Neocortex Build Note
 
 ```bash
 git -C neocortex fetch canonical main && git -C neocortex rebase canonical/main
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn -f neocortex/pom.xml install -Dmaven.test.skip=true -s neocortex/.mvn/slot-settings.xml -T1C
 ```
-
-## Known Pre-existing Issues
-
-- Compilation errors in cognition main source: SituationalSnapshotAccessor, DevelopmentalPhaseResolver (from other branches)
-- AdaptiveRetentionConfigTest, AppraisalTickParticipantTest: API signature changes from #1143/#1069
